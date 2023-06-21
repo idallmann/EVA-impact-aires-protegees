@@ -1,2 +1,0 @@
-liste-197-etats-2020.csv
-Correspondance nom de pays et ISO3. Pris sur https://www.data.gouv.fr/fr/datasets/etats-et-capitales-du-monde/ (MAE)  
