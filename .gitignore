@@ -25,6 +25,10 @@ EVA-impact-aires-protegees.Rproj
 *.jpg
 *.jpeg
 
-#Ignore specific folders
+#Ignore specific folders and their subfolders
 data_raw/*
 data_tidy/*
+DesStat/*
+documentation/*
+literature/*
+reports/*
