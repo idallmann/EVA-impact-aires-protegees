@@ -26,4 +26,5 @@ EVA-impact-aires-protegees.Rproj
 *.jpeg
 
 #Ignore specific folders
-!scripts/*
+data_raw/*
+data_tidy/*
