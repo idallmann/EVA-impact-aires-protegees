@@ -1,0 +1,502 @@
+---
+title: "DesStat_biodiversity_wdpa"
+author: "Antoine Vuillot"
+date: "2023-06-14"
+output: html_document
+---
+
+# Descriptive statistics on biodiversity in the protected areas
+
+In this document are computed and plotted descriptive statistics for the protected areas (PAs) using the mapme biodiversity package. This package provides an easy access to biodiversity-related data and allow to compute different indicators.
+
+## Importing packages and functions
+
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+```
+
+```{r message=FALSE, warning=FALSE}
+source("02_scripts/functions_DesStat_biodiv.R", encoding = "utf-8")
+```
+
+```{r message=FALSE, warning=FALSE}
+library(mapme.biodiversity)
+library(sf)
+library(tidyverse)
+library(mapview)
+library(magrittr)
+library(stargazer)
+library(dplyr)
+library(openxlsx)
+library(writexl)
+library(ggplot2)
+library(questionr)
+library(readxl)
+library(data.table)
+library(sp)
+library(raster)
+library(terra)
+library(janitor)
+library(ARTofR)
+
+
+```
+
+```{r}
+#A first look at mapme biodiversity indicators
+
+resources <- names(available_resources())
+indicators <- names(available_indicators())
+cat(paste("Supported resources:\n-",
+            paste(resources, collapse = "\n- "),
+          "\n\nSupported indicators:\n-",
+            paste(indicators, collapse = "\n- ")))
+```
+
+## Importing PAs datasets
+
+```{r message=FALSE, warning=FALSE}
+
+#Load spatial data and transform into polygons (requirement of the mapme package)
+
+#If the function get_resources used later returns an error "...Loop 0 is not valid: Edge 94 crosses edge 96>...", then the following function might solve it. It works if sf was updated v1.0 and more, and brings back to old way of working. sf uses mostly a flat Earth model instead of s2 spherical geometry in the new versions. 
+sf_use_s2(FALSE)
+
+
+#/!\ : in pa_shp, variable sprfc is the area reported by AFD members, and is not equal to rep_a (area reported by WDPA) nor superficie in the BDD_joint. The latter is a combination of rep_a and sprfc, where superficie = rep_a except if rep_a = 0 or not reported.
+pa_shp = read_sf("00_data_raw/WDPA_SHP/BDD_SHP_nodupl.shp") %>%
+  st_make_valid() %>%
+  sf::st_cast(to="POLYGON") %>%
+  clean_names()
+
+#From BDD_joint, that is the combination of the SIOP dataset and the AP dataset from ARB team in AFD. Imported to have the information on the PA area (combination of areas reported by WDPA and ARB)
+pa_joint = fread("01_data_tidy/BDD_DesStat_nodupl.csv") %>%
+  dplyr::select(c(wdpaid, superficie))
+
+pa_pfolio = pa_shp %>%
+  init_portfolio(2000:2020,
+                 outdir = "00_data_raw/mapme_bio_data",
+                 tmpdir = "06_temp",
+                 cores = 4,
+                 add_resources = TRUE,
+                 verbose = TRUE)
+
+
+
+```
+
+## Downloading data of interests and compute relevant indicators
+
+```{r message=FALSE, warning=FALSE}
+
+##~~~~~~~~~~~~~~~~
+##  ~ Forests ----
+##~~~~~~~~~~~~~~~~
+
+##Downloading data and computing indicators 
+# pa_pfolio_forest = 
+#   get_resources(pa_pfolio,
+#     resources = c("gfw_lossyear","gfw_treecover","gfw_emissions"), 
+#     vers_treecover = "GFC-2020-v1.8",
+#     vers_lossyear = "GFC-2020-v1.8") %>%
+#   # FAO forest definition here: Minimum treecover = 10%, minimum size =1      #hectare
+#   calc_indicators(indicators = "treecover_area",
+#                 min_cover = 10,
+#                 min_size = 1, overwrite=T) 
+
+# write_portfolio(pa_pfolio_forest,
+#       dsn = "01_data_tidy/mapme_bio_data/pa_pfolio_forest.gpkg",
+#       overwrite = FALSE)
+
+pa_pfolio_forest = read_portfolio("01_data_tidy/mapme_bio_data/pa_pfolio_forest.gpkg")
+
+##Unest the sf file into a classic data frame without geometry
+#Note replace() could be used instead of wase_when, and filter instead of subset for the same result
+data_pfolio_forest = unnest(pa_pfolio_forest, cols="treecover_area") %>%
+  sf::st_drop_geometry() %>%
+  dplyr::select(id_pr,nm_ap,drct,wdpaid,ann_c,years,treecover) %>%
+  mutate(treecover = case_when(treecover == 0 ~ NA, TRUE ~ treecover)) %>%
+  subset(!is.na(treecover))
+
+# fwrite(data_pfolio_forest,
+#        "01_data_tidy/mapme_bio_data/data_pfolio_forest.csv")
+
+data_pfolio_forest = fread("01_data_tidy/mapme_bio_data/data_pfolio_forest.csv")
+
+##~~~~~~~~~~~~~~~~~~
+##  ~ Mangroves ----
+##~~~~~~~~~~~~~~~~~~
+
+##Downloading data and computing indicators 
+# pa_pfolio_mang = 
+#   get_resources(pa_pfolio,
+#     resources = c("gmw")) %>%
+#   # FAO forest definition here: Minimum treecover = 10%, minimum size =1      #hectare
+#   calc_indicators(indicators = "mangroves_area",
+#                 overwrite=T) 
+
+# write_portfolio(pa_pfolio_mang,
+#       dsn = "01_data_tidy/mapme_bio_data/pa_pfolio_mang.gpkg",
+#       overwrite = FALSE)
+
+pa_pfolio_mang = read_portfolio("01_data_tidy/mapme_bio_data/pa_pfolio_mang.gpkg")
+
+##Unest the sf file into a classic data frame without geometry
+# data_pfolio_mang = unnest(pa_pfolio_mang, cols="mangroves_area") %>%
+#   sf::st_drop_geometry() %>%
+#   dplyr::select(id_pr,wdpaid,year,mangrove_extent)
+
+# fwrite(data_pfolio_mang,
+#        "01_data_tidy/mapme_bio_data/data_pfolio_mang.csv")
+
+data_pfolio_mang = fread("01_data_tidy/mapme_bio_data/data_pfolio_mang.csv")
+
+##~~~~~~~~~~~~~~~~~~~
+##  ~ Emissions  ----
+##~~~~~~~~~~~~~~~~~~~
+
+# pa_pfolio_emi = 
+#     get_resources(pa_pfolio,
+#     resources = c("gfw_lossyear","gfw_treecover","gfw_emissions"), 
+#     vers_treecover = "GFC-2020-v1.8",
+#     vers_lossyear = "GFC-2020-v1.8") %>%
+#     calc_indicators(indicators = "treecoverloss_emissions",
+#                   min_cover = 30,
+#                   min_size = 1, overwrite=T)
+
+# write_portfolio(pa_pfolio_emi,
+#       dsn = "01_data_tidy/mapme_bio_data/pa_pfolio_emi.gpkg",
+#       overwrite = FALSE)
+
+pa_pfolio_emi = fread("01_data_tidy/mapme_bio_data/pa_pfolio_emi.gpkg")
+
+# data_pfolio_emi = unnest(pa_pfolio_emi,
+#                   cols="treecoverloss_emissions") %>%
+#     sf::st_drop_geometry() %>%
+#     dplyr::select(id_pr,wdpaid,years,emissions)
+
+# fwrite(data_pfolio_emi,
+#        "01_data_tidy/mapme_bio_data/data_pfolio_emi.csv")
+
+data_pfolio_emi = fread("01_data_tidy/mapme_bio_data/data_pfolio_emi.csv")
+
+##~~~~~~~~~~~~~~~~~~~~
+##  ~ Biome       ----
+##~~~~~~~~~~~~~~~~~~~~
+
+##Downloading data and computing indicators 
+pa_pfolio_biome =
+  get_resources(pa_pfolio,
+    resources = c("teow")) %>%
+  calc_indicators(indicators = "biome",
+                overwrite=T)
+
+# write_portfolio(pa_pfolio_biome, 
+#       dsn = "01_data_tidy/mapme_bio_data/pa_pfolio_biome.gpkg",
+#       overwrite = FALSE)
+
+##Unest the sf file into a classic data frame without geometry
+# data_biome = unnest(pa_pfolio_biome, cols="biome") %>%
+#   sf::st_drop_geometry() %>%
+#   dplyr::select(id_pr,wdpaid,year,mangrove_extent)
+
+##~~~~~~~~~~~~~~~~~~~~
+##  ~ Soil features --
+##~~~~~~~~~~~~~~~~~~~~
+
+#/!\ voir quels indicateurs/mesures prendre !!
+
+##Downloading data and computing indicators 
+
+pa_pfolio_soil = 
+  get_resources(pa_pfolio,
+    resources = c("soilgrids")) %>%
+  # FAO forest definition here: Minimum treecover = 10%, minimum size =1      #hectare
+  calc_indicators(indicators = "soilproperties",
+                overwrite=T) 
+
+# write_portfolio(pa_pfolio_mang, 
+#       dsn = "01_data_tidy/mapme_bio_data/pa_pfolio_mang.gpkg",
+#       overwrite = FALSE)
+
+##Unest the sf file into a classic data frame without geometry
+# data_biome = unnest(pa_pfolio_biome, cols="biome") %>%
+#   sf::st_drop_geometry() %>%
+#   dplyr::select(id_pr,wdpaid,year,mangrove_extent)
+
+
+##~~~~~~~~~~~~~~~~~~~~
+##  ~ Land cover   --
+##~~~~~~~~~~~~~~~~~~~~
+
+#/!\ voir quels indicateurs/mesures prendre !!
+
+##Downloading data and computing indicators 
+
+
+pa_pfolio_land = 
+  get_resources(pa_pfolio,
+    resources = c("esalandcover")) %>%
+  calc_indicators(indicators = "landcover",
+                overwrite=T) 
+
+# write_portfolio(pa_pfolio_mang, 
+#       dsn = "01_data_tidy/mapme_bio_data/pa_pfolio_mang.gpkg",
+#       overwrite = FALSE)
+
+##Unest the sf file into a classic data frame without geometry
+# data_biome = unnest(pa_pfolio_biome, cols="biome") %>%
+#   sf::st_drop_geometry() %>%
+#   dplyr::select(id_pr,wdpaid,year,mangrove_extent)
+
+##~~~~~~~~~~~~~~~~~~~~
+##  ~ Accessibility --
+##~~~~~~~~~~~~~~~~~~~~
+
+##Downloading data and computing indicators 
+pa_pfolio_acc = 
+  get_resources("nelson_et_al",
+                range_traveltime = c("5k_10k", "100k_200k", 
+                                     "500k_1mio", "1mio_5mio")) %>%
+  calc_indicators("traveltime", 
+                  stats_accessibility = c("min", "max"), 
+                  engine = "extract")
+
+# write_portfolio(pa_pfolio_mang, 
+#       dsn = "01_data_tidy/mapme_bio_data/pa_pfolio_mang.gpkg",
+#       overwrite = FALSE)
+
+##Unest the sf file into a classic data frame without geometry
+# data_biome = unnest(pa_pfolio_biome, cols="biome") %>%
+#   sf::st_drop_geometry() %>%
+#   dplyr::select(id_pr,wdpaid,year,mangrove_extent)
+
+
+
+
+
+
+```
+
+Faire une fonction pour l'extraction de tout jeu de données ? Répétitif en soit de faire forêts, mangroves, etc.
+
+Warning and errors face and their meaning.
+
+-   *although coordinates are longitude/latitude, st_intersects assumes that they are planar*.
+
+    -   See <https://r-spatial.org/r/2020/06/17/s2.html> and <https://r-spatial.github.io/sf/articles/sf7.html#>. Basically I used sf_use_s2(FALSE) at the creation of the portfolio. Thus sf uses flat Earth model instead of s2 spherical geometry. The operation st_intersects assumes the data lie in a flat plane where one degree longitude equals one degree latitude, irrespective where the PA is on the world (equirectangular projection). Thus if the polygons are drawn from coordinates in a spherical geometry, the operation is performed on the wrong projection. Is it a problem in itself ? Well as a projection is a bijection between two coordinate systems, plygons that intersect (or not) in a projection will intersect in the second. However the polygons will be distorded (the more so as they are located closer to the poles), and the areas computed could be wrong. Anyway according to the documentation the WDPA polygons are provided in WGS84 geographic coordinate system, i.e a planar projection (Plate Carree) . No problem should arise from the warning then.
+
+    -   So according Florent Bedecarrats, this warning is related to an other issue. The sphere representing the Earth is transformed into a plane through a cut on a given line. If a polygon is located on this line, the flattened polygon is considered to go around the Earth. To test for this possibility, compare the area of the polygon to the true area of the PA.
+
+-   *Avis : TIFFFillStrip:Read error at scanline 4294967295; got 0 bytes, expected 1387 (GDAL error 1)Avis : TIFFReadEncodedStrip() failed. (GDAL error 1).*
+
+    This advice occurs during the computation of indicators (a few tenths for emissions). Fail to read some parts of the raster file ? Is it problematic for the whole process ?
+
+    Best solution : remove the corresponding TIFF and download data again.
+
+-   *Avis : D:/projet_AiresProtegees/00_data_raw/mapme_bio_data/gfw_lossyear/Hansen_GFC-2020-v1.8_lossyear_10N_010E.tif, band 1: IReadBlock failed at X offset 0, Y offset 29995: TIFFReadEncodedStrip() failed. (GDAL error 1)*
+
+    Same as before. Best solution : remove the corresponding TIFF and download data again.
+
+-   *Avis : Error : [crop] incorrect number of values (too many) for writing*
+
+    Check the error in more details.
+
+## Computing statistics
+
+From the datasets obtained, statistics of interest can be computed and plotted.
+
+### Forests
+
+Variation of forest loss over time :
+
+-   Building the figure dataset
+
+```{r}
+#Building the dataset
+data_stat_treeloss = data_pfolio_forest %>%
+  group_by(nm_ap) %>% 
+  #Comoute variation over time in each PA
+  mutate(lag_treecov = lag(treecover),
+         loss = ((treecover - lag_treecov)/lag_treecov)*100) %>%
+  ungroup() %>%
+  #Regroup years for analysis in five years intervals
+  mutate(years_regroup = case_when(
+  years <= 2005 ~ "2000-2005",
+  years <= 2010 ~ "2005-2010",
+  years <= 2015 ~ "2010-2015",
+  years <=2020 ~ "2015-2020",
+  TRUE ~ NA),
+  .after = years) %>%
+  #Remove NA values for loss
+  filter(!is.na(loss)) %>%
+  #Compute mean loss for five years intervals in each PA
+  group_by(nm_ap, years_regroup) %>%
+  mutate(moy_5 = mean(loss)) %>%
+  ungroup()
+
+data_stat_treeloss2 = data_pfolio_forest %>%
+  group_by(nm_ap) %>% 
+  #Comoute variation over time in each PA
+  mutate(lag_treecov = lag(treecover),
+         loss = ((treecover - lag_treecov)/lag_treecov)*100) %>%
+  #Regroup years for analysis in five years intervals
+  mutate(years_regroup = case_when(
+  years <= 2005 ~ "2000-2005",
+  years <= 2010 ~ "2005-2010",
+  years <= 2015 ~ "2010-2015",
+  years <=2020 ~ "2015-2020",
+  TRUE ~ NA),
+  .after = years) %>%
+  #Remove NA values for loss
+  filter(!is.na(loss)) %>%
+  #Compute mean loss for five years intervals in each PA
+  group_by(nm_ap, years_regroup) %>%
+  mutate(moy_5 = mean(loss)) %>%
+  ungroup()
+
+#Equal ???
+```
+
+-   Statistics at PA level
+
+```{r message=FALSE, warning=FALSE}
+
+#Evolution for a given PA
+##Buba
+stat_forest_buba = stat_treeloss_id(df = data_stat_treeloss,
+                                    id = "317051",
+                                    name_pa = "AP Buba",
+                                    treatment_yr = 2007)
+fig_evo_buba = stat_forest_buba[[1]]
+ggsave(plot = fig_evo_buba,
+       filename = "fig_forest_loss_evo_ap_buba.png",
+       path = "05_StatDes/biodiversity/forest/loss",
+       width = 7, height = 5)
+fig_evo5_buba = stat_forest_buba[[2]]
+ggsave(plot = fig_evo5_buba,
+       filename = "fig_forest_loss_evo5_ap_buba.png",
+       path = "05_StatDes/biodiversity/forest/loss",
+       width = 7, height = 5)
+
+#Niumi
+stat_forest_niumi = stat_treeloss_id(df = data_stat_treeloss,
+                                    id = "109037",
+                                    name_pa = "AP Niumi",
+                                    treatment_yr = 2008)
+fig_evo_niumi = stat_forest_niumi[[1]]
+ggsave(plot = fig_evo_niumi,
+       filename = "fig_forest_loss_evo_ap_niumi.png",
+       path = "05_StatDes/biodiversity/forest/loss",
+       width = 7, height = 5)
+fig_evo5_niumi = stat_forest_niumi[[2]]
+ggsave(plot = fig_evo5_niumi,
+       filename = "fig_forest_loss_evo5_ap_niumi.png",
+       path = "05_StatDes/biodiversity/forest/loss",
+       width = 7, height = 5)
+
+#Bamboung
+stat_forest_bamboung = stat_treeloss_id(df = data_stat_treeloss,
+                                    id = "555651496",
+                                    name_pa = "AP Bamboung",
+                                    treatment_yr = 2008)
+fig_evo_bamboung = stat_forest_bamboung[[1]]
+ggsave(plot = fig_evo_bamboung,
+       filename = "fig_forest_loss_evo_ap_bamboung.png",
+       path = "05_StatDes/biodiversity/forest/loss",
+       width = 7, height = 5)
+fig_evo5_bamboung = stat_forest_bamboung[[2]]
+ggsave(plot = fig_evo5_bamboung,
+       filename = "fig_forest_loss_evo5_ap_bamboung.png",
+       path = "05_StatDes/biodiversity/forest/loss",
+       width = 7, height = 5)
+
+
+
+
+```
+
+/!\\ Modifier le code précédent pour inclure plusieurs aires ???
+
+-   Statistics at region level
+
+```{r}
+#Evolution at region level : dataset
+data_stat_treeloss_reg = data_stat_treeloss %>%
+  group_by(drct, years) %>%
+  #For each region and each period, compute average evolution
+  mutate(evo_avg_reg = mean(treecover)) %>%
+  ungroup() %>%
+  group_by(drct) %>% 
+  #Variation of the average evolution over time in each region
+  mutate(lag_region = lag(evo_avg_reg),
+         loss_region = ((evo_avg_reg - lag_region)/lag_region)*100) %>%
+  #remove 2001 : either NA, or take value above when two regions are consecutive in the data frame (lag by region not applied) ???
+  mutate(loss_region = case_when(
+    !is.na(loss_region) & years == 2001 ~ NA,
+    TRUE ~loss_region))
+
+#Sahel
+fig_evo_sahel = stat_treeloss_reg(df = data_stat_treeloss_reg,
+                                  reg = "Dr Grand Sahel",
+                                  name_reg = "Sahel")
+ggsave(plot = fig_evo_sahel,
+       filename = "fig_forest_loss_evo_reg_sahel.png",
+       path = "05_StatDes/biodiversity/forest/loss",
+       width = 7, height = 5)
+
+#Guinea gulf
+fig_evo_guinee = stat_treeloss_reg(df = data_stat_treeloss_reg,
+                                  reg = "Dr Golfe De Guinee",
+                                  name_reg = "Golfe de Guinée")
+
+ggsave(plot = fig_evo_guinee,
+       filename = "fig_forest_loss_evo_reg_guinee.png",
+       path = "05_StatDes/biodiversity/forest/loss",
+       width = 7, height = 5)
+
+#Eastern Africa
+fig_evo_eastAf = stat_treeloss_reg(df = data_stat_treeloss_reg,
+                                  reg = "Dr Afrique De L'Est",
+                                  name_reg = "Afrique de l'Est")
+ggsave(plot = fig_evo_eastAf,
+       filename = "fig_forest_loss_evo_reg_eastAf.png",
+       path = "05_StatDes/biodiversity/forest/loss",
+       width = 7, height = 5)
+
+#Eastern Africa
+fig_evo_austAf = stat_treeloss_reg(df = data_stat_treeloss_reg,
+                                  reg = "Dr Afrique Australe",
+                                  name_reg = "Afrique australe")
+
+ggsave(plot = fig_evo_austAf,
+       filename = "fig_forest_loss_evo_reg_austAf.png",
+       path = "05_StatDes/biodiversity/forest/loss",
+       width = 7, height = 5)
+
+```
+
+### Mangrove
+
+Summary table of mangrove area in each PA :
+
+```{r}
+tbl_mang_summary = data_mang %>%
+  dplyr::group_by(wdpaid) %>%
+  summarize(area_sqkm = sum(value))
+```
+
+### Emissions
+
+/!\\ pas clair
+
+Summary table of emissions in each PA :
+
+```{r}
+# create summary table 
+tbl_emi_summary = data_emi %>%
+  group_by(name) %>%
+  summarize(area_sqkm = sum(value))
+```
+
+### Biome/TEOW

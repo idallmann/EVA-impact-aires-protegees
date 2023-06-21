@@ -1,0 +1,3502 @@
+---
+title: "ScriptMT_StatDes"
+author: "Antoine Vuillot"
+date: "2023-01-26"
+output: pdf_document
+editor_options: 
+  chunk_output_type: console
+---
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            ~~
+##                              Packages                                    ----
+##                                                                            ~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(lmtest)
+library(ggplot2)
+library(gganimate)
+library(regclass)
+library(tidyverse)
+library(olsrr)
+library(countrycode)
+library(ggplot2)
+library(textreg)
+library(estimatr)
+library(modelsummary)
+library(ivreg)
+library(ivpack)
+library(data.table)
+library(stringr)
+library(xlsx)
+library(sqldf)
+library(stringr)
+library(tictoc)
+library(ARTofR)
+library(scales)
+library(maps)
+library(leaflet)
+library(geojsonsf)
+library(sf)
+library(rgdal)
+library(gridExtra)
+library(RColorBrewer)
+library(dplyr)
+library(splitstackshape) 
+library(mapsf)
+library(xml2)
+
+```
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            ~~
+##                           Data Import                                    ----
+##                                                                            ~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r}
+
+
+tempdir()
+dir.create(tempdir())
+setwd("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/02_2023")
+
+
+##Data from Land Matrix database
+
+ data_contracts_all = fread(file = 'contracts_all.csv', encoding = 'UTF-8') %>% #Every variables are taken but reordered
+   select(c('ID', 'Deal ID', 'Contract number', 'Contract date', 'Contract expiration date', 'Duration of the agreement', 'Comment on contract')) %>%
+   mutate(`Deal ID` = as.character(`Deal ID`))
+
+data_sources_all = fread(file = 'datasources_all.csv', encoding = 'UTF-8') %>%
+  select(c('Deal ID', 'Data source type'))
+
+##In the selected variables are included comments for some : might be informative. 
+data_deals_all = fread(file = 'deals_all.csv', encoding = 'UTF-8') %>%
+  select(c('Deal ID', 'Deal scope', 'Target country', 'Deal size', 'Intended size (in ha)', 'Size under contract (leased or purchased area, in ha)', 'Size in operation (production, in ha)', 'Comment on land area',
+           'Operating company: Investor ID', "Negotiation status", "Current negotiation status", "Comment on negotiation status", "Implementation status", "Current implementation status", "Comment on implementation status",
+           "Former land owner", "Former land use", "Former land cover", 'Intention of investment', "Comment on intention of investment", 'Nature of the deal', "Comment on nature of the deal", "Crops area/yield/export", "Comment on crops",
+           "Livestock area/yield/export", "Comment on livestock" , 'Contract farming',
+           'Jobs created (total)', 'Planned number of jobs (total)', 'Current total number of jobs/employees/ daily/seasonal workers',
+           'Jobs created (domestic)', 'Planned number of jobs (domestic)', 'Current domestic number of jobs/employees/ daily/seasonal workers',
+           'Name of community', 'Comment on communities / indigenous peoples affected', 'Community consultation',
+           'Community reaction', 'Comment on community reaction', 'Presence of land conflicts', 'Displacement of people',
+           'Number of people actually displaced', 'Number of households actually displaced', 'Number of people displaced out of their community land',
+           'Number of people displaced staying on community land', 'Number of households displaced ""only"" from their agricultural fields',
+           'Number of people facing displacement once project is fully implemented', 'Negative impacts for local communities',
+           'Promised compensation (e.g. for damages or resettlements)', 'Received compensation (e.g. for damages or resettlements)',
+           'Promised benefits for local communities', 'Materialized benefits for local communities', 'Has domestic use', 'Domestic use', 'Has export', 'Export',
+           'Water extraction envisaged', 'Use of irrigation infrastructure', 'In country processing of produce')) %>%
+  rename('Investor ID' = 'Operating company: Investor ID')
+
+# data_investors_all = fread(file = 'investors_all.csv', encoding = 'UTF-8') %>%
+#   select(c('Investor ID', 'Country of registration/origin', 'Classification'))
+
+#data_involvements_all = fread(file = 'involvements_all.csv')
+# data_loc_all= fread(file = 'locations_all.csv') %>%
+#   select(c('Deal ID', 'Spatial accuracy level', 'Point'))
+
+
+#Importing shape data and create dummies for multiplicity
+## area_multi : Is the deal associated with more than one shapefile ?
+## area_uni : Is the deal associated with a unique location ?
+##Note that not all deals are reported here : if it is, it necesseraly has a known shape
+
+geo_areas_all = as.data.frame(st_zm(geojson_sf('areas_all.geojson'), drop = TRUE, what = 'ZM')) %>%
+  select(c('deal_id', 'geometry')) %>%
+  rename('geometry_areas' = 'geometry',
+        'Deal ID' = 'deal_id') %>%
+  group_by(`Deal ID`) %>%
+  mutate(area_multi = n() > 1,
+         area_uni = n() == 1,
+         .after = geometry_areas)
+
+#Importing location data and create dummies for accuracy
+## loc_multi : Is the deal associated with more than one location ?
+## loc_accu : is the location given with relevant accuracy ?
+## loc_accu_uni : is the deal associated with one accurate location ?
+geo_loc_all = as.data.frame(st_read(dsn = 'locations_all.geojson')) %>%
+  select(c('deal_id', 'geometry', 'spatial_accuracy')) %>%
+  rename('geometry_loc' = 'geometry',
+         'Deal ID' = 'deal_id') %>%
+  mutate(`Deal ID` = as.numeric(`Deal ID`)) %>%
+  arrange(`Deal ID`) %>%
+  group_by(`Deal ID`) %>%
+  mutate(loc_id = paste0(`Deal ID`, "_", row_number()), .after = `Deal ID`) %>%
+  mutate(loc_multi = n() > 1,
+         loc_accu = spatial_accuracy %in% c('COORDINATES', 'EXACT_LOCATION') ,
+         loc_accu_uni = (n() == 1 & spatial_accuracy %in% c('COORDINATES', 'EXACT_LOCATION')),
+         .after = spatial_accuracy)
+
+
+##Geometry of countries
+geo_countries = st_read(dsn = 'geo-countries.geojson') %>% 
+  select(c('ISO_A3', 'geometry')) %>%
+  rename('geometry_country' = 'geometry')
+
+##ISO codes and regions of countries : names are modified for latter merging with Land Matrix database
+ctry_reg = fread(file = 'ctry_regions.csv', encoding = 'UTF-8') %>%
+  select(c('name', 'alpha-2', "alpha-3", 'region', 'sub-region')) %>%
+  rename('ISO_A3' = 'alpha-3',
+         "ISO_A2" = "alpha-2",
+         'country' = 'name',
+         'sub_region' = 'sub-region')
+
+temp = left_join(data_deals_all, ctry_reg, by = c('Target country' = 'country'))
+ctry_rep = unique(temp[is.na(temp$region) == TRUE,]$`Target country`)
+remove(temp)
+
+ctry_reg[ctry_reg$country == "Lao People's Democratic Republic",]$country = 'Lao PDR'
+ctry_reg[ctry_reg$country == 'Bolivia (Plurinational State of)',]$country = 'Bolivia'
+ctry_reg[ctry_reg$country == "Viet Nam",]$country = 'Vietnam'
+ctry_reg[ctry_reg$country == "Yemen",]$country = "Yemen, Rep."
+ctry_reg[ctry_reg$country == "Venezuela (Bolivarian Republic of)",]$country = "Venezuela, RB"
+ctry_reg[ctry_reg$country == "Congo",]$country = "Congo, Rep."
+ctry_reg[ctry_reg$country == "Egypt",]$country = "Egypt, Arab Rep."
+ctry_reg[ctry_reg$country == "Eswatini",]$country = 'Swaziland'
+ctry_reg[ctry_reg$country == "Tanzania, United Republic of",]$country = "Tanzania"
+ctry_reg[ctry_reg$country == "Congo, Democratic Republic of the",]$country = "Congo, Dem. Rep."
+ctry_reg[ctry_reg$country == "Gambia",]$country = "Gambia, The"
+ctry_reg[ctry_reg$country ==  "Sao Tome and Principe",]$country = "São Tomé and Principe"
+ctry_reg[ctry_reg$country ==  "Moldova, Republic of",]$country = "Moldova"
+
+#Centroid of countries
+ctry_loc = fread(file = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/others/loc_countries.csv", encoding = 'UTF-8', header = TRUE) %>%
+  select(c("COUNTRY", "ISO", "longitude", "latitude")) %>%
+  rename("lon" = "longitude",
+         "lat" = "latitude",
+         "country" = "COUNTRY",
+         "iso_2" = "ISO") 
+
+#Land area of country
+area_land = fread(file = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/others/LandArea_WB/API_AG.LND.TOTL.K2_DS2_en_csv_v2_5455195.csv", encoding = 'UTF-8', header = TRUE) %>%
+  select(c("Country Name", "Country Code", "2020")) %>%
+  rename("country" = "Country Name",
+         "iso_3" = "Country Code",
+         "land_area_km2_2020" = "2020") %>%
+  left_join(select(ctry_reg, c(region, sub_region, ISO_A3)), by = c("iso_3" = "ISO_A3"))
+
+#Agricultural area of country
+area_agri = fread(file = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/others/AgriLandArea_WB/API_AG.LND.AGRI.K2_DS2_en_csv_v2_5455225.csv", encoding = 'UTF-8', header = TRUE) %>%
+  select(c("Country Name", "Country Code", "2020")) %>%
+  rename("country" = "Country Name",
+         "iso_3" = "Country Code",
+         "agri_area_km2_2020" = "2020") %>%
+  left_join(select(ctry_reg, c(region, sub_region, ISO_A3)), by = c("iso_3" = "ISO_A3"))
+
+
+```
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            ~~
+##                           BUILDING VARIABLES                             ----
+##                                                                            ~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##----------------------------------- DATES-------------------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                              Date of intention                           ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#We create a datset of all observations with deal ID, negotiation status, implementation status, size under contract
+#As these variables contain the history of the deal, they are split on the separator '|' : each will correspond to updates over time of their initial variable
+#Then, a variable "date_int" is created according to the following algorithm, taken from the LMI 2021 analytical report 
+#("if the year information of the negotiation status is missing, it is replaced by..."). 
+#We consider only the date of negotiation here, which gives info on the date of expressed intention
+##First is considered the very first date reported date in `Negotiation status`. If not reported, consider the very first date reported in `Size under contract (leased or purchased area, in ha)`. If not reported, and if the first implementation status is not 'abandoned' and if the first negotiation status contains 'concluded', consider the very first date in `Implementation status`. Else, year_int = '' (empty string).
+#Finally, a dataset is created with 3 variables : Deal ID, date_int, year_int (year of the date_int). It can be merged with
+#initial dataset 
+
+
+data_ID_date_int = right_join(ctry_reg, data_deals_all, by = c('country' = 'Target country')) %>%
+  select(c(`Deal ID`, `Negotiation status`, `Size under contract (leased or purchased area, in ha)`, `Implementation status`)) %>%
+  rename('size_contract' = `Size under contract (leased or purchased area, in ha)`,
+         'nego_status' = `Negotiation status`,
+         'impl_status' = `Implementation status`) %>%
+  cSplit(splitCols = c('nego_status'), '|', 
+         direction = 'wide',
+         drop = TRUE,
+         type.convert = FALSE) %>%
+  cSplit(splitCols = c('impl_status'), '|', 
+         direction = 'wide',
+         drop = TRUE,
+         type.convert = FALSE) %>%
+  cSplit(splitCols = c('size_contract'), '|', 
+         direction = 'wide',
+         drop = TRUE,
+         type.convert = FALSE) %>%
+  mutate(date_int = '', .after = 'Deal ID')
+
+
+for (i in 1:nrow(data_ID_date_int))
+{
+  print(i)
+  
+  data_ID_date_int[i,]$date_int = ifelse(!(str_sub(data_ID_date_int[i,]$nego_status_01, 1, 1) %in% c('#', 'N')) 
+                                         & is.na(data_ID_date_int[i,]$nego_status_01) == FALSE,
+                                         yes = sub("\\#.*", "", data_ID_date_int[i,]$nego_status_01),
+                                         no = ""
+                                         ) 
+  data_ID_date_int[i,]$date_int = ifelse(data_ID_date_int[i,]$date_int == ""
+                                         & !(str_sub(data_ID_date_int[i,]$size_contract_01, 1, 1) %in% c('#', 'N'))
+                                         & is.na(data_ID_date_int[i,]$size_contract_01) == FALSE,
+                                         yes = sub("\\#.*", "", data_ID_date_int[i,]$size_contract_01),
+                                         no = data_ID_date_int[i,]$date_int
+                                         ) 
+  data_ID_date_int[i,]$date_int = ifelse(data_ID_date_int[i,]$date_int == "" 
+                                         & grepl(pattern = '(concluded)', x = data_ID_date_int[i,]$nego_status_01, ignore.case = TRUE)
+                                         & grepl(pattern = '(abandoned)', x = data_ID_date_int[i,]$impl_status_1, ignore.case = TRUE) == FALSE
+                                         & !(str_sub(data_ID_date_int[i,]$impl_status_1, 1, 1) %in% c('#', 'N'))
+                                         & is.na(data_ID_date_int[i,]$impl_status_1) == FALSE,
+                                         yes = sub("\\#.*", "", data_ID_date_int[i,]$impl_status_1),
+                                         no = data_ID_date_int[i,]$date_int
+                                         ) 
+}
+
+data_ID_int = data_ID_date_int %>%
+  mutate(year_int = ifelse(date_int != '', 
+                           yes = as.numeric(str_sub(date_int, 1,4)), 
+                           no = date_int),
+         .after = date_int)%>%
+  select(c('Deal ID', date_int, year_int))
+
+#rm(data_ID_date_int)
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                              Date of contract                            ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#We create a datset of all observations with deal ID, negotiation status, size under contract
+#As these variables contain the history of the deal, they are split on the separator '|' : each will correspond to updates over time of their initial variable
+#Then, a variable "date_cont" is created according to the following algorithm :
+##First is considered the date reported for the first 'negotiation status' containing 'concluded'. 
+###If the negotiation status never contains 'concluded', date_cont = 'null'
+##Then, if negotiation status contains 'concluded' but date not reported ('' or 'None') OR the first status is NA value, consider the very first date reported in `Size under contract (leased or purchased area, in ha)`. 
+##Else, date_cont = '' (empty string).
+#Finally, a dataset is created with 3 variables : Deal ID, date_cont, year_cont (year of the date_cont). It can be merged with
+#initial dataset 
+#Note : 'null' means not relevant (project never contracted) while '' means unknown
+
+data_ID_date_cont = right_join(ctry_reg, data_deals_all, by = c('country' = 'Target country')) %>%
+  select(c(`Deal ID`, `Negotiation status`, `Size under contract (leased or purchased area, in ha)`)) %>%
+  rename('size_contract' = `Size under contract (leased or purchased area, in ha)`,
+         'nego_status' = `Negotiation status`) %>%
+  cSplit(splitCols = c('nego_status'), '|', 
+         direction = 'wide',
+         drop = TRUE,
+         type.convert = FALSE) %>%
+  cSplit(splitCols = c('size_contract'), '|', 
+         direction = 'wide',
+         drop = TRUE,
+         type.convert = FALSE) %>%
+  mutate(date_cont = '', .after = 'Deal ID')
+
+n_per_nego = 11
+n_per_size = 11
+var_nego = c(paste0('nego_status_0', 1:9), paste0('nego_status_', 10:11))
+var_size = c(paste0('size_contract_0', 1:9), paste0('size_contract_', 10:11)) 
+
+             
+for (i in 1:nrow(data_ID_date_cont))
+{
+  print(i)
+  
+  for (j in 1:n_per_nego)
+  {
+    nego_ij = get(var_nego[j], data_ID_date_cont[i,])
+    if (grepl(pattern = '(concluded)', x = nego_ij, ignore.case = TRUE)) 
+    {
+      data_ID_date_cont[i,]$date_cont = sub("\\#.*", "", nego_ij)
+      break
+    }
+    else {data_ID_date_cont[i,]$date_cont = 'null'}
+  }
+  
+  data_ID_date_cont[i,]$date_cont = ifelse((data_ID_date_cont[i,]$date_cont %in% c('', 'None') | is.na(data_ID_date_cont[i,]$nego_status_01))
+                                           & is.na(data_ID_date_cont[i,]$size_contract_01) == FALSE
+                                           & !(str_sub(data_ID_date_cont[i,]$size_contract_01, 1, 1) %in% c('#', 'N')),
+                                           yes = sub("\\#.*", "", data_ID_date_cont[i,]$size_contract_01),
+                                           no = data_ID_date_cont[i,]$date_cont)
+  
+  if(data_ID_date_cont[i,]$date_cont == 'None') {data_ID_date_cont[i,]$date_cont = ''}
+}
+
+#test = nrow(subset(data_ID_date_cont, !(date_cont %in% c('', 'null'))))
+
+data_ID_cont = data_ID_date_cont %>%
+  mutate(year_cont = ifelse(date_cont == '',
+                            yes = '',
+                            no = ifelse(date_cont == 'null', yes = 'null', no = as.numeric(str_sub(date_cont, 1,4)))),
+          .after = date_cont
+                            ) %>%
+  select(c('Deal ID', date_cont, year_cont))
+
+#rm(data_ID_date_cont)
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                              Date of implementation                      ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#We create a datset of all observations with deal ID, implementation status, size in operation
+#As these variables contain the history of the deal, they are split on the separator '|' : each will correspond to updates over time of their initial variable
+#Then, a variable "date_impl" is created according to the following algorithm :
+##First is considered the date reported for the first 'implementation status' containing 'production' (Start-up phase or production phase). 
+###If the implementation status never contains 'production', date_impl = 'null'
+##Then, if implementation status contains 'production' but date not reported ('' or 'None') OR the first reported status is NA value, consider the very first date reported in `Size in operation (leased or purchased area, in ha)`. 
+##Else, date_impl = '' (empty string).
+#Finally, a dataset is created with 3 variables : Deal ID, date_impl, year_impl (year of the date_impl). It can be merged with
+#initial dataset 
+#Note : 'null' means not relevant (project never started or in production) while '' means unknown
+
+
+
+data_ID_date_impl = right_join(ctry_reg, data_deals_all, by = c('country' = 'Target country')) %>%
+  select(c(sub_region, country, `Deal ID`, `Deal size`:`Comment on implementation status`)) %>%
+  select(c(`Deal ID`, `Implementation status`, `Size in operation (production, in ha)`)) %>%
+  rename('size_op' = `Size in operation (production, in ha)`,
+         'impl_status' = `Implementation status`) %>%
+  cSplit(splitCols = c('impl_status'), '|', 
+         direction = 'wide',
+         drop = TRUE,
+         type.convert = FALSE) %>%
+  cSplit(splitCols = c('size_op'), '|', 
+         direction = 'wide',
+         drop = TRUE,
+         type.convert = FALSE) %>%
+  mutate(date_impl = '', .after = 'Deal ID')
+
+n_per_impl = 6
+n_per_size_op = 11
+var_impl = c(paste0('impl_status_', 1:6))
+var_size_op = c(paste0('size_op_0', 1:9), paste0('size_op_', 10:11)) 
+
+for (i in 1:nrow(data_ID_date_impl))
+{
+  print(i)
+  
+  for (j in 1:n_per_impl)
+  {
+    impl_ij = get(var_impl[j], data_ID_date_impl[i,])
+    if (grepl(pattern = '(production)', x = impl_ij, ignore.case = TRUE)) 
+    {
+      data_ID_date_impl[i,]$date_impl = sub("\\#.*", "", impl_ij)
+      break
+    }
+    else {data_ID_date_impl[i,]$date_impl = 'null'}
+  }
+  
+  data_ID_date_impl[i,]$date_impl = ifelse((data_ID_date_impl[i,]$date_impl %in% c('', 'None') | is.na(data_ID_date_impl[i,]$impl_status_1))
+                                           & is.na(data_ID_date_impl[i,]$size_op_01) == FALSE
+                                           & !(str_sub(data_ID_date_impl[i,]$size_op_01, 1, 1) %in% c('#', 'N')),
+                                           yes = sub("\\#.*", "", data_ID_date_impl[i,]$size_op_01),
+                                           no = data_ID_date_impl[i,]$date_impl)
+  
+  if(data_ID_date_impl[i,]$date_impl == 'None') {data_ID_date_impl[i,]$date_impl = ''}
+}
+
+#test = nrow(subset(data_ID_date_impl, !(date_impl %in% c('', 'null'))))
+
+data_ID_impl = data_ID_date_impl %>%
+  mutate(year_impl = ifelse(date_impl == '',
+                            yes = '',
+                            no = ifelse(date_impl == 'null', yes = 'null', no = as.numeric(str_sub(date_impl, 1,4)))),
+          .after = date_impl
+                            ) %>%
+  select(c('Deal ID', date_impl, year_impl))
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                              Date of abandonment                         ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#We create a datset of all observations with deal ID, implementation status
+#As these variables contain the history of the deal, they are split on the separator '|' : each will correspond to updates over time of their initial variable
+#Then, a variable "date_aban" is created according to the following algorithm :
+##First is considered the date reported for the first 'implementation status' containing 'abandoned'.
+###If the implementation status never contains 'abandoned', date_aban = 'null'
+##Else, date_aban= '' (empty string).
+#Finally, a dataset is created with 4 variables : Deal ID, date_aban, year_aban (year of the date_aban), dummy_aban. It can be merged withcinitial dataset 
+#Note : 'null' means not relevant (project never abandoned) while '' means unknown (deal does have been abandoned with we don't know when). dummy_aban = 1 : the project has been abandoned
+
+data_ID_date_aban = right_join(ctry_reg, data_deals_all, by = c('country' = 'Target country')) %>%
+  select(c(sub_region, country, `Deal ID`, `Deal size`:`Comment on implementation status`)) %>%
+  select(c(`Deal ID`, `Implementation status`)) %>%
+  rename('impl_status' = `Implementation status`) %>%
+  cSplit(splitCols = c('impl_status'), '|', 
+         direction = 'wide',
+         drop = TRUE,
+         type.convert = FALSE) %>%
+  mutate(date_aban = '', .after = 'Deal ID')
+
+n_per_impl = 6
+var_impl = c(paste0('impl_status_', 1:6))
+
+for (i in 1:nrow(data_ID_date_aban))
+{
+  print(i)
+  
+  for (j in 1:n_per_impl)
+  {
+    impl_ij = get(var_impl[j], data_ID_date_aban[i,])
+    if (grepl(pattern = '(abandoned)', x = impl_ij, ignore.case = TRUE)) 
+    {
+      data_ID_date_aban[i,]$date_aban = sub("\\#.*", "", impl_ij)
+      break
+    }
+    else {data_ID_date_aban[i,]$date_aban = 'null'}
+  }
+  
+  if(data_ID_date_aban[i,]$date_aban == 'None') {data_ID_date_aban[i,]$date_aban = ''}
+}
+
+data_ID_aban = data_ID_date_aban %>%
+  mutate(year_aban = ifelse(date_aban == '',
+                            yes = '',
+                            no = ifelse(date_aban == 'null', yes = 'null', no = as.numeric(str_sub(date_aban, 1,4)))),
+         dummy_aban = date_aban != 'null',
+          .after = date_aban
+                            ) %>%
+  select(c('Deal ID', date_aban, year_aban, dummy_aban))
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                   Date                                   ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+data_date = data_ID_int %>%
+  left_join(data_ID_cont, by = 'Deal ID') %>%
+  left_join(data_ID_impl, by = 'Deal ID') %>%
+  left_join(data_ID_aban, by = 'Deal ID')
+
+#fwrite(data_date, "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_date.csv")
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##----------------------------------- SIZE--------------------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r}
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                DEFINING RELEVANT SIZE                    ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#In the LMD, several size are reported : the intended size (expressed by the investors before or during negotiations), 
+#the contract size (the deal size the parties have agreed upon), the implementation size (the effective size under production).
+#The contract and implementation size can evolve over time (parcel added typically), and the LMD reports such modification. 
+#As a simplification we decide to focus on one size for each deal, and assume that the treated area is constant over time. 
+#We define the relevant area as the following for each deal :
+##If a operating size is reported, we choose the biggest 
+##If not, we choose the biggest contract size reported
+##If no contract size is reported, size is set to NA (unknown).
+#Note that we do not consider intended size in last resort though it would improve the number of deals with a size.
+#We consider that this intended size is too far related to the effective size.
+
+
+#AMELIORATION DU CODE : 
+##Au lieu de rentrer manuellement toutes les colonnes "size_cont_XX" ou "size_op_XX", je devrais pouvoir sélectionner les 
+##variables avec une condition logique et leur appliquer une fonction (celles en dessous) à l'aide de mutate_if (old) ou mutate(across(...))
+# is_cont = function(x) {return(grepl("cont", x))}
+# sub_num_size = function(x) {return(as.numeric(sub(".*\\#", "", x)))}
+# list_size_cont = append(paste0("size_cont_0", 1:9), paste0("size_cont_", 10:11))
+# list_size_op = append(paste0("size_op_0", 1:9), paste0("size_op_", 10:11))
+
+
+data_size = right_join(ctry_reg, data_deals_all, by = c('country' = 'Target country')) %>%
+  mutate(`Deal ID` = as.numeric(`Deal ID`)) %>%
+  left_join(geo_loc_all, by = "Deal ID") %>%
+  select(c(`Deal ID`, loc_id, `Intended size (in ha)`, `Size under contract (leased or purchased area, in ha)`, `Size in operation (production, in ha)`)) %>%
+  rename('size_int' = `Intended size (in ha)`,
+         'size_cont' = `Size under contract (leased or purchased area, in ha)`,
+         'size_op' = `Size in operation (production, in ha)`
+         ) %>%
+  cSplit(splitCols = c('size_cont'), '|', 
+         direction = 'wide',
+         drop = FALSE,
+         type.convert = FALSE) %>%
+  rowwise() %>%
+  mutate(size_cont_01 = as.numeric(sub(".*\\#", "", size_cont_01)),
+         size_cont_02 = as.numeric(sub(".*\\#", "", size_cont_02)),
+         size_cont_03 = as.numeric(sub(".*\\#", "", size_cont_03)),
+         size_cont_04 = as.numeric(sub(".*\\#", "", size_cont_04)),
+         size_cont_05 = as.numeric(sub(".*\\#", "", size_cont_05)),
+         size_cont_06 = as.numeric(sub(".*\\#", "", size_cont_06)),
+         size_cont_07 = as.numeric(sub(".*\\#", "", size_cont_07)),
+         size_cont_08 = as.numeric(sub(".*\\#", "", size_cont_08)),
+         size_cont_09 = as.numeric(sub(".*\\#", "", size_cont_09)),
+         size_cont_10 = as.numeric(sub(".*\\#", "", size_cont_10)),
+         size_cont_11 = as.numeric(sub(".*\\#", "", size_cont_11)),
+         size_cont_max = pmax(size_cont_01, size_cont_02, size_cont_03, size_cont_04, size_cont_05, size_cont_05,
+                              size_cont_06, size_cont_07, size_cont_08, size_cont_09, size_cont_10, size_cont_11,
+                              na.rm = TRUE),
+         size_cont_min = pmin(size_cont_01, size_cont_02, size_cont_03, size_cont_04, size_cont_05, size_cont_05,
+                      size_cont_06, size_cont_07, size_cont_08, size_cont_09, size_cont_10, size_cont_11,
+                      na.rm = TRUE),
+         size_cont_avg = mean(c(size_cont_01, size_cont_02, size_cont_03, size_cont_04, size_cont_05, size_cont_05,
+                      size_cont_06, size_cont_07, size_cont_08, size_cont_09, size_cont_10, size_cont_11), na.rm = TRUE)) %>%
+  cSplit(splitCols = c('size_op'), '|', 
+         direction = 'wide',
+         drop = FALSE,
+         type.convert = FALSE)  %>%
+  rowwise() %>%
+  mutate(size_op_01 = as.numeric(sub(".*\\#", "", size_op_01)),
+         size_op_02 = as.numeric(sub(".*\\#", "", size_op_02)),
+         size_op_03 = as.numeric(sub(".*\\#", "", size_op_03)),
+         size_op_04 = as.numeric(sub(".*\\#", "", size_op_04)),
+         size_op_05 = as.numeric(sub(".*\\#", "", size_op_05)),
+         size_op_06 = as.numeric(sub(".*\\#", "", size_op_06)),
+         size_op_07 = as.numeric(sub(".*\\#", "", size_op_07)),
+         size_op_08 = as.numeric(sub(".*\\#", "", size_op_08)),
+         size_op_09 = as.numeric(sub(".*\\#", "", size_op_09)),
+         size_op_10 = as.numeric(sub(".*\\#", "", size_op_10)),
+         size_op_11 = as.numeric(sub(".*\\#", "", size_op_11)),
+         size_op_max = pmax(size_op_01, size_op_02, size_op_03, size_op_04, size_op_05, size_op_05, 
+                              size_op_06, size_op_07, size_op_08, size_op_09, size_op_10, size_op_11,
+                              na.rm = TRUE),
+         size_op_min = pmin(size_op_01, size_op_02, size_op_03, size_op_04, size_op_05, size_op_05, 
+                              size_op_06, size_op_07, size_op_08, size_op_09, size_op_10, size_op_11,
+                              na.rm = TRUE),
+         size_op_avg = mean(c(size_op_01, size_op_02, size_op_03, size_op_04, size_op_05, size_op_05, 
+                              size_op_06, size_op_07, size_op_08, size_op_09, size_op_10, size_op_11),
+                              na.rm = TRUE)
+         ) %>%
+  ungroup() %>%
+  mutate(size_max_deal = ifelse(is.na(size_op_max) == FALSE,
+                           yes = size_op_max,
+                           no = size_cont_max),
+         size_min_deal = ifelse(is.na(size_op_min) == FALSE,
+                           yes = size_op_min,
+                           no = size_cont_min),
+         size_avg_deal = ifelse(is.na(size_op_avg) == FALSE,
+                           yes = size_op_avg,
+                           no = size_cont_avg)) %>%
+  group_by(`Deal ID`) %>%
+  mutate(n_par = n(),
+         size_max_par = size_max_deal/n_par,
+         size_min_par = size_min_deal/n_par,
+         size_avg_par = size_avg_deal/n_par,
+         .after = size_avg_deal) %>%
+  select(c(`Deal ID`, loc_id, n_par, size_int, size_cont_max, size_op_max, size_max_deal, size_max_par, size_cont_min, size_op_min, size_min_deal, size_min_par, size_cont_avg, size_op_avg, size_avg_deal, size_avg_par))
+
+#fwrite(data_size, "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_size.csv")
+
+
+```
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##---------------------------- Investment purpose ------------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r}
+
+#We create a dataset of all observations with deal ID, 'Intention of investment'
+#We create a dummy indicating whether the deal is agricultural purpopse, forestry purpose, or other. Such activity are identified by key words according to the documentation for the variable 'Intention of investment'.
+#We also distinguish 'biofuels', 'food crops', non-food agricultural commodities', 'agriculture unspecified', 'fodder', 'livestock' activities, and deals with not activity specified.
+
+data_purp = right_join(ctry_reg, data_deals_all, by = c('country' = 'Target country')) %>%
+  select(c(`Deal ID`, `Intention of investment`)) %>%
+    mutate(`Deal ID` = as.numeric(`Deal ID`)) %>%
+  rename('purp' = `Intention of investment`) %>%
+  mutate(dummy_agri = grepl("(biofuels|crops|fodder|livestock|non-food|agriculture)", purp, ignore.case = TRUE),
+         dummy_forest = grepl("(timber|forest|carbon|forestry)", purp, ignore.case = TRUE),
+         dummy_other = grepl("(mining|extraction|tourism|industry|conservation|speculation|energy|other)", purp, ignore.case = TRUE),
+         dummy_biof = grepl("(biofuels)", purp, ignore.case = TRUE),
+         dummy_crop = grepl("(crops)", purp, ignore.case = TRUE),
+         dummy_nfood = grepl("(non-food)", purp, ignore.case = TRUE),
+         dummy_agri_un = grepl("(agriculture)", purp, ignore.case = TRUE),
+         dummy_purp_none = grepl("(biofuels|crops|fodder|livestock|non-food|agriculture|timber|forest|carbon|forestry|mining|extraction|tourism|industry|conservation|speculation|energy|other)", 
+                            purp, ignore.case = TRUE) == FALSE) %>%
+  select(c('Deal ID', dummy_agri, dummy_forest, dummy_other, dummy_biof, dummy_crop, dummy_nfood, dummy_agri_un, dummy_purp_none))
+
+```
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##---------------------------- Nature of the deal ------------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r}
+
+#We create a dataset of all observations with deal ID, 'Nature of the deal'
+#a dummy is created for the different cases, and if the deal has no reported 'Nature of the deal'.
+#Note : be careful to the 'Exploitation permit / license / concession' value that can be interpreted as 'Concession'. Respecting case is important for this very case : dummy_conc = grepl("(Concession)", nat, ignore.case = FALSE)
+
+
+data_nat = right_join(ctry_reg, data_deals_all, by = c('country' = 'Target country')) %>%
+  select(c(`Deal ID`, `Nature of the deal`)) %>%
+  mutate(`Deal ID` = as.numeric(`Deal ID`)) %>%
+  rename('nat' = `Nature of the deal`) %>%
+  mutate(dummy_lease = grepl("(lease)", nat, ignore.case = TRUE), 
+         dummy_purch = grepl("(purchase)", nat, ignore.case = TRUE),
+         dummy_conc = grepl("(Concession)", nat, ignore.case = FALSE),
+         dummy_min = grepl("(mineral)", nat, ignore.case = TRUE),
+         dummy_cf = grepl("(farming)", nat, ignore.case = TRUE),
+         dummy_nat_none = nchar(nat) == 0
+         ) %>%
+  select(c('Deal ID', dummy_lease, dummy_purch, dummy_conc, dummy_min, dummy_cf, dummy_nat_none))
+
+
+```
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            ~~
+##                           DESCRIPTIVE STATISTICS                         ----
+##                                                                            ~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r}
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                            Building base dataset                         ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+data_date = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_date.csv") %>%
+  mutate(`Deal ID` = as.character(`Deal ID`))
+data_size = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_size.csv") %>%
+  mutate(`Deal ID` = as.character(`Deal ID`))
+
+data_StatDes = right_join(ctry_reg, data_deals_all, by = c('country' = 'Target country')) %>%
+  left_join(data_date, by = 'Deal ID') %>%
+  left_join(data_size, by = 'Deal ID') %>%
+  left_join(select(area_agri, c(iso_3, agri_area_km2_2020)), by = c("ISO_A3" = "iso_3")) %>%
+  left_join(select(area_land, c(iso_3, land_area_km2_2020)), by = c("ISO_A3" = "iso_3"))
+
+data_info_shr = data_StatDes %>%
+  select(c(region, sub_region, country, agri_area_km2_2020, land_area_km2_2020)) %>%
+  group_by(country) %>%
+  slice(1) %>%
+  ungroup() %>%
+  group_by(region, sub_region) %>%
+  summarise(agri_area_ha_2020_subreg = sum(agri_area_km2_2020, na.rm = TRUE)*100,
+            land_area_ha_2020_subreg = sum(land_area_km2_2020, na.rm = TRUE)*100) 
+data_info_shr$sub_region_acro = c("N. Africa", "SSA", "LAC", "C. Asia", "E. Asia", "SE. Asia", 
+                             "S. Asia", "W. Asia", "E. Europe", "N. Europe", "S. Europe", "Mel.")
+
+```
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##------------------------------- WORLD LEVEL-----------------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                         % recorded deals by region                       ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r}
+
+StatDes_deal_reg = data_StatDes %>%
+  group_by(region) %>%
+  summarise(n = n(), per = n/nrow(data_StatDes)*100) %>%
+  arrange(desc(region)) %>%
+  mutate(ypos = cumsum(per)- 0.5*per)
+  
+
+fig_StatDes_deal_reg = ggplot(data = StatDes_deal_reg, aes(x = region, y = per)) %>%
+    + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+    + scale_x_discrete(name = '') %>%
+    + coord_cartesian(ylim = c(0, max(StatDes_deal_reg$per) + 20)) %>%
+    + geom_text(aes(label = round(per, 1)), 
+              vjust = -0.5, color="black",
+              size=4.2) %>%
+    + labs(y = '%', title = 'Distribution of recorded deals across the world',
+         subtitle = paste('Sample :', nrow(data_StatDes), 'deals')) %>%
+    + theme(plot.title = element_text(hjust = 0.5)) %>%
+    + theme_minimal() 
+fig_StatDes_deal_reg
+
+# ggsave(plot = fig_StatDes_deal_reg,
+#        filename = "fig_StatDes_deal_reg.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 5)
+
+fig_StatDes_deal_reg_pie = ggplot(data = StatDes_deal_reg, aes(x = "", y = per, fill = region)) %>%
+    + geom_bar(stat = 'identity', width = 1, color="white") %>%
+    + coord_polar("y", start = 0) %>%
+    + labs(y = '%', fill = 'Region', title = 'Distribution of recorded deals across the world (%)',
+         subtitle = paste('Sample :', nrow(data_StatDes), 'deals')) %>%
+    + geom_text(aes(y = ypos, label = round(per, 1)), color = "black", size=6) %>%
+    + scale_fill_brewer(palette="Blues") %>%
+    + theme(plot.title = element_text(hjust = 0.5)) %>%
+    + theme_void() 
+fig_StatDes_deal_reg_pie
+
+# ggsave(plot = fig_StatDes_deal_reg_pie,
+#        filename = "fig_StatDes_deal_reg_pie.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 7)
+
+rm(StatDes_deal_reg)
+
+```
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                         % recorded deals by sub-region                   ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r}
+
+StatDes_deal_subreg = data_StatDes %>%
+  group_by(sub_region) %>%
+  summarise(n = n(), per = n/nrow(data_StatDes)*100) %>%
+  arrange(desc(sub_region)) %>%
+  mutate(ypos = cumsum(per) - 0.5*per)
+
+StatDes_deal_subreg[StatDes_deal_subreg$sub_region == 'Latin America and the Caribbean',]$sub_region = 'Latin America'
+
+row = data.frame(sub_region = 'RoW', 
+                 n = sum(StatDes_deal_subreg[StatDes_deal_subreg$sub_region %in% c('Central Asia', 'Eastern Asia', 'Melanesia', 'Northern Africa', 'Northern Europe', 'Southern Asia', 'Southern Europe', 'Western Asia'),]$n),
+                 per = sum(StatDes_deal_subreg[StatDes_deal_subreg$sub_region %in% c('Central Asia', 'Eastern Asia', 'Melanesia', 'Northern Africa', 'Northern Europe', 'Southern Asia', 'Southern Europe', 'Western Asia'),]$per),
+                 ypos = 60) %>%
+  arrange(desc(ypos)) %>%
+  slice(1)
+
+  
+StatDes_deal_subreg = rbind(StatDes_deal_subreg, row) %>%  #Adding a row for the rest of the world
+  subset(!(sub_region %in% c('Central Asia', 'Eastern Asia', 'Melanesia', 'Northern Africa', 'Northern Europe', 'Southern Asia', 'Southern Europe', 'Western Asia')))
+StatDes_deal_subreg[StatDes_deal_subreg$sub_region == 'South-eastern Asia',]$ypos = 44
+
+fig_StatDes_deal_subreg = ggplot(data = StatDes_deal_subreg[StatDes_deal_subreg$sub_region %in% c('Eastern Europe', 'Latin America', 'South-eastern Asia', 'Sub-Saharan Africa', 'RoW'),], aes(x = sub_region, y = per)) %>%
+    + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+    + scale_x_discrete(name = '') %>%
+    + coord_cartesian(ylim = c(0, max(StatDes_deal_subreg$per) + 20)) %>%
+    + geom_text(aes(label = round(per, 1)), 
+              vjust = -0.5, color="black",
+              size = 4.2) %>%
+    + labs(y = '%', title = 'Distribution of recorded deals across the world', 
+         subtitle = paste('Sample :', nrow(data_StatDes), 'deals')) %>%
+    + theme(plot.title = element_text(hjust = 0.5)) %>%
+    + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_deal_subreg,
+#        filename = "fig_StatDes_deal_subreg.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 7)
+
+fig_StatDes_deal_subreg_pie = ggplot(data = StatDes_deal_subreg[StatDes_deal_subreg$sub_region %in% c('Eastern Europe', 'Latin America', 'South-eastern Asia', 'Sub-Saharan Africa', 'RoW'),], aes(x = "", y = per, fill = sub_region)) %>%
+    + geom_bar(stat = 'identity', width = 1, color="white") %>%
+    + coord_polar("y", start = 0) %>%
+    + labs(y = '%', fill = 'Sub-region', title = 'Distribution of recorded deals across the world (%)',
+         subtitle = paste('Sample :', nrow(data_StatDes), 'deals')) %>%
+    + geom_text(aes(y = ypos, label = round(per, 1)), color = "black", size=6) %>%
+    + scale_fill_brewer(palette="Blues") %>%
+    + theme(plot.title = element_text(hjust = 0.5)) %>%
+    + theme_void() 
+fig_StatDes_deal_subreg_pie
+
+# ggsave(plot = fig_StatDes_deal_subreg_pie,
+#        filename = "fig_StatDes_deal_subreg_pie.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 7)
+
+rm(StatDes_deal_subreg, row)
+
+```
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                         % land by sub-region                   ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r}
+
+StatDes_shr_subreg = data_StatDes %>%
+  #keep one observation by deal ID
+  group_by(`Deal ID`) %>%
+  slice(1) %>%
+  ungroup() %>%
+  select(c(sub_region, country, `Deal ID`, `Deal size`)) %>%
+  left_join(data_info_shr, by = "sub_region") %>%
+  group_by(sub_region) %>%
+  summarise(sub_region_acro,
+            size_deal = sum(`Deal size`, na.rm = TRUE),
+            shr_agri_subreg = size_deal/agri_area_ha_2020_subreg,
+            shr_land_subreg = size_deal/land_area_ha_2020_subreg) %>%
+  slice(1) %>%
+  ungroup() %>%
+  subset(sub_region != "Melanesia")
+
+fig_StatDes_shr_agri_subreg = ggplot(data = StatDes_shr_subreg) %>%
+    + geom_bar(aes(x = reorder(sub_region_acro, shr_agri_subreg), y = shr_agri_subreg*100),
+               stat = 'identity', fill = '#2D7FB9') %>%
+    + scale_x_discrete(name = '') %>%
+    + geom_text(aes(x = sub_region_acro, y = shr_agri_subreg*100, label = format(size_deal, scientific = TRUE, digit = 2)), 
+              vjust = -0.5, color="black",
+              size = 3) %>%
+    + labs(y = 'Share (%)', title = 'Agricultural land covered by LSLA',
+           caption = "Total agricultural area indicated above bars (in ha)") %>%
+  + theme(legend.position = "bottom",
+          legend.key = element_rect(fill = "white"),
+          plot.title = element_text(hjust = 0), 
+          axis.text.x = element_text(angle = 45),
+          panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+          ) 
+fig_StatDes_shr_agri_subreg
+# ggsave(plot = fig_StatDes_shr_agri_subreg,
+#        filename = "fig_StatDes_shr_agri_subreg.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 7)
+
+fig_StatDes_shr_land_subreg = ggplot(data = StatDes_shr_subreg) %>%
+    + geom_bar(aes(x = reorder(sub_region_acro, shr_land_subreg), y = shr_land_subreg*100),
+               stat = 'identity', fill = '#2D7FB9') %>%
+    + scale_x_discrete(name = '') %>%
+    + geom_text(aes(x = sub_region_acro, y = shr_land_subreg*100, label = format(size_deal, scientific = TRUE, digit = 2)), 
+              vjust = -0.5, color="black",
+              size = 3) %>%
+    + labs(y = 'Share (%)', title = 'Land covered by LSLA',
+           caption = "Total land area indicated above bars (in ha)") %>%
+  + theme(legend.position = "bottom",
+          legend.key = element_rect(fill = "white"),
+          plot.title = element_text(hjust = 0), 
+          axis.text.x = element_text(angle = 45),
+          panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+          ) 
+fig_StatDes_shr_land_subreg
+# ggsave(plot = fig_StatDes_shr_land_subreg,
+#        filename = "fig_StatDes_shr_land_subreg.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 7)
+
+fig_StatDes_deal_subreg_pie = ggplot(data = StatDes_deal_subreg[StatDes_deal_subreg$sub_region %in% c('Eastern Europe', 'Latin America', 'South-eastern Asia', 'Sub-Saharan Africa', 'RoW'),], aes(x = "", y = per, fill = sub_region)) %>%
+    + geom_bar(stat = 'identity', width = 1, color="white") %>%
+    + coord_polar("y", start = 0) %>%
+    + labs(y = '%', fill = 'Sub-region', title = 'Distribution of recorded deals across the world (%)',
+         subtitle = paste('Sample :', nrow(data_StatDes), 'deals')) %>%
+    + geom_text(aes(y = ypos, label = round(per, 1)), color = "black", size=6) %>%
+    + scale_fill_brewer(palette="Blues") %>%
+    + theme(plot.title = element_text(hjust = 0.5)) %>%
+    + theme_void() 
+fig_StatDes_deal_subreg_pie
+
+# ggsave(plot = fig_StatDes_deal_subreg_pie,
+#        filename = "fig_StatDes_deal_subreg_pie.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 7)
+
+rm(StatDes_deal_subreg, row)
+
+```
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                      Number of deals intended over the period            ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r}
+
+StatDes_deal_number = data_StatDes %>%
+  select(c('Deal ID', 'year_int')) %>%
+  group_by(year_int) %>%
+  summarize(n = n()) %>%
+  mutate(n_cum = cumsum(n),
+         n_cum2 = n_cum - StatDes_deal_number[StatDes_deal_number$year_int == '',]$n) #Remove deals whose intention date is unknown
+
+fig_StatDes_deal_number_year = ggplot(data = subset(StatDes_deal_number, year_int %in% c(2000:2022)), aes(x = factor(year_int), y = n)) %>%
+    + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+    + geom_text(aes(y = n, label = n), color = "black", size=3, vjust = -0.3) %>%
+    + labs(x = 'Year', y = 'Number of deals', 
+           title = 'Number of deals intended each year, globally (2000-2022)', 
+           caption = paste('Sample :', sum(subset(StatDes_deal_number, year_int %in% c(2000:2022))$n), 'deals with known dates on the period 2000-2022,', sum(StatDes_deal_number$n), 'deals recorded overall including', StatDes_deal_number[StatDes_deal_number$year_int == '',]$n, 'with unknown dates. \n"Intended" means that at least an expression of interest has been given, though the deal might not have been concluded \neventually.' )) %>%
+    + theme(plot.title = element_text(hjust = 0), 
+            axis.text.x = element_text(angle = 90),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)) 
+fig_StatDes_deal_number_year
+
+# 
+# ggsave(plot = fig_StatDes_deal_number_year,
+#        filename = "fig_StatDes_deal_number_year.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 5)
+
+fig_StatDes_deal_number_cum = ggplot(data = subset(StatDes_deal_number, year_int %in% c(2000:2022)), 
+                                     aes(x = factor(year_int), y = n_cum2)) %>%
+    + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+    + geom_text(aes(y = n_cum2, label = n_cum2), 
+                color = "black", size=3, vjust = -0.3) %>%
+    + labs(x = 'Year', y = 'Number of deals', 
+           title = 'Cumulative number of deals intended each year, globally (2000-2022)', 
+           caption = paste('Sample :', sum(subset(StatDes_deal_number, year_int %in% c(2000:2022))$n), 'deals with known dates on the period 2000-2022,', sum(StatDes_deal_number$n), 'deals recorded overall including', StatDes_deal_number[StatDes_deal_number$year_int == '',]$n, 'with unknown dates. \n "Intended" means that at least an expression of interest has been given, though the deal might not \nhave been concluded eventually.' )) %>%
+    + theme(plot.title = element_text(hjust = 0), 
+            axis.text.x = element_text(angle = 90),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)) 
+fig_StatDes_deal_number_cum
+
+# ggsave(plot = fig_StatDes_deal_number_cum,
+#        filename = "fig_StatDes_deal_number_cum.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 8, height = 5)
+
+#rm(StatDes_deal_number)
+
+```
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                      Size of deals intended over the period            ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r}
+
+StatDes_deal_size = data_StatDes %>%
+  select(c(`Deal ID`, 'loc_id', 'year_int', "size_int")) %>%
+  group_by(`Deal ID`) %>%
+  slice(1) %>%
+  ungroup() %>%
+  group_by(year_int) %>%
+  summarize(size = sum(size_int, na.rm = TRUE)) %>%
+  mutate(size_cum = cumsum(size),
+         size_cum2 = size_cum - StatDes_deal_size[StatDes_deal_size$year_int == '',]$size) #Remove deals whose intention date is unknown
+
+fig_StatDes_deal_size_year = ggplot(data = subset(StatDes_deal_size, year_int %in% c(2000:2022)), aes(x = factor(year_int), y = size)) %>%
+    + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+    + labs(x = 'Year', y = 'Intended size (in ha)', 
+           title = 'Size of deals intended each year, globally (2000-2022)', 
+           caption = paste('Sample :', sum(subset(StatDes_deal_number, year_int %in% c(2000:2022))$n), 'deals with known dates on the period 2000-2022,', sum(StatDes_deal_number$n), 'deals recorded overall including', StatDes_deal_number[StatDes_deal_number$year_int == '',]$n, 'with unknown dates. \n"Intended" means that at least an expression of interest has been given, though the deal might not have been concluded \neventually.' )) %>%
+    + theme(plot.title = element_text(hjust = 0), 
+            axis.text.x = element_text(angle = 90),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)) 
+fig_StatDes_deal_size_year
+
+# 
+# ggsave(plot = fig_StatDes_deal_size_year,
+#        filename = "fig_StatDes_deal_size_year.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 5)
+
+fig_StatDes_deal_size_cum = ggplot(data = subset(StatDes_deal_size, year_int %in% c(2000:2022)), 
+                                     aes(x = factor(year_int), y = size_cum)) %>%
+    + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+    + labs(x = 'Year', y = 'Intended size (in ha)', 
+           title = 'Cumulative size of deals intended each year, globally (2000-2022)', 
+           caption = paste('Sample :', sum(subset(StatDes_deal_number, year_int %in% c(2000:2022))$n), 'deals with known dates on the period 2000-2022,', sum(StatDes_deal_number$n), 'deals recorded overall including', StatDes_deal_number[StatDes_deal_number$year_int == '',]$n, 'with unknown dates. \n "Intended" means that at least an expression of interest has been given, though the deal might not \nhave been concluded eventually.' )) %>%
+    + theme(plot.title = element_text(hjust = 0), 
+            axis.text.x = element_text(angle = 90),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)) 
+fig_StatDes_deal_size_cum
+
+# ggsave(plot = fig_StatDes_deal_size_cum,
+#        filename = "fig_StatDes_deal_size_cum.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 8, height = 5)
+
+#rm(StatDes_deal_number)
+
+```
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                      Number of deals contracted over the period          ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+```{r}
+
+StatDes_cont_number = data_StatDes %>%
+  select(c('Deal ID', 'year_cont')) %>%
+  group_by(year_cont) %>%
+  summarize(n = n()) %>%
+  mutate(n_cum = cumsum(n),
+         n_cum2 = n_cum - StatDes_cont_number[StatDes_cont_number$year_cont == '' & is.na(StatDes_cont_number$year_cont) == FALSE,]$n)
+
+n_unkwn_cont = sum(StatDes_cont_number[StatDes_cont_number$year_cont %in% c(''),]$n)
+
+fig_StatDes_cont_number_year = ggplot(data = subset(StatDes_cont_number, year_cont %in% c(2000:2022)), aes(x = factor(year_cont), y = n)) %>%
+    + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+    + geom_text(aes(y = n, label = n), color = "black", size=3, vjust = -0.3) %>%
+    + labs(x = 'Year', y = 'Number of deals', 
+           title = 'Number of deals contracted each year, globally (2000-2022)', 
+           caption = paste('Sample :', sum(subset(StatDes_cont_number, year_cont %in% c(2000:2022))$n), 'deals with contract date known on the period 2000-2022,', sum(StatDes_cont_number$n), 'deals recorded overall including', StatDes_cont_number[StatDes_cont_number$year_cont == '',]$n, 'with \nunknown dates and', StatDes_cont_number[StatDes_cont_number$year_cont == 'null',]$n, 'never implemented overall. A deal is "contracted" if a signed or oral agreement has been reported.' )) %>%
+    + theme(plot.title = element_text(hjust = 0), 
+            axis.text.x = element_text(angle = 90),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)) 
+fig_StatDes_cont_number_year
+
+
+# ggsave(plot = fig_StatDes_cont_number_year,
+#        filename = "fig_StatDes_cont_number_year.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 5)
+
+fig_StatDes_cont_number_cum = ggplot(data = subset(StatDes_cont_number, year_cont %in% c(2000:2022)), aes(x = factor(year_cont), y = n_cum2)) %>%
+    + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+    + geom_text(aes(y = n_cum2, label = n_cum2), color = "black", size=3, vjust = -0.3) %>%
+    + labs(x = 'Year', y = 'Number of deals', 
+           title = 'Cumulative number of deals contracted each year, globally (2000-2022)', 
+           caption = paste('Sample :', sum(subset(StatDes_cont_number, year_cont %in% c(2000:2022))$n), 'deals with contract date known on the period 2000-2022,', sum(StatDes_cont_number$n), 'recorded overall including', StatDes_cont_number[StatDes_cont_number$year_cont == '',]$n, 'with \nunknown dates and', StatDes_cont_number[StatDes_cont_number$year_cont == 'null',]$n, 'never implemented overall. A deal is "contracted" if a signed or oral agreement has been reported.' )) %>%
+    + theme(plot.title = element_text(hjust = 0), 
+            axis.text.x = element_text(angle = 90),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)) 
+fig_StatDes_cont_number_cum
+
+# ggsave(plot = fig_StatDes_cont_number_cum,
+#        filename = "fig_StatDes_cont_number_cum.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 8, height = 5)
+
+#rm(StatDes_cont_number)
+
+```
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                      Size of deals contracted over the period            ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r}
+
+StatDes_cont_size = data_StatDes %>%
+  select(c('Deal ID', 'year_cont', "size_cont_avg", "size_cont_min", "size_cont_max")) %>%
+  group_by(`Deal ID`) %>%
+  slice(1) %>%
+  ungroup() %>%
+  group_by(year_cont) %>%
+  summarize(size_min = sum(size_cont_min, na.rm = TRUE),
+            size_max = sum(size_cont_max, na.rm = TRUE),
+            size_avg = sum(size_cont_avg, na.rm = TRUE)) %>%
+  subset(year_cont != "") %>%
+  mutate(size_min_cum = cumsum(size_min),
+         size_max_cum = cumsum(size_max),
+         size_avg_cum = cumsum(size_avg))
+n_unkwn_cont = sum(StatDes_cont_number[StatDes_cont_number$year_cont %in% c(''),]$n)
+
+fig_StatDes_cont_size_year = ggplot(data = subset(StatDes_cont_size, year_cont %in% c(2000:2022)), aes(x = factor(year_cont), y = size_avg)) %>%
+    + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+    + labs(x = 'Year', y = 'Size (in ha)', 
+           title = 'Size of deals contracted each year, globally (2000-2022)', 
+           caption = paste('Sample :', sum(subset(StatDes_cont_number, year_cont %in% c(2000:2022))$n), 'deals with contract date known on the period 2000-2022,', sum(StatDes_cont_number$n), 'deals recorded overall including', StatDes_cont_number[StatDes_cont_number$year_cont == '',]$n, 'with \nunknown dates and', StatDes_cont_number[StatDes_cont_number$year_cont == 'null',]$n, 'never implemented overall. A deal is "contracted" if a signed or oral agreement has been reported.' )) %>%
+    + theme(plot.title = element_text(hjust = 0), 
+            axis.text.x = element_text(angle = 90),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)) 
+fig_StatDes_cont_size_year
+
+
+# ggsave(plot = fig_StatDes_cont_size_year,
+#        filename = "fig_StatDes_cont_size_year.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 5)
+
+fig_StatDes_cont_size_cum = ggplot(data = subset(StatDes_cont_size, year_cont %in% c(2000:2022)), aes(x = factor(year_cont), y = size_avg_cum)) %>%
+    + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+    + labs(x = 'Year', y = 'Size (in ha)', 
+           title = 'Cumulative size of deals contracted each year, globally (2000-2022)', 
+           caption = paste('Sample :', sum(subset(StatDes_cont_number, year_cont %in% c(2000:2022))$n), 'deals with contract date known on the period 2000-2022,', sum(StatDes_cont_number$n), 'recorded overall including', StatDes_cont_number[StatDes_cont_number$year_cont == '',]$n, 'with \nunknown dates and', StatDes_cont_number[StatDes_cont_number$year_cont == 'null',]$n, 'never implemented overall. A deal is "contracted" if a signed or oral agreement has been reported.' )) %>%
+    + theme(plot.title = element_text(hjust = 0), 
+            axis.text.x = element_text(angle = 90),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)) 
+fig_StatDes_cont_size_cum
+
+# ggsave(plot = fig_StatDes_cont_size_cum,
+#        filename = "fig_StatDes_cont_size_cum.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 8, height = 5)
+
+#rm(StatDes_cont_number)
+```
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                      Number of deals implemented over the period         ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+```{r}
+
+
+StatDes_impl_number = data_StatDes %>%
+  select(c('Deal ID', 'year_impl')) %>%
+  group_by(year_impl) %>%
+  summarize(n = n()) %>%
+  mutate(n_cum = cumsum(n),
+         n_cum2 = n_cum - StatDes_impl_number[StatDes_impl_number$year_impl == '' & is.na(StatDes_impl_number$year_impl) == FALSE,]$n)
+
+fig_StatDes_impl_number_year = ggplot(data = subset(StatDes_impl_number, year_impl %in% c(2000:2022)), aes(x = factor(year_impl), y = n)) %>%
+    + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+    + geom_text(aes(y = n, label = n), color = "black", size=3, vjust = -0.3) %>%
+    + labs(x = 'Year', y = 'Number of deals', 
+           title = 'Number of deals implemented each year, globally (2000-2022)', 
+           caption = paste('Sample :', sum(subset(StatDes_impl_number, year_impl %in% c(2000:2022))$n), 'deals implemented on the period 2000-2022,', sum(StatDes_impl_number$n), 'deals recorded overall including', StatDes_impl_number[StatDes_impl_number$year_impl == '',]$n, 'with \nunknown dates of implementation and', StatDes_impl_number[StatDes_impl_number$year_impl == 'null',]$n, 'never implemented at all. \nA deal is "implemented" if it is reported in start-up phase (no production) or in production.' )) %>%
+    + theme(plot.title = element_text(hjust = 0), 
+            axis.text.x = element_text(angle = 90),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)) 
+fig_StatDes_impl_number_year
+
+
+# ggsave(plot = fig_StatDes_impl_number_year,
+#        filename = "fig_StatDes_impl_number_year.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 5)
+
+fig_StatDes_impl_number_cum = ggplot(data = subset(StatDes_impl_number, year_impl %in% c(2000:2022)), aes(x = factor(year_impl), y = n_cum2)) %>%
+    + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+    + geom_text(aes(y = n_cum2, label = n_cum2), color = "black", size=3, vjust = -0.3) %>%
+    + labs(x = 'Year', y = 'Number of deals', 
+           title = 'Cumulative number of deals implemented each year, globally (2000-2022)', 
+           caption = paste('Sample :', sum(subset(StatDes_impl_number, year_impl %in% c(2000:2022))$n), 'deals implemented on the period 2000-2022,', sum(StatDes_impl_number$n), 'deals recorded overall including', StatDes_impl_number[StatDes_impl_number$year_impl == '',]$n, 'with \nunknown dates of implementation and', StatDes_impl_number[StatDes_impl_number$year_impl == 'null',]$n, 'never implemented at all. \nA deal is "implemented" if it is reported in start-up phase (no production) or in production.' )) %>%
+    + theme(plot.title = element_text(hjust = 0), 
+            axis.text.x = element_text(angle = 90),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)) 
+fig_StatDes_impl_number_cum
+
+# ggsave(plot = fig_StatDes_impl_number_cum,
+#        filename = "fig_StatDes_impl_number_cum.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 8, height = 5)
+
+#rm(StatDes_impl_number)
+
+```
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                      Size of deals implemented over the period         ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r}
+
+StatDes_impl_size = data_StatDes %>%
+  select(c('Deal ID', 'year_impl', "size_op_avg", "size_op_min", "size_op_max")) %>%
+  group_by(`Deal ID`) %>%
+  slice(1) %>%
+  ungroup() %>%
+  group_by(year_impl) %>%
+  summarize(size_min = sum(size_op_min, na.rm = TRUE),
+            size_max = sum(size_op_max, na.rm = TRUE),
+            size_avg = sum(size_op_avg, na.rm = TRUE)) %>%
+  subset(year_impl != "") %>%
+  mutate(size_min_cum = cumsum(size_min),
+         size_max_cum = cumsum(size_max),
+         size_avg_cum = cumsum(size_avg))
+n_unkwn_cont = sum(StatDes_impl_number[StatDes_impl_number$year_impl %in% c(''),]$n)
+
+fig_StatDes_impl_size_year = ggplot(data = subset(StatDes_impl_size, year_impl %in% c(2000:2022)), aes(x = factor(year_impl), y = size_avg)) %>%
+    + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+    + labs(x = 'Year', y = 'Size (in ha)', 
+           title = 'Size of deals implemented each year, globally (2000-2022)', 
+           caption = paste('Sample :', sum(subset(StatDes_impl_number, year_impl %in% c(2000:2022))$n), 'deals implemented on the period 2000-2022,', sum(StatDes_impl_number$n), 'deals recorded overall including', StatDes_impl_number[StatDes_impl_number$year_impl == '',]$n, 'with \nunknown dates of implementation and', StatDes_impl_number[StatDes_impl_number$year_impl == 'null',]$n, 'never implemented at all. \nA deal is "implemented" if it is reported in start-up phase (no production) or in production.' )) %>%
+    + theme(plot.title = element_text(hjust = 0), 
+            axis.text.x = element_text(angle = 90),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)) 
+fig_StatDes_impl_size_year
+
+
+# ggsave(plot = fig_StatDes_impl_size_year,
+#        filename = "fig_StatDes_impl_size_year.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 5)
+
+fig_StatDes_impl_size_cum = ggplot(data = subset(StatDes_impl_size, year_impl %in% c(2000:2022)), aes(x = factor(year_impl), y = size_avg_cum)) %>%
+    + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+    + labs(x = 'Year', y = 'Size (in ha)', 
+           title = 'Cumulative size of deals implemented each year, globally (2000-2022)', 
+           caption = paste('Sample :', sum(subset(StatDes_impl_number, year_impl %in% c(2000:2022))$n), 'deals implemented on the period 2000-2022,', sum(StatDes_impl_number$n), 'deals recorded overall including', StatDes_impl_number[StatDes_impl_number$year_impl == '',]$n, 'with \nunknown dates of implementation and', StatDes_impl_number[StatDes_impl_number$year_impl == 'null',]$n, 'never implemented at all. \nA deal is "implemented" if it is reported in start-up phase (no production) or in production.' )) %>%
+    + theme(plot.title = element_text(hjust = 0), 
+            axis.text.x = element_text(angle = 90),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)) 
+fig_StatDes_impl_size_cum
+# 
+# ggsave(plot = fig_StatDes_impl_size_cum,
+#        filename = "fig_StatDes_impl_size_cum.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 8, height = 5)
+
+#rm(StatDes_impl_number)
+```
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                      Number of deals abandoned over the period         ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r}
+
+StatDes_aban_number = data_StatDes %>%
+  select(c('Deal ID', 'year_aban')) %>%
+  group_by(year_aban) %>%
+  summarize(n = n()) %>%
+  mutate(n_cum = cumsum(n),
+         n_cum2 = n_cum - StatDes_aban_number[StatDes_aban_number$year_aban == '',]$n
+         )
+
+fig_StatDes_aban_number_year = ggplot(data = subset(StatDes_aban_number, year_aban %in% c(2000:2022)), aes(x = factor(year_aban), y = n)) %>%
+    + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+    + geom_text(aes(y = n, label = n), color = "black", size=3, vjust = -0.3) %>%
+    + labs(x = 'Year', y = 'Number of deals', 
+           title = 'Number of deals abandoned each year, globally (2000-2022)', 
+           caption = paste('Sample :', sum(subset(StatDes_aban_number, year_aban %in% c(2000:2022))$n), 'deals abandoned on the period 2000-2022,', sum(StatDes_aban_number$n), 'deals recorded overall including', StatDes_aban_number[StatDes_aban_number$year_aban == '',]$n, 'with unknown \ndates of abandon and', StatDes_aban_number[StatDes_aban_number$year_aban == 'null',]$n, 'never abandoned.')) %>%
+    + theme(plot.title = element_text(hjust = 0), 
+            axis.text.x = element_text(angle = 90),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)) 
+fig_StatDes_aban_number_year
+
+
+# ggsave(plot = fig_StatDes_aban_number_year,
+#        filename = "fig_StatDes_aban_number_year.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 5)
+
+fig_StatDes_aban_number_cum = ggplot(data = subset(StatDes_aban_number, year_aban %in% c(2000:2022)), aes(x = factor(year_aban), y = n_cum2)) %>%
+    + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+    + geom_text(aes(y = n_cum2, label = n_cum2), color = "black", size=3, vjust = -0.3) %>%
+    + labs(x = 'Year', y = 'Number of deals', 
+           title = 'Cumulative number of deals abandoned each year, globally (2000-2022)', 
+           caption = paste('Sample :', sum(subset(StatDes_aban_number, year_aban %in% c(2000:2022))$n), 'deals abandoned on the period 2000-2022,', sum(StatDes_aban_number$n), 'deals recorded overall including', StatDes_aban_number[StatDes_aban_number$year_aban == '',]$n, 'with unknown \ndates of abandon and', StatDes_aban_number[StatDes_aban_number$year_aban == 'null',]$n, 'never abandoned.')) %>%
+    + theme(plot.title = element_text(hjust = 0), 
+            axis.text.x = element_text(angle = 90),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)) 
+fig_StatDes_aban_number_cum
+
+# ggsave(plot = fig_StatDes_aban_number_cum,
+#        filename = "fig_StatDes_aban_number_cum.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 8, height = 5)
+
+#rm(StatDes_aban_number)
+
+```
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##              Number of deals intended and implemented each year         ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r}
+
+fig_StatDes_int_impl_cum = ggplot() %>%
+  + geom_bar(data = subset(StatDes_deal_number, year_int %in% c(2000:2022)),
+             aes(x = factor(year_int), y = n_cum2, fill = 'int'),
+             stat = 'identity') %>%
+  + geom_text(data = subset(StatDes_deal_number, year_int %in% c(2000:2022)),
+              aes(x = factor(year_int), y = n_cum2, label = n_cum2), color = "black", size=3, vjust = -0.3) %>%
+  + geom_bar(data = subset(StatDes_impl_number, year_impl %in% c(2000:2022)),
+             aes(x = factor(year_impl), y = n_cum2, fill = 'impl'),
+             stat = 'identity') %>%
+  + geom_text(data = subset(StatDes_impl_number, year_impl %in% c(2000:2022)),
+              aes(x = factor(year_impl), y = n_cum2, label = n_cum2), color = "black", size=3, vjust = -0.3) %>%
+  + labs(x = 'Year', y = 'Number of deals', 
+         title = 'Cumulative number of deals intended and implemented each year, globally (2000-2022)', 
+         caption = paste('Sample :', sum(subset(StatDes_deal_number, year_int %in% c(2000:2022))$n), 'deals intended and', sum(subset(StatDes_impl_number, year_impl %in% c(2000:2022))$n),  'implemented on the period 2000-2022,', sum(StatDes_impl_number$n), 'deals recorded overall.')) %>%
+  + theme(plot.title = element_text(hjust = 0), 
+            axis.text.x = element_text(angle = 90),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0),
+            legend.position="bottom") %>%
+  + scale_fill_manual(name = "", 
+                      values = c('int' = '#BDD7E7', 'impl' = '#3182BD'),
+                      labels = c('Intended', 'Implemented'))
+  
+fig_StatDes_int_impl_cum
+
+# ggsave(plot = fig_StatDes_int_impl_cum,
+#        filename = "fig_StatDes_int_impl_cum.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 8, height = 5)
+
+```
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##              Number of deals intended and contracted each year           ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r}
+
+fig_StatDes_int_cont_cum = ggplot() %>%
+  + geom_bar(data = subset(StatDes_deal_number, year_int %in% c(2000:2022)),
+             aes(x = factor(year_int), y = n_cum2, fill = 'int'),
+             stat = 'identity') %>%
+  + geom_text(data = subset(StatDes_deal_number, year_int %in% c(2000:2022)),
+              aes(x = factor(year_int), y = n_cum2, label = n_cum2), color = "black", size=3, vjust = -0.3) %>%
+  + geom_bar(data = subset(StatDes_cont_number, year_cont %in% c(2000:2022)),
+             aes(x = factor(year_cont), y = n_cum2, fill = 'cont'),
+             stat = 'identity') %>%
+  + geom_text(data = subset(StatDes_cont_number, year_cont %in% c(2000:2022)),
+              aes(x = factor(year_cont), y = n_cum2, label = n_cum2), color = "black", size=3, vjust = -0.3) %>%
+  + labs(x = 'Year', y = 'Number of deals', 
+         title = 'Cumulative number of deals intended and contracted each year, globally (2000-2022)', 
+         caption = paste('Sample :', sum(subset(StatDes_deal_number, year_int %in% c(2000:2022))$n), 'deals intended and', sum(subset(StatDes_cont_number, year_cont %in% c(2000:2022))$n),  'contracted on the period 2000-2022,', sum(StatDes_impl_number$n), 'deals recorded overall.')) %>%
+  + theme(plot.title = element_text(hjust = 0), 
+            axis.text.x = element_text(angle = 90),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0),
+            legend.position="bottom") %>%
+  + scale_fill_manual(name = "", 
+                      values = c('int' = '#BDD7E7', 'cont' = '#3182BD'),
+                      labels = c('Intended', 'Contracted'))
+  
+fig_StatDes_int_cont_cum
+
+# ggsave(plot = fig_StatDes_int_cont_cum,
+#        filename = "fig_StatDes_int_cont_cum.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 8, height = 5)
+
+```
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##              Number of deals implemented and abandoned each year         ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r}
+
+fig_StatDes_impl_aban_cum = ggplot() %>%
+  + geom_bar(data = subset(StatDes_impl_number, year_impl %in% c(2000:2022)),
+             aes(x = factor(year_impl), y = n_cum2, fill = 'impl'),
+             stat = 'identity') %>%
+  + geom_text(data = subset(StatDes_impl_number, year_impl %in% c(2000:2022)),
+              aes(x = factor(year_impl), y = n_cum2, label = n_cum2), color = "black", size=3, vjust = -0.3) %>%
+  + geom_bar(data = subset(StatDes_aban_number, year_aban %in% c(2000:2022)),
+             aes(x = factor(year_aban), y = n_cum2, fill = 'aban'),
+             stat = 'identity') %>%
+  + geom_text(data = subset(StatDes_aban_number, year_aban %in% c(2000:2022)),
+              aes(x = factor(year_aban), y = n_cum2, label = n_cum2), color = "black", size=3, vjust = -0.3) %>%
+  + labs(x = 'Year', y = 'Number of deals', 
+         title = 'Cumulative number of deals implemented and abandoned each year, globally (2000-2022)', 
+         caption = paste('Sample :', sum(subset(StatDes_impl_number, year_impl %in% c(2000:2022))$n), 'deals implemented and', sum(subset(StatDes_aban_number, year_aban %in% c(2000:2022))$n),  'abandoned on the period 2000-2022,', sum(StatDes_impl_number$n), 'deals recorded overall. \nNote :', StatDes_aban_number[StatDes_aban_number$year_aban == '',]$n, 'deals have unknown date of abandon and', StatDes_aban_number[StatDes_aban_number$year_aban == 'null',]$n, 'are never abandoned, while', StatDes_impl_number[StatDes_impl_number$year_impl == '',]$n, 'have unknown \ndate of implementation and', StatDes_impl_number[StatDes_impl_number$year_impl == 'null',]$n, 'are never implemented.')) %>%
+  + theme(plot.title = element_text(hjust = 0), 
+            axis.text.x = element_text(angle = 90),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0),
+            legend.position="bottom") %>%
+  + scale_fill_manual(name = "", 
+                      values = c('impl' = '#BDD7E7', 'aban' = '#3182BD'),
+                      labels = c('Implemented', 'Abandoned'))
+  
+fig_StatDes_impl_aban_cum
+
+# ggsave(plot = fig_StatDes_impl_aban_cum,
+#        filename = "fig_StatDes_impl_aban_cum.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 8, height = 5)
+  
+
+```
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##-----------------------------  Sub-regional level ----------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                            Creating the dataset                          ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r}
+
+data_date = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_date.csv") %>%
+  mutate(`Deal ID` = as.character(`Deal ID`))
+data_size = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_size.csv") %>%
+  mutate(`Deal ID` = as.character(`Deal ID`))
+
+data_StatDes = right_join(ctry_reg, data_deals_all, by = c('country' = 'Target country')) %>%
+  left_join(data_date, by = 'Deal ID') %>%
+  left_join(data_size, by = 'Deal ID') %>%
+  left_join(area_land, by = c("ISO_A3" = "iso_3")) %>%
+  left_join(area_agri, by = c("ISO_A3" = "iso_3")) %>%
+  group_by(`Deal ID`) %>%
+  slice(1) %>%
+  ungroup() %>%
+  mutate(land_area_ha_2020 = land_area_km2_2020*100,
+         agri_area_ha_2020 = agri_area_km2_2020*100,
+         shr_land = `Deal size`/land_area_ha_2020,
+         shr_agri = `Deal size`/agri_area_ha_2020)
+
+
+##List and choice of sub-region
+tab_sub_reg = data.frame(sub_region = c(unique(data_StatDes$sub_region), "Northern Africa,Western Asia,Southern Asia,Eastern Asia,Central Asia,Northern Europe,Southern Europe,Melanesia"),
+                         sub_region_name = c(unique(data_StatDes$sub_region), rep('ROW', 1)),
+                         acro = c("SEAs", "EE", "SE", "Mel", "LA", "SSA", "NAf", "EAs", "CAs",
+                                  "WAs", "SAs", "NE", "ROW"))
+
+###For sub-regions other than RoW
+roi = subset(tab_sub_reg, sub_region == 'Sub-Saharan Africa') #Choose Region of Interest
+roi_select = roi$sub_region
+roi_name = roi_select
+roi_acro = roi$acro
+
+###For RoW
+# roi_select = str_split(subset(tab_sub_reg, acro == 'ROW')$sub_region, ',')[[1]]
+# roi_name = '"rest of the world"'
+# roi_acro = 'ROW'
+
+
+##Add to the dataset date of intention, date of contraction, date of implementation
+
+####The variable "year_intd" for year where the intention was expressed is built following LMI instructions 
+##See analytical report 2021, box 1 (page 37) to extract year of negotiation
+
+####For year_conc 
+  #If 'concluded' is in `Negotiation status` and a number is given before 'Concluded ...' in `Negotiation status`
+    #select the string before 'Concluded ...' : will be (for instance) '2000#current#' or '2007##Intended|2010#current#' : will be dealt later
+  #else if 'concluded' is in `Negotiation status` and a number is NOT given before 'Concluded ...' in `Negotiation status`
+    #take the very first date in `Size under contract`, just before # 
+
+#### For year_conc2 : dealing with '2000#current#' or '2007##Intended|2010#current#'
+  ##If the year_conc contains '|', then take the string between '|' and ('#current#...' or '##')
+  ##If the year_conc contains '#' and NOT '|', then get rid of everything after '#' in year_conc
+  ##Else : keep year_conc (should be OK)
+###CAREFUL : weird stuff when date taken in `Size under contract...` and no date is indicated. Add a condition in the building of year_conc
+
+data_StatDes_roi = data_StatDes %>%
+  subset(sub_region %in% roi_select) %>%
+  mutate(year_intd = ifelse(str_sub(`Negotiation status`, 1, 1) != '#' & str_sub(`Negotiation status`, 1, 4) != 'None', 
+                           yes = sub("\\#.*", "", `Negotiation status`),
+                           no = ifelse(str_sub(`Size under contract (leased or purchased area, in ha)`, 1, 1) != '#' & str_sub(`Size under contract (leased or purchased area, in ha)`, 1, 4) != 'None', 
+                                  yes = sub("\\#.*", "", `Size under contract (leased or purchased area, in ha)`),
+                                  no = ifelse(`Current implementation status` != 'Project abandoned' & `Current negotiation status` == 'Concluded (Contract signed)',
+                                         yes = sub("\\#.*", "", `Implementation status`),
+                                         no = ''))
+                           ),
+         .after = `Deal size`) %>%
+  mutate(year_conc = ifelse(grepl(pattern = '(concluded)', x = `Negotiation status`, ignore.case = TRUE)
+                            & grepl("\\d\\#(current|)\\#Concluded", x = `Negotiation status`), 
+                            yes = sub("Concluded.*", "", `Negotiation status`),
+                            no = ifelse(grepl(pattern = '(concluded)', x = `Negotiation status`, ignore.case = TRUE)
+                            & grepl("\\d\\#(current|)\\#Concluded", x = `Negotiation status`) == FALSE,
+                            yes = sub("^(\\#(current|)\\#.*)", "", `Size under contract (leased or purchased area, in ha)`),
+                            no = ''
+                            )),
+         .after = year_intd) %>%
+  mutate(year_conc2 = ifelse(grepl(pattern = '(concluded)', x = `Negotiation status`, ignore.case = TRUE)
+                            & grepl("\\d\\#(current|)\\#Concluded", x = `Negotiation status`)
+                            & grepl("\\|", x = year_conc), 
+                             yes = sub("(.*)(\\|)(.*)(\\#(current|)\\#)", "\\3", year_conc), 
+                             no = ifelse(grepl("\\|", x = year_conc) == FALSE & grepl("\\#", x = year_conc) == TRUE,
+                                    yes = sub("(\\#.*)", "", year_conc),
+                                    no = year_conc)),
+         .after = year_conc)
+
+
+```
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                   Distribution of deals across countries                 ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Number of deals  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r}
+
+data_StatDes_roi_distrib = data_StatDes_roi %>%
+  group_by(country) %>%
+  summarise(n_deals = n()) %>%
+  ungroup()
+
+fig_StatDes_roi_distrib = ggplot(data = data_StatDes_roi_distrib, 
+                                 aes(x = reorder(country, n_deals), y = n_deals)) %>%
+  + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + geom_text(aes(label = n_deals),
+          vjust = +0.5,
+          hjust = -0.3,
+          color="black",
+          size=3.5) %>%
+  + labs(y = 'Number of deals', title = paste('Distribution of recorded deals across', roi_name), 
+       subtitle = paste('Sample :', nrow(data_StatDes_roi), 'deals', 'in', nrow(data_StatDes_roi_distrib), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0),
+          panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(hjust = 0, color = 'grey50', size = 8.5, face = 'plain'))
+
+ggsave(plot = fig_StatDes_roi_distrib,
+       filename = paste0("fig_StatDes_", roi_acro ,"_distrib.jpeg"),
+       path = paste0('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/', roi_acro),
+       width = 9, height = 9)
+
+
+fig_StatDes_roi_distrib_100 = ggplot(data = subset(data_StatDes_roi_distrib, data_StatDes_roi_distrib$n_deals >= 100), 
+                                 aes(x = reorder(country, n_deals), y = n_deals)) %>%
+  + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + geom_text(aes(label = n_deals),
+          vjust = +0.5,
+          hjust = -0.3,
+          color="black",
+          size=3.5) %>%
+  + labs(y = 'Number of deals', title = paste('Distribution of recorded deals across',roi_name), 
+       subtitle = paste('Sample :', sum(subset(data_StatDes_roi_distrib, data_StatDes_roi_distrib$n_deals >= 100)$n_deals), 'deals', 'in', nrow(subset(data_StatDes_roi_distrib, data_StatDes_roi_distrib$n_deals >= 100)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0),
+          panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(hjust = 0, color = 'grey50', size = 8.5, face = 'plain'))
+ggsave(plot = fig_StatDes_roi_distrib_100,
+       filename = paste0("fig_StatDes_", roi_acro ,"_distrib_100.jpeg"),
+       path = paste0('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/', roi_acro),
+       width = 8, height = 7)
+
+```
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Total size of deals  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r}
+data_StatDes_roi_distrib_tot_size = data_StatDes_roi %>%
+  group_by(country) %>%
+  summarise(size_tot = sum(`Deal size`, na.rm = TRUE)) %>%
+  ungroup()
+
+fig_StatDes_roi_distrib_tot_size = ggplot(data = data_StatDes_roi_distrib_tot_size, 
+                                 aes(x = reorder(country, size_tot), y = size_tot)) %>%
+  + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + scale_y_continuous(labels = function(x) format(x, scientific = TRUE)) %>%
+  + geom_text(aes(label = format(size_tot, digits = 2, scientific = TRUE)),
+              vjust = +0.5,
+              hjust = -0.1,
+              color="black",
+              size=3.5) %>%
+  + labs(y = 'Cumulated size of deals (in ha)', 
+         title = paste('Distribution and cumulated size of deals recorded across', roi_name), 
+       subtitle = paste('Sample :', nrow(data_StatDes_roi), 'deals', 'in', nrow(data_StatDes_roi_distrib_tot_size), 'countries'),
+       caption = paste('Note :', nrow(subset(data_StatDes_roi, data_StatDes_roi$`Deal size` == 0)), 'deals have size 0 due to unknown or uncertain information. Keeping them does not affect the computations here.')
+       ) %>%
+  + theme(plot.title = element_text(hjust = 0),
+          panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(hjust = 0, color = 'grey50', size = 8.5, face = 'plain')) 
+
+ggsave(plot = fig_StatDes_roi_distrib_tot_size,
+       filename = paste0("fig_StatDes_", roi_acro, "_distrib_tot_size.jpeg"),
+       path = paste0('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/', roi_acro),
+       width = 14, height = 7)
+
+```
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Land share of total size of deals  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+```{r}
+
+data_StatDes_roi_distrib_tot_shr = data_StatDes_roi %>%
+  group_by(country) %>%
+  summarise(size_tot = sum(`Deal size`, na.rm = TRUE),
+            shr_land = size_tot/land_area_ha_2020,
+            shr_agri = size_tot/agri_area_ha_2020) %>%
+  slice(1) %>%
+  ungroup()
+
+#Share of agri land
+
+fig_StatDes_roi_distrib_tot_shr_agri = ggplot(data = data_StatDes_roi_distrib_tot_shr,
+                                              aes(x = reorder(country, shr_agri), y = shr_agri*100)) %>%
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + scale_y_continuous(labels = function(x) format(x, scientific = TRUE)) %>%
+  + geom_text(aes(label = format(size_tot/shr_agri, digits = 2, scientific = TRUE)),
+              vjust = +0.5,
+              hjust = -0.1,
+              color="black",
+              size=3.5) %>%
+  + labs(y = 'Share covered by LSLA (%)', 
+         title = paste('Share of agricultural land covered by LSLA across', roi_name), 
+       subtitle = paste('Sample :', nrow(data_StatDes_roi), 'deals', 'in', nrow(data_StatDes_roi_distrib_tot_shr), 'countries'),
+       caption = paste('Note :', nrow(subset(data_StatDes_roi, data_StatDes_roi$`Deal size` == 0)), 'deals have size 0 due to unknown or uncertain information. Keeping them does not affect the computations here.\nTotal agricultural land indicated on bars (in ha).')
+       ) %>%
+  + theme(plot.title = element_text(hjust = 0),
+          panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(hjust = 0, color = 'grey50', size = 8.5, face = 'plain'))
+
+fig_StatDes_roi_distrib_tot_shr_agri
+
+ggsave(plot = fig_StatDes_roi_distrib_tot_shr_agri,
+       filename = paste0("fig_StatDes_", roi_acro, "_distrib_tot_shr_agri.jpeg"),
+       path = paste0('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/', roi_acro),
+       width = 14, height = 7)
+
+#Share of total land
+
+fig_StatDes_roi_distrib_tot_shr_land = ggplot(data = data_StatDes_roi_distrib_tot_shr,
+                                              aes(x = reorder(country, shr_land), y = shr_land*100)) %>%
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + scale_y_continuous(labels = function(x) format(x, scientific = TRUE)) %>%
+  + geom_text(aes(label = format(size_tot/shr_land, digits = 2, scientific = TRUE)),
+              vjust = +0.5,
+              hjust = -0.1,
+              color="black",
+              size=3.5) %>%
+  + labs(y = 'Share covered by LSLA (%)', 
+         title = paste('Share of land covered by LSLA across', roi_name), 
+       subtitle = paste('Sample :', nrow(data_StatDes_roi), 'deals', 'in', nrow(data_StatDes_roi_distrib_tot_shr), 'countries'),
+       caption = paste('Note :', nrow(subset(data_StatDes_roi, data_StatDes_roi$`Deal size` == 0)), 'deals have size 0 due to unknown or uncertain information. Keeping them does not affect the computations here.\nTotal land indicated on bars (in ha).')
+       ) %>%
+  + theme(plot.title = element_text(hjust = 0),
+          panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(hjust = 0, color = 'grey50', size = 8.5, face = 'plain'))
+
+fig_StatDes_roi_distrib_tot_shr_land
+
+ggsave(plot = fig_StatDes_roi_distrib_tot_shr_land,
+       filename = paste0("fig_StatDes_", roi_acro, "_distrib_tot_shr_land.jpeg"),
+       path = paste0('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/', roi_acro),
+       width = 14, height = 7)
+
+
+```
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Mean size of deals   ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r}
+
+data_StatDes_roi_distrib_nozero = data_StatDes_roi %>%
+  group_by(country) %>%
+  subset(`Deal size` != 0) %>%
+  summarise(n_deals = n()) %>%
+  ungroup()
+
+data_StatDes_roi_distrib_mean_size = left_join(data_StatDes_roi_distrib_nozero, data_StatDes_roi_distrib_tot_size, by = 'country') %>%
+  mutate(mean_size = size_tot/n_deals, mean_size_sc = format(mean_size, digit = 2, scientific = TRUE))
+
+fig_StatDes_roi_distrib_mean_size = ggplot(data = data_StatDes_roi_distrib_mean_size, 
+                                 aes(x = reorder(country, mean_size), y = mean_size)) %>%
+  + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + scale_y_continuous(labels = function(x) format(x, scientific = TRUE)) %>%
+  + geom_text(aes(label = n_deals),
+              vjust = +0.5,
+              hjust = -0.3,
+              color="black",
+              size=3.5) %>%
+  + labs(y = 'Average size of deals (in ha)', title = paste('Distribution and average size of deals recorded across', roi_name), 
+       subtitle = paste('Sample :', sum(data_StatDes_roi_distrib_mean_size$n_deals), 'deals', 'in', 
+                        nrow(data_StatDes_roi_distrib_mean_size), 'countries (# indicated for each country)'),
+       caption = paste('Note :', nrow(subset(data_StatDes_roi, data_StatDes_roi$`Deal size` == 0)), 'deals have size 0 due to unknown or uncertain information. These deals are not kept in the computation of the mean. Above each bar is indicated the total number of deals recorded in each country.')
+       ) %>%
+  + theme(plot.title = element_text(hjust = 0),
+          panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(hjust = 0, color = 'grey50', size = 8.5, face = 'plain'))
+ 
+ggsave(plot = fig_StatDes_roi_distrib_mean_size,
+       filename = paste0("fig_StatDes_", roi_acro, "_distrib_mean_size.jpeg"),
+       path = paste0('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/', roi_acro),
+       width = 14, height = 9)
+
+```
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                    Distribution + spatial accuracy                       ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r}
+
+#data_accu : dataset with information on the accuracy of deals per country
+#n : number of deal with unique Deal ID
+## n_multi : number of deals with more than 1 locations
+## n_accu_uni : number of deals with exactly one accurate location
+## n_accu : number of accurate locations (one deal might be associated with more than one accurate locations)
+
+data_StatDes_roi_loc = data_StatDes_roi %>%
+  left_join(geo_loc_all, by = 'Deal ID') %>%
+  select(c('region', 'sub_region', 'country', 'Deal ID', 'spatial_accuracy', 'geometry_loc', 'loc_multi', 'loc_accu', 'loc_accu_uni')) %>%
+  group_by(`Deal ID`) %>%
+  slice(1) %>%
+  ungroup() %>%
+  group_by(country) %>%
+  summarise(n = n(),
+            n_multi = sum(loc_multi, na.rm = TRUE), 
+            n_accu_uni = sum(loc_accu_uni, na.rm = TRUE),
+            n_accu = sum(loc_accu, na.rm = TRUE)
+            ) %>%
+  arrange(desc(n)) %>%
+  pivot_longer(cols = c(n, n_multi, n_accu_uni, n_accu),
+               names_to = 'type')
+
+
+#Distribution of deals and locations known accurately
+fig_StatDes_roi_loc_accu = ggplot() %>%
+  + geom_bar(data = subset(data_StatDes_roi_loc, type == 'n'),
+             aes(x = reorder(country, value), y = value, fill = 'n'),
+             width = 0.8,
+             stat = 'identity') %>%
+  + geom_bar(data = subset(data_StatDes_roi_loc, type == 'n_accu'),
+             aes(x = reorder(country, value), y = value, fill = 'n_accu'),
+             width = 0.8,
+             stat = 'identity') %>%
+  + coord_flip() %>%
+  + scale_fill_manual("Scale", 
+                      values = c('n' = '#DEEBF7', 
+                                 'n_accu' = '#3182BD'),
+                      labels = c('Total deals','Accurate location')) %>%
+  + labs(x = '', y = 'Number of deals', 
+         title = paste('Distribution of recorded deals across', roi_name, '\nand amount of locations known accurately'),
+         subtitle = paste('Sample :', sum(subset(data_StatDes_roi_loc, type == 'n')$value), 'deals', 'in', length(unique(data_StatDes_roi_loc$country)), 'countries'),
+         caption = 'The recorded land deals can be associated with more than one locations (typically if several parcels are recorded under the same deal).\n Each location can be known with different levels of spatial accuracy : we restrict to locations known through coordinates \n ("exact" or "coordinates" accuracy level in the dataset).') %>%
+  + theme(plot.title = element_text(hjust = 0),
+          panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(hjust = 0, color = 'grey50', size = 8.5, face = 'plain'))
+
+ggsave(plot = fig_StatDes_roi_loc_accu,
+       filename = paste0("fig_StatDes_", roi_acro, "_loc_accu.jpeg"),
+       path = paste0('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/', roi_acro),
+       width = 9, height = 9)
+
+
+#Distribution of deals, plus locations unique and known accurately
+fig_StatDes_roi_loc_accu_uni = ggplot() %>%
+  + geom_bar(data = subset(data_StatDes_roi_loc, type == 'n'),
+             aes(x = reorder(country, value), y = value, fill = 'n'),
+             width = .8,
+             stat = 'identity') %>%
+  + geom_bar(data = subset(data_StatDes_roi_loc, type == 'n_accu_uni'),
+             aes(x = reorder(country, value), y = value, fill = 'n_accu_uni'),
+             width = .8,
+             stat = 'identity') %>%
+  + coord_flip() %>%
+  + scale_fill_manual("Scale", 
+                      values = c('n' = '#DEEBF7', 
+                                 'n_accu_uni' = '#3182BD'),
+                      labels = c('Total deals','Accurate and \nunique location')) %>%
+  + labs(x = '', y = 'Number of deals', 
+         title = paste('Distribution of recorded deals across', roi_name, '\nand amount of locations known accurately'),
+         subtitle = paste('Sample :', sum(subset(data_StatDes_roi_loc, type == 'n')$value), 'deals', 'in', length(unique(data_StatDes_roi_loc$country)), 'countries'),
+         caption = 'The recorded land deals can be associated with more than one locations (typically if several parcels are recorded under the same deal).\n Each location can be known with different levels of spatial accuracy. We restrict to deals with unique location reported, known through coordinates \n ("exact" or "coordinates" accuracy level in the dataset).') %>%
+  + theme(plot.title = element_text(hjust = 0),
+          panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(hjust = 0, color = 'grey50', size = 8.5, face = 'plain'))
+
+ggsave(plot = fig_StatDes_roi_loc_accu_uni,
+       filename = paste0("fig_StatDes_", roi_acro, "_loc_accu_uni.jpeg"),
+       path = paste0('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/', roi_acro),
+       width = 9, height = 9)
+
+
+```
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                    Distribution + known areas                            ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r}
+
+#data_areas : information on shapefiles of the deals
+##area_multi : is the deal associated with more than one area ? --> n_multi the corresponsing amount
+##area_uni : is the deal associated with a unique area ? --> n_uni
+
+data_StatDes_roi_areas = data_StatDes_roi %>%
+  select(c(country, `Deal ID`)) %>%
+  left_join(geo_areas_all, by = 'Deal ID') %>%
+  mutate(`Deal ID` = as.numeric(`Deal ID`),
+         area_accu = (is.na(area_uni) == FALSE | is.na(area_multi) == FALSE)) %>%
+  group_by(`Deal ID`) %>%
+  slice(1) %>%
+  group_by(country) %>%
+  summarise(n = n(),
+         n_multi = sum(area_multi, na.rm = TRUE),
+         n_uni = sum(area_uni, na.rm = TRUE)) %>%
+  pivot_longer(cols = c(n, n_multi, n_uni),
+               names_to = 'type')
+
+
+#Distribution of deals and areas known
+fig_StatDes_roi_areas = ggplot() %>%
+  + geom_bar(data = subset(data_StatDes_roi_areas, type == 'n'),
+             aes(x = reorder(country, value), y = value, fill = 'n'),
+             width = .8,
+             stat = 'identity') %>%
+  + geom_bar(data = subset(data_StatDes_roi_areas, type == 'n_uni'),
+             aes(x = reorder(country, value), y = value, fill = 'n_uni'),
+             width = .5,
+             stat = 'identity') %>%
+  + geom_bar(data = subset(data_StatDes_roi_areas, type == 'n_multi'),
+             aes(x = reorder(country, value), y = value, fill = 'n_multi'),
+             width = .2,
+             stat = 'identity') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', 
+         title = paste('Distribution of recorded deals across', roi_name, '\nand amount of areas known'),
+         subtitle = paste('Sample :', sum(subset(data_StatDes_roi_areas, type == 'n')$value), 'deals', 'in', length(unique(data_StatDes_roi_areas$country)), 'countries'),
+         caption = 'The recorded land deals can be associated with more than one areas (typically if several parcels are recorded under the same deal).\nHere we distinguish between deals with a unique area, and deals with more than one area recorded.') %>%
+  + scale_fill_manual("Scale", 
+                      values = c('n' = '#3182BD', 
+                                 'n_uni' = '#6BAED6',
+                                 'n_multi' = '#EFF3FF'),
+                      labels = c('Total deals', 'Unique area', 'Multiple areas')) %>%
+  + theme(plot.title = element_text(hjust = 0),
+          panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(hjust = 0, color = 'grey50', size = 8.5, face = 'plain'))
+
+
+ggsave(plot = fig_StatDes_roi_areas,
+       filename = paste0("fig_StatDes_", roi_acro, "_areas.jpeg"),
+       path = paste0('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/', roi_acro),
+       width = 9, height = 9)
+
+```
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                      Accurate location and known shape                   ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r}
+
+#Dataset with deals having accurate location and their corresponding area
+#Such deals are useful to assess the relevance of approximating areas with circle centered on the coordinates
+#For each deals with accurate location :
+#n_accu_uni : number of deals with accurate location (number of rows in the previous dataset) ...
+#n_accu_uni_area_uni : ... and with unique area
+#n_accu_uni_area_multi : ... and with more than one area
+
+temp_n = data_StatDes %>%
+  group_by(country) %>%
+  summarize(n = n())
+
+data_StatDes_roi_loc_areas = data_StatDes_roi %>%
+  left_join(geo_loc_all, by = 'Deal ID') %>%
+  select(c('region', 'sub_region', 'country', 'Deal ID', 'spatial_accuracy', 'geometry_loc', 'loc_multi', 'loc_accu',
+           'loc_accu_uni')) %>%
+  left_join(geo_areas_all, by = 'Deal ID') %>%
+  group_by(`Deal ID`) %>%
+  slice(1) %>%
+  ungroup() %>%
+  subset(loc_accu_uni == TRUE) %>%
+  group_by(country) %>%
+  summarize(n_accu_uni = n(), 
+            n_accu_uni_area_uni = sum(area_uni, na.rm = TRUE),
+            n_accu_uni_area_multi = sum(area_multi, na.rm = TRUE)) %>%
+  left_join(temp_n, by = 'country') %>%
+  arrange(desc(n)) %>%
+  pivot_longer(cols = c(n, n_accu_uni, n_accu_uni_area_uni, n_accu_uni_area_multi),
+               names_to = 'type')
+
+
+fig_StatDes_roi_loc_areas = ggplot() %>%
+  + geom_bar(data = subset(data_StatDes_roi_loc_areas, type == 'n'), 
+             aes(x = reorder(country, value), y = value, fill = 'n'),
+             width = .8,
+             stat = 'identity') %>%
+  + geom_bar(data = subset(data_StatDes_roi_loc_areas, type == 'n_accu_uni'), 
+             aes(x = reorder(country, value), y = value, fill = 'n_accu_uni'), 
+             width = .5,
+             stat = 'identity') %>%  
+  + geom_bar(data = subset(data_StatDes_roi_loc_areas, type == 'n_accu_uni_area_uni'), 
+             aes(x = reorder(country, value), y = value, fill = 'n_accu_uni_area_uni'), 
+             width = .2,
+             stat = 'identity') %>% 
+  + coord_flip() %>%
+  + scale_fill_manual("Scale", 
+                      values = c('n' = '#3182BD',
+                                       'n_accu_uni' =  '#6BAED6', 
+                                       'n_accu_uni_area_uni' = '#EFF3FF'),
+                      labels = c('Total deals','Accurate, unique location','Accurate, unique location \nand unique area')) %>%
+  + labs(x = '', y = 'Number of deals', 
+         title = paste('Distribution of recorded deals across', roi_name, 'and amount \nof areas known, among deals uniquely and accurately localized'),
+         subtitle = paste('Sample :', sum(subset(data_StatDes_roi_areas, type == 'n')$value), 'deals', 'in', length(unique(data_StatDes_roi_areas$country)), 'countries'),
+         caption = 'The recorded land deals can be associated with more than one areas (typically if several parcels are recorded under the same deal).\nIn this graph are represented : the total amount of deals recorded, the amount with unique location known accurately, the amount \nwhose area is known, unique and location is known accurately, unique.') %>%
+  + theme(plot.title = element_text(hjust = 0),
+          panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(hjust = 0, color = 'grey50', size = 8.5, face = 'plain'))
+
+fig_StatDes_roi_loc_areas
+ggsave(plot = fig_StatDes_roi_loc_areas,
+       filename = paste0("fig_StatDes_", roi_acro, "_loc_areas.jpeg"),
+       path = paste0('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/', roi_acro),
+       width = 9, height = 9)
+
+
+```
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                    Distribution + implementation status TO DATE          ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+```{r}
+#Adding information on MOST UPDATED implementation status 
+##Full sample
+
+data_StatDes_roi_impl_status = data_StatDes_roi %>%
+  group_by(country) %>%
+  mutate(n_impl_none = sum(`Current implementation status` == 'None'),
+         n_impl_start = sum(`Current implementation status` == 'Startup phase (no production)'),
+         n_impl_op = sum(`Current implementation status` == 'In operation (production)'),
+         n_impl_aban = sum(`Current implementation status` == 'Project abandoned'),
+         n_impl_not_start = sum(`Current implementation status` == 'Project not started')) %>%
+  summarise(n_deals = n(), n_impl_none, n_impl_start, n_impl_op, n_impl_aban, n_impl_not_start) %>%
+  slice(1) %>%
+  pivot_longer(cols = c(n_impl_none, n_impl_start, n_impl_op, n_impl_aban, n_impl_not_start),
+               names_to = 'status') 
+
+fig_StatDes_roi_distrib_impl = ggplot(data = data_StatDes_roi_impl_status, 
+                                 aes(x = reorder(country, n_deals), y = value, fill = status)) %>%
+  + geom_bar(stat = 'identity', position = 'stack') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = paste('Distribution of recorded deals across', roi_name, '\nand current implementation status'), 
+       subtitle = paste('Sample :', nrow(data_StatDes_roi), 'deals', 'in', length(unique(data_StatDes_roi_impl_status$country)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + scale_fill_manual(values = brewer.pal(n = 5, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Project implementation status",
+                      labels = c('Abandoned', 'Unknown', 'Not started', 'In operation', 'Startup phase \n(no production)')
+                      ) %>%
+  + theme(plot.title = element_text(hjust = 0),
+          panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(hjust = 0, color = 'grey50', size = 8.5, face = 'plain'))
+ 
+
+ggsave(plot = fig_StatDes_roi_distrib_impl,
+       filename = paste0("fig_StatDes_", roi_acro, "_distrib_impl.jpeg"),
+       path = paste0('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/', roi_acro),
+       width = 8, height = 7)
+
+##Countries with more than 100 deals
+
+fig_StatDes_roi_distrib_impl_100 = ggplot(data = subset(data_StatDes_roi_impl_status, data_StatDes_roi_impl_status$n_deals >= 100), 
+                                 aes(x = reorder(country, n_deals), y = value, fill = status)) %>%
+  + geom_bar(stat = 'identity', position = 'stack') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', 
+         title = paste('Distribution of recorded deals across', roi_name, '\nand current implementation status'), 
+       subtitle = paste('Sample :', sum(subset(data_StatDes_roi_impl_status, data_StatDes_roi_impl_status$n_deals >= 100)$value), 'deals', 'in', length(unique(subset(data_StatDes_roi_impl_status, data_StatDes_roi_impl_status$n_deals >= 100)$country)), 'countries')) %>%
+  + scale_fill_manual(values = brewer.pal(n = 5, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Project implementation status",
+                      labels = c('Abandoned', 'Unknown', 'Not started', 'In operation', 'Startup phase \n(no production)')
+                      ) %>%
+  + theme(plot.title = element_text(hjust = 0),
+          panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(hjust = 0, color = 'grey50', size = 8.5, face = 'plain'))
+
+ggsave(plot = fig_StatDes_roi_distrib_impl_100,
+       filename = paste0("fig_StatDes_", roi_acro, "_distrib_impl_100.jpeg"),
+       path = paste0('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/', roi_acro),
+       width = 7, height = 7)
+
+```
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                      Distribution + CURRENT negotiation status           ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+#Adding information on negotiation status
+
+data_StatDes_roi_nego_status = data_StatDes_roi %>%
+  group_by(country) %>%
+  mutate(n_nego_none = sum(`Current negotiation status` == 'None'),
+         n_nego_fail = sum(`Current negotiation status` == 'Failed (Negotiations failed)' | `Current negotiation status` == 'Failed (Contract cancelled)'),
+         n_nego_int = sum(`Current negotiation status` == 'Intended (Under negotiation)' | 
+                            `Current negotiation status` == 'Intended (Expression of interest)' | 
+                            `Current negotiation status` == 'Intended (Memorandum of understanding)'),
+         n_nego_conc = sum(`Current negotiation status` == 'Concluded (Contract signed)' | 
+                            `Current negotiation status` == 'Concluded (Oral Agreement)' | 
+                            `Current negotiation status` == 'Concluded (Change of ownership)'),
+         n_nego_exp = sum(`Current negotiation status` == 'Contract expired')) %>%
+  summarise(n_deals = n(), n_nego_none, n_nego_fail, n_nego_int, n_nego_conc, n_nego_exp) %>%
+  slice(1) %>%
+  pivot_longer(cols = c( n_nego_none, n_nego_fail, n_nego_int, n_nego_conc, n_nego_exp),
+               names_to = 'status') 
+
+fig_StatDes_roi_distrib_nego = ggplot(data = data_StatDes_roi_nego_status, 
+                                 aes(x = reorder(country, n_deals), y = value, fill = status)) %>%
+  + geom_bar(stat = 'identity', position = 'stack') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = paste('Distribution of recorded deals across', roi_name, '\nand current negotiation status'), 
+       subtitle = paste('Sample :', nrow(data_StatDes_roi), 'deals', 'in', length(unique(data_StatDes_roi_nego_status$country)), 'countries')) %>%
+  + scale_fill_manual(values = brewer.pal(n = 5, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Project negotiation \nstatus",
+                      labels = c('Concluded', 'Contract expired', 'Failed', 'Intended', 'Unknown')
+                      ) %>%
+  + theme(plot.title = element_text(hjust = 0),
+          panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(hjust = 0, color = 'grey50', size = 8.5, face = 'plain'))
+
+
+ggsave(plot = fig_StatDes_roi_distrib_nego,
+       filename = paste0("fig_StatDes_", roi_acro, "_distrib_nego.jpeg"),
+      path = paste0('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/', roi_acro),
+       width = 8, height = 7)
+
+#For countries with more than 100 deals
+
+fig_StatDes_roi_distrib_nego_100 = ggplot(data = subset(data_StatDes_roi_nego_status, data_StatDes_roi_nego_status$n_deals >= 100),
+                                 aes(x = reorder(country, n_deals), y = value, fill = status)) %>%
+  + geom_bar(stat = 'identity', position = 'stack') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', 
+         title = paste('Distribution of recorded deals across', roi_name, '\nand current negotiation status'),
+         subtitle = paste('Sample :', sum(subset(data_StatDes_roi_nego_status, data_StatDes_roi_nego_status$n_deals >= 100)$value), 'deals', 'in', length(unique(subset(data_StatDes_roi_nego_status, data_StatDes_roi_nego_status$n_deals >= 100)$country)), 'countries')) %>%
+  + scale_fill_manual(values = brewer.pal(n = 5, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Project negotiation status",
+                      labels = c('Concluded', 'Contract expired', 'Failed', 'Intended', 'Unknown')
+                      ) %>%
+  + theme(plot.title = element_text(hjust = 0),
+          panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(hjust = 0, color = 'grey50', size = 8.5, face = 'plain'))
+
+ggsave(plot = fig_StatDes_roi_distrib_nego_100,
+       filename = paste0("fig_StatDes_", roi_acro, "_distrib_nego_100.jpeg"),
+       path = paste0('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/', roi_acro),
+       width = 7, height = 7)
+
+
+```
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                            Distribution + scope                          ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r}
+
+data_StatDes_roi_scope = data_StatDes_roi %>%
+  group_by(country) %>%
+  mutate(n_dom = sum(`Deal scope` == 'domestic'), 
+         n_trans = sum(`Deal scope` == 'transnational')) %>%
+  summarise(n_deals = n(), n_dom, n_trans) %>%
+  slice(1) %>%
+  pivot_longer(cols = c(n_dom, n_trans),
+               names_to = 'scope') 
+
+
+fig_StatDes_roi_distrib_scope = ggplot(data = data_StatDes_roi_scope, 
+                                 aes(x = reorder(country, n_deals), y = value, fill = scope)) %>%
+  + geom_bar(stat = 'identity', position = 'stack') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = paste('Distribution of recorded deals across', roi_name,  '\nand scope'), 
+       subtitle = paste('Sample :', sum(data_StatDes_roi_scope$value), 'deals', 'in', length(unique(data_StatDes_roi_scope$country)), 'countries')) %>%
+  + scale_fill_manual(values = c("#DEEBF7", "#3182BD"),
+                      aesthetics = 'fill',
+                      name = "Scope of the deal",
+                      labels = c('Domestic', 'Transnational')
+                      ) %>%
+  + theme(plot.title = element_text(hjust = 0),
+          panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(hjust = 0, color = 'grey50', size = 8.5, face = 'plain'))
+
+ggsave(plot = fig_StatDes_roi_distrib_scope,
+       filename = paste0("fig_StatDes_", roi_acro, "_distrib_scope.jpeg"),
+       path = paste0('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/', roi_acro),
+       width = 8, height = 7)
+
+##For countries with more than 100 deals
+
+fig_StatDes_roi_distrib_scope_100 = ggplot(data = subset(data_StatDes_roi_scope, data_StatDes_roi_scope$n_deals >= 100), 
+                                 aes(x = reorder(country, n_deals), y = value, fill = scope)) %>%
+  + geom_bar(stat = 'identity', position = 'stack') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = paste('Distribution of recorded deals across', roi_name, '\nand scope'), 
+       subtitle = paste('Sample :', sum(subset(data_StatDes_roi_scope, data_StatDes_roi_scope$n_deals >= 100)$value), 'deals', 'in', length(unique(subset(data_StatDes_roi_scope, data_StatDes_roi_scope$n_deals >= 100)$country)), 'countries')) %>%
+  + scale_fill_manual(values = c("#DEEBF7", "#3182BD"),
+                      aesthetics = 'fill',
+                      name = "Scope of the deal",
+                      labels = c('Domestic', 'Transnational')
+                      ) %>%
+  + theme(plot.title = element_text(hjust = 0),
+        panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+        panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+        panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+        plot.caption = element_text(hjust = 0, color = 'grey50', size = 8.5, face = 'plain'))
+
+ggsave(plot = fig_StatDes_roi_distrib_scope_100,
+       filename = paste0("fig_StatDes_", roi_acro, "_distrib_scope_100.jpeg"),
+       path = paste0('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/', roi_acro),
+       width = 7, height = 7)
+
+```
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                              Former land use                             ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r}
+
+#For each type of former land use, we create a dummy variable by reading in the 'Former land use' variable. This variable can indicate more than one use
+#So the dummy takes value TRUE if the type is indicated in the list of former land uses in the considered deal.
+#Regular expressions are used to identify each type of former use
+
+data_StatDes_roi_former_use = data_StatDes_roi %>%
+  mutate(is_small = NA, is_pasto = NA, is_cons = NA, is_for = NA, is_hg = NA, is_comm = NA, is_other = NA, is_na = NA, is_shi = NA)
+
+data_StatDes_roi_former_use[data_StatDes_roi_former_use$`Former land use` == '',]$`Former land use` = 'unknown'
+data_StatDes_roi_former_use$is_small = attr(regexpr(pattern = "(Smallholder agriculture)", text = data_StatDes_roi_former_use$`Former land use`), "match.length") != -1
+data_StatDes_roi_former_use$is_pasto = attr(regexpr(pattern = "(Pastoralism)", text = data_StatDes_roi_former_use$`Former land use`), "match.length") != -1
+data_StatDes_roi_former_use$is_cons = attr(regexpr(pattern = "(Conservation)", text = data_StatDes_roi_former_use$`Former land use`), "match.length") != -1
+data_StatDes_roi_former_use$is_for = attr(regexpr(pattern = "(Forestry)", text = data_StatDes_roi_former_use$`Former land use`), "match.length") != -1
+data_StatDes_roi_former_use$is_hg = attr(regexpr(pattern = "(Hunting/Gathering)", text = data_StatDes_roi_former_use$`Former land use`), "match.length") != -1
+data_StatDes_roi_former_use$is_comm = attr(regexpr(pattern = "(Commercial)", text = data_StatDes_roi_former_use$`Former land use`), "match.length") != -1
+data_StatDes_roi_former_use$is_shi = attr(regexpr(pattern = "(Shifting cultivation)", text = data_StatDes_roi_former_use$`Former land use`), "match.length") != -1
+data_StatDes_roi_former_use$is_other = attr(regexpr(pattern = "(Other)", text = data_StatDes_roi_former_use$`Former land use`), "match.length") != -1
+data_StatDes_roi_former_use$is_na = attr(regexpr(pattern = "(unknown)", text = data_StatDes_roi_former_use$`Former land use`), "match.length") != -1
+
+data_StatDes_roi_former_use = data_StatDes_roi_former_use %>% 
+  group_by(country) %>%
+  summarise(n_deals = n(), n_small = sum(is_small), n_pasto = sum(is_pasto), n_cons = sum(is_cons), n_for = sum(is_for), n_hg = sum(is_small), 
+            n_comm = sum(is_comm), n_other = sum(is_other), n_na = sum(is_na), n_shi = sum(is_shi)) %>%
+  pivot_longer(cols = c(n_small, n_pasto, n_cons, n_for, n_hg, n_comm, n_other, n_na, n_shi),
+               names_to = 'type') 
+
+fig_StatDes_roi_distrib_former_use_100 = ggplot(data = subset(data_StatDes_roi_former_use, data_StatDes_roi_former_use$n_deals >= 100), 
+                                 aes(x = reorder(country, n_deals), y = value, fill = type)) %>%
+  + geom_bar(stat = 'identity', position = position_dodge()) %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', 
+         title = paste('Distribution of LSLA deals across', roi_name, 'and former land use \n(possibly several per deal)'), 
+         subtitle = paste('Sample :', sum(slice(group_by(subset(data_StatDes_roi_former_use, data_StatDes_roi_former_use$n_deals >= 100), country), 1)$n_deals), 'deals', 'in',
+                        length(unique(subset(data_StatDes_roi_former_use, data_StatDes_roi_former_use$n_deals >= 100)$country)), 'countries')) %>%
+  + scale_fill_manual(values = brewer.pal(n = 9, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Former land use",
+                      labels = c('Commercial', 'Conservation', 'Forestry', 'Huntering & gathering', 'Unknown', 'Other', 'Pastoralism', 'Shifting cultivation', 'Smallholder farming')
+                      ) %>%
+  + theme(plot.title = element_text(hjust = 0),
+          panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(hjust = 0, color = 'grey50', size = 8.5, face = 'plain'))
+                      
+ggsave(plot = fig_StatDes_roi_distrib_former_use_100,
+       filename = paste0("fig_StatDes_", roi_acro, "_distrib_former_use_100.jpeg"),
+       path = paste0('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/', roi_acro),
+       width = 9, height = 7)
+
+
+```
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                              Former land cover                           ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+#For each type of former land coer, we create a dummy variable by reading in the 'Former land cover' variable. This variable can indicate more than one cover type
+#So the dummy takes value TRUE if the type is indicated in the list of former land covers in the considered deal.
+#Regular expressions are used to identify each type of former cover
+
+data_StatDes_roi_former_cover = data_StatDes_roi %>%
+  mutate(is_crop = NA, is_for= NA, is_mar = NA, is_grass = NA, is_wet = NA, is_other = NA, is_na = NA)
+
+data_StatDes_roi_former_cover[data_StatDes_roi_former_cover$`Former land cover` == '',]$`Former land cover` = 'unknown'
+data_StatDes_roi_former_cover$is_crop = attr(regexpr(pattern = "(Cropland)", text = data_StatDes_roi_former_cover$`Former land cover`), "match.length") != -1
+data_StatDes_roi_former_cover$is_for = attr(regexpr(pattern = "(Forest land)", text = data_StatDes_roi_former_cover$`Former land cover`), "match.length") != -1
+data_StatDes_roi_former_cover$is_mar = attr(regexpr(pattern = "(Marginal land)", text = data_StatDes_roi_former_cover$`Former land cover`), "match.length") != -1
+data_StatDes_roi_former_cover$is_grass = attr(regexpr(pattern = "(Grassland)", text = data_StatDes_roi_former_cover$`Former land cover`), "match.length") != -1
+data_StatDes_roi_former_cover$is_wet = attr(regexpr(pattern = "(Wetland)", text = data_StatDes_roi_former_cover$`Former land cover`), "match.length") != -1
+data_StatDes_roi_former_cover$is_other = attr(regexpr(pattern = "(Other)", text = data_StatDes_roi_former_cover$`Former land cover`), "match.length") != -1
+data_StatDes_roi_former_cover$is_na = attr(regexpr(pattern = "(unknown)", text = data_StatDes_roi_former_cover$`Former land cover`), "match.length") != -1
+
+data_StatDes_roi_former_cover = data_StatDes_roi_former_cover %>% 
+  group_by(country) %>%
+  summarise(n_deals = n(), n_crop = sum(is_crop), n_for = sum(is_for), n_mar = sum(is_mar),
+            n_grass = sum(is_grass), n_wet = sum(is_wet), n_other = sum(is_other), n_na = sum(is_na)) %>%
+  pivot_longer(cols = c(n_crop, n_for, n_mar, n_grass, n_wet, n_other, n_na),
+               names_to = 'type') 
+
+fig_StatDes_roi_distrib_former_cover_100 = ggplot(data = subset(data_StatDes_roi_former_cover, data_StatDes_roi_former_cover$n_deals >= 100), 
+                                 aes(x = reorder(country, n_deals), y = value, fill = type)) %>%
+  + geom_bar(stat = 'identity', position = position_dodge()) %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = paste('Distribution of LSLA deals across', roi_name, 'and former land cover \n(possibly several per deal)'), 
+       subtitle = paste('Sample :', sum(slice(group_by(subset(data_StatDes_roi_former_cover, data_StatDes_roi_former_cover$n_deals >= 100), country), 1)$n_deals), 'deals', 'in',
+                        length(unique(subset(data_StatDes_roi_former_cover, data_StatDes_roi_former_cover$n_deals >= 100)$country)), 'countries')) %>%
+  + scale_fill_manual(values = brewer.pal(n = 7, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Former land cover",
+                      labels = c('Cropland', "Forest land", "Shrubland or grassland", "Marginal land", "Unknown", "Other", "Wetland")
+                      ) %>%
+  + theme(plot.title = element_text(hjust = 0),
+          panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(hjust = 0, color = 'grey50', size = 8.5, face = 'plain'))
+                      
+ggsave(plot = fig_StatDes_roi_distrib_former_cover_100,
+       filename = paste0("fig_StatDes_", roi_acro, "_distrib_former_cover_100.jpeg"),
+       path = paste0('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/', roi_acro),
+       width = 9, height = 7)
+
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                              Former land owner                           ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+#For each type of former land owner, we create a dummy variable by reading in the 'Former land owner' variable. This variable can indicate more than one owner
+#So the dummy takes value TRUE if the type is indicated in the list of former land owners in the considered deal.
+#Regular expressions are used to identify each type of former owner
+
+data_StatDes_roi_former_owner = data_StatDes_roi %>%
+  mutate(is_na = NA, is_comm = NA, is_ind = NA, is_state = NA, is_small = NA, is_large = NA, is_other = NA)
+
+data_StatDes_roi_former_owner[data_StatDes_roi_former_owner$`Former land owner` == '',]$`Former land owner` = 'unknown'
+data_StatDes_roi_former_owner$is_comm = attr(regexpr(pattern = "(Community)", text = data_StatDes_roi_former_owner$`Former land owner`), "match.length") != -1
+data_StatDes_roi_former_owner$is_ind = attr(regexpr(pattern = "(Indigenous)", text = data_StatDes_roi_former_owner$`Former land owner`), "match.length") != -1
+data_StatDes_roi_former_owner$is_state = attr(regexpr(pattern = "(State)", text = data_StatDes_roi_former_owner$`Former land owner`), "match.length") != -1
+data_StatDes_roi_former_owner$is_small = attr(regexpr(pattern = "(smallholders)", text = data_StatDes_roi_former_owner$`Former land owner`), "match.length") != -1
+data_StatDes_roi_former_owner$is_large = attr(regexpr(pattern = "(large-scale farm)", text = data_StatDes_roi_former_owner$`Former land owner`), "match.length") != -1
+data_StatDes_roi_former_owner$is_other = attr(regexpr(pattern = "(Other)", text = data_StatDes_roi_former_owner$`Former land owner`), "match.length") != -1
+data_StatDes_roi_former_owner$is_na = attr(regexpr(pattern = "(unknown)", text = data_StatDes_roi_former_owner$`Former land owner`), "match.length") != -1
+
+data_StatDes_roi_former_owner = data_StatDes_roi_former_owner %>% 
+  group_by(country) %>%
+  summarise(n_deals = n(), n_comm = sum(is_comm), n_ind = sum(is_ind), n_state = sum(is_state),
+            n_small = sum(is_small), n_large = sum(is_large), n_other = sum(is_other), n_na = sum(is_na)) %>%
+  pivot_longer(cols = c(n_comm, n_ind, n_state, n_small, n_large, n_other, n_na),
+               names_to = 'type') 
+
+fig_StatDes_roi_distrib_former_owner_100 = ggplot(data = subset(data_StatDes_roi_former_owner, data_StatDes_roi_former_owner$n_deals >= 100), 
+                                 aes(x = reorder(country, n_deals), y = value, fill = type)) %>%
+  + geom_bar(stat = 'identity', position = position_dodge()) %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = paste('Distribution of LSLA deals across', roi_name, 'and former land owner \n(possibly several per deal)'), 
+       subtitle = paste('Sample :', sum(slice(group_by(subset(data_StatDes_roi_former_owner, data_StatDes_roi_former_owner$n_deals >= 100), country), 1)$n_deals), 'deals', 'in',
+                        length(unique(subset(data_StatDes_roi_former_owner, data_StatDes_roi_former_owner$n_deals >= 100)$country)), 'countries')) %>%
+  + scale_fill_manual(values = brewer.pal(n = 7, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Former land owner",
+                      labels = c('Community', "Indigenous people", "Private, large farm", 'Unknown', 'Other', "Private, smallholder", 'State')
+
+                      ) %>%
+  + theme(plot.title = element_text(hjust = 0),
+          panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(hjust = 0, color = 'grey50', size = 8.5, face = 'plain'))
+                      
+ggsave(plot = fig_StatDes_roi_distrib_former_owner_100,
+       filename = paste0("fig_StatDes_", roi_acro, "_distrib_former_owner_100.jpeg"),
+       path = paste0('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/', roi_acro),
+       width = 9, height = 7)
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##----------------------------- CHOICE OF THE ROI-------------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                            Building the dataset                          ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+#We build a dataset data_roi with information need in the choice of the ROI.
+#The variables selected are under the select()
+#In this dataset are included also all locations reported for each deal (possibily more than one)
+#Areas are not reported as they are not a criterion for choosing ROI
+#Note that some deals are in data_deals but not in geo_loc_all (no information about location at all), so have NA as loc_id 
+
+data_size = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_size.csv") %>%
+  select(c(loc_id, n_par, size_int, size_max_deal, size_max_par, size_min_deal, size_min_par, size_avg_deal, size_avg_par))
+data_date = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_date.csv")
+
+data_roi = right_join(ctry_reg, data_deals_all, by = c('country' = 'Target country')) %>%
+  mutate(`Deal ID` = as.numeric(`Deal ID`)) %>%
+  left_join(geo_loc_all, by = 'Deal ID') %>%
+  left_join(data_date, by = 'Deal ID') %>%
+  left_join(data_purp, by = 'Deal ID') %>%
+  left_join(data_nat, by = 'Deal ID') %>%
+  left_join(data_size, by = "loc_id") %>%
+  select(c(region, sub_region, country, 'Deal ID', loc_id, n_par, 'Deal scope',
+           year_int, year_cont, year_impl, year_aban,
+           size_int, `Deal size`, `Size under contract (leased or purchased area, in ha)`,
+           `Size in operation (production, in ha)`, 
+           size_max_deal, size_max_par, size_min_deal, size_min_par, size_avg_deal, size_avg_par,
+           loc_multi, loc_accu, loc_accu_uni, 
+           'Contract farming',
+           dummy_agri, dummy_forest, dummy_other, dummy_biof, dummy_crop, dummy_nfood, dummy_agri_un, dummy_purp_none,
+           dummy_lease, dummy_purch, dummy_conc, dummy_min, dummy_cf, dummy_nat_none,
+           'Crops area/yield/export', "Comment on crops", "Livestock area/yield/export", "Comment on livestock"
+           )) %>%
+  rename("deal_id" = "Deal ID",
+         "scope" = "Deal scope",
+         "size_auto" = "Deal size",
+         "contract_farming" = 'Contract farming',
+         "crops" = 'Crops area/yield/export',
+         "crops_com" = "Comment on crops",
+         "livestock" = "Livestock area/yield/export",
+         "livestock_com" = "Comment on livestock") 
+
+# fwrite(data_roi,
+#        'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_roi.csv')
+# 
+# data_roi_loc = data_roi %>%
+#   left_join(geo_loc_all, by = "loc_id") %>%
+#   select(c(deal_id, loc_id, geometry_loc)) %>%
+#   st_write(dsn = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_roi_loc.geojson",
+#            delete_dsn = TRUE)
+
+# data_roi_areas = data_roi %>%
+#   group_by(deal_id) %>%
+#   slice(1) %>%
+#   ungroup() %>%
+#   mutate(deal_id = as.character(deal_id)) %>%
+#   left_join(geo_areas_all, by = c("deal_id" = "Deal ID")) %>%
+#   select(c(deal_id, geometry_areas)) %>%
+#   mutate(deal_id = as.numeric(deal_id)) %>%
+#   arrange(deal_id) %>%
+#   group_by(deal_id) %>%
+#   mutate(area_id = paste0(deal_id, "_", row_number()), .after = deal_id) %>%
+#   st_write(dsn = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_roi_areas.geojson",
+#            delete_dsn = TRUE)
+
+
+
+data_all_n_ctry = data_roi %>%
+  group_by(region, sub_region, country) %>%
+  summarize(n_tot = n())
+
+data_all_n_subreg = data_roi %>%
+  group_by(region, sub_region) %>%
+  summarize(n_tot = n())
+
+````
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                              Filtering deals                             ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+#data_roi = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_roi.csv")
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Muller et al. 2021  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#First are used criteria from Muller et al. 2021
+#Note that according to the 2021 LMI analytical report, biases are limited by focusing on transnational deals in the agricultural sector, and the closer to countries with local observatory the better (p38-39).
+#The filters used by Muller et al. 2021 :
+##deal contracted or implemented after 2000, with transnational scope
+##Size has to be known
+##Deal is not in contract farming
+##Location of the parcel (possibly several per deal) is known accurately (coordinates or exact location) 
+##Specific agricultural investment : biofuels, crops, non-food agriculture, or unspecified agricultural investment
+
+
+data_muller = data_roi %>%
+  subset(((year_cont >= 2000 & year_cont != 'null') | (year_impl >= 2000 & year_impl != 'null'))
+         & scope == 'transnational'
+         & size_max_deal >= 200
+         & contract_farming %in% c('No', '')
+         & (dummy_lease == TRUE | dummy_purch == TRUE | dummy_conc == TRUE)
+         & loc_accu == TRUE
+         & (dummy_biof == TRUE | dummy_crop == TRUE | dummy_nfood == TRUE | dummy_agri_un == TRUE)
+         ) %>%
+  mutate(deal_id = as.character(deal_id))
+
+#The list of deals after the filter
+list_loc_muller = data_muller$loc_id
+list_deal_muller = data_muller$deal_id
+
+#From data_roi_loc and data_roi_areas (locations and areas of the full LMD), get the locations and areas of deals 
+#relevant with respect to the filter
+data_muller_loc = data_roi_loc %>%
+  subset(loc_id %in% list_loc_muller)
+data_muller_areas = data_roi_areas %>%
+  subset(deal_id %in% list_deal_muller)
+
+# fwrite(data_muller, 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_muller.csv')
+# st_write(data_muller_loc,
+#          dsn = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_muller_loc.geojson',
+#          delete_dsn = TRUE)
+# st_write(data_muller_areas,
+#          dsn = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_muller_areas.geojson',
+#          delete_dsn = TRUE)
+
+
+
+data_muller_n_ctry = data_muller %>%
+  group_by(country) %>%
+  summarize(n_muller_ctry = n())
+
+data_muller_n_subreg = data_muller %>%
+  group_by(sub_region) %>%
+  summarize(n_muller_subreg = n())
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Muller et al. 2021 : full scope  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#The filters used by Muller et al. 2021 WITH DOMESTIC OR TRANSNATIONAL SCOPE:
+##deal contracted or implemented after 2000
+##Size has to be known
+##Deal is not in contract farming
+##Location is known accurately (coordinates or exact location)
+##Specific agricultural investment : biofuels, crops, non-food agriculture, or unspecified agricultural investment
+
+
+data_muller_dom = data_roi %>%
+  subset(((year_cont >= 2000 & year_cont != 'null') | (year_impl >= 2000 & year_impl != 'null'))
+         & size_max_deal >= 200
+         & contract_farming %in% c('No', '')
+         & (dummy_lease == TRUE | dummy_purch == TRUE | dummy_conc == TRUE)
+         & loc_accu == TRUE
+         & (dummy_biof == TRUE | dummy_crop == TRUE | dummy_nfood == TRUE | dummy_agri_un == TRUE)
+         ) %>%
+    mutate(deal_id = as.character(deal_id))
+
+#The list of deals after the filter
+list_deal_muller_dom = data_muller_dom$deal_id
+list_loc_muller_dom = data_muller_dom$loc_id
+
+#From data_roi_loc and data_roi_areas (locations and areas of the full LMD), get the locations and areas of deals 
+#relevant with respect to the filter
+data_muller_dom_loc = data_roi_loc %>%
+  subset(loc_id %in% list_loc_muller_dom)
+data_muller_dom_areas = data_roi_areas %>%
+  subset(deal_id %in% list_deal_muller_dom)
+
+# 
+# fwrite(data_muller_dom, 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_muller_dom.csv')
+# st_write(data_muller_dom_loc,
+#          dsn = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_muller_dom_loc.geojson',
+#          delete_dsn = TRUE)
+# st_write(data_muller_dom_areas,
+#          dsn = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_muller_dom_areas.geojson',
+#          delete_dsn = TRUE)
+
+
+data_muller_dom_n_ctry = data_muller_dom %>%
+  group_by(country) %>%
+  summarize(n_muller_dom_ctry = n())
+
+data_muller_dom_n_subreg = data_muller_dom %>%
+  group_by(sub_region) %>%
+  summarize(n_muller_dom_subreg = n())
+
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Muller et al. 2021 : broad agriculture  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#The filters used by Muller et al. 2021, with AT LEAST ONE AGRICULTURAL INTENTION:
+##deal contracted or implemented after 2000
+##Transnational scope
+##Size has to be known
+##Deal is not in contract farming
+##Location is known accurately (coordinates or exact location)
+##Agricultural investment at least (so potentially forest or 'other' related)
+
+
+data_muller_agri = data_roi %>%
+  subset(((year_cont >= 2000 & year_cont != 'null') | (year_impl >= 2000 & year_impl != 'null'))
+         & scope == 'transnational'         
+         & size_max_deal >= 200
+         & contract_farming %in% c('No', '')
+         & (dummy_lease == TRUE | dummy_purch == TRUE | dummy_conc == TRUE)
+         & loc_accu == TRUE
+         & dummy_agri == TRUE
+         ) %>%
+    mutate(deal_id = as.character(deal_id))
+
+#The list of deals after the filter
+list_deal_muller_agri = data_muller_agri$deal_id
+list_loc_muller_agri = data_muller_agri$loc_id
+
+
+#From data_roi_loc and data_roi_areas (locations and areas of the full LMD), get the locations and areas of deals 
+#relevant with respect to the filter
+data_muller_agri_loc = data_roi_loc %>%
+  subset(loc_id %in% list_loc_muller_agri)
+data_muller_agri_areas = data_roi_areas %>%
+  subset(deal_id %in% list_deal_muller_agri)
+
+# fwrite(data_muller_agri, 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_muller_agri.csv')
+# st_write(data_muller_agri_loc,
+#          dsn = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_muller_agri_loc.geojson',
+#          delete_dsn = TRUE)
+# st_write(data_muller_agri_areas,
+#          dsn = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_muller_agri_areas.geojson',
+#          delete_dsn = TRUE)
+
+data_muller_agri_n_ctry = data_muller_agri %>%
+  group_by(country) %>%
+  summarize(n_muller_agri_ctry = n())
+
+data_muller_agri_n_subreg = data_muller_agri %>%
+  group_by(sub_region) %>%
+  summarize(n_muller_agri_subreg = n())
+
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Muller et al. 2021 : full scope & broad agriculture  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#The filters used by Muller et al. 2021, with AT LEAST ONE AGRICULTURAL INTENTION and FULL SCOPE:
+##deal contracted or implemented after 2000
+##Transnational OR domestic scope 
+##Size has to be known
+##Deal is not in contract farming
+##Location is known accurately (coordinates or exact location)
+##Agricultural investment at least (so potentially forest or 'other' related)
+
+
+data_muller_dom_agri = data_roi %>%
+  subset(((year_cont >= 2000 & year_cont != 'null') | (year_impl >= 2000 & year_impl != 'null'))
+         & size_max_deal >= 200
+         & contract_farming %in% c('No', '')
+         & (dummy_lease == TRUE | dummy_purch == TRUE | dummy_conc == TRUE)
+         & loc_accu == TRUE
+         & dummy_agri == TRUE
+         ) %>%
+    mutate(deal_id = as.character(deal_id))
+
+#The list of deals after the filter
+list_deal_muller_dom_agri = data_muller_dom_agri$deal_id
+list_loc_muller_dom_agri = data_muller_dom_agri$loc_id
+
+#From data_roi_loc and data_roi_areas (locations and areas of the full LMD), get the locations and areas of deals 
+#relevant with respect to the filter
+data_muller_dom_agri_loc = data_roi_loc %>%
+  subset(loc_id %in% list_loc_muller_dom_agri)
+data_muller_dom_agri_areas = data_roi_areas %>%
+  subset(deal_id %in% list_deal_muller_dom_agri)
+# 
+# 
+# fwrite(data_muller_dom_agri, 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_muller_dom_agri.csv')
+# st_write(data_muller_dom_agri_loc,
+#          dsn = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_muller_dom_agri_loc.geojson',
+#          delete_dsn = TRUE)
+# st_write(data_muller_dom_agri_areas,
+#          dsn = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_muller_dom_agri_areas.geojson',
+#          delete_dsn = TRUE)
+
+
+data_muller_dom_agri_n_ctry = data_muller_dom_agri %>%
+  group_by(country) %>%
+  summarize(n_muller_dom_agri_ctry = n())
+
+data_muller_dom_agri_n_subreg = data_muller_dom_agri %>%
+  group_by(sub_region) %>%
+  summarize(n_muller_dom_agri_subreg = n())
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Filtering of the deals : visualization  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+###Country distribution
+##Note that sub-regions with no deals deals recorded after filter à la Muller are not represented
+
+data_n_ctry_roi = data_all_n_ctry %>%
+  left_join(data_muller_n_ctry, by = 'country') %>%
+  left_join(data_muller_dom_n_ctry, by = 'country') %>%
+  left_join(data_muller_agri_n_ctry, by = 'country') %>%
+  left_join(data_muller_dom_agri_n_ctry, by = 'country') %>%
+  subset(is.na(n_muller_ctry) == FALSE) %>%
+  pivot_longer(cols = c(n_tot:n_muller_dom_agri_ctry), 
+              names_to = 'type')
+
+
+#LA, SSA, SEAs
+#Latin America and the Caribbean, Sub-Saharan Africa, South-eastern Asia
+roi_acro = 'SEAs'
+roi_name = 'South-eastern Asia'
+
+fig_StatDes_distrib_filt_ctry = ggplot() %>%
+  + geom_bar(data = subset(data_n_ctry_roi, sub_region == roi_name),
+             aes(x = reorder(country, value), y = value, fill = type),
+             stat = 'identity', 
+             position = 'dodge') %>%
+  + geom_text(data = subset(data_n_ctry_roi, sub_region == roi_name),
+              aes(x = reorder(country, value), y = value, label = value, group = type),
+              position = position_dodge(width = .9),
+              vjust = +0.5,
+              hjust = -0.3,
+              color = "black",
+              size = 2) %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals',
+         title = paste("Distribution of deals across countries and filters in", roi_name),
+         caption = "Countries with at least one deal after 'Muller' filter only. \nMuller : filtering according to Muller et al. 2021 (concluded after 2000, transnational, no contract farming, accurately \nlocated, investment intention among biofuels, food crops, non-food agriculture, unspecified agricultural. \nMuller (dom) : alternative to Muller (include domestic deals). \nMuller (agri) : agricultural investment in the broadest sense (include fodder and liverstock). \nMuller (dom/agri) : include domestic deals and broad agricultural investment.") %>%
+  + scale_fill_manual(values = brewer.pal(n = 5, name = 'Blues'),
+                      aesthetics = 'fill',
+                      name = "Filtering",
+                      labels = c('Muller (agri)', "Muller", "Muller (dom/agri)", "Muller (dom)", 'Total deals')) %>%
+  + theme(plot.title = element_text(hjust = 0),
+          panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(hjust = 0, color = 'grey50', size = 8.5, face = 'plain'),
+          legend.position="bottom")
+
+fig_StatDes_distrib_filt_ctry
+
+# ggsave(plot = fig_StatDes_distrib_filt_ctry,
+#        filename = paste0("fig_StatDes_distrib_filt_ctry_", roi_acro ,".jpeg"),
+#        path = paste0('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/', roi_acro),
+#        width = 9, height = 9)
+
+
+#Sub-region distribution
+##Note that sub-regions with no deals deals recorded after filter à la Muller are not represented
+
+data_n_subreg_roi = data_all_n_subreg %>%
+  left_join(data_muller_n_subreg, by = 'sub_region') %>%
+  left_join(data_muller_dom_n_subreg, by = 'sub_region') %>%
+  left_join(data_muller_agri_n_subreg, by = 'sub_region') %>%
+  left_join(data_muller_dom_agri_n_subreg, by = 'sub_region') %>%
+  subset(is.na(n_muller_subreg) == FALSE) %>%
+  pivot_longer(cols = c(n_tot:n_muller_dom_agri_subreg), 
+              names_to = 'type')
+
+fig_StatDes_distrib_filt_subreg = ggplot() %>%
+  + geom_bar(data = subset(data_n_subreg_roi),
+             aes(x = reorder(sub_region, value), y = value, fill = type),
+             stat = 'identity', 
+             position = 'dodge') %>%
+  + geom_text(data = subset(data_n_subreg_roi),
+              aes(x = reorder(sub_region, value), y = value, label = value, group = type),
+              position = position_dodge(width = .9),
+              vjust = +0.5,
+              hjust = -0.3,
+              color = "black",
+              size = 3) %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals',
+         title = "Distribution of deals across sub-regions and filters",
+         caption = "Sub-regions with at least one deal after 'Muller' filter only. \nMuller : filtering according to Muller et al. 2021 (concluded after 2000, transnational, no contract farming, accurately \nlocated, investment intention among biofuels, food crops, non-food agriculture, unspecified agricultural. \nMuller (dom) : alternative to Muller (include domestic deals). \nMuller (agri) : agricultural investment in the broadest sense (include fodder and liverstock). \nMuller (dom/agri) : include domestic deals and broad agricultural investment.") %>%
+  + scale_fill_manual(values = brewer.pal(n = 5, name = 'Blues'),
+                      aesthetics = 'fill',
+                      name = "Filtering",
+                      labels = c('Muller (agri)', "Muller", "Muller (dom/agri)", "Muller (dom)", 'Total deals')) %>%
+  + theme(plot.title = element_text(hjust = 0),
+          panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(hjust = 0, color = 'grey50', size = 8.5, face = 'plain'),
+          legend.position="bottom")
+
+fig_StatDes_distrib_filt_subreg
+
+# ggsave(plot = fig_StatDes_distrib_filt_subreg,
+#        filename = "fig_StatDes_distrib_filt_subreg.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 10, height = 9)
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                  Location                                ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#data_accu : dataset with information on the accuracy of deals per country
+## n_multi : number of deals with more than 1 locations
+## n_accu_uni : number of deals with exactly one accurate location
+## n_accu : number of accurate locations (one deal might be associated with more than one accurate locations)
+
+data_accu = data %>%
+  group_by(`Deal ID`) %>%
+  slice(1) %>%
+  ungroup() %>%
+  group_by(region, sub_region, country) %>%
+  summarise(n = n(),
+            n_multi = sum(loc_multi, na.rm = TRUE), 
+            n_accu_uni = sum(loc_accu_uni, na.rm = TRUE),
+            n_accu = sum(loc_accu, na.rm = TRUE)
+            ) %>%
+  arrange(sub_region, desc(n))
+
+data_accu_subreg = data_accu %>%
+  group_by(sub_region) %>%
+  summarise(n_subreg = sum(n),
+            n_multi_subreg = sum(n_multi),
+            n_accu_uni_subreg = sum(n_accu_uni),
+            n_accu_subreg = sum(n_accu))
+
+data_accu_reg = data_accu %>%
+  group_by(region) %>%
+  summarise(n_reg = sum(n),
+            n_multi_reg = sum(n_multi),
+            n_accu_uni_reg = sum(n_accu_uni),
+            n_accu_reg = sum(n_accu))
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                    Shape                                 ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#data_areas : information on shapefiles of the deals
+##area_multi : is the deal associated with more than one area ?
+##area_uni : is the deal associated with a unique area ?
+##area_accu : is the area of the deal known ?
+##area_accu_uni : is the area of the deal unique and known ?
+
+data_areas = left_join(select(data_deals_all, c('Target country', 'Deal ID')), 
+                       select(ctry_reg, c('country', 'region', 'sub_region')), 
+                       by = c('Target country' = 'country')) %>%
+  rename('country' = 'Target country') %>%
+  select(c(region, sub_region, country, `Deal ID`)) %>%
+  left_join(geo_areas_all, by = 'Deal ID') %>%
+  mutate(`Deal ID` = as.numeric(`Deal ID`),
+         area_accu = (is.na(area_uni) == FALSE | is.na(area_multi) == FALSE)) %>%
+  group_by(`Deal ID`) %>%
+  slice(1)
+
+#Note : n_accu = n_multi + n_uni by construction
+data_areas_ctry = data_areas %>%
+  group_by(region, sub_region, country) %>%
+  summarise(n = n(),
+         n_accu = sum(area_accu),
+         n_multi = sum(area_multi, na.rm = TRUE),
+         n_uni = sum(area_uni, na.rm = TRUE)) 
+
+data_areas_subreg = data_areas_ctry %>%
+  group_by(sub_region) %>%
+  summarise(n_subreg = sum(n),
+         n_accu_subreg = sum(n_accu),
+         n_multi_subreg = sum(n_multi, na.rm = TRUE),
+         n_uni_subreg = sum(n_uni, na.rm = TRUE))
+
+data_areas_reg = data_areas_ctry %>%
+  group_by(region) %>%
+  summarise(n_subreg = sum(n),
+         n_accu_reg = sum(n_accu),
+         n_multi_reg = sum(n_multi, na.rm = TRUE),
+         n_uni_reg = sum(n_uni, na.rm = TRUE))
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                      Accurate location and known shape                   ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#Dataset with deals having accurate location and their corresponding area
+#Such deals are useful to assess the relevance of approximating areas with circle centered on the coordinates
+
+data_loc_areas = data %>%
+  select(c(region, sub_region, country, `Deal ID`, spatial_accuracy:loc_accu_uni)) %>%
+  subset(loc_accu_uni == TRUE) %>%
+  left_join(geo_areas_all, by = 'Deal ID')
+
+#For each deals with accurate location :
+#n_accu_uni : number of deals with accurate location (number of rows in the previous dataset) ...
+#n_accu_uni_area_uni : ... and with unique area
+#n_accu_uni_area_multi : ... and with more than one area
+
+data_loc_areas_ctry = data_loc_areas %>%
+  group_by(`Deal ID`) %>%
+  slice(1) %>%
+  ungroup() %>%
+  group_by(region, sub_region, country) %>%
+  summarize(n_accu_uni = n(), 
+            n_accu_uni_area_uni = sum(area_uni, na.rm = TRUE),
+            n_accu_uni_area_multi = sum(area_multi, na.rm = TRUE)) %>%
+  arrange(region, sub_region, desc(n_accu_uni))
+
+data_loc_areas_subreg = data_loc_areas %>%
+  group_by(`Deal ID`) %>%
+  slice(1) %>%
+  ungroup() %>%
+  group_by(sub_region) %>%
+  summarize(n_accu_uni_subreg = n(), 
+            n_accu_uni_area_uni_subreg = sum(area_uni, na.rm = TRUE),
+            n_accu_uni_area_multi_subreg = sum(area_multi, na.rm = TRUE)) %>%
+  arrange(desc(n_accu_uni_subreg))
+
+data_loc_areas_reg = data_loc_areas %>%
+  group_by(`Deal ID`) %>%
+  slice(1) %>%
+  ungroup() %>%
+  group_by(region) %>%
+  summarize(n_accu_uni_reg = n(), 
+            n_accu_uni_area_uni_reg = sum(area_uni, na.rm = TRUE),
+            n_accu_uni_area_multi_reg = sum(area_multi, na.rm = TRUE)) %>%
+  arrange(desc(n_accu_uni_reg))
+
+# map_areas_ctry = ggplot() %>%
+#   + geom_sf(data = subset(geo_countries, ISO_A3 == 'GAB'), aes(geometry = geometry_country)) %>%
+#   + geom_sf(data = subset(data_loc_areas, country == 'Gabon'), aes(geometry = geometry_areas)) %>%
+#   + geom_sf(data = subset(data_loc_areas, country == 'Gabon'), aes(geometry = geometry_loc)) %>%
+#   + theme_minimal() %>%
+#   + labs(title = 'Areas and locations in Cameroon', 
+#          subtitle = paste('Total deals with accurate location', length(unique(subset(data_loc_areas, country == 'Gabon')$`Deal ID`))))
+# 
+# plot(map_areas_ctry)
+
+````
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                 Size of filtered deals                   ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Creating dataset  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+data_muller_filt = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_muller_filt.csv')
+
+data_StatDes_muller = data_muller_filt %>%
+  left_join(select(ctry_reg, c(country, ISO_A3, ISO_A2)), by = "country") %>%
+  left_join(select(area_agri, c(iso_3, agri_area_km2_2020)), by = c("ISO_A3" = "iso_3")) %>%
+  left_join(select(area_land, c(iso_3, land_area_km2_2020)), by = c("ISO_A3" = "iso_3")) %>%
+  select(c(region, sub_region, country, ISO_A3, ISO_A2, agri_area_km2_2020, land_area_km2_2020,
+           deal_id, loc_id, size_max_par, size_min_par, size_avg_par,
+           size_max_par, size_min_par, size_avg_par))
+
+data_StatDes_muller_country = data_StatDes_muller %>%
+  group_by(region, sub_region, ISO_A3, ISO_A2) %>%
+  summarise(n_par = length(unique(loc_id)),
+            n_deal = length(unique(deal_id)),
+            size_med_par = median(size_max_par),
+            land_tot_ha = sum(land_area_km2_2020, na.rm = TRUE)*100,
+            agri_tot_ha = sum(agri_area_km2_2020, na.rm = TRUE)*100,
+            size_tot_min = sum(size_min_par, na.rm = TRUE),
+            size_tot_avg = sum(size_avg_par, na.rm = TRUE),
+            size_tot_max = sum(size_max_par, na.rm = TRUE),
+            shr_agri_min = size_tot_min/agri_tot_ha,
+            shr_agri_avg = size_tot_avg/agri_tot_ha,
+            shr_agri_max = size_tot_max/agri_tot_ha,
+            shr_land_min = size_tot_min/land_tot_ha,
+            shr_land_avg = size_tot_avg/land_tot_ha,
+            shr_land_max = size_tot_max/land_tot_ha) %>%
+  left_join(ctry_loc, by = c("ISO_A2" = "iso_2")) %>%
+  select(c(region, sub_region, country, ISO_A3, ISO_A2, lon, lat, size_med_par,
+           n_par:shr_land_max))
+
+# fwrite(data_StatDes_muller_country,
+#       'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_StatDes_muller_country.csv')
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Size histogram  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+##~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Sub-regions  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~
+
+list_subreg = sort(unique(data_StatDes_muller$sub_region))
+
+list_fig_hist_size = list()
+for (i in 1:length(list_subreg))
+{
+  data_i = subset(data_StatDes_muller, sub_region == list_subreg[i])
+  fig_i = ggplot(data = data_i, aes(x = size_max_par)) %>%
+  + geom_histogram(fill = "#3182BD", color = "white") %>%
+  + scale_x_log10() %>%
+  + annotation_logticks(sides = "b") %>%
+  + labs(y = "",
+         x = "", 
+         title = "",
+         subtitle = list_subreg[i]) %>%
++ theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(hjust = 0), 
+      axis.text.x = element_text(angle = 0),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+      ) 
+
+  list_fig_hist_size[[i]] = fig_i
+}
+
+#Add histo for the full sample
+list_fig_hist_size[[length(list_fig_hist_size)+1]] = 
+   ggplot(data = data_StatDes_muller, aes(x = size_max_par)) %>%
+  + geom_histogram(fill = "#3182BD", color = "white") %>%
+  + scale_x_log10() %>%
+  + annotation_logticks(sides = "b") %>%
+  + labs(y = "",
+         x = "", 
+         title = "",
+         subtitle = "World") %>%
++ theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(hjust = 0), 
+      axis.text.x = element_text(angle = 0),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+      ) 
+
+mplot_hist_size_muller = plot_grid(plotlist = list_fig_hist_size,
+                        align = "hv",
+                        nrow = 3,
+                        ncol = 3,
+                        labels = "AUTO"
+                        ) 
+
+y.grob <- textGrob("# of parcels",
+                 gp=gpar(fontface = "bold", fontsize=15), rot=90)
+x.grob <- textGrob("Size of the parcel (in ha)",
+                 gp=gpar(fontface = "bold", fontsize=15), rot=0)
+title.grob = textGrob("Distribution of parcels size in the sample",
+                 gp=gpar(fontface = "bold", fontsize=17), rot=0)
+  
+#Building the final figure
+fig_hist_size_muller = grid.arrange(arrangeGrob(mplot_hist_size_muller, left = y.grob, 
+                                                bottom = x.grob, top = title.grob))
+
+# ggsave(plot = fig_hist_size_muller,
+#        filename = "fig_StatDes_hist_size_muller.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 15, height = 10)
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ World ----
+##~~~~~~~~~~~~~~~~~~~~~~~~
+
+fig_hist_size_muller_wld  =
+  ggplot(data = data_StatDes_muller, aes(x = size_max_par)) %>%
+  + geom_histogram(fill = "#3182BD", color = "white") %>%
+  + scale_x_log10() %>%
+  + annotation_logticks(sides = "b") %>%
+  + labs(y = "# of parcels",
+         x = "Size of the parcel (in ha)", 
+         title = "Distribution of parcels size in the sample",
+         subtitle = "World") %>%
++ theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(hjust = 0), 
+      axis.text.x = element_text(angle = 0),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+      ) 
+
+# ggsave(plot = fig_hist_size_muller_wld,
+#        filename = "fig_StatDes_hist_size_muller_wld.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 15, height = 10)
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##          Share of land/agri.land covered by LSLA in Muller sample        ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+list_subreg = sort(unique(data_StatDes_muller_country$sub_region))
+
+##~~~~~~~~~~~~~~~~~~~~
+##  ~ Land share  ----
+##~~~~~~~~~~~~~~~~~~~~
+
+list_fig_land = list()
+for (i in 1:length(list_subreg))
+{
+  data_i = subset(data_StatDes_muller_country, sub_region == list_subreg[i])
+  fig_i = ggplot(data = data_i) %>%
+    + geom_bar(aes(x = reorder(ISO_A3, shr_land_avg), y = shr_land_avg), 
+               fill = "#3182BD", stat = 'identity') %>%
+    + geom_errorbar(aes(x = ISO_A3, y = shr_land_avg, ymin = shr_land_min, ymax = shr_land_max),
+                    color = "grey", linewidth = 0.9, width = 0.2, alpha = .8) %>%
+  + labs(y = "",
+         x = "", 
+         title = "",
+         subtitle = list_subreg[i],
+         caption = "Uncertainty on share covered comes from the potential \nevolution of parcel size over time") %>%
++ theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(hjust = 0), 
+      axis.text.x = element_text(angle = 45),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+      ) 
+  list_fig_land[[i]] = fig_i
+}
+
+mplot_shr_land = plot_grid(plotlist = list_fig_land,
+                        align = "hv",
+                        nrow = 3,
+                        ncol = 3,
+                        labels = "AUTO"
+                        ) 
+
+y.grob <- textGrob("Share (%)",
+                 gp=gpar(fontface = "bold", fontsize=15), rot=90)
+title.grob_land = textGrob("Share of land covered by LSLA in the sample",
+                 gp=gpar(fontface = "bold", fontsize=17), rot=0)
+  
+#Building the final figure
+fig_shr_land = grid.arrange(arrangeGrob(mplot_shr_land, left = y.grob, top = title.grob_land))
+
+ggsave(plot = fig_shr_land,
+       filename = "fig_StatDes_shr_land_muller.jpeg",
+       path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+       width = 15, height = 10)
+
+
+
+##~~~~~~~~~~~~~~~~~~~~
+##  ~ Agri. land share  ----
+##~~~~~~~~~~~~~~~~~~~~
+
+list_fig_agri = list()
+for (i in 1:length(list_subreg))
+{
+  data_i = subset(data_StatDes_muller_country, sub_region == list_subreg[i])
+  fig_i = ggplot(data = data_i) %>%
+    + geom_bar(aes(x = reorder(ISO_A3, shr_agri_avg), y = shr_agri_avg), 
+               fill = "#3182BD", stat = 'identity') %>%
+    + geom_errorbar(aes(x = ISO_A3, y = shr_agri_avg, ymin = shr_agri_min, ymax = shr_agri_max),
+                    color = "grey", linewidth = 0.9, width = 0.2, alpha = .8) %>%
+  + labs(y = "",
+         x = "", 
+         title = "",
+         subtitle = list_subreg[i],
+         caption = "Uncertainty on share covered comes from the potential \nevolution of parcel size over time") %>%
++ theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(hjust = 0), 
+      axis.text.x = element_text(angle = 45),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+      ) 
+  list_fig_agri[[i]] = fig_i
+}
+
+mplot_shr_agri = plot_grid(plotlist = list_fig_agri,
+                        align = "hv",
+                        nrow = 3,
+                        ncol = 3,
+                        labels = "AUTO"
+                        ) 
+
+y.grob <- textGrob("Share (%)",
+                 gp=gpar(fontface = "bold", fontsize=15), rot=90)
+title.grob_agri = textGrob("Share of agricultural land covered by LSLA in the sample",
+                 gp=gpar(fontface = "bold", fontsize=17), rot=0)
+  
+#Building the final figure
+fig_shr_agri = grid.arrange(arrangeGrob(mplot_shr_agri, left = y.grob, top = title.grob_agri))
+
+ggsave(plot = fig_shr_agri,
+       filename = "fig_StatDes_shr_agri_muller.jpeg",
+       path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+       width = 15, height = 10)
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Generate map  ----
+##~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+#Import relavant dataset and transform it in sf
+data_StatDes_muller_country = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_StatDes_muller_country.csv') %>%
+  mutate(lon2 = lon, lat2 = lat) %>%
+  st_as_sf(coords=c("lon2","lat2"), crs=4326)
+
+ext_muller = ext(data_StatDes_muller_country)
+mf_init(x = data_StatDes_muller_country, theme = "default")
+mf_shadow(x = geo_countries, col = "grey80", add = TRUE)
+mf_map(x = data_StatDes_muller_country, add = TRUE)
+mf_map(x = data_StatDes_muller_country, 
+       var = c("n_par", "size_med_par"),
+       type = "prop_choro", 
+       border = "black",
+       lwd = 1,
+       leg_pos = c("topright", "right"),
+       leg_title = c("Number of parcels", "Median size of parcels"),
+       breaks = "log",
+       nbreaks = 4,
+       pal = "Blues"
+)
+mf_layout(title = "Distribution of parcels in the sample", 
+          credits = "Land Matrix Database")
+
+mapview(data_StatDes_muller_country, 
+        zcol = c("size_med_par"), 
+        at = c(200, 1e3, 3e3, 1e4, 5e4, 1e5), 
+        cex = "n_par",
+        legend = TRUE)
+
+##Try with ggplot2
+
+fig_map_muller_size_npar = ggplot() %>%
+  + geom_sf(data = geo_countries, aes(geometry = geometry_country)) %>%
+  + geom_sf(data = data_StatDes_muller_country, aes(geometry = geometry)) %>%
+  + geom_point(data = data_StatDes_muller_country,
+               aes(x = lon, y = lat, size = n_par, color = size_med_par)) %>%
+  + scale_size(range = c(1, 10)) %>%
+  + labs(x = "", y = "", title = "Distribution of selected parcels") %>%
+  + theme_minimal()
+fig_map_muller_size_npar
+
+````
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            ~~
+##                                  OLD CODE                                ----
+##                                                                            ~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                            distribution + LSLA                           ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+#Here we want to determine the share of deals we can consider as LSLA and study
+#Criteria 1 : transnational scope, deal size > 200 ha, negotiation concluded
+#Criteria 2 : transnational scope, deal size > 200 ha, implementation "in operation" or "start-up" phase (can ensure population are affected)
+#Note the deals with "none" implementation or negotiation status are not considered as suitable, though some might
+#Criteria 3 : deal size > 200 ha, implementation "in operation" or "start-up" phase (can ensure population are affected)
+#Note the deals with "none" implementation or negotiation status are not considered as suitable, though some might
+
+
+##~~~~~~~~~~~~~~~~~~~~
+##  ~ Criteria 1  ----
+##~~~~~~~~~~~~~~~~~~~~
+
+data_StatDes_SSA_LSLA_1 = data_StatDes_SSA %>%
+  group_by(country) %>%
+  mutate(n_LSLA_1 = sum(`Deal size` >= 200 
+                        & `Deal scope` == 'transnational' 
+                        & (`Current negotiation status` == 'Concluded (Contract signed)' | 
+                            `Current negotiation status` == 'Concluded (Oral Agreement)' | 
+                            `Current negotiation status` == 'Concluded (Change of ownership)'))) %>%
+  summarise(n_deals = n(), n_LSLA_1, n_LSLA_0 = n_deals - n_LSLA_1) %>%
+  slice(1) %>%
+  pivot_longer(cols = c(n_LSLA_1, n_LSLA_0),
+               names_to = 'LSLA') 
+
+
+fig_StatDes_SSA_distrib_LSLA_1 = ggplot(data = data_StatDes_SSA_LSLA_1, 
+                                 aes(x = reorder(country, n_deals), y = value, fill = LSLA)) %>%
+  + geom_bar(stat = 'identity', position = 'stack') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = 'Distribution of LSLA deals across Sub-Saharan Africa \n (transnational, >200 ha, negotiations concluded)', 
+       subtitle = paste('Sample :', sum(data_StatDes_SSA_LSLA_1$value), 'deals', 'in', length(unique(data_StatDes_SSA_LSLA_1$country)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + scale_fill_manual(values = brewer.pal(n = 2, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Nature of the deal",
+                      labels = c('Not a LSLA', 'LSLA')
+                      ) %>%
+  + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_SSA_distrib_LSLA_1,
+#        filename = "fig_StatDes_SSA_distrib_LSLA_1.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/SSA',
+#        width = 7, height = 7)
+
+##For countries with more than 100 deals
+
+fig_StatDes_SSA_distrib_LSLA_1_100 = ggplot(data = subset(data_StatDes_SSA_LSLA_1, data_StatDes_SSA_LSLA_1$n_deals >= 100), 
+                                 aes(x = reorder(country, n_deals), y = value, fill = LSLA)) %>%
+  + geom_bar(stat = 'identity', position = 'stack') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = 'Distribution of LSLA deals across Sub-Saharan Africa \n (transnational, >200 ha, negotiations concluded)', 
+       subtitle = paste('Sample :', sum(subset(data_StatDes_SSA_LSLA_1, data_StatDes_SSA_LSLA_1$n_deals >= 100)$value), 'deals', 'in',
+                        length(unique(subset(data_StatDes_SSA_LSLA_1, data_StatDes_SSA_LSLA_1$n_deals >= 100)$country)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + scale_fill_manual(values = brewer.pal(n = 5, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Nature of the deal",
+                      labels = c('Not a LSLA', 'LSLA')
+                      ) %>%
+  + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_SSA_distrib_LSLA_1_100,
+#        filename = "fig_StatDes_SSA_distrib_LSLA_1_100.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/SSA',
+#        width = 7, height = 7)
+
+
+
+##~~~~~~~~~~~~~~~~~~~~
+##  ~ Criteria 2  ----
+##~~~~~~~~~~~~~~~~~~~~
+
+data_StatDes_SSA_LSLA_2 = data_StatDes_SSA %>%
+  group_by(country) %>%
+  mutate(n_LSLA_2 = sum(`Deal size` >= 200 
+                        & `Deal scope` == 'transnational' 
+                        & (`Current implementation status` == 'Startup phase (no production)' | 
+                           `Current implementation status` == 'In operation (production)'))) %>%
+  summarise(n_deals = n(), n_LSLA_2, n_LSLA_0 = n_deals - n_LSLA_2) %>%
+  slice(1) %>%
+  pivot_longer(cols = c(n_LSLA_2, n_LSLA_0),
+               names_to = 'LSLA') 
+
+
+fig_StatDes_SSA_distrib_LSLA_2 = ggplot(data = data_StatDes_SSA_LSLA_2, 
+                                 aes(x = reorder(country, n_deals), y = value, fill = LSLA)) %>%
+  + geom_bar(stat = 'identity', position = 'stack') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = 'Distribution of LSLA deals across Sub-Saharan Africa \n (transnational, >200 ha, in start-up phase or in operation)', 
+       subtitle = paste('Sample :', sum(data_StatDes_SSA_LSLA_2$value), 'deals', 'in', length(unique(data_StatDes_SSA_LSLA_2$country)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + scale_fill_manual(values = brewer.pal(n = 2, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Nature of the deal",
+                      labels = c('Not a LSLA', 'LSLA')
+                      ) %>%
+  + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_SSA_distrib_LSLA_2,
+#        filename = "fig_StatDes_SSA_distrib_LSLA_2.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/SSA',
+#        width = 7, height = 7)
+
+##For countries with more than 100 deals
+
+fig_StatDes_SSA_distrib_LSLA_2_100 = ggplot(data = subset(data_StatDes_SSA_LSLA_2, data_StatDes_SSA_LSLA_2$n_deals >= 100), 
+                                 aes(x = reorder(country, n_deals), y = value, fill = LSLA)) %>%
+  + geom_bar(stat = 'identity', position = 'stack') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = 'Distribution of LSLA deals across Sub-Saharan Africa \n (transnational, >200 ha, in start-up phase or in operation)', 
+       subtitle = paste('Sample :', sum(subset(data_StatDes_SSA_LSLA_2, data_StatDes_SSA_LSLA_2$n_deals >= 100)$value), 'deals', 'in',
+                        length(unique(subset(data_StatDes_SSA_LSLA_2, data_StatDes_SSA_LSLA_2$n_deals >= 100)$country)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + scale_fill_manual(values = brewer.pal(n = 2, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Nature of the deal",
+                      labels = c('Not a LSLA', 'LSLA')
+                      ) %>%
+  + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_SSA_distrib_LSLA_2_100,
+#        filename = "fig_StatDes_SSA_distrib_LSLA_2_100.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/SSA',
+#        width = 7, height = 7)
+
+
+##~~~~~~~~~~~~~~~~~~~~
+##  ~ Criteria 3  ----
+##~~~~~~~~~~~~~~~~~~~~
+
+data_StatDes_SSA_LSLA_3 = data_StatDes_SSA %>%
+  group_by(country) %>%
+  mutate(n_LSLA_3 = sum(`Deal size` >= 200
+                        & (`Current implementation status` == 'Startup phase (no production)' | 
+                           `Current implementation status` == 'In operation (production)'))) %>%
+  summarise(n_deals = n(), n_LSLA_3, n_LSLA_0 = n_deals - n_LSLA_3) %>%
+  slice(1) %>%
+  pivot_longer(cols = c(n_LSLA_3, n_LSLA_0),
+               names_to = 'LSLA') 
+
+
+fig_StatDes_SSA_distrib_LSLA_3 = ggplot(data = data_StatDes_SSA_LSLA_3, 
+                                 aes(x = reorder(country, n_deals), y = value, fill = LSLA)) %>%
+  + geom_bar(stat = 'identity', position = 'stack') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = 'Distribution of LSLA deals across Sub-Saharan Africa \n (>200 ha, in start-up phase or in operation)', 
+       subtitle = paste('Sample :', sum(data_StatDes_SSA_LSLA_3$value), 'deals', 'in', length(unique(data_StatDes_SSA_LSLA_3$country)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + scale_fill_manual(values = brewer.pal(n = 2, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Nature of the deal",
+                      labels = c('Not a LSLA', 'LSLA')
+                      ) %>%
+  + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_SSA_distrib_LSLA_3,
+#        filename = "fig_StatDes_SSA_distrib_LSLA_3.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/SSA',
+#        width = 7, height = 7)
+
+##For countries with more than 100 deals
+
+fig_StatDes_SSA_distrib_LSLA_3_100 = ggplot(data = subset(data_StatDes_SSA_LSLA_3, data_StatDes_SSA_LSLA_3$n_deals >= 100), 
+                                 aes(x = reorder(country, n_deals), y = value, fill = LSLA)) %>%
+  + geom_bar(stat = 'identity', position = 'stack') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = 'Distribution of LSLA deals across Sub-Saharan Africa \n (>200 ha, in start-up phase or in operation)', 
+       subtitle = paste('Sample :', sum(subset(data_StatDes_SSA_LSLA_3, data_StatDes_SSA_LSLA_3$n_deals >= 100)$value), 'deals', 'in',
+                        length(unique(subset(data_StatDes_SSA_LSLA_3, data_StatDes_SSA_LSLA_3$n_deals >= 100)$country)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + scale_fill_manual(values = brewer.pal(n = 2, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Nature of the deal",
+                      labels = c('Not a LSLA', 'LSLA')
+                      ) %>%
+  + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_SSA_distrib_LSLA_3_100,
+#        filename = "fig_StatDes_SSA_distrib_LSLA_3_100.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/SSA',
+#        width = 7, height = 7)
+
+ 
+````
+
+```{r}
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                Size dummies                              ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#We create a dataset of all observations with deal ID, size under contract, size in operation
+#As these variables contain the history of the deal, they are split on the separator '|' : each will correspond to updates over time of their initial variable
+#First we only need to know whether sizes are reported for contract and operation. As such values are potentially evolving over time, the very value chosen will be chosen manually for the observations chosen.
+#Thus two dummy variables are created : dummy_size_op and dummy_size_cont according to the following procedure.
+#If at least one size is reported in the variable 'Size under contract (in ha)', then dummy_size_op = 1, and 0 otherwise. Same for dummy_size_op.
+
+
+data_size = right_join(ctry_reg, data_deals_all, by = c('country' = 'Target country')) %>%
+  select(c(`Deal ID`, `Intended size (in ha)`, `Size under contract (leased or purchased area, in ha)`, `Size in operation (production, in ha)`)) %>%
+  rename('size_int' = `Intended size (in ha)`,
+         'size_contract' = `Size under contract (leased or purchased area, in ha)`,
+         'size_op' = `Size in operation (production, in ha)`
+         ) %>%
+  mutate(dummy_size_int = !(size_int == '' | is.na(size_int)),
+         dummy_size_cont = size_contract != '',
+         dummy_size_op = size_op != '') %>%
+  select(c('Deal ID', dummy_size_int, dummy_size_cont, dummy_size_op))
+
+```

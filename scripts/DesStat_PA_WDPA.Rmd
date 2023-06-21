@@ -1,0 +1,750 @@
+---
+title: "DesStat_PA_WDPA"
+author: "Antoine Vuillot"
+date: "12/06/2023"
+output: 
+  html_document: 
+    fig_caption: yes
+editor_options: 
+  chunk_output_type: inline
+---
+
+# Descriptive statistics
+
+In this document are performed and plotted descriptive statistics from the datasets built in buildingDB_PA_WDPA. The following statistics are derived :
+
+-   Distribution of parcels among IUCN categories, at country, region and world level.
+-   Distribution in terms of ecosystems
+-   Distribution of PAs across countries and regions
+
+## Importing packages
+
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+```
+
+```{r message=FALSE, warning=FALSE}
+
+library(tidyverse)
+library(stargazer)
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+library(RColorBrewer)
+library(data.table)
+#library(readxl)
+#library(splitstackshape) 
+library(janitor)
+library(xtable)
+library(questionr)
+library(tidyterra)
+library(terra)
+library(sf)
+library(mapview)
+
+```
+
+## Importing datasets
+
+```{r}
+
+#A first dataset with some PA on more than one row (one line per funding for instance)
+
+data_stat = fread("01_data_tidy/BDD_DesStat.csv")
+#A second dataset with one line per PA, more suited for some statistics
+data_stat_nodupl = fread("01_data_tidy/BDD_DesStat_nodupl.csv")
+```
+
+## Computing total area at country, region and world level
+
+Knowing the total area covered by PAs at different level of aggregation is interesting per se. It is also necessary to compute several statistics (e.g average funding by unit of area). According to the WDPA documentation, it is likely that some reported polygons overlap. Simply summing the areas would thus lead to a biased estimate of the total area at a given level of aggregation. We follow the procedure of the WDPA (<https://www.protectedplanet.net/en/resources/calculating-protected-area-coverage>). Our case is simpler as all of the PAs we consider are given a polygon.
+
+1.  The layer is converted to Mollweide (an equal area projection) and the area of each polygon is calculated, in km2.
+
+2.  Intersection of polygons and the corresponding area are computed.
+
+3.  Then the intersection can be aggregated at country, region or world level. Then it is subtracted to the sum of areas at country, region or world level.
+
+```{r message=FALSE, warning=FALSE}
+
+#Importing shapefiles
+sf_use_s2(FALSE)
+pa_shp = read_sf("00_data_raw/WDPA_SHP/BDD_SHP_nodupl.shp") %>%
+  st_make_valid() %>%
+  #From multipolygon to polygon
+  sf::st_cast(to="POLYGON") %>%
+  clean_names() %>%
+  #Select relevant variables
+  dplyr::select(c(wdpaid, sprfc, rep_a, gis_a, geometry, iso3, drct)) %>%
+  mutate(area_sf = as.numeric(st_area(geometry)/1e6)) %>%
+  #Project to Mollweide to compute relevant areas
+  st_transform(crs = "+proj=moll +datum=WGS84") %>%
+  #Compute areas in km2
+  mutate(area_sf_moll = as.numeric(st_area(geometry)/1e6))
+
+#Compute intersecting areas
+pa_int = st_intersection(pa_shp, pa_shp) %>%
+  #Remove intersection of polygons with themselves
+  subset(wdpaid != wdpaid.1) %>%
+  #If one of the two intersectin polygon have unknwon area, then it is not necessary to subtract the interesction area. Indeed there is no double-counting of the intersection in this case, when both polygon areas are summed.
+  subset(is.na(sprfc) == FALSE & is.na(sprfc.1) == FALSE) %>%
+  #Compute the intersecting areas
+  mutate(area_int = as.numeric(st_area(geometry)/1e6)) %>%
+  #Now duplicates need to be removed : intersection of X with Y AND intersection of Y with X are reported
+  #An id_int to identify the intersection of a given pair
+  mutate(id_int = paste0(wdpaid, "_", wdpaid.1), .before = wdpaid) %>%
+  mutate(id_int_temp = paste0(wdpaid, "_", wdpaid.1), .before = wdpaid) %>%
+  #create a mirror idX_idY --> idY_idX so that we identify the both member of a pair with the same id
+  separate(id_int_temp, into = c("id_temp1", "id_temp2"), sep = "_") %>%
+  mutate(id_int_rev = case_when(
+    id_temp1 < id_temp2 ~ paste(id_temp1, id_temp2, sep = "_"),
+    id_temp1 > id_temp2 ~ paste(id_temp2, id_temp1, sep = "_"),
+    TRUE ~ paste(id_temp1, id_temp2, sep = "_")),
+    .after = id_int)
+  #finally, get rid of the duplicates
+
+#Peut-être amélioré !!
+
+#Computing the total area of intersections
+#At country level ...
+pa_int_ctry = pa_int %>%
+  subset(iso3 ==  iso3.1) %>%
+  group_by(iso3) %>%
+  summarize(tot_area_int = sum(area_int)) %>%
+  st_drop_geometry()
+
+#At region level
+pa_int_reg = pa_int %>%
+  subset(drct == drct.1) %>%
+  group_by(drct) %>%
+  summarize(tot_area_int = sum(area_int)) %>%
+  st_drop_geometry()
+
+##At world level
+pa_int_wld = sum(pa_int$area_int) 
+
+```
+
+## Performing descriptive statistics
+
+### IUCN categories
+
+#### Share of PAs by IUCN categories
+
+```{r}
+
+#Building the relevant dataset
+##For all PAs ..
+data_cat_iucn = data_stat_nodupl %>%
+  group_by(iucn_des) %>%
+  #number of PAs per IUCN category
+  summarize(n_iucn = n()) %>%
+  ungroup() %>%
+  #Frequency of IUCN categories
+  mutate(n_pa = sum(n_iucn),
+         freq_iucn = n_iucn/n_pa*100) %>%
+  arrange(desc(iucn_des)) %>%
+  mutate(ypos_iucn = cumsum(freq_iucn) - 0.5*freq_iucn) 
+
+##... and for referenced PAs only
+data_cat_iucn_ref = data_stat_nodupl %>%
+  #Remove not referenced PAs
+  subset(!(iucn_des %in% c("Non catégorisée", "Non référencée"))) %>%
+  group_by(iucn_des) %>%
+  #number of PAs per IUCN category
+  summarize(n_iucn = n()) %>%
+  ungroup() %>%
+  #Frequency of IUCN categories
+  mutate(n_pa = sum(n_iucn),
+         freq_iucn = n_iucn/n_pa*100) %>%
+  arrange(freq_iucn) %>%
+  mutate(ypos_iucn = cumsum(freq_iucn) - 0.5*freq_iucn) 
+
+#Latex table
+tbl_cat_iucn = data_cat_iucn %>%
+  select(c(iucn_des, n_iucn, freq_iucn))
+names(tbl_cat_iucn) <- c("Catégories IUCN","Nombre d'AP", "Proportion d'AP (%)")
+# print(xtable(tbl_cat_iucn, type = "latex"), 
+#       file = "C:/Users/Antoi/Desktop/projet_AiresProtegees/05_StatDes/IUCN/tbl_cat_iucn.tex")
+
+#Histogram including non-referenced PAs
+hist_cat_iucn = ggplot(data_cat_iucn, 
+                       aes(x = reorder(iucn_des, -freq_iucn), 
+                           y = freq_iucn, fill = iucn_des)) %>% 
+  + geom_bar(stat = "identity", width = 0.50, fill="#3182BD") %>%
+  + geom_text(aes(label = round(n_iucn, 1), y = 0), 
+            vjust = "inward", color="black",
+            size=3.5) %>%
+  + labs(title = "Proportion d'aires protégées par catégorie IUCN",
+         subtitle = paste("Echantillon :", sum(data_cat_iucn$n_iucn), "aires protégées. Nombre d'aires indiqué à la base du graphique"),
+          x = "Catégories IUCN", 
+          y = "Nombre (%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=9, hjust = .5, vjust = .6),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+#hist_cat_iucn
+
+# ggsave(plot = hist_cat_iucn,
+#        filename = "hist_cat_iucn.png",
+#        path = "C:/Users/Antoi/Desktop/projet_AiresProtegees/05_StatDes/IUCN",
+#        height = 6, width = 9)
+
+#Histogram excluding non-referenced PAs
+hist_cat_iucn_ref = ggplot(data_cat_iucn_ref, 
+                       aes(x = reorder(iucn_des, -freq_iucn), 
+                           y = freq_iucn, fill = iucn_des)) %>% 
+  + geom_bar(stat = "identity", width = 0.50, fill="#3182BD") %>%
+  + geom_text(aes(label = round(n_iucn, 1), y = 0), 
+            vjust = "inward", color="black",
+            size=3.5) %>%
+  + labs(title = "Proportion d'aires protégées par catégorie IUCN (hors AP non-répertoriées)",
+         subtitle = paste("Echantillon :", sum(data_cat_iucn_ref$n_iucn), "aires protégées. Nombre d'aires indiqué à la base du graphique"),
+          x = "Catégories IUCN", 
+          y = "Nombre (%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=9, hjust = .5, vjust = .6),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+# hist_cat_iucn_ref
+# 
+# ggsave(plot = hist_cat_iucn_ref,
+#        filename = "hist_cat_iucn_ref.png",
+#        path = "C:/Users/Antoi/Desktop/projet_AiresProtegees/05_StatDes/IUCN",
+#        height = 6, width = 9)
+
+#Pie chart INcluding non-referenced PAs
+pie_cat_iucn = ggplot(data_cat_iucn, 
+                      aes(x="", y= freq_iucn, fill = iucn_des)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + coord_polar("y", start=0) %>%
+  + geom_text_repel(aes(y = ypos_iucn, label = round(freq_iucn, 1)), color = "white", size=4) %>%
+  # + geom_label(aes(x=1.4, label = paste0(freq_iucn, "%")), 
+  #              color = "white", 
+  #              position = position_stack(vjust = 0.7), size=2.5, 
+  #              show.legend = FALSE) %>%
+  + labs(x = "", y = "",
+         title = "Proportion d'aires protégées par catégorie IUCN (%)") %>%
+  + scale_fill_brewer(name = "Catégories", palette = "Dark2") %>%
+  + theme_void()
+#pie_cat_iucn
+
+#Pie chart EXcluding non-referenced PAs
+pie_cat_iucn_ref = ggplot(data_cat_iucn_ref, 
+                      aes(x="", y= freq_iucn, fill = iucn_des)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + coord_polar("y", start=0) %>%
+  + geom_text_repel(aes(y = ypos_iucn, label = round(freq_iucn, 1))) %>%
+  # + geom_label(aes(x=1.4, label = paste0(freq_iucn, "%")), 
+  #              color = "white", 
+  #              position = position_stack(vjust = 0.7), size=2.5, 
+  #              show.legend = FALSE) %>%
+  + labs(x = "", y = "",
+         title = "Proportion d'aires protégées par catégorie IUCN (hors AP non répertoriées) (%)") %>%
+  + scale_fill_brewer(name = "Catégories", palette = "Dark2") %>%
+  + theme_void()
+#pie_cat_iucn_ref
+
+
+```
+
+#### IUCN categories by countries and regions
+
+```{r}
+
+#Build the distribution of IUCN categories at country level ...
+data_iucn_ctry = table(data_stat_nodupl$iucn_des,
+                       data_stat_nodupl$iso3) %>%
+  #Create a table with all iucn categories for each country, and compute the frequencies in percent
+  prop.table(2) %>%
+  as.data.frame() %>%
+  mutate(Freq = round(Freq, 3)*100) %>%
+  pivot_wider(names_from = Var2, values_from = Freq) %>%
+  rename("iucn_des" = "Var1")
+
+#... and regional level
+data_iucn_reg = table(data_stat_nodupl$iucn_des,
+                       data_stat_nodupl$direction_regionale) %>%
+    #Create a table with all iucn categories for each country, and compute the frequencies in percent
+  prop.table(2) %>%
+  as.data.frame() %>%
+  mutate(Freq = round(Freq, 3)*100) %>%
+  pivot_wider(names_from = Var2, values_from = Freq) %>%
+  rename("iucn_des" = "Var1")
+
+#Then build and record the tables
+# print(xtable(data_iucn_ctry, type = "latex"), 
+#       file = "C:/Users/Antoi/Desktop/projet_AiresProtegees/05_StatDes/IUCN/tbl_iucn_ctry.tex")
+# print(xtable(data_iucn_reg, type = "latex"), 
+#       file = "C:/Users/Antoi/Desktop/projet_AiresProtegees/05_StatDes/IUCN/tbl_iucn_reg.tex")
+
+```
+
+### Ecosystems (excluding non-referenced PAs)
+
+#### Proportion of PAs by marine or terrestrial areas
+
+```{r}
+
+#Build datasets
+data_eco = data_stat_nodupl %>%
+  #subset non-referencded PAs (have NA ecosysteme)
+  subset(is.na(marine) == FALSE) %>%
+  mutate(marine = as.factor(marine))
+data_eco$ecosyst_en = fct_recode(data_eco$marine, 
+                              "Terrestrial"="0", 
+                              "Coastal"="1", 
+                              "Marine"="2")
+data_eco$ecosyst_fr = fct_recode(data_eco$marine, 
+                              "Terrestre"="0", 
+                              "Côtier"="1", 
+                              "Marin"="2")
+
+data_eco_hist = data_eco %>%
+  group_by(ecosyst_en, ecosyst_fr) %>%
+  summarize(n = n(),
+            freq = round(n/nrow(data_eco), 3)*100) %>%
+  ungroup()
+#/!\ résultats un peu différents que Léa j'ai une AP en plus), mais la méthode est équivalente
+
+#Table
+# tbl_eco_wdpaid = table(data_eco$wdpaid, data_eco$ecosyst) %>%
+#   rprop() %>%
+#   as.data.frame() %>%
+#   mutate(Freq = round(Freq,2)) %>%
+#   pivot_wider(names_from = Var2, values_from = Freq)
+
+tbl_eco_world_fr = data_eco_hist %>%
+  select(c(ecosyst_fr, n, freq)) %>%
+  rename("Ecosystème" = "ecosyst_fr",
+         "Nombre d'AP" = "n",
+         "Proportion d'AP(%)" = "freq")
+
+# print(xtable(tbl_eco_world_fr, type = "latex"), file = "05_StatDes/ecosysteme/tbl_ecosyst_fr.tex")
+
+tbl_eco_world_en = data_eco_hist %>%
+  select(c(ecosyst_en, n, freq)) %>%
+  rename("Ecosystem" = "ecosyst_en",
+         "Number of PAs" = "n",
+         "Share of PAs(%)" = "freq")
+
+# print(xtable(tbl_eco_world_en, type = "latex"), file = "05_StatDes/ecosysteme/tbl_ecosyst_en.tex")
+
+#Histogram in share (in French)
+hist_eco_shr_fr = ggplot(data_eco_hist, 
+                     aes(x = ecosyst_fr, y = freq, fill = ecosyst_fr)) %>%
++ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
++ geom_text(aes(label = round(n, 1), y = 0), 
+        vjust = "inward", color="black",
+        size=3.5) %>%
++ labs(title = "Proportion d'aires protégées par type d'écosystème (hors AP non-référencées)",
+       subtitle = paste("Echantillon :", sum(data_eco_hist$n), "aires protégées. Nombre d'aires indiqué à la base du graphique"),
+         x = "Type d'écosystème",
+         y = "Proportion d'aires protégées(%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 0,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+#hist_eco_shr_fr
+# 
+# ggsave(plot = hist_eco_shr_fr,
+#        filename = "hist_eco_shr_fr.png",
+#        path = "05_StatDes/ecosysteme",
+#        height = 6, width = 9)
+
+
+#Histogram in share (in English)
+hist_eco_shr_en = ggplot(data_eco_hist, 
+                     aes(x = ecosyst_en, y = freq, fill = ecosyst_en)) %>%
++ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
++ geom_text(aes(label = round(n, 1), y = 0), 
+        vjust = "inward", color="black",
+        size=3.5) %>%
++ labs(title = "Proportion of protected areas by ecosystem type (excluding non-references PAs)",
+       subtitle = paste("Sample :", sum(data_eco_hist$n), "protected areas. Number of areas indicated below."),
+         x = "Ecosystem type",
+         y = "Proportion of protected areas(%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 0,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+#hist_eco_shr_en
+
+# ggsave(plot = hist_eco_shr_en,
+#        filename = "hist_eco_shr_en.png",
+#        path = "05_StatDes/ecosysteme",
+#        height = 6, width = 9)
+  
+#Histogram in number (in French)
+hist_eco_n_fr = ggplot(data_eco_hist, 
+                     aes(x = ecosyst_fr, y = n, fill = ecosyst_fr)) %>%
++ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
++ labs(title = "Proportion d'aires protégées par type d'écosystème (hors AP non-référencées)",
+       subtitle = paste("Echantillon :", sum(data_eco_hist$n), "aires protégées"),
+         x = "Type d'écosystème",
+         y = "Proportion d'aires protégées") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 0,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+#hist_eco_n_fr
+
+# ggsave(plot = hist_eco_n_fr,
+#        filename = "hist_eco_n_fr.png",
+#        path = "05_StatDes/ecosysteme",
+#        height = 6, width = 9)
+
+
+#Histogram in number (in English)
+hist_eco_n_en = ggplot(data_eco_hist, 
+                     aes(x = ecosyst_en, y = n, fill = ecosyst_en)) %>%
++ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
++ labs(title = "Proportion of protected areas by ecosystem type (excluding non-referenced PAs)",
+       subtitle = paste("Sample :", sum(data_eco_hist$n), "protected areas"),
+         x = "Ecosystem type",
+         y = "Proportion of protected areas") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 0,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+#hist_eco_n_en
+
+# ggsave(plot = hist_eco_n_en,
+#        filename = "hist_eco_n_en.png",
+#        path = "05_StatDes/ecosysteme",
+#        height = 6, width = 9)
+  
+
+#Pie chart (in French)
+pie_eco_fr = ggplot(data_eco_hist, 
+                     aes(x = "", y = freq, fill = ecosyst_fr)) %>%
++ geom_bar(width = 1, stat = "identity",color="white") %>%
++ geom_label(aes(x=1.3, label = paste0(freq, "%")), 
+             color = "black", position = position_stack(vjust = 0.55), 
+             size=2.5, show.legend = FALSE) %>%
++ coord_polar("y", start=0) %>%
++ labs(title = "Proportion d'aires protégées par type d'écosystème (hors AP non-référencées)",
+       subtitle = paste("Echantillon :", sum(data_eco_hist$n), "aires protégées"),
+         x = "Type d'écosystème",
+         y = "Proportion d'aires protégées") %>%
+  + scale_fill_brewer(name = "Ecosystème", palette="Paired") %>%
+  + theme_void()
+pie_eco_fr
+
+# ggsave(plot = pie_eco_fr,
+#        filename = "pie_eco_fr.png",
+#        path = "05_StatDes/ecosysteme",
+#        height = 6, width = 9)
+
+
+#Histogram in number (in English)
+pie_eco_en = ggplot(data_eco_hist, 
+                     aes(x = "", y = n, fill = ecosyst_en)) %>%
++ geom_bar(width = 1, stat = "identity",color="white") %>%
++ geom_label(aes(x=1.3, label = paste0(freq, "%")), 
+             color = "black", position = position_stack(vjust = 0.55), 
+             size=2.5, show.legend = FALSE) %>%
++ coord_polar("y", start=0) %>%
++ labs(title = "Proportion of protected areas by ecosystem type (exluding non-referenced PAs)",
+       subtitle = paste("Sample :", sum(data_eco_hist$n), "protected areas"),
+         x = "Ecosystem type",
+         y = "Proportion of protected areas") %>%
+  + scale_fill_brewer(name = "Ecosystem", palette="Paired") %>%
+  + theme_void()
+pie_eco_en
+
+# ggsave(plot =pie_eco_en,
+#        filename = "pie_eco_en.png",
+#        path = "05_StatDes/ecosysteme",
+#        height = 6, width = 9)
+  
+```
+
+### Distribution of PAs across countries and regions
+
+#### Statistics at country level
+
+```{r message=FALSE, warning=FALSE}
+
+data_distrib_ctry = data_stat_nodupl %>%
+  group_by(iso3, pays) %>%
+  summarize(n = n(),
+            freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
+  ungroup() %>%
+  mutate(pays = case_when(
+    pays == "P-N N.CalÃ©d" ~ "P-N N.Caléd",
+    pays == "Polynesie Francaise" ~ "Polynesie Fr.",
+    pays == "P-S N.CalÃ©d" ~ "P-S N.Caléd",
+    TRUE ~ pays
+  ))
+
+
+data_distrib_ctry_top = data_distrib_ctry %>%
+  subset(freq >= 5)
+
+#Histogram in share (in French) for top countries
+hist_distrib_ctry_top_shr_fr = ggplot(data_distrib_ctry_top, 
+                     aes(x = reorder(pays, -freq), y = freq, fill = pays)) %>%
++ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
++ geom_text(aes(label = round(n, 1), y = 0.1), 
+        vjust = "inward", color="black",
+        size=3.5) %>%
++ labs(title = "Les pays abritant le plus d'aires protégées",
+       subtitle = paste("Echantillon :", sum(data_distrib_ctry$n), "aires protégées. Nombre d'aires indiqué à la base du graphique"),
+         x = "Pays",
+         y = "Proportion d'aires protégées(%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 0,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_distrib_ctry_top_shr_fr
+# 
+# ggsave(plot = hist_distrib_ctry_top_shr_fr,
+#        filename = "hist_distrib_ctry_top_shr_fr.png",
+#        path = "05_StatDes/distribution",
+#        height = 6, width = 9)
+
+#Histogram in number (in French)
+hist_distrib_ctry_n_fr = ggplot(data_distrib_ctry, 
+                     aes(x = reorder(pays, -n), y = n, fill = pays)) %>%
++ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
++ geom_text(aes(label = round(n, 1), y = n), 
+        vjust = -0.2, color="black",
+        size=3.5) %>%
++ labs(title = "Proportion d'aires protégées par pays",
+       subtitle = paste("Echantillon :", sum(data_distrib_ctry$n), "aires protégées. Nombre d'aires indiqué sur chaque barre"),
+         x = "Pays",
+         y = "Proportion d'aires protégées(%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_distrib_ctry_n_fr
+# 
+# ggsave(plot = hist_distrib_ctry_n_fr,
+#        filename = "hist_distrib_ctry_n_fr.png",
+#        path = "05_StatDes/distribution",
+#        height = 6, width = 9)
+```
+
+#### Statistics at region level
+
+```{r}
+data_distrib_reg = data_stat_nodupl %>%
+  group_by(direction_regionale) %>%
+  summarize(n = n(),
+            freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
+  ungroup() %>%
+  mutate(direction_regionale = gsub("Dr ", "", direction_regionale))
+
+
+data_distrib_reg_top = data_distrib_reg %>%
+  subset(freq >= 5)
+
+#Histogram in share (in French) for top countries
+hist_distrib_reg_top_shr_fr = ggplot(data_distrib_reg_top, 
+                     aes(x = reorder(direction_regionale, -freq), y = freq, fill = direction_regionale)) %>%
++ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
++ geom_text(aes(label = round(n, 1), y = 0.1), 
+        vjust = "inward", color="black",
+        size=3.5) %>%
++ labs(title = "Les régions abritant le plus d'aires protégées",
+       subtitle = paste("Echantillon :", sum(data_distrib_reg$n), "aires protégées. Nombre d'aires indiqué à la base du graphique"),
+         x = "Direction régionale",
+         y = "Proportion d'aires protégées(%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 0,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_distrib_reg_top_shr_fr
+# 
+# ggsave(plot = hist_distrib_reg_top_shr_fr,
+#        filename = "hist_distrib_reg_top_shr_fr.png",
+#        path = "05_StatDes/distribution",
+#        height = 6, width = 9)
+
+#Histogram in number (in French)
+hist_distrib_reg_n_fr = ggplot(data_distrib_reg, 
+                     aes(x = reorder(direction_regionale, -n), y = n, fill = direction_regionale)) %>%
++ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
++ geom_text(aes(label = round(n, 1), y = n), 
+        vjust = -0.2, color="black",
+        size=3.5) %>%
++ labs(title = "Proportion d'aires protégées par région",
+       subtitle = paste("Echantillon :", sum(data_distrib_ctry$n), "aires protégées. Nombre d'aires indiqué sur chaque barre"),
+         x = "Direction régionale",
+         y = "Proportion d'aires protégées(%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_distrib_reg_n_fr
+# 
+# ggsave(plot = hist_distrib_reg_n_fr,
+#        filename = "hist_distrib_reg_n_fr.png",
+#        path = "05_StatDes/distribution",
+#        height = 6, width = 9)
+```
+
+### Temporal evolution
+
+In this section is plotted the evolution in the number of PAs over time (cumulated number and number of PAs funded by year).
+
+*/!\\ Mon graphique ne correspond pas à celui de Léa. Elle a plus de PA pour certaines années. Je ne vois pas d'où ça peut venir : j'ai 142 observations comme elle dans la base sans duplicata a priori (cf son script).*
+
+```{r}
+
+data_time_range = data.frame(annee = 
+                              c(min(data_stat_nodupl$annee_octroi):max(data_stat_nodupl$annee_octroi))
+)
+
+
+data_time = data_stat_nodupl %>%
+  group_by(annee_octroi) %>%
+  summarize(n = n()) %>%
+  full_join(data_time_range, by = c("annee_octroi" = "annee")) %>%
+  mutate(n = case_when(is.na(n)~0, TRUE~n)) %>%
+  arrange(annee_octroi) %>%
+  mutate(n_cum = cumsum(n)) 
+
+#Number of PAs funded by year (fig)
+fig_n_pa = ggplot(data_time,
+                  aes(x = annee_octroi, y = n)) %>%
+  + geom_point(color = "#3182BD", size = 1.5) %>%
+  + geom_line(color = "#3182BD", size = 1) %>% 
+  + labs(title = "Evolution du nombre d'aires protégées appuyées par l'AFD",
+         x = "Année",
+         y = "Nombre d'aires protégées") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+fig_n_pa
+
+# ggsave(plot = fig_n_pa,
+#        filename = "fig_n_pa.png",
+#        path = "05_StatDes/time_evolution",
+#        height = 6, width = 9)
+
+#Number of PAs funded by year (histogram)
+hist_n_pa = ggplot(data_time,
+                  aes(x = factor(annee_octroi), y = n)) %>%
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>% 
+  + geom_text(aes(y = n, label = ifelse(n == 0, NA, n)), 
+              color = "black", size=4, vjust = -0.3) %>%
+  + labs(title = "Nombre d'aires protégées appuyées par année",
+         x = "Année",
+         y = "Nombre d'aires protégées") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_n_pa
+
+# ggsave(plot = hist_n_pa,
+#        filename = "hist_n_pa.png",
+#        path = "05_StatDes/time_evolution",
+#        height = 6, width = 9)
+
+#Cumulative number over time
+fig_ncum_pa = ggplot(data_time,
+                  aes(x = factor(annee_octroi), y = n_cum)) %>%
+  # + geom_point(color = "#3182BD", size = 1.5) %>%
+  # + geom_line(color = "#3182BD", size = 1) %>% 
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>%
+  + geom_text(aes(y = n_cum, label = n_cum), 
+              color = "black", size=4, vjust = -0.3) %>%
+  + labs(title = "Evolution cumulée du nombre d'aires protégées appuyées par l'AFD",
+         x = "Année",
+         y = "Nombre d'aires protégées") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+fig_ncum_pa
+
+# ggsave(plot = fig_ncum_pa,
+#        filename = "fig_ncum_pa.png",
+#        path = "05_StatDes/time_evolution",
+#        height = 6, width = 9)
+```
+
+### Funding
+
+This section provides several statistics on the funding of PAs : average funding by project, by contest, average funding by region or country, average funding by area, evolution over time, funding type.
