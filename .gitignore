@@ -1,0 +1,27 @@
+#Ignore R project related data
+.Rproj.user
+.Rproj
+EVA-impact-aires-protegees.Rproj
+.Rhistory
+.RData
+.Ruserdata
+
+#Ignore data files
+*.csv
+*.xls
+*.xlsx
+*.tif
+
+#Ignore documents
+*.pdf
+*.html
+*.htm
+*.doc
+*.docx
+*.odt
+
+#Ignore images
+*.png
+*.jpg
+*.jpeg
+
