@@ -1,6 +1,6 @@
 #Ignore R project related data
 .Rproj.user
-.Rproj
+*.Rproj
 EVA-impact-aires-protegees.Rproj
 .Rhistory
 .RData

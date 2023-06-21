@@ -39,13 +39,13 @@ library(ARTofR)
 
 ```{r message=FALSE, warning=FALSE}
 
-data_stat = fread("01_data_tidy/BDD_DesStat.csv")
-data_stat_nodupl = fread("01_data_tidy/BDD_DesStat_nodupl.csv")
-pa_shp = read_sf("00_data_raw/WDPA_SHP/BDD_SHP_nodupl.shp") %>%
+data_stat = fread("data_tidy/BDD_DesStat.csv")
+data_stat_nodupl = fread("data_tidy/BDD_DesStat_nodupl.csv")
+pa_shp = read_sf("data_raw/WDPA_SHP/BDD_SHP_nodupl.shp") %>%
   clean_names()
-pa_pfolio_forest = read_sf("01_data_tidy/mapme_bio_data/pa_pfolio_forest.gpkg")
-pa_pfolio_emi = read_sf("01_data_tidy/mapme_bio_data/pa_pfolio_emi.gpkg")
-pa_pfolio_mang = read_sf("01_data_tidy/mapme_bio_data/pa_pfolio_mang.gpkg")
+pa_pfolio_forest = read_sf("data_tidy/mapme_bio_data/pa_pfolio_forest.gpkg")
+pa_pfolio_emi = read_sf("data_tidy/mapme_bio_data/pa_pfolio_emi.gpkg")
+pa_pfolio_mang = read_sf("data_tidy/mapme_bio_data/pa_pfolio_mang.gpkg")
 ```
 
 ## List of public, relevant variables
@@ -71,33 +71,33 @@ list_var_shp_conf = c("mntnt", "mtglb", "e", "mnt", "prodt", "lbllp",
 ```{r}
 data_stat_pub = data_stat %>%
   dplyr::select(all_of(list_var_PA_open))
-#fwrite(data_stat_pub, "01_data_tidy/BDD_DesStat_pub.csv")
+# fwrite(data_stat_pub, "data_tidy/BDD_DesStat_pub.csv")
 
 data_stat_nodupl_pub = data_stat_nodupl %>%
   dplyr::select(all_of(list_var_PA_open))
-#fwrite(data_stat_nodupl_pub, "01_data_tidy/BDD_DesStat_nodupl_pub.csv")
+# fwrite(data_stat_nodupl_pub, "data_tidy/BDD_DesStat_nodupl_pub.csv")
 
 pa_shp_open = pa_shp %>%
   dplyr::select(-all_of(list_var_shp_conf))
-st_write(pa_shp_open,
-        dsn = "01_data_tidy/BDD_SHP_nodupl_pub.gpkg",
-        delete_dsn = TRUE)
+# st_write(pa_shp_open,
+#         dsn = "data_tidy/BDD_SHP_nodupl_pub.gpkg",
+#         delete_dsn = TRUE)
 
 pa_pfolio_forest_pub = pa_pfolio_forest %>%
   dplyr::select(-all_of(list_var_shp_conf))
 # st_write(pa_pfolio_forest_pub,
-#         dsn = "01_data_tidy/mapme_bio_data/pa_pfolio_forest_pub.gpkg",
-#         delete_dsn = TRUE)
+#          dsn = "data_tidy/mapme_bio_data/pa_pfolio_forest_pub.gpkg",
+#          delete_dsn = TRUE)
 
 pa_pfolio_emi_pub = pa_pfolio_emi %>%
   dplyr::select(-all_of(list_var_shp_conf))
 # st_write(pa_pfolio_emi_pub,
-#         dsn = "01_data_tidy/mapme_bio_data/pa_pfolio_emi_pub.gpkg",
-#         delete_dsn = TRUE)
+#          dsn = "data_tidy/mapme_bio_data/pa_pfolio_emi_pub.gpkg",
+#          delete_dsn = TRUE)
 
 pa_pfolio_mang_pub = pa_pfolio_mang %>%
   dplyr::select(-all_of(list_var_shp_conf))
-# st_write(pa_pfolio_mang_pub,
-#         dsn = "01_data_tidy/mapme_bio_data/pa_pfolio_mang_pub.gpkg",
-#         delete_dsn = TRUE)
+ # st_write(pa_pfolio_mang_pub,
+ #         dsn = "data_tidy/mapme_bio_data/pa_pfolio_mang_pub.gpkg",
+ #         delete_dsn = TRUE)
 ```
