@@ -38,8 +38,7 @@ library(raster)
 library(terra)
 library(janitor)
 library(ARTofR)
-
-
+library(aws.s3)
 ```
 
 ```{r}
@@ -62,9 +61,15 @@ cat(paste("Supported resources:\n-",
 #If the function get_resources used later returns an error "...Loop 0 is not valid: Edge 94 crosses edge 96>...", then the following function might solve it. It works if sf was updated v1.0 and more, and brings back to old way of working. sf uses mostly a flat Earth model instead of s2 spherical geometry in the new versions. 
 sf_use_s2(FALSE)
 
-
 #/!\ : in pa_shp, variable sprfc is the area reported by AFD members, and is not equal to rep_a (area reported by WDPA) nor superficie in the BDD_joint. The latter is a combination of rep_a and sprfc, where superficie = rep_a except if rep_a = 0 or not reported.
-pa_shp = read_sf("00_data_raw/WDPA_SHP/BDD_SHP_nodupl.shp") %>%
+pa_shp = 
+  #read_sf("00_data_raw/WDPA_SHP/BDD_SHP_nodupl.shp") %>%
+  aws.s3::s3read_using(
+  FUN = sf::read_sf,
+  # Mettre les options de FUN ici
+  object = "diffusion/data_tidy/BDD_SHP_nodupl_pub.gpkg",
+  bucket = "vuillota",
+  opts = list("region" = "")) %>%
   st_make_valid() %>%
   sf::st_cast(to="POLYGON") %>%
   clean_names()
