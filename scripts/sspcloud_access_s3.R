@@ -1,3 +1,5 @@
+#Script
+
 install.packages("paws", repos = "https://cloud.R-project.org")
 
 Sys.setenv("AWS_ACCESS_KEY_ID" = "1XJ0ZSBL7EWRIU83IR13",
