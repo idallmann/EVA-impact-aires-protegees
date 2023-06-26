@@ -6,6 +6,9 @@ EVA-impact-aires-protegees.Rproj
 .RData
 .Ruserdata
 
+#Ignore credentials (txt storing tokens)
+credentials.txt
+
 #Ignore data files
 *.csv
 *.xls
