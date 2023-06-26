@@ -50,9 +50,9 @@ library(mapview)
 
 #A first dataset with some PA on more than one row (one line per funding for instance)
 
-data_stat = fread("01_data_tidy/BDD_DesStat.csv")
+data_stat = fread("data_tidy/BDD_DesStat_pub.csv")
 #A second dataset with one line per PA, more suited for some statistics
-data_stat_nodupl = fread("01_data_tidy/BDD_DesStat_nodupl.csv")
+data_stat_nodupl = fread("data_tidy/BDD_DesStat_nodupl_pub.csv")
 ```
 
 ## Computing total area at country, region and world level
@@ -69,15 +69,14 @@ Knowing the total area covered by PAs at different level of aggregation is inter
 
 #Importing shapefiles
 sf_use_s2(FALSE)
-pa_shp = read_sf("00_data_raw/WDPA_SHP/BDD_SHP_nodupl.shp") %>%
+pa_shp = read_sf("data_raw/WDPA_SHP/BDD_SHP_nodupl_pub.shp") %>%
   st_make_valid() %>%
   #From multipolygon to polygon
   sf::st_cast(to="POLYGON") %>%
   clean_names() %>%
   #Select relevant variables
   dplyr::select(c(wdpaid, sprfc, rep_a, gis_a, geometry, iso3, drct)) %>%
-  mutate(area_sf = as.numeric(st_area(geometry)/1e6)) %>%
-  #Project to Mollweide to compute relevant areas
+  #Project to Mollweide to compute relevant areas in km2
   st_transform(crs = "+proj=moll +datum=WGS84") %>%
   #Compute areas in km2
   mutate(area_sf_moll = as.numeric(st_area(geometry)/1e6))
@@ -88,9 +87,9 @@ pa_int = st_intersection(pa_shp, pa_shp) %>%
   subset(wdpaid != wdpaid.1) %>%
   #If one of the two intersectin polygon have unknwon area, then it is not necessary to subtract the interesction area. Indeed there is no double-counting of the intersection in this case, when both polygon areas are summed.
   subset(is.na(sprfc) == FALSE & is.na(sprfc.1) == FALSE) %>%
-  #Compute the intersecting areas
+  #Compute the intersecting areas (pa_shp already in Mollweide projection) in km2
   mutate(area_int = as.numeric(st_area(geometry)/1e6)) %>%
-  #Now duplicates need to be removed : intersection of X with Y AND intersection of Y with X are reported
+  #Now duplicates need to be removed : intersection of X with Y AND intersection of Y with X are reported. We need only one.
   #An id_int to identify the intersection of a given pair
   mutate(id_int = paste0(wdpaid, "_", wdpaid.1), .before = wdpaid) %>%
   mutate(id_int_temp = paste0(wdpaid, "_", wdpaid.1), .before = wdpaid) %>%
@@ -100,10 +99,15 @@ pa_int = st_intersection(pa_shp, pa_shp) %>%
     id_temp1 < id_temp2 ~ paste(id_temp1, id_temp2, sep = "_"),
     id_temp1 > id_temp2 ~ paste(id_temp2, id_temp1, sep = "_"),
     TRUE ~ paste(id_temp1, id_temp2, sep = "_")),
-    .after = id_int)
+    .after = id_int) %>%
   #finally, get rid of the duplicates
+  group_by(id_int_rev) %>%
+  slice(1) %>%
+  ungroup() %>%
+  #select relevant variables only
+  select(wdpaid, iso3, drct, wdpaid.1, iso3.1, drct.1, geometry, area_int)
 
-#Peut-être amélioré !!
+mapView(pa_int$geometry)
 
 #Computing the total area of intersections
 #At country level ...
