@@ -39,7 +39,7 @@ Form this dataset are extracted : (1) a dataset data_siop_AP without WDPA variab
 
 ```{r}
 #import a dataset with country anmes and corresponding ISO3 code
-data_iso = fread("00_data_raw/liste-197-etats-2020.csv") %>%
+data_iso = fread("data_raw/liste-197-etats-2020.csv") %>%
   rename("iso3" = "CODE",
          "nom_alpha" = "NOM_ALPHA") %>%
   dplyr::select(c("nom_alpha", "iso3")) %>%
@@ -56,7 +56,7 @@ data_iso = fread("00_data_raw/liste-197-etats-2020.csv") %>%
          ))
 
 #Import the initial BDD_joint
-data_PA_raw = read_excel("00_data_raw/BDD_joint.xlsx") %>%
+data_PA_raw = read_excel("data_raw/BDD_joint.xlsx") %>%
   as.data.frame()
 
 #Create relevant variables
@@ -145,7 +145,7 @@ list_var_siop_AP = c( "id_projet", "nom_du_projet", "nom_de_projet_pour_les_inst
 #Definining dataset for future analysis : siop and AP but not WDPA 
 data_siop_AP = data_PA_tidy %>%
   select(all_of(list_var_siop_AP), iso3)
-# write_csv(data_siop_AP, "C:/Users/vuillota/Desktop/projet_AiresProtegees/01_data_tidy/BDD_AP_SIOP_joint.xlsx")
+#write_csv(data_siop_AP, "data_tidy/BDD_AP_SIOP_joint.xlsx")
 
 ```
 
@@ -159,7 +159,7 @@ To perform descriptive statistics we want to keep one row per PA, characterized 
 list_var_PA = c("id_projet", "nom_du_projet", "nom_ap", "id_concours", 
                 "wdpaid", "wdpaid_2", "wdpaid_3", "wdpa_pid",
                 "pays", "iso3", "direction_regionale",
-                "montant_total_projet", "annee_octroi",
+                "montant_total_projet", "libelle_produit", "annee_octroi",
                 "cofinancier_1", "cofinancier_2", "cofinancier_3", 
                 "cofinancier_4", "cofinancier_5", "cofinancier_6",
                 "afd", "afd_bin", "kfw_bin", "ffem_bin", "cofin_other",
@@ -171,7 +171,7 @@ list_var_PA = c("id_projet", "nom_du_projet", "nom_ap", "id_concours",
 data_stat = data_PA_tidy %>%
   select(all_of(list_var_PA), iso3)
 
-#fwrite(data_stat, "01_data_tidy/BDD_DesStat.csv")
+#fwrite(data_stat, "data_tidy/BDD_DesStat.csv")
 
 #Then to keep only one row per PA, we need to consider separately PAs having WDPA ID and PAs which do not.
 
@@ -187,6 +187,6 @@ data_stat_nodupl = rbind(data_stat_wdpa, data_stat_na) %>%
   #Remove AP with no wdpaid and no name
   subset(is.na(wdpaid) == FALSE | is.na(nom_ap) == FALSE) 
 
-#fwrite(data_stat_nodupl, "01_data_tidy/BDD_DesStat_nodupl.csv")
+#fwrite(data_stat_nodupl, "data_tidy/BDD_DesStat_nodupl.csv")
 ```
 
