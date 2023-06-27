@@ -47,12 +47,13 @@ library(mapview)
 ## Importing datasets
 
 ```{r}
-
-#A first dataset with some PA on more than one row (one line per funding for instance)
-
+#Both datasets are imported also in UTF8 encoding, for some variables
+##A first dataset with some PA on more than one row (one line per funding for instance)
 data_stat = fread("data_tidy/BDD_DesStat.csv")
-#A second dataset with one line per PA, more suited for some statistics
+data_stat_utf8 = fread("data_tidy/BDD_DesStat.csv", encoding = "UTF-8")
+##A second dataset with one line per PA, more suited for some statistics
 data_stat_nodupl = fread("data_tidy/BDD_DesStat_nodupl.csv")
+data_stat_nodupl_utf8 = fread("data_tidy/BDD_DesStat_nodupl.csv" , encoding = "UTF-8")
 ```
 
 ## Computing total area at country, region and world level
@@ -108,7 +109,7 @@ pa_int = st_intersection(pa_shp_tidy, pa_shp_tidy) %>%
   #Remove intersection of polygons with themselves
   subset(wdpaid != wdpaid.1) %>%
   #If one of the two intersectin polygon have unknwon area, then it is not necessary to subtract the interesction area. Indeed there is no double-counting of the intersection in this case, when both polygon areas are summed.
-  subset(is.na(sprfc) == FALSE & is.na(sprfc.1) == FALSE) %>%
+  subset(is.na(sprfc_km2) == FALSE & is.na(sprfc_km2.1) == FALSE) %>%
   #Compute the intersecting areas (pa_shp already in Mollweide projection) in km2
   mutate(area_int = as.numeric(st_area(geometry)/1e6)) %>%
   #Now duplicates need to be removed : intersection of X with Y AND intersection of Y with X are reported. We need only one.
@@ -151,7 +152,6 @@ pa_int_wld = sum(pa_int$area_int)
 
 ```
 
-
 ###Computing total areas without intersection
 
 ```{r}
@@ -164,7 +164,7 @@ pa_area_ctry = data_stat_nodupl %>%
   ungroup() %>%
   #Add information on intersection area in each country. Modify the variable so that NA value -> 0
   left_join(pa_int_ctry, by = "iso3") %>%
-  mutate(tot_area_int = case_when(is.na(tot_area_int) == TRUE ~0, TRUE ~tot_area_int)) %>%
+  mutate(tot_area_int = case_when(is.na(tot_area_int) == TRUE ~ 0, TRUE ~ tot_area_int)) %>%
   #Compute the total area at country level without intersection
   mutate(sprfc_tot_noint_km2 = sprfc_tot_km2 - tot_area_int) 
 
@@ -819,6 +819,8 @@ Create a dataset with one row per project (funding is given by project, so dupli
 
 data_stat_projet_nodupl = data_stat %>%
   dplyr::distinct(id_projet, .keep_all = TRUE)
+data_stat_projet_nodupl_utf8 = data_stat_utf8 %>%
+  dplyr::distinct(id_projet, .keep_all = TRUE)
 
 ```
 
@@ -854,7 +856,7 @@ tbl_fund_proj = summary(data_stat_projet_nodupl$montant_total_projet) %>%
 
 Average funds given by each concours
 
-/!\ Weird : montant_total_projet is similar for each row of ID_concours
+/! Weird : montant_total_projet is similar for each row of ID_concours
 
 ```{r}
 
@@ -865,9 +867,9 @@ Average funds given by each concours
 
 ```
 
-Average fund received by each project in the different concours
+**Average fund received by each project in the different concours**
 
-/!\ Weird : montant_total_projet is similar for each row of ID_projet
+/! Weird : montant_total_projet is similar for each row of ID_projet
 
 ```{r}
 
@@ -878,7 +880,7 @@ Average fund received by each project in the different concours
 
 ```
 
-Average funding by country/region
+**Average funding by country/region**
 
 ```{r}
 #By country ...
@@ -898,3 +900,148 @@ tbl_fund_avg_dr = data_stat_projet_nodupl %>%
 
 ```
 
+**Average funding per unit or area (marine and terrestrial), at regional and world level**
+
+Some projects cover more than one country (e.g CZZ3012), but the total fund is given at project level. Thus it is not possible to compute funding per unit of area at country level for all countries. Still at country level, Tanzania, India, "Ocean Indien", "Multipays" and "Dr Asie du Sud" have no fund per area in the computations. In fact PAs are reported in these regions/countries, with area and total funding. But without WDPAID and PA name, so these PAs are not kept in the dataset without duplicates.
+
+It is possible however at DR level. Note that the total superficie at world level is different from the total superficie from the DR, taking the overlap into account. Indeed, overlap between polygons from different DR is subtracted at world level but not at DR level.
+
+```{r}
+#By country ...
+# data_fund_sum_ctry = data_stat_projet_nodupl %>%
+#   group_by(pays, iso3) %>%
+#   summarize(tot_fund = sum(montant_total_projet, na.rm = TRUE)) %>%
+#   ungroup() %>%
+#   arrange(tot_fund) 
+# 
+# data_fund_per_area_ctry = data_fund_sum_ctry %>%
+#   left_join(select(pa_area_ctry, c(iso3, sprfc_tot_noint_km2)), by = "iso3") %>%
+#   mutate(fund_per_area = tot_fund/sprfc_tot_noint_km2)
+# names(data_fund_per_area_ctry) = c("Pays", "ISO3", "Montant total (€)", "Superficie totale (km2)", "Financement moyen par km2 (€/km2)")
+#print(xtable(data_fund_per_area_ctry, type = "latex"), file = "DesStat/funding/tbl_fund_per_area_ctry.tex")
+
+
+#By region 
+data_fund_sum_dr = data_stat_projet_nodupl %>%
+  group_by(direction_regionale) %>%
+  summarize(tot_fund = sum(montant_total_projet, na.rm = TRUE)) %>%
+  ungroup() %>%
+  arrange(tot_fund)
+
+data_fund_per_area_dr = data_fund_sum_dr %>%
+  left_join(select(pa_area_dr, c(direction_regionale, sprfc_tot_noint_km2)), by = "direction_regionale") %>%
+  mutate(fund_per_area = tot_fund/sprfc_tot_noint_km2)
+names(data_fund_per_area_dr) = c("Direction régionale", "Montant total (€)", "Superficie totale (km2)", "Financement moyen par km2 (€/km2)")
+#print(xtable(data_fund_per_area_dr, type = "latex"), file = "DesStat/funding/tbl_fund_per_area_dr.tex")
+
+#At world level
+data_fund_per_area_wld = sum(data_stat_projet_nodupl$montant_total_projet)/pa_area_wld
+tbl_fund_per_area_wld = data.frame(data_fund_per_area_wld) %>% format(digits = 4)
+names(tbl_fund_per_area_wld) = c("Financement moyen par km2 (€/km2)")
+#print(xtable(tbl_fund_per_area_wld, type = "latex"), file = "DesStat/funding/tbl_fund_per_area_wld.tex")
+
+
+```
+
+#### Evolution of funding over time
+
+```{r}
+data_fund_year = data_stat_projet_nodupl %>%
+  group_by(annee_octroi) %>%
+  summarize(tot_fund = sum(montant_total_projet))
+
+#Total funding for each year
+fig_fund_year = ggplot(data = data_fund_year,
+                       aes(x = annee_octroi, y = tot_fund)) %>%
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>% 
+  + geom_text(aes(y = tot_fund, label = format(tot_fund, scientific = TRUE, digits = 2)),
+              color = "black", size=2.5, vjust = -0.3) %>%
+  + labs(title = "Evolution du financement des aires protégées",
+         x = "Année",
+         y = "Montants octroyés (€)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+#fig_fund_year
+# ggsave(plot = fig_fund_year,
+#        filename = "fig_fund_year.png",
+#        path = "DesStat/funding",
+#        height = 6, width = 9)
+
+#Cumulative funding over time
+fig_fund_year_cum = ggplot(data = data_fund_year,
+                       aes(x = annee_octroi, y = cumsum(tot_fund))) %>%
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>% 
+  + geom_text(aes(y = cumsum(tot_fund), label = format(cumsum(tot_fund), scientific = TRUE, digits = 2)),
+              color = "black", size=2.5, vjust = -0.3) %>%
+  + labs(title = "Evolution cumulée du financement des aires protégées",
+         x = "Année",
+         y = "Montants octroyés (€)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+fig_fund_year_cum
+# ggsave(plot = fig_fund_year_cum,
+#        filename = "fig_fund_year_cum.png",
+#        path = "DesStat/funding",
+#        height = 6, width = 9)
+```
+
+#### Type of funding
+
+Distribution of funding types
+
+```{r}
+tbl_type_prod = data_stat_projet_nodupl_utf8 %>%
+  group_by(libelle_produit) %>%
+  #number of PAs per funding type
+  summarize(n_type = n()) %>%
+  ungroup() %>%
+  #Frequency of funding types
+  mutate(n_pa = sum(n_type),
+         freq = n_type/n_pa*100,
+         libelle_produit = case_when(libelle_produit == "PRETS SOUVERAINS FMI COMPATIBLE" ~ "Prêts souverains FMI-compatible", TRUE ~ libelle_produit)) %>%
+  arrange(desc(libelle_produit)) %>%
+  select(-n_pa)
+names(tbl_type_prod) <- c("Type de financement","Projets", "Proportion (%)")
+
+# print(xtable(tbl_type_prod, type = "latex"), file = "DesStat/funding/tbl_fund_type.tex")
+
+```
+
+Average fund by funding type
+
+```{r}
+
+tbl_fund_avg_type = data_stat_projet_nodupl_utf8 %>%
+  group_by(libelle_produit) %>%
+  summarize(n_type = n(),
+            tot_fund = sum(montant_total_projet)) %>%
+  mutate(n_pa = sum(n_type),
+         freq = n_type/n_pa*100,
+         libelle_produit = case_when(libelle_produit == "PRETS SOUVERAINS FMI COMPATIBLE" ~ "Prêts souverains FMI-compatible", TRUE ~ libelle_produit)) %>%
+  select(-n_pa)
+names(tbl_fund_avg_type) = c("Type de financement","Projets", "Montants (€)", "Proportion (%)")
+
+#print(xtable(tbl_fund_avg_type, type = "latex"), file = "DesStat/funding/tbl_fund_avg_type.tex")
+```
+
+#### Co-funders
+
+```{r}
+
+```
