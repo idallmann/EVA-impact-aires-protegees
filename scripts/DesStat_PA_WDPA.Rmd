@@ -78,6 +78,7 @@ pa_shp = read_sf("data_raw/WDPA_SHP/BDD_SHP_nodupl_pub.shp") %>%
   sf::st_cast(to="POLYGON") %>%
   clean_names() %>%
   #Select relevant variables
+  #Note ann_c = annee_octroi
   dplyr::select(c(wdpaid, sprfc, rep_a, gis_a, geometry, iso3, drct, ann_c)) %>%
   #Variable sprfc corresponds to AFD internal reported size
   rename("sprfc_int" = "sprfc") %>%
@@ -128,7 +129,7 @@ pa_int = st_intersection(pa_shp_tidy, pa_shp_tidy) %>%
   slice(1) %>%
   ungroup() %>%
   #select relevant variables only
-  select(wdpaid, iso3, drct, wdpaid.1, iso3.1, drct.1, geometry, area_int)
+  select(wdpaid, iso3, drct, ann_c, wdpaid.1, iso3.1, drct.1, ann_c.1, geometry, area_int)
 
 #Computing the total area of intersections
 #At country level ...
@@ -149,6 +150,15 @@ pa_int_dr = pa_int %>%
 
 ##At world level : all overlap are considered
 pa_int_wld = sum(pa_int$area_int) 
+
+#Compute the total intersection for each year
+pa_int_yr = pa_int %>%
+  #Define intersection year : the date ann_c of the later PA in the pair
+  rowwise() %>%
+  mutate(annee_int = max(ann_c, ann_c.1)) %>% 
+  group_by(annee_int) %>%
+  summarize(tot_int_km2 = sum(area_int)) %>%
+  st_drop_geometry() 
 
 ```
 
@@ -638,12 +648,13 @@ hist_distrib_ctry_n_fr
 #### Statistics at region level
 
 ```{r}
-data_distrib_reg = data_stat_nodupl %>%
+data_distrib_dr = data_stat_nodupl %>%
   group_by(direction_regionale) %>%
   summarize(n = n(),
             freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
   ungroup() %>%
-  mutate(direction_regionale = gsub("Dr ", "", direction_regionale))
+  mutate(region = gsub("Dr ", "", direction_regionale),
+         .after = "direction_regionale")
 
 
 data_distrib_reg_top = data_distrib_reg %>%
@@ -651,7 +662,7 @@ data_distrib_reg_top = data_distrib_reg %>%
 
 #Histogram in share (in French) for top countries
 hist_distrib_reg_top_shr_fr = ggplot(data_distrib_reg_top, 
-                     aes(x = reorder(direction_regionale, -freq), y = freq, fill = direction_regionale)) %>%
+                     aes(x = reorder(region, -freq), y = freq, fill = region)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
 + geom_text(aes(label = round(n, 1), y = 0.1), 
         vjust = "inward", color="black",
@@ -725,13 +736,78 @@ tbl_distrib_area_no0 = summary(
 
 #### Average surface in countries and regions
 
+Comparison with Léa, differences that are not explained by the use of intersections :
+
+-   Afrique centrale : 3723 vs 3274 in my case
+
+-   Afrique de l'Est : 762 vs 614
+
+-   Amerique centrale : 842 vs 38
+
+-   Asie du Sud : 3925 vs 0
+
+-   Chine 1114 vs 2000
+
+-   Ocean Indien : 13153 vs 14483
+
+-   Siege Paris : 2685 vs 2919
+
 ```{r}
+#Distribution of PA WITH SURFACE >0 across countries and regions
+##Country
+data_distrib_no0_ctry = data_stat_nodupl %>%
+  filter(superficie != 0) %>%
+  group_by(iso3, pays) %>%
+  summarize(n = n(),
+            freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
+  ungroup() %>%
+  mutate(pays = case_when(
+    pays == "P-N N.CalÃ©d" ~ "P-N N.Caléd",
+    pays == "Polynesie Francaise" ~ "Polynesie Fr.",
+    pays == "P-S N.CalÃ©d" ~ "P-S N.Caléd",
+    TRUE ~ pays
+  ))
+
+##Region
+data_distrib_no0_dr = data_stat_nodupl %>%
+  filter(superficie != 0) %>%
+  group_by(direction_regionale) %>%
+  summarize(n = n(),
+            freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
+  ungroup() %>%
+  mutate(region = gsub("Dr ", "", direction_regionale),
+         .after = "direction_regionale")
+
+#By country..
+tbl_area_avg_ctry = data_distrib_no0_ctry %>%
+  select(-freq) %>%
+  left_join(pa_area_ctry, by = "iso3") %>%
+  select(-c(iso3, sprfc_tot_km2, tot_area_int)) %>%
+  mutate(sprfc_avg_noint_km2 = sprfc_tot_noint_km2/n)
+names(tbl_area_avg_ctry) = c("Pays", "Nombre d'AP", "Superficie totale (km2)", "Superficie moyenne (km2)")
+
+#By region
+tbl_area_avg_dr = data_distrib_no0_dr %>%
+  select(-freq) %>%
+  left_join(pa_area_dr, by = "direction_regionale") %>%
+  select(-c(sprfc_tot_km2, tot_area_int, direction_regionale)) %>%
+  mutate(sprfc_avg_noint_km2 = sprfc_tot_noint_km2/n)
+names(tbl_area_avg_dr) = c("Direction régionale", "Nombre d'AP", "Superficie totale (km2)", "Superficie moyenne (km2)")
+
+# print(xtable(tbl_area_avg_ctry, type = "latex"), file = "DesStat/surface/tbl_area_avg_ctry.tex")
+# print(xtable(tbl_area_avg_dr, type = "latex"), file = "DesStat/surface/tbl_area_avg_dr.tex")
+
+#Note
+#test = aggregate(superficie ~ direction_regionale, data = filter(data_stat_nodupl, superficie != 0), FUN = mean)
+#Does not take intersection into account : slightly different results.
 
 ```
 
 ### Temporal evolution
 
-In this section is plotted the evolution in the number of PAs over time (cumulated number and number of PAs funded by year).
+In this section is plotted the evolution in the number and surafe of PAs over time (cumulated number/surface and number/surface of PAs funded by year).
+
+#### Number of PAs
 
 */!\\ Mon graphique ne correspond pas à celui de Léa. Elle a plus de PA pour certaines années. Je ne vois pas d'où ça peut venir : j'ai 142 observations comme elle dans la base sans duplicata a priori (cf son script).*
 
@@ -742,7 +818,7 @@ data_time_range = data.frame(annee =
 )
 
 
-data_time = data_stat_nodupl %>%
+data_time_n = data_stat_nodupl %>%
   group_by(annee_octroi) %>%
   summarize(n = n()) %>%
   full_join(data_time_range, by = c("annee_octroi" = "annee")) %>%
@@ -751,7 +827,7 @@ data_time = data_stat_nodupl %>%
   mutate(n_cum = cumsum(n)) 
 
 #Number of PAs funded by year (fig)
-fig_n_pa = ggplot(data_time,
+fig_n_pa = ggplot(data_time_n,
                   aes(x = annee_octroi, y = n)) %>%
   + geom_point(color = "#3182BD", size = 1.5) %>%
   + geom_line(color = "#3182BD", size = 1) %>% 
@@ -776,7 +852,7 @@ fig_n_pa
 #        height = 6, width = 9)
 
 #Number of PAs funded by year (histogram)
-hist_n_pa = ggplot(data_time,
+hist_n_pa = ggplot(data_time_n,
                   aes(x = factor(annee_octroi), y = n)) %>%
   + geom_bar(stat = 'identity', fill = "#3182BD") %>% 
   + geom_text(aes(y = n, label = ifelse(n == 0, NA, n)), 
@@ -802,7 +878,7 @@ hist_n_pa
 #        height = 6, width = 9)
 
 #Cumulative number over time
-fig_ncum_pa = ggplot(data_time,
+fig_ncum_pa = ggplot(data_time_n,
                   aes(x = factor(annee_octroi), y = n_cum)) %>%
   # + geom_point(color = "#3182BD", size = 1.5) %>%
   # + geom_line(color = "#3182BD", size = 1) %>% 
@@ -828,6 +904,94 @@ fig_ncum_pa
 #        filename = "fig_ncum_pa.png",
 #        path = "DesStat/time_evolution",
 #        height = 6, width = 9)
+```
+
+#### Surface of PAs
+
+Difference with Léa : no area in 2010 because I removed the PA in India (no WDPAID nor name_ap)
+
+```{r}
+data_time_range = data.frame(annee = 
+                              c(min(data_stat_nodupl$annee_octroi):max(data_stat_nodupl$annee_octroi))
+)
+
+
+data_time_area = data_stat_nodupl %>%
+  group_by(annee_octroi) %>%
+  summarize(tot_area_km2 = sum(superficie)) %>%
+  left_join(pa_int_yr, by = c("annee_octroi" = "annee_int")) %>%
+  full_join(data_time_range, by = c("annee_octroi" = "annee")) %>%
+  mutate(tot_area_km2 = case_when(is.na(tot_area_km2)~0, TRUE~tot_area_km2),
+         tot_int_km2 = case_when(is.na(tot_int_km2)~0, TRUE~tot_int_km2),
+         tot_area_noint_km2 = tot_area_km2 - tot_int_km2) %>%
+  arrange(annee_octroi)
+
+#Evolution of area over time
+fig_area_pa = ggplot(data_time_area,
+                  aes(x = factor(annee_octroi), y = tot_area_noint_km2)) %>%
+  # + geom_point(color = "#3182BD", size = 1.5) %>%
+  # + geom_line(color = "#3182BD", size = 1) %>% 
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>%
+  + geom_text(aes(y = tot_area_noint_km2, 
+                  label = ifelse(tot_area_noint_km2 != 0,
+                                 format(tot_area_noint_km2, 
+                                        digits = 2, 
+                                        scientific = TRUE),
+                                 NA)), 
+              color = "black", size=3, vjust = -0.3) %>%
+  + labs(title = "Evolution de la superficie des aires protégées",
+         x = "Année",
+         y = "Superficie (km2)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+fig_area_pa
+
+# ggsave(plot = fig_area_pa,
+#        filename = "fig_area_pa.png",
+#        path = "DesStat/time_evolution",
+#        height = 6, width = 9)
+
+#Cumulative area over time
+fig_area_cum_pa = ggplot(data_time_area,
+                  aes(x = factor(annee_octroi),
+                      y = cumsum(tot_area_noint_km2))) %>%
+  # + geom_point(color = "#3182BD", size = 1.5) %>%
+  # + geom_line(color = "#3182BD", size = 1) %>% 
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>%
+  + geom_text(aes(y = cumsum(tot_area_noint_km2), 
+                  label = format(cumsum(tot_area_noint_km2), 
+                                 digits = 2,
+                                 scientific = TRUE)), 
+              color = "black", size=3, vjust = -0.3) %>%
+  + labs(title = "Evolution cumulée de la superficie des aires protégées",
+         x = "Année",
+         y = "Superficie (km2)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+fig_area_cum_pa
+
+# ggsave(plot = fig_area_cum_pa,
+#        filename = "fig_area_cum_pa.png",
+#        path = "DesStat/time_evolution",
+#        height = 6, width = 9)
+
+
 ```
 
 ### Funding
