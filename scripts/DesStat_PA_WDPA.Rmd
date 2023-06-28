@@ -300,7 +300,7 @@ pie_cat_iucn = ggplot(data_cat_iucn,
                       aes(x="", y= freq_iucn, fill = iucn_des)) %>%
   + geom_bar(width = 1, stat = "identity", color="white") %>%
   + coord_polar("y", start=0) %>%
-  + geom_label_repel(aes(x=1.2, label = round(freq_iucn, 1)), 
+  + geom_label_repel(aes(x=1.2, label = paste0(round(freq_iucn, 1), "%")), 
              color = "white", 
              position = position_stack(vjust = 0.55), 
              size=2.5, show.legend = FALSE) %>%
@@ -324,7 +324,7 @@ pie_cat_iucn_ref = ggplot(data_cat_iucn_ref,
                       aes(x="", y= freq_iucn, fill = iucn_des)) %>%
   + geom_bar(width = 1, stat = "identity", color="white") %>%
   + coord_polar("y", start=0) %>%
-  + geom_label_repel(aes(x=1.2, label = round(freq_iucn, 1)), 
+  + geom_label_repel(aes(x=1.2, label = paste0(round(freq_iucn, 1), "%")), 
              color = "white", 
              position = position_stack(vjust = 0.55), 
              size=2.5, show.legend = FALSE) %>%
@@ -1225,6 +1225,26 @@ names(tbl_type_prod) <- c("Type de financement","Projets", "Proportion (%)")
 
 # print(xtable(tbl_type_prod, type = "latex"), file = "DesStat/funding/tbl_fund_type.tex")
 
+#Pie chart INcluding non-referenced PAs
+pie_type_prod = ggplot(tbl_type_prod, 
+                      aes(x="", y= freq, fill = libelle_produit)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + coord_polar("y", start=0) %>%
+  + geom_label_repel(aes(x=1.2, label = round(freq, 1)), 
+             color = "white", 
+             position = position_stack(vjust = 0.55), 
+             size=2.5, show.legend = FALSE) %>%
+  + labs(x = "", y = "",
+         title = "Type de financement") %>%
+  + scale_fill_brewer(name = "Catégories", palette = "Dark2") %>%
+  + theme_void()
+pie_type_prod
+
+# ggsave(plot = pie_type_prod,
+#        filename = "pie_type_prod.png",
+#        path = "DesStat/funding",
+#        height = 6, width = 9)
+
 ```
 
 Average fund by funding type
@@ -1274,19 +1294,48 @@ Here is plotted the distribution of PAs across governance type.
 
 ```{r}
 
-tbl_gov = data_stat_nodupl %>%
+#Table of the governance type distribution
+##English version
+tbl_gov_en = data_stat_nodupl %>%
   mutate(gov_type = case_when(gov_type == "" ~ "Not referenced",
                               TRUE ~ gov_type)) %>%
   group_by(gov_type) %>%
   summarize(n = n()) %>%
   mutate(n_tot = sum(n),
          freq = round(n/n_tot*100,3)) %>%
-  select(-n_tot)
-names(tbl_gov) = c("Governance","Number of PAs","Share of PAs (%)")
+  select(-n_tot) %>%
+  arrange(-freq)
+names(tbl_gov_en) = c("Governance","Number of PAs","Share of PAs (%)")
 
- # print(xtable(tbl_gov, type = "latex"), file = "DesStat/gouvernance/tbl_gov_en.tex")
+##French Version
+tbl_gov_fr = data_stat_nodupl %>%
+  mutate(gov_type = case_when(gov_type == "" ~ "Non référencée",
+                              gov_type == "Collaborative governance" ~ "Gouvernance collaborative",
+                              gov_type == "Federal or national ministry or agency" ~ "Ministère ou agence, fédérale ou nationale",
+                              gov_type == "Federal or national ministry or agency" ~ "Ministère ou agence, fédérale ou nationale",
+                              gov_type == "Government-delegated management" ~ "Gestion déléguée par le gouvernement",
+                              gov_type == "Indigenous peoples" ~ "Peuples indigènes",
+                              gov_type == "Joint governance" ~ "Gouvernance conjointe",
+                              gov_type == "Local communities" ~ "Communautés locales",
+                              gov_type == "Non-profit organisations" ~ "Organisations non-lucratives",
+                              gov_type == "Not Reported" ~ "Non rapportée",
+                              gov_type == "Sub-national ministry or agency" ~ "Ministère ou agence sous-nationale",
+                              TRUE ~ gov_type)) %>%
+  group_by(gov_type) %>%
+  summarize(n = n()) %>%
+  mutate(n_tot = sum(n),
+         freq = round(n/n_tot*100,3)) %>%
+  select(-n_tot) %>%
+  arrange(-freq)
+names(tbl_gov_fr) = c("Gouvernance","Nombre d'AP","Proportion (%)")
 
-tbl_gov_knwn = data_stat_nodupl %>%
+  # print(xtable(tbl_gov_en, type = "latex"), file = "DesStat/gouvernance/tbl_gouv_en.tex")
+  # print(xtable(tbl_gov_fr, type = "latex"), file = "DesStat/gouvernance/tbl_gouv_fr.tex")
+
+#PAs with nureported or unreferences governance types are removed
+##Tables
+###English
+tbl_gov_knwn_en = data_stat_nodupl %>%
   mutate(gov_type = case_when(gov_type == "" ~ "Not referenced",
                               TRUE ~ gov_type)) %>%
   filter(gov_type != "Not Reported" & gov_type != "Not referenced") %>%
@@ -1294,16 +1343,44 @@ tbl_gov_knwn = data_stat_nodupl %>%
   summarize(n = n()) %>%
   mutate(n_tot = sum(n),
          freq = round(n/n_tot*100,3)) %>%
-  select(-n_tot)
-names(tbl_gov_knwn) = c("Governance","Number of PAs","Share of PAs (%)")
+  select(-n_tot) %>%
+  arrange(-freq)
+names(tbl_gov_knwn_en) = c("Governance","Number of PAs","Share of PAs (%)")
 
- # print(xtable(tbl_gov_knwn, type = "latex"), file = "DesStat/gouvernance/tbl_gov_knwn_en.tex")
+###French
+tbl_gov_knwn_fr = data_stat_nodupl %>%
+  mutate(gov_type = case_when(gov_type == "" ~ "Non référencée",
+                              gov_type == "Collaborative governance" ~ "Gouvernance collaborative",
+                              gov_type == "Federal or national ministry or agency" ~ "Ministère ou agence, fédérale ou nationale",
+                              gov_type == "Federal or national ministry or agency" ~ "Ministère ou agence, fédérale ou nationale",
+                              gov_type == "Government-delegated management" ~ "Gestion déléguée par le gouvernement",
+                              gov_type == "Indigenous peoples" ~ "Peuples indigènes",
+                              gov_type == "Joint governance" ~ "Gouvernance conjointe",
+                              gov_type == "Local communities" ~ "Communautés locales",
+                              gov_type == "Non-profit organisations" ~ "Organisations non-lucratives",
+                              gov_type == "Not Reported" ~ "Non rapportée",
+                              gov_type == "Sub-national ministry or agency" ~ "Ministère ou agence sous-nationale",
+                              TRUE ~ gov_type)) %>%
+  filter(gov_type != "Non référencée" & gov_type != "Non rapportée") %>%
+  group_by(gov_type) %>%
+  summarize(n = n()) %>%
+  mutate(n_tot = sum(n),
+         freq = round(n/n_tot*100,3)) %>%
+  select(-n_tot) %>%
+  arrange(-freq)
+names(tbl_gov_knwn_fr) = c("Gouvernance","Nombre d'AP","Proportion (%)")
+ 
+# print(xtable(tbl_gov_knwn_en, type = "latex"), file = "DesStat/gouvernance/tbl_gov_knwn_en.tex")
+# print(xtable(tbl_gov_knwn_fr, type = "latex"), file = "DesStat/gouvernance/tbl_gov_knwn_fr.tex")
 
-pie_gov_knwn = 
-  ggplot(tbl_gov_knwn, 
+##Pie charts
+###English
+pie_gov_knwn_en = 
+  ggplot(tbl_gov_knwn_en, 
        aes(x="", y= `Share of PAs (%)`, fill= Governance)) %>%
   + geom_bar(width = 1, stat = "identity", color="white") %>%
-  + geom_label(aes(x=1.3, label = `Share of PAs (%)`), 
+  + geom_label(aes(x=1.3, 
+                   label = paste0(format(`Share of PAs (%)`, digits = 2), "%")), 
                color = "black", 
                position = position_stack(vjust = 0.55), 
                size=2.5, show.legend = FALSE) %>%
@@ -1313,8 +1390,29 @@ pie_gov_knwn =
   + scale_fill_brewer(palette="Paired") %>%
   + theme_void()
 
-# ggsave(plot = pie_gov_knwn,
+# ggsave(plot = pie_gov_knwn_en,
 #        filename = "pie_gov_knwn_en.jpeg",
+#        path = "DesStat/gouvernance",
+#        height = 6, width = 9)
+
+###French
+pie_gov_knwn_fr =
+  ggplot(tbl_gov_knwn_fr, 
+       aes(x="", y= `Proportion (%)`, fill= Gouvernance)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + geom_label(aes(x=1.3, 
+                   label = paste0(format(`Proportion (%)`, digits = 2), "%")), 
+               color = "black", 
+               position = position_stack(vjust = 0.55), 
+               size=2.5, show.legend = FALSE) %>%
+  + coord_polar("y", start=0) %>%
+  + labs(title = "Gouvernance",
+         subtitle = "AP avec une gouvernance non rapportées/référencées omises") %>%
+  + scale_fill_brewer(palette="Paired") %>%
+  + theme_void()
+
+# ggsave(plot = pie_gov_knwn_fr,
+#        filename = "pie_gov_knwn_fr.jpeg",
 #        path = "DesStat/gouvernance",
 #        height = 6, width = 9)
 ```
