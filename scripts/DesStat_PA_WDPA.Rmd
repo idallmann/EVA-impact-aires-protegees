@@ -1251,4 +1251,4 @@ names(tbl_fund_cofunder) = c("Cofinancier", "Nombre projets", "Nombre total proj
 #print(xtable(tbl_fund_cofunder, type = "latex"), file = "DesStat/funding/tbl_fund_cofunder.tex")
 ```
 
-### 
+### Governance
