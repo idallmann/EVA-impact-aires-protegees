@@ -41,6 +41,7 @@ library(tidyterra)
 library(terra)
 library(sf)
 library(mapview)
+library(kableExtra)
 
 ```
 
@@ -52,8 +53,13 @@ library(mapview)
 data_stat = fread("data_tidy/BDD_DesStat.csv")
 data_stat_utf8 = fread("data_tidy/BDD_DesStat.csv", encoding = "UTF-8")
 ##A second dataset with one line per PA, more suited for some statistics
-data_stat_nodupl = fread("data_tidy/BDD_DesStat_nodupl.csv")
+data_stat_nodupl = fread("data_tidy/BDD_DesStat_nodupl.csv") 
 data_stat_nodupl_utf8 = fread("data_tidy/BDD_DesStat_nodupl.csv" , encoding = "UTF-8")
+
+base_nodupl_lea = readxl::read_xlsx("data_tidy/base_nodupl_lea.xlsx")
+base_nodupl_old = fread("data_tidy/base_nodupl_old.csv") 
+projet_nodupl_old = readxl::read_xlsx("data_tidy/projet_nodupl_old.xlsx") 
+
 ```
 
 ## Computing total area at country, region and world level
@@ -208,7 +214,7 @@ pa_area_wld = sum(data_stat_nodupl$superficie) - pa_int_wld
 #Building the relevant dataset
 ##For all PAs ..
 data_cat_iucn = data_stat_nodupl %>%
-  group_by(iucn_des) %>%
+  group_by(iucn_cat) %>%
   #number of PAs per IUCN category
   summarize(n_iucn = n()) %>%
   ungroup() %>%
@@ -217,6 +223,28 @@ data_cat_iucn = data_stat_nodupl %>%
          freq_iucn = n_iucn/n_pa*100) %>%
   arrange(desc(iucn_des)) %>%
   mutate(ypos_iucn = cumsum(freq_iucn) - 0.5*freq_iucn) 
+
+# test = base_nodupl_lea %>%
+#   group_by(iucn_cat) %>%
+#   #number of PAs per IUCN category
+#   summarize(n_iucn = n()) %>%
+#   ungroup() %>%
+#   #Frequency of IUCN categories
+#   mutate(n_pa = sum(n_iucn),
+#          freq_iucn = n_iucn/n_pa*100) %>%
+#   arrange(desc(iucn_cat)) %>%
+#   mutate(ypos_iucn = cumsum(freq_iucn) - 0.5*freq_iucn) 
+# 
+# test2 = base_nodupl_old %>%
+#   group_by(iucn_cat) %>%
+#   #number of PAs per IUCN category
+#   summarize(n_iucn = n()) %>%
+#   ungroup() %>%
+#   #Frequency of IUCN categories
+#   mutate(n_pa = sum(n_iucn),
+#          freq_iucn = n_iucn/n_pa*100) %>%
+#   arrange(desc(iucn_cat)) %>%
+#   mutate(ypos_iucn = cumsum(freq_iucn) - 0.5*freq_iucn)
 
 ##... and for referenced PAs only
 data_cat_iucn_ref = data_stat_nodupl %>%
@@ -590,7 +618,7 @@ pie_eco_en
 ```{r message=FALSE, warning=FALSE}
 
 data_distrib_ctry = data_stat_nodupl %>%
-  group_by(iso3, pays) %>%
+  group_by(pays, iso3) %>%
   summarize(n = n(),
             freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
   ungroup() %>%
@@ -601,6 +629,29 @@ data_distrib_ctry = data_stat_nodupl %>%
     TRUE ~ pays
   ))
 
+# test = base_nodupl_lea %>%
+#     group_by(pays) %>%
+#   summarize(n = n(),
+#             freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
+#   ungroup() %>%
+#   mutate(pays = case_when(
+#     pays == "P-N N.CalÃ©d" ~ "P-N N.Caléd",
+#     pays == "Polynesie Francaise" ~ "Polynesie Fr.",
+#     pays == "P-S N.CalÃ©d" ~ "P-S N.Caléd",
+#     TRUE ~ pays
+#   ))
+# 
+# test2 = base_nodupl_old %>%
+#   group_by(pays) %>%
+#   summarize(n = n(),
+#             freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
+#   ungroup() %>%
+#   mutate(pays = case_when(
+#     pays == "P-N N.CalÃ©d" ~ "P-N N.Caléd",
+#     pays == "Polynesie Francaise" ~ "Polynesie Fr.",
+#     pays == "P-S N.CalÃ©d" ~ "P-S N.Caléd",
+#     TRUE ~ pays
+#   ))
 
 data_distrib_ctry_top = data_distrib_ctry %>%
   subset(freq >= 5)
@@ -673,6 +724,39 @@ data_distrib_dr = data_stat_nodupl %>%
   mutate(region = gsub("Dr ", "", direction_regionale),
          .after = "direction_regionale")
 
+#####################
+
+# test = base_nodupl_lea %>%
+#   group_by(direction_regionale) %>%
+#   summarize(n = n(),
+#             freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
+#   ungroup() %>%
+#   mutate(region = gsub("Dr ", "", direction_regionale),
+#          .after = "direction_regionale")
+# 
+# test2 = base_nodupl_old %>%
+#   group_by(direction_regionale) %>%
+#   summarize(n = n(),
+#             freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
+#   ungroup() %>%
+#   mutate(region = gsub("Dr ", "", direction_regionale),
+#          .after = "direction_regionale")
+
+# ap_region2 <- data.frame(table(base_nodupl_lea$direction_regionale))
+# ap_region2$Freq <- round(ap_region2$Freq/sum(ap_region2$Freq),3)*100
+# 
+# #TOP 6 REGION
+# ap_region_6 = subset(ap_region2, Freq >= 5)
+# 
+# ggplot(ap_region_6, aes(x = reorder(Var1,-Freq), y=Freq, fill=Var1)) + 
+#   geom_bar(width = 0.80, fill="blue",stat="identity") +
+#   ggtitle("Les 6 régions abritant le plus d'aires protégées") +
+#   theme(plot.title = element_text(size= 14, face = "bold",hjust=0.5)) +
+#   xlab("Région") +
+#   ylab("Proportion d'aires protégées(%)") 
+
+
+##############
 
 data_distrib_reg_top = data_distrib_reg %>%
   subset(freq >= 5)
@@ -1220,7 +1304,8 @@ tbl_type_prod = data_stat_projet_nodupl_utf8 %>%
          freq = n_type/n_pa*100,
          libelle_produit = case_when(libelle_produit == "PRETS SOUVERAINS FMI COMPATIBLE" ~ "Prêts souverains FMI-compatible", TRUE ~ libelle_produit)) %>%
   arrange(desc(libelle_produit)) %>%
-  select(-n_pa)
+  select(-n_pa) %>%
+  arrange(-freq)
 names(tbl_type_prod) <- c("Type de financement","Projets", "Proportion (%)")
 
 # print(xtable(tbl_type_prod, type = "latex"), file = "DesStat/funding/tbl_fund_type.tex")
@@ -1230,7 +1315,8 @@ pie_type_prod = ggplot(tbl_type_prod,
                       aes(x="", y= freq, fill = libelle_produit)) %>%
   + geom_bar(width = 1, stat = "identity", color="white") %>%
   + coord_polar("y", start=0) %>%
-  + geom_label_repel(aes(x=1.2, label = round(freq, 1)), 
+  + geom_label_repel(aes(x=1.2, 
+                         label = paste0(round(freq, 1), "%")), 
              color = "white", 
              position = position_stack(vjust = 0.55), 
              size=2.5, show.legend = FALSE) %>%
@@ -1241,7 +1327,7 @@ pie_type_prod = ggplot(tbl_type_prod,
 pie_type_prod
 
 # ggsave(plot = pie_type_prod,
-#        filename = "pie_type_prod.png",
+#        filename = "pie_type_prod.jpeg",
 #        path = "DesStat/funding",
 #        height = 6, width = 9)
 
@@ -1254,14 +1340,17 @@ Average fund by funding type
 tbl_fund_avg_type = data_stat_projet_nodupl_utf8 %>%
   group_by(libelle_produit) %>%
   summarize(n_type = n(),
-            tot_fund = sum(montant_total_projet)) %>%
+            tot_fund = sum(montant_total_projet)
+            ) %>%
   mutate(n_pa = sum(n_type),
-         freq = n_type/n_pa*100,
+         freq_pa = round(n_type/n_pa*100, 1),
+         freq_fund = round(tot_fund/sum(tot_fund)*100, 1),
          libelle_produit = case_when(libelle_produit == "PRETS SOUVERAINS FMI COMPATIBLE" ~ "Prêts souverains FMI-compatible", TRUE ~ libelle_produit)) %>%
-  select(-n_pa)
-names(tbl_fund_avg_type) = c("Type de financement","Projets", "Montants (€)", "Proportion (%)")
+  select(c(libelle_produit, n_type, freq_pa, tot_fund, freq_fund)) %>%
+  arrange(-freq_pa)
+names(tbl_fund_avg_type) = c("Type de financement","Projets", "Proportion d'AP (%)", "Montants (€)", "Proportion des montants (%)")
 
-#print(xtable(tbl_fund_avg_type, type = "latex"), file = "DesStat/funding/tbl_fund_avg_type.tex")
+# print(xtable(tbl_fund_avg_type, type = "latex"), file = "DesStat/funding/tbl_fund_avg_type.tex")
 ```
 
 #### Co-funders
@@ -1286,6 +1375,8 @@ tbl_fund_cofunder =
 names(tbl_fund_cofunder) = c("Cofinancier", "Nombre projets", "Nombre total projets", "Prop. projets (%)","Montant total projets (€)","Montant moyen projets (€)")
 
 #print(xtable(tbl_fund_cofunder, type = "latex"), file = "DesStat/funding/tbl_fund_cofunder.tex")
+
+
 ```
 
 ### Governance
@@ -1306,6 +1397,26 @@ tbl_gov_en = data_stat_nodupl %>%
   select(-n_tot) %>%
   arrange(-freq)
 names(tbl_gov_en) = c("Governance","Number of PAs","Share of PAs (%)")
+
+# test = base_nodupl_lea %>%
+#   mutate(gov_type = case_when(gov_type == "" ~ "Not referenced",
+#                               TRUE ~ gov_type)) %>%
+#   group_by(gov_type) %>%
+#   summarize(n = n()) %>%
+#   mutate(n_tot = sum(n),
+#          freq = round(n/n_tot*100,3)) %>%
+#   select(-n_tot) %>%
+#   arrange(-freq)
+# 
+# test2 = base_nodupl_old %>%
+#   mutate(gov_type = case_when(gov_type == "" ~ "Not referenced",
+#                               TRUE ~ gov_type)) %>%
+#   group_by(gov_type) %>%
+#   summarize(n = n()) %>%
+#   mutate(n_tot = sum(n),
+#          freq = round(n/n_tot*100,3)) %>%
+#   select(-n_tot) %>%
+#   arrange(-freq)
 
 ##French Version
 tbl_gov_fr = data_stat_nodupl %>%
@@ -1373,6 +1484,7 @@ names(tbl_gov_knwn_fr) = c("Gouvernance","Nombre d'AP","Proportion (%)")
 # print(xtable(tbl_gov_knwn_en, type = "latex"), file = "DesStat/gouvernance/tbl_gov_knwn_en.tex")
 # print(xtable(tbl_gov_knwn_fr, type = "latex"), file = "DesStat/gouvernance/tbl_gov_knwn_fr.tex")
 
+
 ##Pie charts
 ###English
 pie_gov_knwn_en = 
@@ -1391,7 +1503,7 @@ pie_gov_knwn_en =
   + theme_void()
 
 # ggsave(plot = pie_gov_knwn_en,
-#        filename = "pie_gov_knwn_en.jpeg",
+#        filename = "pie_gov_knwn_en.png",
 #        path = "DesStat/gouvernance",
 #        height = 6, width = 9)
 
@@ -1412,7 +1524,7 @@ pie_gov_knwn_fr =
   + theme_void()
 
 # ggsave(plot = pie_gov_knwn_fr,
-#        filename = "pie_gov_knwn_fr.jpeg",
+#        filename = "pie_gov_knwn_fr.png",
 #        path = "DesStat/gouvernance",
 #        height = 6, width = 9)
 ```
