@@ -300,7 +300,10 @@ pie_cat_iucn = ggplot(data_cat_iucn,
                       aes(x="", y= freq_iucn, fill = iucn_des)) %>%
   + geom_bar(width = 1, stat = "identity", color="white") %>%
   + coord_polar("y", start=0) %>%
-  + geom_text_repel(aes(y = ypos_iucn, label = round(freq_iucn, 1)), color = "white", size=4) %>%
+  + geom_label_repel(aes(x=1.2, label = round(freq_iucn, 1)), 
+             color = "white", 
+             position = position_stack(vjust = 0.55), 
+             size=2.5, show.legend = FALSE) %>%
   # + geom_label(aes(x=1.4, label = paste0(freq_iucn, "%")), 
   #              color = "white", 
   #              position = position_stack(vjust = 0.7), size=2.5, 
@@ -309,23 +312,37 @@ pie_cat_iucn = ggplot(data_cat_iucn,
          title = "Proportion d'aires protégées par catégorie IUCN (%)") %>%
   + scale_fill_brewer(name = "Catégories", palette = "Dark2") %>%
   + theme_void()
-#pie_cat_iucn
+pie_cat_iucn
+
+# ggsave(plot = pie_cat_iucn,
+#        filename = "pie_cat_iucn.jpeg",
+#        path = "DesStat/IUCN",
+#        height = 6, width = 9)
 
 #Pie chart EXcluding non-referenced PAs
 pie_cat_iucn_ref = ggplot(data_cat_iucn_ref, 
                       aes(x="", y= freq_iucn, fill = iucn_des)) %>%
   + geom_bar(width = 1, stat = "identity", color="white") %>%
   + coord_polar("y", start=0) %>%
-  + geom_text_repel(aes(y = ypos_iucn, label = round(freq_iucn, 1))) %>%
+  + geom_label_repel(aes(x=1.2, label = round(freq_iucn, 1)), 
+             color = "white", 
+             position = position_stack(vjust = 0.55), 
+             size=2.5, show.legend = FALSE) %>%
   # + geom_label(aes(x=1.4, label = paste0(freq_iucn, "%")), 
   #              color = "white", 
   #              position = position_stack(vjust = 0.7), size=2.5, 
   #              show.legend = FALSE) %>%
   + labs(x = "", y = "",
-         title = "Proportion d'aires protégées par catégorie IUCN (hors AP non répertoriées) (%)") %>%
+         title = "Proportion d'aires protégées par catégorie IUCN (%)",
+         subtitle = "hors AP non répertoriées") %>%
   + scale_fill_brewer(name = "Catégories", palette = "Dark2") %>%
   + theme_void()
-#pie_cat_iucn_ref
+pie_cat_iucn_ref
+
+# ggsave(plot = pie_cat_iucn_ref,
+#        filename = "pie_cat_iucn_ref.jpeg",
+#        path = "DesStat/IUCN",
+#        height = 6, width = 9)
 
 
 ```
@@ -1252,3 +1269,52 @@ names(tbl_fund_cofunder) = c("Cofinancier", "Nombre projets", "Nombre total proj
 ```
 
 ### Governance
+
+Here is plotted the distribution of PAs across governance type.
+
+```{r}
+
+tbl_gov = data_stat_nodupl %>%
+  mutate(gov_type = case_when(gov_type == "" ~ "Not referenced",
+                              TRUE ~ gov_type)) %>%
+  group_by(gov_type) %>%
+  summarize(n = n()) %>%
+  mutate(n_tot = sum(n),
+         freq = round(n/n_tot*100,3)) %>%
+  select(-n_tot)
+names(tbl_gov) = c("Governance","Number of PAs","Share of PAs (%)")
+
+ # print(xtable(tbl_gov, type = "latex"), file = "DesStat/gouvernance/tbl_gov_en.tex")
+
+tbl_gov_knwn = data_stat_nodupl %>%
+  mutate(gov_type = case_when(gov_type == "" ~ "Not referenced",
+                              TRUE ~ gov_type)) %>%
+  filter(gov_type != "Not Reported" & gov_type != "Not referenced") %>%
+  group_by(gov_type) %>%
+  summarize(n = n()) %>%
+  mutate(n_tot = sum(n),
+         freq = round(n/n_tot*100,3)) %>%
+  select(-n_tot)
+names(tbl_gov_knwn) = c("Governance","Number of PAs","Share of PAs (%)")
+
+ # print(xtable(tbl_gov_knwn, type = "latex"), file = "DesStat/gouvernance/tbl_gov_knwn_en.tex")
+
+pie_gov_knwn = 
+  ggplot(tbl_gov_knwn, 
+       aes(x="", y= `Share of PAs (%)`, fill= Governance)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + geom_label(aes(x=1.3, label = `Share of PAs (%)`), 
+               color = "black", 
+               position = position_stack(vjust = 0.55), 
+               size=2.5, show.legend = FALSE) %>%
+  + coord_polar("y", start=0) %>%
+  + labs(title = "Governance type of PAs",
+         subtitle = "PAs with governance not referenced/reported are omitted") %>%
+  + scale_fill_brewer(palette="Paired") %>%
+  + theme_void()
+
+# ggsave(plot = pie_gov_knwn,
+#        filename = "pie_gov_knwn_en.jpeg",
+#        path = "DesStat/gouvernance",
+#        height = 6, width = 9)
+```
