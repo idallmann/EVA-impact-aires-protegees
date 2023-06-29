@@ -16,7 +16,7 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 ```
 
 ```{r message=FALSE, warning=FALSE}
-source("02_scripts/functions_DesStat_biodiv.R", encoding = "utf-8")
+source("scripts/functions_DesStat_biodiv.R", encoding = "utf-8")
 ```
 
 ```{r message=FALSE, warning=FALSE}
@@ -63,25 +63,26 @@ sf_use_s2(FALSE)
 
 #/!\ : in pa_shp, variable sprfc is the area reported by AFD members, and is not equal to rep_a (area reported by WDPA) nor superficie in the BDD_joint. The latter is a combination of rep_a and sprfc, where superficie = rep_a except if rep_a = 0 or not reported.
 pa_shp = 
-  #read_sf("00_data_raw/WDPA_SHP/BDD_SHP_nodupl.shp") %>%
-  aws.s3::s3read_using(
-  FUN = sf::read_sf,
-  # Mettre les options de FUN ici
-  object = "diffusion/data_tidy/BDD_SHP_nodupl_pub.gpkg",
-  bucket = "vuillota",
-  opts = list("region" = "")) %>%
+  read_sf("data_tidy/BDD_SHP_nodupl_pub.gpkg") %>%
+  # aws.s3::s3read_using(
+  # FUN = sf::read_sf,
+  # # Mettre les options de FUN ici
+  # object = "diffusion/data_tidy/BDD_SHP_nodupl_pub.gpkg",
+  # bucket = "vuillota",
+  # opts = list("region" = "")) %>%
+  #Check geometry are valid, and make it valid if not. Necessary to compute indicators in the polygons
   st_make_valid() %>%
+  #transform multiploygons to polygons, supported by the mapme package (88 group of polygons to 152 single polygons)
   sf::st_cast(to="POLYGON") %>%
   clean_names()
 
 #From BDD_joint, that is the combination of the SIOP dataset and the AP dataset from ARB team in AFD. Imported to have the information on the PA area (combination of areas reported by WDPA and ARB)
-pa_joint = fread("01_data_tidy/BDD_DesStat_nodupl.csv") %>%
+pa_nodupl = fread("data_tidy/BDD_DesStat_nodupl.csv") %>%
   dplyr::select(c(wdpaid, superficie))
 
 pa_pfolio = pa_shp %>%
   init_portfolio(2000:2020,
-                 outdir = "00_data_raw/mapme_bio_data",
-                 tmpdir = "06_temp",
+                 outdir = "data_raw/mapme_bio_data",
                  cores = 4,
                  add_resources = TRUE,
                  verbose = TRUE)
@@ -99,34 +100,34 @@ pa_pfolio = pa_shp %>%
 ##~~~~~~~~~~~~~~~~
 
 ##Downloading data and computing indicators 
-# pa_pfolio_forest = 
-#   get_resources(pa_pfolio,
-#     resources = c("gfw_lossyear","gfw_treecover","gfw_emissions"), 
-#     vers_treecover = "GFC-2020-v1.8",
-#     vers_lossyear = "GFC-2020-v1.8") %>%
-#   # FAO forest definition here: Minimum treecover = 10%, minimum size =1      #hectare
-#   calc_indicators(indicators = "treecover_area",
-#                 min_cover = 10,
-#                 min_size = 1, overwrite=T) 
+pa_pfolio_forest =
+  get_resources(pa_pfolio,
+    resources = c("gfw_lossyear","gfw_treecover","gfw_emissions"),
+    vers_treecover = "GFC-2020-v1.8",
+    vers_lossyear = "GFC-2020-v1.8") %>%
+  # FAO forest definition here: Minimum treecover = 10%, minimum size =1 hectare
+  calc_indicators(indicators = "treecover_area",
+                min_cover = 10,
+                min_size = 1, overwrite=T)
 
 # write_portfolio(pa_pfolio_forest,
-#       dsn = "01_data_tidy/mapme_bio_data/pa_pfolio_forest.gpkg",
+#       dsn = "data_tidy/mapme_bio_data/pa_pfolio_forest.gpkg",
 #       overwrite = FALSE)
 
-pa_pfolio_forest = read_portfolio("01_data_tidy/mapme_bio_data/pa_pfolio_forest.gpkg")
+pa_pfolio_forest = read_portfolio("data_tidy/mapme_bio_data/pa_pfolio_forest.gpkg")
 
 ##Unest the sf file into a classic data frame without geometry
 #Note replace() could be used instead of wase_when, and filter instead of subset for the same result
-data_pfolio_forest = unnest(pa_pfolio_forest, cols="treecover_area") %>%
-  sf::st_drop_geometry() %>%
-  dplyr::select(id_pr,nm_ap,drct,wdpaid,ann_c,years,treecover) %>%
-  mutate(treecover = case_when(treecover == 0 ~ NA, TRUE ~ treecover)) %>%
-  subset(!is.na(treecover))
+# data_pfolio_forest = unnest(pa_pfolio_forest, cols="treecover_area") %>%
+#   sf::st_drop_geometry() %>%
+#   dplyr::select(id_pr,nm_ap,drct,wdpaid,ann_c,years,treecover) %>%
+#   mutate(treecover = case_when(treecover == 0 ~ NA, TRUE ~ treecover)) %>%
+#   filter(!is.na(treecover))
 
 # fwrite(data_pfolio_forest,
-#        "01_data_tidy/mapme_bio_data/data_pfolio_forest.csv")
+#        "data_tidy/mapme_bio_data/data_pfolio_forest.csv")
 
-data_pfolio_forest = fread("01_data_tidy/mapme_bio_data/data_pfolio_forest.csv")
+data_pfolio_forest = fread("data_tidy/mapme_bio_data/data_pfolio_forest.csv")
 
 ##~~~~~~~~~~~~~~~~~~
 ##  ~ Mangroves ----
@@ -141,10 +142,10 @@ data_pfolio_forest = fread("01_data_tidy/mapme_bio_data/data_pfolio_forest.csv")
 #                 overwrite=T) 
 
 # write_portfolio(pa_pfolio_mang,
-#       dsn = "01_data_tidy/mapme_bio_data/pa_pfolio_mang.gpkg",
+#       dsn = "data_tidy/mapme_bio_data/pa_pfolio_mang.gpkg",
 #       overwrite = FALSE)
 
-pa_pfolio_mang = read_portfolio("01_data_tidy/mapme_bio_data/pa_pfolio_mang.gpkg")
+pa_pfolio_mang = read_portfolio("data_tidy/mapme_bio_data/pa_pfolio_mang.gpkg")
 
 ##Unest the sf file into a classic data frame without geometry
 # data_pfolio_mang = unnest(pa_pfolio_mang, cols="mangroves_area") %>%
@@ -152,9 +153,9 @@ pa_pfolio_mang = read_portfolio("01_data_tidy/mapme_bio_data/pa_pfolio_mang.gpkg
 #   dplyr::select(id_pr,wdpaid,year,mangrove_extent)
 
 # fwrite(data_pfolio_mang,
-#        "01_data_tidy/mapme_bio_data/data_pfolio_mang.csv")
+#        "data_tidy/mapme_bio_data/data_pfolio_mang.csv")
 
-data_pfolio_mang = fread("01_data_tidy/mapme_bio_data/data_pfolio_mang.csv")
+data_pfolio_mang = fread("data_tidy/mapme_bio_data/data_pfolio_mang.csv")
 
 ##~~~~~~~~~~~~~~~~~~~
 ##  ~ Emissions  ----
@@ -170,10 +171,10 @@ data_pfolio_mang = fread("01_data_tidy/mapme_bio_data/data_pfolio_mang.csv")
 #                   min_size = 1, overwrite=T)
 
 # write_portfolio(pa_pfolio_emi,
-#       dsn = "01_data_tidy/mapme_bio_data/pa_pfolio_emi.gpkg",
+#       dsn = "data_tidy/mapme_bio_data/pa_pfolio_emi.gpkg",
 #       overwrite = FALSE)
 
-pa_pfolio_emi = fread("01_data_tidy/mapme_bio_data/pa_pfolio_emi.gpkg")
+pa_pfolio_emi = read_portfolio("data_tidy/mapme_bio_data/pa_pfolio_emi.gpkg")
 
 # data_pfolio_emi = unnest(pa_pfolio_emi,
 #                   cols="treecoverloss_emissions") %>%
@@ -181,9 +182,9 @@ pa_pfolio_emi = fread("01_data_tidy/mapme_bio_data/pa_pfolio_emi.gpkg")
 #     dplyr::select(id_pr,wdpaid,years,emissions)
 
 # fwrite(data_pfolio_emi,
-#        "01_data_tidy/mapme_bio_data/data_pfolio_emi.csv")
+#        "data_tidy/mapme_bio_data/data_pfolio_emi.csv")
 
-data_pfolio_emi = fread("01_data_tidy/mapme_bio_data/data_pfolio_emi.csv")
+data_pfolio_emi = fread("data_tidy/mapme_bio_data/data_pfolio_emi.csv")
 
 ##~~~~~~~~~~~~~~~~~~~~
 ##  ~ Biome       ----
@@ -291,7 +292,7 @@ Warning and errors face and their meaning.
 
     -   See <https://r-spatial.org/r/2020/06/17/s2.html> and <https://r-spatial.github.io/sf/articles/sf7.html#>. Basically I used sf_use_s2(FALSE) at the creation of the portfolio. Thus sf uses flat Earth model instead of s2 spherical geometry. The operation st_intersects assumes the data lie in a flat plane where one degree longitude equals one degree latitude, irrespective where the PA is on the world (equirectangular projection). Thus if the polygons are drawn from coordinates in a spherical geometry, the operation is performed on the wrong projection. Is it a problem in itself ? Well as a projection is a bijection between two coordinate systems, plygons that intersect (or not) in a projection will intersect in the second. However the polygons will be distorded (the more so as they are located closer to the poles), and the areas computed could be wrong. Anyway according to the documentation the WDPA polygons are provided in WGS84 geographic coordinate system, i.e a planar projection (Plate Carree) . No problem should arise from the warning then.
 
-    -   So according Florent Bedecarrats, this warning is related to an other issue. The sphere representing the Earth is transformed into a plane through a cut on a given line. If a polygon is located on this line, the flattened polygon is considered to go around the Earth. To test for this possibility, compare the area of the polygon to the true area of the PA.
+    -   So according to Florent Bedecarrats, this warning is related to an other issue. The sphere representing the Earth is transformed into a plane through a cut on a given line. If a polygon is located on this line, the flattened polygon is considered to go around the Earth. To test for this possibility, compare the area of the polygon to the true area of the PA.
 
 -   *Avis : TIFFFillStrip:Read error at scanline 4294967295; got 0 bytes, expected 1387 (GDAL error 1)Avis : TIFFReadEncodedStrip() failed. (GDAL error 1).*
 
@@ -340,27 +341,6 @@ data_stat_treeloss = data_pfolio_forest %>%
   mutate(moy_5 = mean(loss)) %>%
   ungroup()
 
-data_stat_treeloss2 = data_pfolio_forest %>%
-  group_by(nm_ap) %>% 
-  #Comoute variation over time in each PA
-  mutate(lag_treecov = lag(treecover),
-         loss = ((treecover - lag_treecov)/lag_treecov)*100) %>%
-  #Regroup years for analysis in five years intervals
-  mutate(years_regroup = case_when(
-  years <= 2005 ~ "2000-2005",
-  years <= 2010 ~ "2005-2010",
-  years <= 2015 ~ "2010-2015",
-  years <=2020 ~ "2015-2020",
-  TRUE ~ NA),
-  .after = years) %>%
-  #Remove NA values for loss
-  filter(!is.na(loss)) %>%
-  #Compute mean loss for five years intervals in each PA
-  group_by(nm_ap, years_regroup) %>%
-  mutate(moy_5 = mean(loss)) %>%
-  ungroup()
-
-#Equal ???
 ```
 
 -   Statistics at PA level

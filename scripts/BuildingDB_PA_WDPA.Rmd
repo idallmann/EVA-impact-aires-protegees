@@ -66,11 +66,12 @@ data_PA_tidy = data_PA_raw %>%
   #Modify class of some variables
   mutate(wdpaid = as.numeric(wdpaid)) %>%
   #Create dummy variables for main investors
-  mutate(afd_bin = ifelse(cofinancier_1 == "AFD" | cofinancier_2 == "AFD" | cofinancier_3 == "AFD" |
-                          cofinancier_4 == "AFD" | cofinancier_5 == "AFD" | cofinancier_6 == "AFD",
-                          yes = TRUE, 
-                          no = FALSE),
-         afd_bin = ifelse(is.na(afd_bin), yes = FALSE, no = afd_bin),
+  #If no cofinancier reported, AFD = TRUE (AP funded it alone)
+  mutate(afd_bin = case_when((cofinancier_1 == "AFD" | cofinancier_2 == "AFD" | cofinancier_3 == "AFD" |
+                          cofinancier_4 == "AFD" | cofinancier_5 == "AFD" | cofinancier_6 == "AFD") ~ TRUE,
+                          (is.na(cofinancier_1) & is.na(cofinancier_2) & is.na(cofinancier_3) & is.na(cofinancier_4) 
+                          & is.na(cofinancier_5) & is.na(cofinancier_6)) ~ TRUE,
+                          TRUE ~ FALSE),
          kfw_bin = ifelse(cofinancier_1 == "KFW" | cofinancier_2 == "KFW" | cofinancier_3 == "KFW" |
                           cofinancier_4 == "KFW" | cofinancier_5 == "KFW" | cofinancier_6 == "KFW",
                           yes = TRUE, 
@@ -137,7 +138,7 @@ list_var_siop_AP = c( "id_projet", "nom_du_projet", "nom_de_projet_pour_les_inst
                       "etat_du_projet", "libelle_etat_du_projet", "beneficiaire_primaire",
                       "responsable_equipe_projet", "directeur_trice_dagence",
                       "date_de_remise_du_rapport_final", "cofinancier_1", "cofinancier_2", 
-                      "cofinancier_3","cofinancier_4", "cofinancier_5", "cofinancier_6", "afd",
+                      "cofinancier_3","cofinancier_4", "cofinancier_5", "cofinancier_6",
                       "afd_bin", "kfw_bin", "ffem_bin", "cofin_other", "cofin_unkwn",
                       "maitrise_ouvrage", "superf_interne", "nb_ap_nombre_potentiel",
                       "detail", "projet", "commentaires")
@@ -162,7 +163,7 @@ list_var_PA = c("id_projet", "nom_du_projet", "nom_ap", "id_concours",
                 "montant_total_projet", "libelle_produit", "annee_octroi",
                 "cofinancier_1", "cofinancier_2", "cofinancier_3", 
                 "cofinancier_4", "cofinancier_5", "cofinancier_6",
-                "afd", "afd_bin", "kfw_bin", "ffem_bin", "cofin_other",
+                "afd_bin", "kfw_bin", "ffem_bin", "cofin_other",
                 "cofin_unkwn", "nb_ap_nombre_potentiel", "detail",
                 "iucn_cat", "iucn_des", "marine", "superficie",
                 "status", "status_yr", "gov_type","own_type", "mang_auth")
@@ -174,6 +175,8 @@ data_stat = data_PA_tidy %>%
 #fwrite(data_stat, "data_tidy/BDD_DesStat.csv")
 
 #Then to keep only one row per PA, we need to consider separately PAs having WDPA ID and PAs which do not.
+
+
 
 data_stat_wdpa = data_stat %>%
   subset(is.na(wdpaid) == FALSE) %>%

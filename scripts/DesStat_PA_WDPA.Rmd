@@ -58,8 +58,10 @@ data_stat_nodupl_utf8 = fread("data_tidy/BDD_DesStat_nodupl.csv" , encoding = "U
 
 base_nodupl_lea = readxl::read_xlsx("data_tidy/base_nodupl_lea.xlsx")
 base_nodupl_old = fread("data_tidy/base_nodupl_old.csv") 
-projet_nodupl_old = readxl::read_xlsx("data_tidy/projet_nodupl_old.xlsx") 
+projet_nodupl_old = readxl::read_xlsx("data_tidy/projet_nodupl_old.xlsx")
 
+bdd_joint = readxl::read_xlsx("data_raw/BDD_joint.xlsx")
+bdd_na = bdd_joint %>% filter(is.na(wdpaid))
 ```
 
 ## Computing total area at country, region and world level
@@ -214,7 +216,7 @@ pa_area_wld = sum(data_stat_nodupl$superficie) - pa_int_wld
 #Building the relevant dataset
 ##For all PAs ..
 data_cat_iucn = data_stat_nodupl %>%
-  group_by(iucn_cat) %>%
+  group_by(iucn_des) %>%
   #number of PAs per IUCN category
   summarize(n_iucn = n()) %>%
   ungroup() %>%
@@ -726,34 +728,34 @@ data_distrib_dr = data_stat_nodupl %>%
 
 #####################
 
-# test = base_nodupl_lea %>%
-#   group_by(direction_regionale) %>%
-#   summarize(n = n(),
-#             freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
-#   ungroup() %>%
-#   mutate(region = gsub("Dr ", "", direction_regionale),
-#          .after = "direction_regionale")
-# 
-# test2 = base_nodupl_old %>%
-#   group_by(direction_regionale) %>%
-#   summarize(n = n(),
-#             freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
-#   ungroup() %>%
-#   mutate(region = gsub("Dr ", "", direction_regionale),
-#          .after = "direction_regionale")
+test = base_nodupl_lea %>%
+  group_by(direction_regionale) %>%
+  summarize(n = n(),
+            freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
+  ungroup() %>%
+  mutate(region = gsub("Dr ", "", direction_regionale),
+         .after = "direction_regionale")
+#
+test2 = base_nodupl_old %>%
+  group_by(direction_regionale) %>%
+  summarize(n = n(),
+            freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
+  ungroup() %>%
+  mutate(region = gsub("Dr ", "", direction_regionale),
+         .after = "direction_regionale")
 
-# ap_region2 <- data.frame(table(base_nodupl_lea$direction_regionale))
-# ap_region2$Freq <- round(ap_region2$Freq/sum(ap_region2$Freq),3)*100
-# 
+ap_region2 <- data.frame(table(base_nodupl_old$direction_regionale))
+ap_region2$Freq <- round(ap_region2$Freq/sum(ap_region2$Freq),3)*100
+#
 # #TOP 6 REGION
-# ap_region_6 = subset(ap_region2, Freq >= 5)
-# 
-# ggplot(ap_region_6, aes(x = reorder(Var1,-Freq), y=Freq, fill=Var1)) + 
-#   geom_bar(width = 0.80, fill="blue",stat="identity") +
-#   ggtitle("Les 6 régions abritant le plus d'aires protégées") +
-#   theme(plot.title = element_text(size= 14, face = "bold",hjust=0.5)) +
-#   xlab("Région") +
-#   ylab("Proportion d'aires protégées(%)") 
+ap_region_6 = subset(ap_region2, Freq >= 5)
+
+ggplot(ap_region_6, aes(x = reorder(Var1,-Freq), y=Freq, fill=Var1)) +
+  geom_bar(width = 0.80, fill="blue",stat="identity") +
+  ggtitle("Les 6 régions abritant le plus d'aires protégées") +
+  theme(plot.title = element_text(size= 14, face = "bold",hjust=0.5)) +
+  xlab("Région") +
+  ylab("Proportion d'aires protégées(%)")
 
 
 ##############
