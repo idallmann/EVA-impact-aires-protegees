@@ -41,7 +41,7 @@ library(tidyterra)
 library(terra)
 library(sf)
 library(mapview)
-library(kableExtra)
+library(aws.s3)
 
 ```
 
@@ -50,17 +50,79 @@ library(kableExtra)
 ```{r}
 #Both datasets are imported also in UTF8 encoding, for some variables
 ##A first dataset with some PA on more than one row (one line per funding for instance)
-data_stat = fread("data_tidy/BDD_DesStat.csv")
-data_stat_utf8 = fread("data_tidy/BDD_DesStat.csv", encoding = "UTF-8")
+data_stat = 
+  #fread("data_tidy/BDD_DesStat.csv")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  # Mettre les options de FUN ici
+  object = "data_tidy/BDD_DesStat_pub.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
+  
+data_stat_utf8 = 
+  #fread("data_tidy/BDD_DesStat.csv", encoding = "UTF-8")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  # Mettre les options de FUN ici
+  object = "data_tidy/BDD_DesStat_pub.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
+
 ##A second dataset with one line per PA, more suited for some statistics
-data_stat_nodupl = fread("data_tidy/BDD_DesStat_nodupl.csv") 
-data_stat_nodupl_utf8 = fread("data_tidy/BDD_DesStat_nodupl.csv" , encoding = "UTF-8")
+data_stat_nodupl = 
+  #fread("data_tidy/BDD_DesStat_nodupl.csv")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  # Mettre les options de FUN ici
+  object = "data_tidy/BDD_DesStat_nodupl.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
+data_stat_nodupl_utf8 = 
+  #fread("data_tidy/BDD_DesStat_nodupl.csv" , encoding = "UTF-8")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  # Mettre les options de FUN ici
+  object = "data_tidy/BDD_DesStat_nodupl.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
 
-base_nodupl_lea = readxl::read_xlsx("data_tidy/base_nodupl_lea.xlsx")
-base_nodupl_old = fread("data_tidy/base_nodupl_old.csv") 
-projet_nodupl_old = readxl::read_xlsx("data_tidy/projet_nodupl_old.xlsx")
+base_nodupl_lea = 
+  readxl::read_xlsx("data_tidy/base_nodupl_lea.xlsx")
+  aws.s3::s3read_using(
+  FUN = readxl::read_xlsx,
+  # Mettre les options de FUN ici
+  object = "data_tidy/base_nodupl_lea.xlsx",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
+  
+base_nodupl_old = 
+  #fread("data_tidy/base_nodupl_old.csv") 
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  # Mettre les options de FUN ici
+  object = "data_tidy/base_nodupl_old.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
+  
+projet_nodupl_old = 
+  #readxl::read_xlsx("data_tidy/projet_nodupl_old.xlsx")
+  aws.s3::s3read_using(
+  FUN = readxl::read_xlsx,
+  # Mettre les options de FUN ici
+  object = "data_tidy/projet_nodupl_old.xlsx",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
 
-bdd_joint = readxl::read_xlsx("data_raw/BDD_joint.xlsx")
+bdd_joint = 
+  #readxl::read_xlsx("data_raw/BDD_joint.xlsx")
+  aws.s3::s3read_using(
+  FUN = readxl::read_xlsx,
+  # Mettre les options de FUN ici
+  object = "data_raw/BDD_joint.xlsx",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
 bdd_na = bdd_joint %>% filter(is.na(wdpaid))
 ```
 
