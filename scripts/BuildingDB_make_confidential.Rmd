@@ -39,8 +39,11 @@ library(ARTofR)
 
 ```{r message=FALSE, warning=FALSE}
 
+bdd_joint = fread("data_tidy/BDD_joint_tidy.csv")
 data_stat = fread("data_tidy/BDD_DesStat.csv")
 data_stat_nodupl = fread("data_tidy/BDD_DesStat_nodupl.csv")
+data_stat_nodupl_lea = readxl::read_xlsx("data_tidy/base_nodupl_lea.xlsx")
+data_stat_nodupl_old = fread("data_tidy/base_nodupl_old.csv")
 pa_shp = read_sf("data_raw/WDPA_SHP/BDD_SHP_nodupl.shp") %>%
   clean_names()
 pa_pfolio_forest = read_sf("data_tidy/mapme_bio_data/pa_pfolio_forest.gpkg")
@@ -56,7 +59,7 @@ list_var_PA_open = c("id_projet", "nom_du_projet", "nom_ap", "id_concours",
                 "pays", "iso3", "direction_regionale", "annee_octroi",
                 "cofinancier_1", "cofinancier_2", "cofinancier_3", 
                 "cofinancier_4", "cofinancier_5", "cofinancier_6",
-                "afd", "afd_bin", "kfw_bin", "ffem_bin", "cofin_other",
+                "afd_bin", "kfw_bin", "ffem_bin", "cofin_other",
                 "cofin_unkwn", "nb_ap_nombre_potentiel", "detail",
                 "iucn_cat", "iucn_des", "marine", "superficie",
                 "status", "status_yr", "gov_type","own_type", "mang_auth")
@@ -64,18 +67,41 @@ list_var_PA_open = c("id_projet", "nom_du_projet", "nom_ap", "id_concours",
 list_var_shp_conf = c("mntnt", "mtglb", "e", "mnt", "prodt", "lbllp",
                       "rspns", "dr", "detal", "projt", "cmmnt")
 
+list_var_PA_conf = list_var_joint_conf = 
+  c("montant_prevu_concours_euro_octroi", "mt_global_projet_prevu_devise",
+                        "engagements_nets_euro_octroi" , "montant_total_projet",
+                        "produit", "libelle_produit",
+                        "date_de_1er_versement_projet", "dernier_versement_en_date_projet",
+                        "date_signature_convention_cf", "duree_du_concours_annee",
+                        "duree_du_concours_annee_et_mois", "beneficiaire_primaire",
+                        "responsable_equipe_projet", "directeur_trice_dagence", "maitrise_ouvrage"
+                        )
+
 ```
 
 ## Create public datasets
 
 ```{r}
+
+bdd_joint_pub = bdd_joint %>%
+  dplyr::select(-all_of(list_var_joint_conf))
+#fwrite(bdd_joint_pub, "data_tidy/BDD_joint_tidy_pub.csv")
+
 data_stat_pub = data_stat %>%
   dplyr::select(all_of(list_var_PA_open))
-# fwrite(data_stat_pub, "data_tidy/BDD_DesStat_pub.csv")
+#fwrite(data_stat_pub, "data_tidy/BDD_DesStat_pub.csv")
 
 data_stat_nodupl_pub = data_stat_nodupl %>%
   dplyr::select(all_of(list_var_PA_open))
-# fwrite(data_stat_nodupl_pub, "data_tidy/BDD_DesStat_nodupl_pub.csv")
+#fwrite(data_stat_nodupl_pub, "data_tidy/BDD_DesStat_nodupl_pub.csv")
+
+data_stat_nodupl_lea_pub = data_stat_nodupl_lea %>%
+  dplyr::select(-all_of(list_var_PA_conf))
+#fwrite(data_stat_nodupl_lea_pub, "data_tidy/BDD_DesStat_nodupl_lea_pub.csv")
+
+data_stat_nodupl_old_pub = data_stat_nodupl_old %>%
+  dplyr::select(-all_of(list_var_PA_conf))
+#fwrite(data_stat_nodupl_old_pub, "data_tidy/BDD_DesStat_nodupl_old_pub.csv")
 
 pa_shp_open = pa_shp %>%
   dplyr::select(-all_of(list_var_shp_conf))
