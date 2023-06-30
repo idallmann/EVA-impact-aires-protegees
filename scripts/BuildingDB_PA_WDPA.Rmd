@@ -62,7 +62,7 @@ data_PA_raw = read_excel("data_raw/BDD_joint.xlsx") %>%
 #Create relevant variables
 data_PA_tidy = data_PA_raw %>%
   #Get rid of the iso code in the initial dataset, to avoid confusion when merging with data_iso
-  select(-iso3) %>%
+  dplyr::select(-iso3) %>%
   #Modify class of some variables
   mutate(wdpaid = as.numeric(wdpaid)) %>%
   #Create dummy variables for main investors
@@ -118,6 +118,8 @@ data_PA_tidy = data_PA_raw %>%
   !is.na(wdpaid) & iucn_cat == "Not Assigned" ~ "Non catégorisée",
   TRUE ~ "Non référencée"), .after = iucn_cat)
 
+#fwrite(data_PA_tidy, "data_tidy/BDD_joint_tidy.csv")
+
 ```
 
 ### data_siop_AP
@@ -145,7 +147,7 @@ list_var_siop_AP = c( "id_projet", "nom_du_projet", "nom_de_projet_pour_les_inst
 
 #Definining dataset for future analysis : siop and AP but not WDPA 
 data_siop_AP = data_PA_tidy %>%
-  select(all_of(list_var_siop_AP), iso3)
+  dplyr::select(all_of(list_var_siop_AP), iso3)
 #write_csv(data_siop_AP, "data_tidy/BDD_AP_SIOP_joint.xlsx")
 
 ```
@@ -172,11 +174,9 @@ list_var_PA = c("id_projet", "nom_du_projet", "nom_ap", "id_concours",
 data_stat = data_PA_tidy %>%
   select(all_of(list_var_PA), iso3)
 
-#fwrite(data_stat, "data_tidy/BDD_DesStat.csv")
+# fwrite(data_stat, "data_tidy/BDD_DesStat.csv")
 
 #Then to keep only one row per PA, we need to consider separately PAs having WDPA ID and PAs which do not.
-
-
 
 data_stat_wdpa = data_stat %>%
   subset(is.na(wdpaid) == FALSE) %>%
