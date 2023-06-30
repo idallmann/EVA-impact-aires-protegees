@@ -75,7 +75,7 @@ data_stat_nodupl =
   aws.s3::s3read_using(
   FUN = data.table::fread,
   # Mettre les options de FUN ici
-  object = "data_tidy/BDD_DesStat_nodupl.csv",
+  object = "data_tidy/BDD_DesStat_nodupl_pub.csv",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
 data_stat_nodupl_utf8 = 
@@ -84,16 +84,16 @@ data_stat_nodupl_utf8 =
   FUN = data.table::fread,
   encoding = "UTF-8",
   # Mettre les options de FUN ici
-  object = "data_tidy/BDD_DesStat_nodupl.csv",
+  object = "data_tidy/BDD_DesStat_nodupl_pub.csv",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
 
 base_nodupl_lea = 
-  readxl::read_xlsx("data_tidy/base_nodupl_lea.xlsx")
+  #fread("data_tidy/base_nodupl_lea.xlsx")
   aws.s3::s3read_using(
-  FUN = readxl::read_xlsx,
+  FUN = data.table::fread,
   # Mettre les options de FUN ici
-  object = "data_tidy/base_nodupl_lea.xlsx",
+  object = "data_tidy/BDD_DesStat_nodupl_lea_pub.csv",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
   
@@ -102,25 +102,25 @@ base_nodupl_old =
   aws.s3::s3read_using(
   FUN = data.table::fread,
   # Mettre les options de FUN ici
-  object = "data_tidy/base_nodupl_old.csv",
+  object = "data_tidy/BDD_DesStat_nodupl_old_pub.csv",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
   
-projet_nodupl_old = 
-  #readxl::read_xlsx("data_tidy/projet_nodupl_old.xlsx")
-  aws.s3::s3read_using(
-  FUN = readxl::read_xlsx,
-  # Mettre les options de FUN ici
-  object = "data_tidy/projet_nodupl_old.xlsx",
-  bucket = "projet-afd-eva-ap",
-  opts = list("region" = ""))
+# projet_nodupl_old = 
+#   #readxl::read_xlsx("data_tidy/projet_nodupl_old.xlsx")
+#   aws.s3::s3read_using(
+#   FUN = readxl::read_xlsx,
+#   # Mettre les options de FUN ici
+#   object = "data_tidy/projet_nodupl_old.xlsx",
+#   bucket = "projet-afd-eva-ap",
+#   opts = list("region" = ""))
 
 bdd_joint = 
-  #readxl::read_xlsx("data_raw/BDD_joint.xlsx")
+  #fread("data_raw/BDD_joint.xlsx")
   aws.s3::s3read_using(
-  FUN = readxl::read_xlsx,
+  FUN = data.table::fread,
   # Mettre les options de FUN ici
-  object = "data_raw/BDD_joint.xlsx",
+  object = "data_tidy/BDD_joint_tidy_pub.csv",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
 bdd_na = bdd_joint %>% filter(is.na(wdpaid))
@@ -142,14 +142,21 @@ Knowing the total area covered by PAs at different level of aggregation is inter
 
 #Importing shapefiles
 sf_use_s2(FALSE)
-pa_shp = read_sf("data_raw/WDPA_SHP/BDD_SHP_nodupl_pub.shp") %>%
+pa_shp = 
+  #read_sf("data_tidy/BDD_SHP_nodupl_pub.gpkg") %>%
+  aws.s3::s3read_using(
+  FUN = sf::read_sf,
+  # Mettre les options de FUN ici
+  object = "data_tidy/BDD_SHP_nodupl_pub.gpkg",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = "")) %>%
   st_make_valid() %>%
   #From multipolygon to polygon
   sf::st_cast(to="POLYGON") %>%
   clean_names() %>%
   #Select relevant variables
   #Note ann_c = annee_octroi
-  dplyr::select(c(wdpaid, sprfc, rep_a, gis_a, geometry, iso3, drct, ann_c)) %>%
+  dplyr::select(c(wdpaid, sprfc, rep_a, gis_a, geom, iso3, drct, ann_c)) %>%
   #Variable sprfc corresponds to AFD internal reported size
   rename("sprfc_int" = "sprfc") %>%
   mutate(wdpaid = as.numeric(wdpaid),
