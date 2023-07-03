@@ -51,15 +51,6 @@ library(aws.s3)
 #Both datasets are imported also in UTF8 encoding, for some variables
 ##A first dataset with some PA on more than one row (one line per funding for instance)
 data_stat = 
-  #fread("data_tidy/BDD_DesStat.csv")
-  aws.s3::s3read_using(
-  FUN = data.table::fread,
-  # Mettre les options de FUN ici
-  object = "data_tidy/BDD_DesStat_pub.csv",
-  bucket = "projet-afd-eva-ap",
-  opts = list("region" = ""))
-  
-data_stat_utf8 = 
   #fread("data_tidy/BDD_DesStat.csv", encoding = "UTF-8")
   aws.s3::s3read_using(
   FUN = data.table::fread,
@@ -71,15 +62,7 @@ data_stat_utf8 =
 
 ##A second dataset with one line per PA, more suited for some statistics
 data_stat_nodupl = 
-  #fread("data_tidy/BDD_DesStat_nodupl.csv")
-  aws.s3::s3read_using(
-  FUN = data.table::fread,
-  # Mettre les options de FUN ici
-  object = "data_tidy/BDD_DesStat_nodupl_pub.csv",
-  bucket = "projet-afd-eva-ap",
-  opts = list("region" = ""))
-data_stat_nodupl_utf8 = 
-  #fread("data_tidy/BDD_DesStat_nodupl.csv" , encoding = "UTF-8")
+  fread("data_tidy/BDD_DesStat_nodupl.csv" , encoding = "UTF-8")
   aws.s3::s3read_using(
   FUN = data.table::fread,
   encoding = "UTF-8",
@@ -120,6 +103,7 @@ bdd_joint =
   aws.s3::s3read_using(
   FUN = data.table::fread,
   # Mettre les options de FUN ici
+  encoding = "UTF-8",
   object = "data_tidy/BDD_joint_tidy_pub.csv",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))

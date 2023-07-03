@@ -21,6 +21,7 @@ library(data.table)
 library(readxl)
 library(splitstackshape) 
 library(janitor)
+library(stringi)
 ```
 
 ## Datasets for descriptive statistics
@@ -57,7 +58,10 @@ data_iso = fread("data_raw/liste-197-etats-2020.csv") %>%
 
 #Import the initial BDD_joint
 data_PA_raw = read_excel("data_raw/BDD_joint.xlsx") %>%
-  as.data.frame()
+  as.data.frame() %>%
+  mutate(across(.cols = names(.), 
+                .fns = ~stri_enc_toutf8(.x)))
+  
 
 #Create relevant variables
 data_PA_tidy = data_PA_raw %>%
@@ -116,7 +120,9 @@ data_PA_tidy = data_PA_raw %>%
   !is.na(wdpaid) & iucn_cat == "Not Applicable" ~ "Non catégorisée",
   !is.na(wdpaid) & iucn_cat == "Not Reported" ~ "Non catégorisée",
   !is.na(wdpaid) & iucn_cat == "Not Assigned" ~ "Non catégorisée",
-  TRUE ~ "Non référencée"), .after = iucn_cat)
+  TRUE ~ "Non référencée"), .after = iucn_cat) %>%
+    mutate(across(.cols = names(.), 
+                .fns = ~stri_enc_toutf8(.x)))
 
 #fwrite(data_PA_tidy, "data_tidy/BDD_joint_tidy.csv")
 
@@ -174,7 +180,7 @@ list_var_PA = c("id_projet", "nom_du_projet", "nom_ap", "id_concours",
 data_stat = data_PA_tidy %>%
   select(all_of(list_var_PA), iso3)
 
-# fwrite(data_stat, "data_tidy/BDD_DesStat.csv")
+#fwrite(data_stat, "data_tidy/BDD_DesStat.csv")
 
 #Then to keep only one row per PA, we need to consider separately PAs having WDPA ID and PAs which do not.
 
