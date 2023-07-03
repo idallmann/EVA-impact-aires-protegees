@@ -42,8 +42,12 @@ library(ARTofR)
 bdd_joint = fread("data_tidy/BDD_joint_tidy.csv")
 data_stat = fread("data_tidy/BDD_DesStat.csv")
 data_stat_nodupl = fread("data_tidy/BDD_DesStat_nodupl.csv")
-data_stat_nodupl_lea = readxl::read_xlsx("data_tidy/base_nodupl_lea.xlsx")
-data_stat_nodupl_old = fread("data_tidy/base_nodupl_old.csv")
+data_stat_nodupl_lea = readxl::read_xlsx("data_tidy/base_nodupl_lea.xlsx") %>%
+      mutate(across(.cols = names(.),
+                    .fns = ~stri_enc_toutf8(.x)))
+data_stat_nodupl_old = fread("data_tidy/base_nodupl_old.csv") %>%
+      mutate(across(.cols = names(.),
+                    .fns = ~stri_enc_toutf8(.x)))
 pa_shp = read_sf("data_raw/WDPA_SHP/BDD_SHP_nodupl.shp") %>%
   clean_names()
 pa_pfolio_forest = read_sf("data_tidy/mapme_bio_data/pa_pfolio_forest.gpkg")
