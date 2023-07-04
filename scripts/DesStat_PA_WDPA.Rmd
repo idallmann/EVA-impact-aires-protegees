@@ -1222,7 +1222,7 @@ for(f in files)
   count = count+1
   cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/DesStat/distribution", 
+                     bucket = "projet-afd-eva-ap/DesStat/surface", 
                      region = "", show_progress = TRUE)
   }
 
@@ -1274,11 +1274,6 @@ fig_n_pa = ggplot(data_time_n,
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
 fig_n_pa
 
-# ggsave(plot = fig_n_pa,
-#        filename = "fig_n_pa.png",
-#        path = "DesStat/time_evolution",
-#        height = 6, width = 9)
-
 #Number of PAs funded by year (histogram)
 hist_n_pa = ggplot(data_time_n,
                   aes(x = factor(annee_octroi), y = n)) %>%
@@ -1300,10 +1295,7 @@ hist_n_pa = ggplot(data_time_n,
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
 hist_n_pa
 
-# ggsave(plot = hist_n_pa,
-#        filename = "hist_n_pa.png",
-#        path = "DesStat/time_evolution",
-#        height = 6, width = 9)
+
 
 #Cumulative number over time
 fig_ncum_pa = ggplot(data_time_n,
@@ -1328,10 +1320,47 @@ fig_ncum_pa = ggplot(data_time_n,
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
 fig_ncum_pa
 
-# ggsave(plot = fig_ncum_pa,
-#        filename = "fig_ncum_pa.png",
-#        path = "DesStat/time_evolution",
-#        height = 6, width = 9)
+
+```
+
+```{r}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+ggsave(paste(tmp, "fig_n_pa.png", sep = "/"),
+       fig_n_pa,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "hist_n_pa.png", sep = "/"),
+       hist_n_pa,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "fig_ncum_pa.png", sep = "/"),
+       fig_ncum_pa,
+       device = "png",
+       height = 6, width = 9)
+
+
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+count = 0
+for(f in files) 
+{
+  count = count+1
+  cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/DesStat/time_evolution", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
 #### Surface of PAs
@@ -1382,10 +1411,7 @@ fig_area_pa = ggplot(data_time_area,
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
 fig_area_pa
 
-# ggsave(plot = fig_area_pa,
-#        filename = "fig_area_pa.png",
-#        path = "DesStat/time_evolution",
-#        height = 6, width = 9)
+
 
 #Cumulative area over time
 fig_area_cum_pa = ggplot(data_time_area,
@@ -1414,12 +1440,42 @@ fig_area_cum_pa = ggplot(data_time_area,
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
 fig_area_cum_pa
 
-# ggsave(plot = fig_area_cum_pa,
-#        filename = "fig_area_cum_pa.png",
-#        path = "DesStat/time_evolution",
-#        height = 6, width = 9)
 
 
+```
+
+```{r}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+ggsave(paste(tmp, "fig_area_pa.png", sep = "/"),
+       fig_area_pa,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "fig_area_cum_pa.png", sep = "/"),
+       fig_area_cum_pa,
+       device = "png",
+       height = 6, width = 9)
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+count = 0
+for(f in files) 
+{
+  count = count+1
+  cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/DesStat/time_evolution", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
 ### Funding
@@ -1434,8 +1490,6 @@ Create a dataset with one row per project (funding is given by project, so dupli
 
 data_stat_projet_nodupl = data_stat %>%
   dplyr::distinct(id_projet, .keep_all = TRUE)
-data_stat_projet_nodupl_utf8 = data_stat_utf8 %>%
-  dplyr::distinct(id_projet, .keep_all = TRUE)
 
 ```
 
@@ -1449,7 +1503,7 @@ tbl_fund_proj = summary(data_stat_projet_nodupl$montant_total_projet) %>%
   t() %>%
   as.data.frame() %>%
   dplyr::select(-c("1st Qu.","3rd Qu."))
-#print(xtable(tbl_fund_proj, type = "latex"), file = "DesStat/funding/tbl_fund_proj_stat.tex")
+
 
 #Boxplot
 # fig_fund_proj = ggplot(data = data_stat_projet_nodupl,
@@ -1510,8 +1564,7 @@ tbl_fund_avg_dr = data_stat_projet_nodupl %>%
   summarise(avg_fund = mean(montant_total_projet, na.rm = TRUE)) %>%
   arrange(avg_fund)
 
-# print(xtable(tbl_fund_avg_ctry, type = "latex"), file = "DesStat/funding/tbl_fund_avg_ctry.tex")
-# print(xtable(tbl_fund_avg_dr, type = "latex"), file = "DesStat/funding/tbl_fund_avg_dr.tex")
+
 
 ```
 
@@ -1547,15 +1600,51 @@ data_fund_per_area_dr = data_fund_sum_dr %>%
   left_join(select(pa_area_dr, c(direction_regionale, sprfc_tot_noint_km2)), by = "direction_regionale") %>%
   mutate(fund_per_area = tot_fund/sprfc_tot_noint_km2)
 names(data_fund_per_area_dr) = c("Direction régionale", "Montant total (€)", "Superficie totale (km2)", "Financement moyen par km2 (€/km2)")
-#print(xtable(data_fund_per_area_dr, type = "latex"), file = "DesStat/funding/tbl_fund_per_area_dr.tex")
+
 
 #At world level
 data_fund_per_area_wld = sum(data_stat_projet_nodupl$montant_total_projet)/pa_area_wld
 tbl_fund_per_area_wld = data.frame(data_fund_per_area_wld) %>% format(digits = 4)
 names(tbl_fund_per_area_wld) = c("Financement moyen par km2 (€/km2)")
-#print(xtable(tbl_fund_per_area_wld, type = "latex"), file = "DesStat/funding/tbl_fund_per_area_wld.tex")
 
 
+
+```
+
+```{r}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+print(xtable(tbl_fund_proj, type = "latex"),
+      file = paste(tmp, "tbl_fund_proj_stat.tex", sep  ="/"))
+print(xtable(tbl_fund_avg_ctry, type = "latex"),
+      file = paste(tmp, "tbl_fund_avg_ctry.tex", sep  ="/"))
+print(xtable(tbl_fund_avg_dr, type = "latex"),
+      file = paste(tmp, "tbl_fund_avg_dr.tex", sep  ="/"))
+print(xtable(data_fund_per_area_dr, type = "latex"),
+      file = paste(tmp, "tbl_fund_per_area_dr.tex", sep  ="/"))
+print(xtable(tbl_fund_per_area_wld, type = "latex"),
+      file = paste(tmp, "tbl_fund_per_area_wld.tex", sep  ="/"))
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+count = 0
+for(f in files) 
+{
+  count = count+1
+  cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/DesStat/funding", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
 #### Evolution of funding over time
@@ -1585,10 +1674,7 @@ fig_fund_year = ggplot(data = data_fund_year,
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
 #fig_fund_year
-# ggsave(plot = fig_fund_year,
-#        filename = "fig_fund_year.png",
-#        path = "DesStat/funding",
-#        height = 6, width = 9)
+
 
 #Cumulative funding over time
 fig_fund_year_cum = ggplot(data = data_fund_year,
@@ -1610,10 +1696,41 @@ fig_fund_year_cum = ggplot(data = data_fund_year,
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
 fig_fund_year_cum
-# ggsave(plot = fig_fund_year_cum,
-#        filename = "fig_fund_year_cum.png",
-#        path = "DesStat/funding",
-#        height = 6, width = 9)
+
+```
+
+```{r}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+ggsave(paste(tmp, "fig_fund_year.png", sep = "/"),
+       plot = fig_fund_year,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "fig_fund_year_cum.png", sep = "/"),
+       plot = fig_fund_year_cum,
+       device = "png",
+       height = 6, width = 9)
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+count = 0
+for(f in files) 
+{
+  count = count+1
+  cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/DesStat/funding", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
 #### Type of funding
@@ -1635,7 +1752,6 @@ tbl_type_prod = data_stat_projet_nodupl_utf8 %>%
   arrange(-freq)
 names(tbl_type_prod) <- c("Type de financement","Projets", "Proportion (%)")
 
-# print(xtable(tbl_type_prod, type = "latex"), file = "DesStat/funding/tbl_fund_type.tex")
 
 #Pie chart INcluding non-referenced PAs
 pie_type_prod = ggplot(tbl_type_prod, 
@@ -1653,10 +1769,6 @@ pie_type_prod = ggplot(tbl_type_prod,
   + theme_void()
 pie_type_prod
 
-# ggsave(plot = pie_type_prod,
-#        filename = "pie_type_prod.jpeg",
-#        path = "DesStat/funding",
-#        height = 6, width = 9)
 
 ```
 
@@ -1677,7 +1789,40 @@ tbl_fund_avg_type = data_stat_projet_nodupl_utf8 %>%
   arrange(-freq_pa)
 names(tbl_fund_avg_type) = c("Type de financement","Projets", "Proportion d'AP (%)", "Montants (€)", "Proportion des montants (%)")
 
-# print(xtable(tbl_fund_avg_type, type = "latex"), file = "DesStat/funding/tbl_fund_avg_type.tex")
+```
+
+```{r}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+print(xtable(tbl_type_prod, type = "latex"),
+      file = paste(tmp, "tbl_fund_type.tex", sep  ="/"))
+print(xtable(tbl_fund_avg_type, type = "latex"),
+      file = paste(tmp, "tbl_fund_avg_type.tex", sep  ="/"))
+ggsave(paste(tmp, "pie_type_prod.png", sep = "/"),
+       plot = pie_type_prod,
+       device = "png",
+       height = 6, width = 9)
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+count = 0
+for(f in files) 
+{
+  count = count+1
+  cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/DesStat/funding", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
 #### Co-funders
@@ -1704,6 +1849,34 @@ names(tbl_fund_cofunder) = c("Cofinancier", "Nombre projets", "Nombre total proj
 #print(xtable(tbl_fund_cofunder, type = "latex"), file = "DesStat/funding/tbl_fund_cofunder.tex")
 
 
+```
+
+```{r}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+print(xtable(tbl_fund_cofunder, type = "latex"),
+      file = paste(tmp, "tbl_fund_cofunder.tex", sep  ="/"))
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+count = 0
+for(f in files) 
+{
+  count = count+1
+  cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/DesStat/funding", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
 ### Governance
@@ -1767,8 +1940,7 @@ tbl_gov_fr = data_stat_nodupl %>%
   arrange(-freq)
 names(tbl_gov_fr) = c("Gouvernance","Nombre d'AP","Proportion (%)")
 
-  # print(xtable(tbl_gov_en, type = "latex"), file = "DesStat/gouvernance/tbl_gouv_en.tex")
-  # print(xtable(tbl_gov_fr, type = "latex"), file = "DesStat/gouvernance/tbl_gouv_fr.tex")
+
 
 #PAs with nureported or unreferences governance types are removed
 ##Tables
@@ -1808,9 +1980,6 @@ tbl_gov_knwn_fr = data_stat_nodupl %>%
   arrange(-freq)
 names(tbl_gov_knwn_fr) = c("Gouvernance","Nombre d'AP","Proportion (%)")
  
-# print(xtable(tbl_gov_knwn_en, type = "latex"), file = "DesStat/gouvernance/tbl_gov_knwn_en.tex")
-# print(xtable(tbl_gov_knwn_fr, type = "latex"), file = "DesStat/gouvernance/tbl_gov_knwn_fr.tex")
-
 
 ##Pie charts
 ###English
@@ -1829,10 +1998,7 @@ pie_gov_knwn_en =
   + scale_fill_brewer(palette="Paired") %>%
   + theme_void()
 
-# ggsave(plot = pie_gov_knwn_en,
-#        filename = "pie_gov_knwn_en.png",
-#        path = "DesStat/gouvernance",
-#        height = 6, width = 9)
+
 
 ###French
 pie_gov_knwn_fr =
@@ -1850,8 +2016,48 @@ pie_gov_knwn_fr =
   + scale_fill_brewer(palette="Paired") %>%
   + theme_void()
 
-# ggsave(plot = pie_gov_knwn_fr,
-#        filename = "pie_gov_knwn_fr.png",
-#        path = "DesStat/gouvernance",
-#        height = 6, width = 9)
+
+```
+
+```{r}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+print(xtable(tbl_gov_en, type = "latex"),
+      file = paste(tmp, "tbl_gov_en.tex", sep  ="/"))
+print(xtable(tbl_gov_fr, type = "latex"),
+      file = paste(tmp, "tbl_gov_fr.tex", sep  ="/"))
+print(xtable(tbl_gov_knwn_en, type = "latex"),
+      file = paste(tmp, "tbl_gov_knwn_en.tex", sep  ="/"))
+print(xtable(tbl_gov_knwn_fr, type = "latex"),
+      file = paste(tmp, "tbl_gov_knwn_fr.tex", sep  ="/"))
+
+ggsave(paste(tmp, " pie_gov_knwn_en.png", sep = "/"),
+       plot =  pie_gov_knwn_en,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "pie_gov_knwn_fr.png", sep = "/"),
+       plot = pie_gov_knwn_fr,
+       device = "png",
+       height = 6, width = 9)
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+count = 0
+for(f in files) 
+{
+  count = count+1
+  cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/DesStat/gouvernance", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
