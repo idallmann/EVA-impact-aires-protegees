@@ -255,8 +255,8 @@ pa_shp =
          sprfc_int = as.numeric(sprfc_int)) 
 
 #Spatial definition of wdpaid 555547988 overlaps CMR and CAF. Wdpaid 1245 corresponds to the CMR part. The overlap is removed and iso3 redefined so that 555547988 is CAF only. 
-geom_555547988_1245 = st_difference(pa_shp[pa_shp$wdpaid == 555547988,]$geometry, pa_shp[pa_shp$wdpaid == 1245,]$geometry)
-pa_shp[pa_shp$wdpaid == 555547988,]$geometry = geom_555547988_1245
+geom_555547988_1245 = st_difference(pa_shp[pa_shp$wdpaid == 555547988,]$geom, pa_shp[pa_shp$wdpaid == 1245,]$geom)
+pa_shp[pa_shp$wdpaid == 555547988,]$geom = geom_555547988_1245
 pa_shp[pa_shp$wdpaid == 555547988,]$iso3 = "CAF"
 
 #Define a tidy version of the former dataset, with modifications on wdpaid 555547988
@@ -265,7 +265,7 @@ pa_shp_tidy = pa_shp %>%
   st_transform(crs = "+proj=moll +datum=WGS84") %>%
   #Compute areas in km2 from the geometry, in km2. It must be equal to gis_a by definition 
   #Then to take into account potential refinements of the geometries (as for wdpaid 55547988), a variable for relevant area is defined. It takes rep_a value except for modified geometries where area_sf_moll is taken
-  mutate(area_sf_moll = as.numeric(st_area(geometry)/1e6),
+  mutate(area_sf_moll = as.numeric(st_area(geom)/1e6),
          sprfc_km2 = ifelse(wdpaid == 555547988, yes = area_sf_moll, no = rep_a))
 
 ```
@@ -281,7 +281,7 @@ pa_int = st_intersection(pa_shp_tidy, pa_shp_tidy) %>%
   #If one of the two intersectin polygon have unknwon area, then it is not necessary to subtract the interesction area. Indeed there is no double-counting of the intersection in this case, when both polygon areas are summed.
   subset(is.na(sprfc_km2) == FALSE & is.na(sprfc_km2.1) == FALSE) %>%
   #Compute the intersecting areas (pa_shp already in Mollweide projection) in km2
-  mutate(area_int = as.numeric(st_area(geometry)/1e6)) %>%
+  mutate(area_int = as.numeric(st_area(geom)/1e6)) %>%
   #Now duplicates need to be removed : intersection of X with Y AND intersection of Y with X are reported. We need only one.
   #An id_int to identify the intersection of a given pair
   mutate(id_int = paste0(wdpaid, "_", wdpaid.1), .before = wdpaid) %>%
@@ -298,7 +298,7 @@ pa_int = st_intersection(pa_shp_tidy, pa_shp_tidy) %>%
   slice(1) %>%
   ungroup() %>%
   #select relevant variables only
-  select(wdpaid, iso3, drct, ann_c, wdpaid.1, iso3.1, drct.1, ann_c.1, geometry, area_int)
+  select(wdpaid, iso3, drct, ann_c, wdpaid.1, iso3.1, drct.1, ann_c.1, geom, area_int)
 
 #Computing the total area of intersections
 #At country level ...
@@ -427,8 +427,7 @@ data_cat_iucn_ref = data_stat_nodupl %>%
 tbl_cat_iucn = data_cat_iucn %>%
   select(c(iucn_des, n_iucn, freq_iucn))
 names(tbl_cat_iucn) <- c("Catégories IUCN","Nombre d'AP", "Proportion d'AP (%)")
-# print(xtable(tbl_cat_iucn, type = "latex"), 
-#       file = "DesStat/IUCN/tbl_cat_iucn.tex")
+
 
 #Histogram including non-referenced PAs
 hist_cat_iucn = ggplot(data_cat_iucn, 
@@ -451,12 +450,7 @@ hist_cat_iucn = ggplot(data_cat_iucn,
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-#hist_cat_iucn
-
-# ggsave(plot = hist_cat_iucn,
-#        filename = "hist_cat_iucn.png",
-#        path = "DesStat/IUCN",
-#        height = 6, width = 9)
+hist_cat_iucn
 
 #Histogram excluding non-referenced PAs
 hist_cat_iucn_ref = ggplot(data_cat_iucn_ref, 
@@ -480,11 +474,7 @@ hist_cat_iucn_ref = ggplot(data_cat_iucn_ref,
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
 # hist_cat_iucn_ref
-# 
-# ggsave(plot = hist_cat_iucn_ref,
-#        filename = "hist_cat_iucn_ref.png",
-#        path = "DesStat/IUCN",
-#        height = 6, width = 9)
+
 
 #Pie chart INcluding non-referenced PAs
 pie_cat_iucn = ggplot(data_cat_iucn, 
@@ -505,10 +495,7 @@ pie_cat_iucn = ggplot(data_cat_iucn,
   + theme_void()
 pie_cat_iucn
 
-# ggsave(plot = pie_cat_iucn,
-#        filename = "pie_cat_iucn.jpeg",
-#        path = "DesStat/IUCN",
-#        height = 6, width = 9)
+
 
 #Pie chart EXcluding non-referenced PAs
 pie_cat_iucn_ref = ggplot(data_cat_iucn_ref, 
@@ -530,12 +517,55 @@ pie_cat_iucn_ref = ggplot(data_cat_iucn_ref,
   + theme_void()
 pie_cat_iucn_ref
 
-# ggsave(plot = pie_cat_iucn_ref,
-#        filename = "pie_cat_iucn_ref.jpeg",
-#        path = "DesStat/IUCN",
-#        height = 6, width = 9)
 
 
+
+```
+
+```{r}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+print(xtable(tbl_cat_iucn, type = "latex"),
+      file = paste(tmp, "tbl_cat_iucn.tex", sep = "/"))
+
+ggsave(paste(tmp, "hist_cat_iucn.png", sep = "/"),
+       plot = hist_cat_iucn,
+       device = "png",
+       height = 6, width = 9)
+
+ggsave(paste(tmp, "hist_cat_iucn_ref.png", sep = "/"),
+       plot = hist_cat_iucn_ref,
+       device = "png",
+       height = 6, width = 9)
+
+ggsave(paste(tmp, "pie_cat_iucn.png", sep = "/"),
+       plot = pie_cat_iucn,
+       device = "png",
+       height = 6, width = 9)
+
+ggsave(paste(tmp, "pie_cat_iucn_ref.png", sep = "/"),
+       plot = pie_cat_iucn_ref,
+       device = "png",
+       height = 6, width = 9)
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+for(f in files) 
+  {
+  cat("Uploading file", paste0("'", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/DesStat/IUCN", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
 #### IUCN categories by countries and regions
@@ -562,12 +592,34 @@ data_iucn_reg = table(data_stat_nodupl$iucn_des,
   pivot_wider(names_from = Var2, values_from = Freq) %>%
   rename("iucn_des" = "Var1")
 
-#Then build and record the tables
-# print(xtable(data_iucn_ctry, type = "latex"), 
-#       file = "DesStat/IUCN/tbl_iucn_ctry.tex")
-# print(xtable(data_iucn_reg, type = "latex"), 
-#       file = "DesStat/IUCN/tbl_iucn_reg.tex")
+```
 
+```{r}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+print(xtable(data_iucn_ctry, type = "latex"),
+      file = paste(tmp, "tbl_iucn_ctry.tex", sep = "/"))
+print(xtable(data_iucn_reg, type = "latex"),
+      file = paste(tmp, "tbl_iucn_reg.tex", sep = "/"))
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+for(f in files) 
+  {
+  cat("Uploading file", paste0("'", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/DesStat/IUCN", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
 ### Ecosystems (excluding non-referenced PAs)
@@ -595,6 +647,7 @@ data_eco_hist = data_eco %>%
   summarize(n = n(),
             freq = round(n/nrow(data_eco), 3)*100) %>%
   ungroup()
+
 #/!\ résultats un peu différents que Léa j'ai une AP en plus), mais la méthode est équivalente
 
 #Table
@@ -610,15 +663,12 @@ tbl_eco_world_fr = data_eco_hist %>%
          "Nombre d'AP" = "n",
          "Proportion d'AP(%)" = "freq")
 
-# print(xtable(tbl_eco_world_fr, type = "latex"), file = "DesStat/ecosysteme/tbl_ecosyst_fr.tex")
-
 tbl_eco_world_en = data_eco_hist %>%
   select(c(ecosyst_en, n, freq)) %>%
   rename("Ecosystem" = "ecosyst_en",
          "Number of PAs" = "n",
          "Share of PAs(%)" = "freq")
 
-# print(xtable(tbl_eco_world_en, type = "latex"), file = "DesStat/ecosysteme/tbl_ecosyst_en.tex")
 
 #Histogram in share (in French)
 hist_eco_shr_fr = ggplot(data_eco_hist, 
@@ -643,10 +693,7 @@ hist_eco_shr_fr = ggplot(data_eco_hist,
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
 #hist_eco_shr_fr
 # 
-# ggsave(plot = hist_eco_shr_fr,
-#        filename = "hist_eco_shr_fr.png",
-#        path = "DesStat/ecosysteme",
-#        height = 6, width = 9)
+
 
 
 #Histogram in share (in English)
@@ -672,10 +719,7 @@ hist_eco_shr_en = ggplot(data_eco_hist,
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
 #hist_eco_shr_en
 
-# ggsave(plot = hist_eco_shr_en,
-#        filename = "hist_eco_shr_en.png",
-#        path = "DesStat/ecosysteme",
-#        height = 6, width = 9)
+
   
 #Histogram in number (in French)
 hist_eco_n_fr = ggplot(data_eco_hist, 
@@ -697,10 +741,7 @@ hist_eco_n_fr = ggplot(data_eco_hist,
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
 #hist_eco_n_fr
 
-# ggsave(plot = hist_eco_n_fr,
-#        filename = "hist_eco_n_fr.png",
-#        path = "DesStat/ecosysteme",
-#        height = 6, width = 9)
+
 
 
 #Histogram in number (in English)
@@ -723,12 +764,6 @@ hist_eco_n_en = ggplot(data_eco_hist,
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
 #hist_eco_n_en
 
-# ggsave(plot = hist_eco_n_en,
-#        filename = "hist_eco_n_en.png",
-#        path = "DesStat/ecosysteme",
-#        height = 6, width = 9)
-  
-
 #Pie chart (in French)
 pie_eco_fr = ggplot(data_eco_hist, 
                      aes(x = "", y = freq, fill = ecosyst_fr)) %>%
@@ -743,12 +778,7 @@ pie_eco_fr = ggplot(data_eco_hist,
          y = "Proportion d'aires protégées") %>%
   + scale_fill_brewer(name = "Ecosystème", palette="Paired") %>%
   + theme_void()
-pie_eco_fr
-
-# ggsave(plot = pie_eco_fr,
-#        filename = "pie_eco_fr.png",
-#        path = "DesStat/ecosysteme",
-#        height = 6, width = 9)
+#pie_eco_fr
 
 
 #Histogram in number (in English)
@@ -765,13 +795,62 @@ pie_eco_en = ggplot(data_eco_hist,
          y = "Proportion of protected areas") %>%
   + scale_fill_brewer(name = "Ecosystem", palette="Paired") %>%
   + theme_void()
-pie_eco_en
-
-# ggsave(plot =pie_eco_en,
-#        filename = "pie_eco_en.png",
-#        path = "DesStat/ecosysteme",
-#        height = 6, width = 9)
+#pie_eco_en
   
+```
+
+```{r}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+print(xtable(tbl_eco_world_fr, type = "latex"), 
+      file = paste(tmp, "tbl_ecosyst_fr.tex", sep = "/"))
+print(xtable(tbl_eco_world_en, type = "latex"), 
+      file = paste(tmp, "tbl_ecosyst_en.tex", sep = "/"))
+ggsave(paste(tmp, "hist_eco_shr_fr.png", sep = "/"),
+       plot = hist_eco_shr_fr,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "hist_eco_shr_en.png", sep = "/"),
+       plot = hist_eco_shr_en,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "hist_eco_n_fr.png", sep = "/"),
+       plot = hist_eco_n_fr,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "hist_eco_n_en.png", sep = "/"),
+       plot = hist_eco_n_en,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "pie_eco_fr.png", sep = "/"),
+       plot = pie_eco_fr,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "pie_eco_en.png", sep = "/"),
+       plot = pie_eco_en,
+       device = "png",
+       height = 6, width = 9)
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+count = 0
+for(f in files) 
+{
+  count = count+1
+  cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/DesStat/ecosysteme", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
 ### Distribution of PAs across countries and regions
@@ -840,12 +919,9 @@ hist_distrib_ctry_top_shr_fr = ggplot(data_distrib_ctry_top,
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-hist_distrib_ctry_top_shr_fr
+#hist_distrib_ctry_top_shr_fr
 # 
-# ggsave(plot = hist_distrib_ctry_top_shr_fr,
-#        filename = "hist_distrib_ctry_top_shr_fr.png",
-#        path = "DesStat/distribution",
-#        height = 6, width = 9)
+
 
 #Histogram in number (in French)
 hist_distrib_ctry_n_fr = ggplot(data_distrib_ctry, 
@@ -870,16 +946,47 @@ hist_distrib_ctry_n_fr = ggplot(data_distrib_ctry,
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
 hist_distrib_ctry_n_fr
 # 
-# ggsave(plot = hist_distrib_ctry_n_fr,
-#        filename = "hist_distrib_ctry_n_fr.png",
-#        path = "DesStat/distribution",
-#        height = 6, width = 9)
+
+```
+
+```{r}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+ggsave(paste(tmp, "hist_distrib_ctry_top_shr_fr.png", sep = "/"),
+       plot = hist_distrib_ctry_top_shr_fr,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "hist_distrib_ctry_n_fr.png", sep = "/"),
+       plot = hist_distrib_ctry_n_fr,
+       device = "png",
+       height = 6, width = 9)
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+count = 0
+for(f in files) 
+{
+  count = count+1
+  cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/DesStat/distribution", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
 #### Statistics at region level
 
 ```{r}
-data_distrib_dr = data_stat_nodupl %>%
+data_distrib_reg = data_stat_nodupl %>%
   group_by(direction_regionale) %>%
   summarize(n = n(),
             freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
@@ -888,35 +995,35 @@ data_distrib_dr = data_stat_nodupl %>%
          .after = "direction_regionale")
 
 #####################
-
-test = base_nodupl_lea %>%
-  group_by(direction_regionale) %>%
-  summarize(n = n(),
-            freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
-  ungroup() %>%
-  mutate(region = gsub("Dr ", "", direction_regionale),
-         .after = "direction_regionale")
-#
-test2 = base_nodupl_old %>%
-  group_by(direction_regionale) %>%
-  summarize(n = n(),
-            freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
-  ungroup() %>%
-  mutate(region = gsub("Dr ", "", direction_regionale),
-         .after = "direction_regionale")
-
-ap_region2 <- data.frame(table(base_nodupl_old$direction_regionale))
-ap_region2$Freq <- round(ap_region2$Freq/sum(ap_region2$Freq),3)*100
-#
-# #TOP 6 REGION
-ap_region_6 = subset(ap_region2, Freq >= 5)
-
-ggplot(ap_region_6, aes(x = reorder(Var1,-Freq), y=Freq, fill=Var1)) +
-  geom_bar(width = 0.80, fill="blue",stat="identity") +
-  ggtitle("Les 6 régions abritant le plus d'aires protégées") +
-  theme(plot.title = element_text(size= 14, face = "bold",hjust=0.5)) +
-  xlab("Région") +
-  ylab("Proportion d'aires protégées(%)")
+# 
+# test = base_nodupl_lea %>%
+#   group_by(direction_regionale) %>%
+#   summarize(n = n(),
+#             freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
+#   ungroup() %>%
+#   mutate(region = gsub("Dr ", "", direction_regionale),
+#          .after = "direction_regionale")
+# #
+# test2 = base_nodupl_old %>%
+#   group_by(direction_regionale) %>%
+#   summarize(n = n(),
+#             freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
+#   ungroup() %>%
+#   mutate(region = gsub("Dr ", "", direction_regionale),
+#          .after = "direction_regionale")
+# 
+# ap_region2 <- data.frame(table(base_nodupl_old$direction_regionale))
+# ap_region2$Freq <- round(ap_region2$Freq/sum(ap_region2$Freq),3)*100
+# #
+# # #TOP 6 REGION
+# ap_region_6 = subset(ap_region2, Freq >= 5)
+# 
+# ggplot(ap_region_6, aes(x = reorder(Var1,-Freq), y=Freq, fill=Var1)) +
+#   geom_bar(width = 0.80, fill="blue",stat="identity") +
+#   ggtitle("Les 6 régions abritant le plus d'aires protégées") +
+#   theme(plot.title = element_text(size= 14, face = "bold",hjust=0.5)) +
+#   xlab("Région") +
+#   ylab("Proportion d'aires protégées(%)")
 
 
 ##############
@@ -947,10 +1054,7 @@ hist_distrib_reg_top_shr_fr = ggplot(data_distrib_reg_top,
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
 hist_distrib_reg_top_shr_fr
 # 
-# ggsave(plot = hist_distrib_reg_top_shr_fr,
-#        filename = "hist_distrib_reg_top_shr_fr.png",
-#        path = "DesStat/distribution",
-#        height = 6, width = 9)
+
 
 #Histogram in number (in French)
 hist_distrib_reg_n_fr = ggplot(data_distrib_reg, 
@@ -974,11 +1078,41 @@ hist_distrib_reg_n_fr = ggplot(data_distrib_reg,
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
 hist_distrib_reg_n_fr
-# 
-# ggsave(plot = hist_distrib_reg_n_fr,
-#        filename = "hist_distrib_reg_n_fr.png",
-#        path = "DesStat/distribution",
-#        height = 6, width = 9)
+
+```
+
+```{r}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+ggsave(paste(tmp, "hist_distrib_reg_top_shr_fr.png", sep = "/"),
+       plot = hist_distrib_reg_top_shr_fr,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "hist_distrib_reg_n_fr.png", sep = "/"),
+       plot = hist_distrib_reg_n_fr,
+       device = "png",
+       height = 6, width = 9)
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+count = 0
+for(f in files) 
+{
+  count = count+1
+  cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/DesStat/distribution", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
 ### Surface of PAs
@@ -995,7 +1129,7 @@ tbl_distrib_area_no0 = summary(
   as.data.frame() %>%
   select(-c("1st Qu.","3rd Qu."))
 
-# print(xtable(tbl_distrib_area_no0, type = "latex"), file = "DesStat/surface/tbl_distrib_area_no0.tex")
+
 ```
 
 #### Average surface in countries and regions
@@ -1058,13 +1192,43 @@ tbl_area_avg_dr = data_distrib_no0_dr %>%
   mutate(sprfc_avg_noint_km2 = sprfc_tot_noint_km2/n)
 names(tbl_area_avg_dr) = c("Direction régionale", "Nombre d'AP", "Superficie totale (km2)", "Superficie moyenne (km2)")
 
-# print(xtable(tbl_area_avg_ctry, type = "latex"), file = "DesStat/surface/tbl_area_avg_ctry.tex")
-# print(xtable(tbl_area_avg_dr, type = "latex"), file = "DesStat/surface/tbl_area_avg_dr.tex")
 
 #Note
 #test = aggregate(superficie ~ direction_regionale, data = filter(data_stat_nodupl, superficie != 0), FUN = mean)
 #Does not take intersection into account : slightly different results.
 
+```
+
+```{r}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+print(xtable(tbl_distrib_area_no0, type = "latex"), 
+      file = paste(tmp, "tbl_distrib_area_no0.tex", sep = "/"))
+print(xtable(tbl_area_avg_ctry, type = "latex"), 
+      file = paste(tmp, "tbl_area_avg_ctry.tex", sep = "/"))
+print(xtable(tbl_area_avg_dr, type = "latex"), 
+      file = paste(tmp, "tbl_area_avg_dr.tex", sep = "/"))
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+count = 0
+for(f in files) 
+{
+  count = count+1
+  cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/DesStat/distribution", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
 ### Temporal evolution
