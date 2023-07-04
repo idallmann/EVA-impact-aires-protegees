@@ -2015,7 +2015,7 @@ pie_gov_knwn_fr =
          subtitle = "AP avec une gouvernance non rapportées/référencées omises") %>%
   + scale_fill_brewer(palette="Paired") %>%
   + theme_void()
-
+pie_gov_knwn_fr
 
 ```
 
