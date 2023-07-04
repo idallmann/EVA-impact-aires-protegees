@@ -42,6 +42,7 @@ library(terra)
 library(sf)
 library(mapview)
 library(aws.s3)
+library(magrittr)
 
 ```
 
@@ -62,7 +63,7 @@ data_stat =
 
 ##A second dataset with one line per PA, more suited for some statistics
 data_stat_nodupl = 
-  fread("data_tidy/BDD_DesStat_nodupl.csv" , encoding = "UTF-8")
+  #fread("data_tidy/BDD_DesStat_nodupl.csv" , encoding = "UTF-8")
   aws.s3::s3read_using(
   FUN = data.table::fread,
   encoding = "UTF-8",
@@ -75,6 +76,7 @@ base_nodupl_lea =
   #fread("data_tidy/base_nodupl_lea.xlsx")
   aws.s3::s3read_using(
   FUN = data.table::fread,
+  encoding = "UTF-8",
   # Mettre les options de FUN ici
   object = "data_tidy/BDD_DesStat_nodupl_lea_pub.csv",
   bucket = "projet-afd-eva-ap",
@@ -84,6 +86,7 @@ base_nodupl_old =
   #fread("data_tidy/base_nodupl_old.csv") 
   aws.s3::s3read_using(
   FUN = data.table::fread,
+  encoding = "UTF-8",
   # Mettre les options de FUN ici
   object = "data_tidy/BDD_DesStat_nodupl_old_pub.csv",
   bucket = "projet-afd-eva-ap",
@@ -107,7 +110,41 @@ bdd_joint =
   object = "data_tidy/BDD_joint_tidy_pub.csv",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
-bdd_na = bdd_joint %>% filter(is.na(wdpaid))
+
+
+
+```
+
+```{r}
+#Tests : save image
+
+#Créer le plot
+gg <- data_stat_nodupl %>% 
+  ggplot(aes(annee_octroi, superficie)) +
+  geom_point(show.legend = FALSE) 
+
+# Création du fichier png dans dossier temp -------------------------------------------------
+#Sauver le plot dans un dossier temp
+#Permet de ne pas stocker sur le github des images/datasets !
+tmp = tempfile()
+file1 <- paste(tmp, "test.png", sep = "/")
+ggsave(file1, plot = gg, device = "png")
+
+# Export S3 ---------------------------------------------------------------
+
+#On récupère la liste des fichiers stockés dans le temp
+files <- list.files(tmp, full.names = TRUE)
+#Par une boucle, on upload chaque fichier du temp
+for(f in files) {
+  cat("Uploading file", paste0("'", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     object = "test2.png",
+                     bucket = "projet-afd-eva-ap/DesStat", 
+                     region = "", show_progress = TRUE)
+}
+#On peut alors effacer le temp pour stocker d'autres fichiers à sauvegarder
+
+
 ```
 
 ## Computing total area at country, region and world level
