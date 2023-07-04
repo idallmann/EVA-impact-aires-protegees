@@ -42,8 +42,6 @@ library(terra)
 library(sf)
 library(mapview)
 library(aws.s3)
-library(magrittr)
-
 ```
 
 ## Importing datasets
@@ -142,9 +140,25 @@ for(f in files) {
                      bucket = "projet-afd-eva-ap/DesStat", 
                      region = "", show_progress = TRUE)
 }
-#On peut alors effacer le temp pour stocker d'autres fichiers à sauvegarder
+#On peut alors effacer le temp, pour stocker d'autres fichiers à sauvegarder par la suite !
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+```
+
+```{r}
+#Test : differences between Léa's figures and my results
+
+#PA identified with WDPAID
+base_id = data_stat %>% filter(!is.na(wdpaid)) %>% group_by(wdpaid) %>% slice(1)
+base_old_id = base_nodupl_old %>% filter(grepl("NA", wdpaid) == FALSE) 
+
+#PA whose WDPAID is unknown
+##For the BDD_joint, need to find a key to uniquely identify each PA (already done in base_old)
+base_na = data_stat %>% filter(is.na(wdpaid))
+base_old_na = base_nodupl_old %>% filter(grepl("NA", wdpaid) == TRUE) 
 
 
+#Identify wdpaid in old not in new
+base_wdpaid_old_only = base_old_id %>% subset(!(wdpaid %in% base_id$wdpaid))
 ```
 
 ## Computing total area at country, region and world level
