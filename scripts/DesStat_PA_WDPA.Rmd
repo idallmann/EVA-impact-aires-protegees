@@ -78,8 +78,15 @@ base_nodupl_lea =
   # Mettre les options de FUN ici
   object = "data_tidy/BDD_DesStat_nodupl_lea_pub.csv",
   bucket = "projet-afd-eva-ap",
-  opts = list("region" = ""))
+  opts = list("region" = "")) %>%
+  select(any_of(names(data_stat_nodupl)))
   
+#import a dataset with country anmes and corresponding ISO3 code
+data_iso = data_stat %>%
+  select(c(pays, iso3)) %>%
+  group_by(iso3) %>%
+  slice(1)
+
 base_nodupl_old = 
   #fread("data_tidy/base_nodupl_old.csv") 
   aws.s3::s3read_using(
@@ -88,7 +95,17 @@ base_nodupl_old =
   # Mettre les options de FUN ici
   object = "data_tidy/BDD_DesStat_nodupl_old_pub.csv",
   bucket = "projet-afd-eva-ap",
-  opts = list("region" = ""))
+  opts = list("region" = ""))%>%
+  select(any_of(names(data_stat_nodupl))) %>%
+  select(-iso3) %>%
+  left_join(data_iso, by = "pays") %>%
+  mutate(iso3 = case_when(
+    pays %in% c("Mayotte", "P-N N.Caléd", "P-S N.Caléd", 
+                "Polynesie Francaise", "Nlle Caledonie") ~ "FRA",
+    pays == "Multi-Pays" ~ "ZZ",
+    !(pays %in% c("Mayotte", "P-N N.Caléd", "P-S N.Caléd", 
+                "Polynesie Francaise", "Nlle Caledonie", "Multi-Pays")) ~ iso3
+  ))
   
 # projet_nodupl_old = 
 #   #readxl::read_xlsx("data_tidy/projet_nodupl_old.xlsx")
@@ -107,7 +124,8 @@ bdd_joint =
   encoding = "UTF-8",
   object = "data_tidy/BDD_joint_tidy_pub.csv",
   bucket = "projet-afd-eva-ap",
-  opts = list("region" = ""))
+  opts = list("region" = "")) %>%
+  select(any_of(names(data_stat_nodupl)))
 
 
 
@@ -141,24 +159,63 @@ for(f in files) {
                      region = "", show_progress = TRUE)
 }
 #On peut alors effacer le temp, pour stocker d'autres fichiers à sauvegarder par la suite !
-do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+#do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
 ```{r}
 #Test : differences between Léa's figures and my results
 
-#PA identified with WDPAID
-base_id = data_stat %>% filter(!is.na(wdpaid)) %>% group_by(wdpaid) %>% slice(1)
-base_old_id = base_nodupl_old %>% filter(grepl("NA", wdpaid) == FALSE) 
+#PA identified with unique WDPAID. If more than 1 WDPAID, take the earlier annee_octroi
+base_id = data_stat %>% 
+  filter(!is.na(wdpaid)) %>% 
+  group_by(wdpaid) %>% 
+  arrange(annee_octroi) %>%
+  slice(1) %>%
+  ungroup()
 
-#PA whose WDPAID is unknown
-##For the BDD_joint, need to find a key to uniquely identify each PA (already done in base_old)
-base_na = data_stat %>% filter(is.na(wdpaid))
-base_old_na = base_nodupl_old %>% filter(grepl("NA", wdpaid) == TRUE) 
+base_old_id = base_nodupl_old %>% 
+  filter(grepl("NA", wdpaid) == FALSE)  %>%
+  group_by(wdpaid) %>% 
+  slice(1) %>%
+  mutate(wdpaid = as.numeric(wdpaid)) %>%
+  ungroup()
 
+#Identify PA in common among them with WDPAID reported
+test_id = base_old_id %>%
+  select(c(id_projet, nom_du_projet, nom_ap, id_concours, wdpaid)) %>%
+  left_join(select(base_id, 
+                   c(id_projet, nom_du_projet, nom_ap, id_concours, wdpaid)),
+            by = "wdpaid")
 
-#Identify wdpaid in old not in new
-base_wdpaid_old_only = base_old_id %>% subset(!(wdpaid %in% base_id$wdpaid))
+#PA whose WDPAID is unknown, identified by id1 uniquely
+base_na = data_stat %>% filter(is.na(wdpaid)) %>%
+  mutate(id1 = paste(id_projet, iso3, nom_ap, sep = "_"),
+         .before = id_projet) %>%
+  group_by(id1) %>%
+  arrange(annee_octroi) %>%
+  slice(1) %>%
+  ungroup()
+
+base_old_na = base_nodupl_old %>% 
+  filter(grepl("NA", wdpaid) == TRUE) %>%
+  mutate(id1 = paste(id_projet, iso3, nom_ap, sep = "_"),
+         .before = id_projet) %>%
+  group_by(id1) %>%
+  arrange(annee_octroi) %>%
+  slice(1) %>%
+  ungroup()
+
+test_na = base_na %>%
+  select(c(id1, id_projet, nom_du_projet, nom_ap, id_concours)) %>%
+  left_join(select(base_old_na, 
+                   c(id1, id_projet, nom_du_projet, nom_ap, id_concours)),
+            by = "id1")
+
+nrow(test_na %>% subset(is.na(id_projet.y) == TRUE))
+
+#base_nodupl
+
+base_nodupl = rbind(select(base_na, -id1), base_id)
 ```
 
 ## Computing total area at country, region and world level
