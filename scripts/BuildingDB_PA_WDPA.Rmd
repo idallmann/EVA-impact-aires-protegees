@@ -70,12 +70,13 @@ data_PA_tidy = data_PA_raw %>%
   #Modify class of some variables
   mutate(wdpaid = as.numeric(wdpaid)) %>%
   #Create dummy variables for main investors
-  #If no cofinancier reported, AFD = TRUE (AP funded it alone)
-  mutate(afd_bin = case_when((cofinancier_1 == "AFD" | cofinancier_2 == "AFD" | cofinancier_3 == "AFD" |
-                          cofinancier_4 == "AFD" | cofinancier_5 == "AFD" | cofinancier_6 == "AFD") ~ TRUE,
-                          (is.na(cofinancier_1) & is.na(cofinancier_2) & is.na(cofinancier_3) & is.na(cofinancier_4) 
-                          & is.na(cofinancier_5) & is.na(cofinancier_6)) ~ TRUE,
-                          TRUE ~ FALSE),
+  #AFD is always funder, so no need of a dummy
+  mutate(
+    # afd_bin = case_when((cofinancier_1 == "AFD" | cofinancier_2 == "AFD" | cofinancier_3 == "AFD" |
+    #                       cofinancier_4 == "AFD" | cofinancier_5 == "AFD" | cofinancier_6 == "AFD") ~ TRUE,
+    #                       (is.na(cofinancier_1) & is.na(cofinancier_2) & is.na(cofinancier_3) & is.na(cofinancier_4) 
+    #                       & is.na(cofinancier_5) & is.na(cofinancier_6)) ~ TRUE,
+    #                       TRUE ~ FALSE),
          kfw_bin = ifelse(cofinancier_1 == "KFW" | cofinancier_2 == "KFW" | cofinancier_3 == "KFW" |
                           cofinancier_4 == "KFW" | cofinancier_5 == "KFW" | cofinancier_6 == "KFW",
                           yes = TRUE, 
@@ -88,15 +89,15 @@ data_PA_tidy = data_PA_raw %>%
          ffem_bin = ifelse(is.na(ffem_bin), yes = FALSE, no = ffem_bin),
          .after = "cofinancier_6") %>%
   #Create a dummy for other co-investors
-  mutate(cofin_unkwn = ifelse(is.na(cofinancier_1) & is.na(cofinancier_1) & is.na(cofinancier_1) & is.na(cofinancier_1) & is.na(cofinancier_1) & is.na(cofinancier_1),
-                          yes = TRUE, 
-                          no = FALSE),
-         cofin_unkwn = ifelse(is.na(cofin_unkwn), yes = FALSE, no = cofin_unkwn),
-         .after = "ffem_bin") %>%
+  # mutate(cofin_unkwn = ifelse(is.na(cofinancier_1) & is.na(cofinancier_1) & is.na(cofinancier_1) & is.na(cofinancier_1) & is.na(cofinancier_1) & is.na(cofinancier_1),
+  #                         yes = TRUE, 
+  #                         no = FALSE),
+  #        cofin_unkwn = ifelse(is.na(cofin_unkwn), yes = FALSE, no = cofin_unkwn),
+  #        .after = "ffem_bin") %>%
   #Create a dummy for investors not AFD, KFW or FFEM
-  mutate(cofin_other = afd_bin == FALSE & 
-        kfw_bin == FALSE & ffem_bin == FALSE & cofin_unkwn == FALSE,
-        .after = "cofin_unkwn") %>%
+  # mutate(cofin_other = afd_bin == FALSE & 
+  #       kfw_bin == FALSE & ffem_bin == FALSE & cofin_unkwn == FALSE,
+  #       .after = "cofin_unkwn") %>%
   #Add the ISO3 code corresponding to the country hosting the PA. Facilitate future mergings
   left_join(data_iso, by = c("pays" = "nom_alpha2")) %>%
   #Some entries in "pays" are French department, DROM-COM, "Ocean Indien" or "Multi-Pays".
@@ -147,7 +148,7 @@ list_var_siop_AP = c( "id_projet", "nom_du_projet", "nom_de_projet_pour_les_inst
                       "responsable_equipe_projet", "directeur_trice_dagence",
                       "date_de_remise_du_rapport_final", "cofinancier_1", "cofinancier_2", 
                       "cofinancier_3","cofinancier_4", "cofinancier_5", "cofinancier_6",
-                      "afd_bin", "kfw_bin", "ffem_bin", "cofin_other", "cofin_unkwn",
+                      "kfw_bin", "ffem_bin",
                       "maitrise_ouvrage", "superf_interne", "nb_ap_nombre_potentiel",
                       "detail", "projet", "commentaires")
 
@@ -167,12 +168,12 @@ To perform descriptive statistics we want to keep one row per PA, characterized 
 #Listing relevant variables for descriptive statistics
 list_var_PA = c("id_projet", "nom_du_projet", "nom_ap", "id_concours", 
                 "wdpaid", "wdpaid_2", "wdpaid_3", "wdpa_pid",
-                "pays", "iso3", "direction_regionale",
+                "pays", "iso3", "direction_regionale", "montant_prevu_concours_euro_octroi",
+                "mt_global_projet_prevu_devise", "engagements_nets_euro_octroi",
                 "montant_total_projet", "libelle_produit", "annee_octroi",
                 "cofinancier_1", "cofinancier_2", "cofinancier_3", 
                 "cofinancier_4", "cofinancier_5", "cofinancier_6",
-                "afd_bin", "kfw_bin", "ffem_bin", "cofin_other",
-                "cofin_unkwn", "nb_ap_nombre_potentiel", "detail",
+                 "kfw_bin", "ffem_bin", "nb_ap_nombre_potentiel", "detail",
                 "iucn_cat", "iucn_des", "marine", "superficie",
                 "status", "status_yr", "gov_type","own_type", "mang_auth")
 
