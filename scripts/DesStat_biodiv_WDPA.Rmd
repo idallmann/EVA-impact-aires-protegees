@@ -9,18 +9,6 @@ output: html_document
 
 In this document are computed and plotted descriptive statistics for the protected areas (PAs) using the mapme biodiversity package. This package provides an easy access to biodiversity-related data and allow to compute different indicators.
 
-##Setting environment
-
-```{r}
-Sys.setenv("AWS_ACCESS_KEY_ID" = "minioadmin",
-           "AWS_SECRET_ACCESS_KEY" = "minioadmin",
-           "AWS_S3_ENDPOINT"= "localhost:9000",
-           "AWS_SESSION_TOKEN" = "",
-           "AWS_HTTPS" = "FALSE",
-           "AWS_VIRTUAL_HOSTING"="FALSE")
-```
-
-
 ## Importing packages and functions
 
 ```{r setup, include=FALSE}
@@ -51,6 +39,7 @@ library(terra)
 library(janitor)
 library(ARTofR)
 library(aws.s3)
+library("paws")
 ```
 
 ```{r}
@@ -62,6 +51,22 @@ cat(paste("Supported resources:\n-",
             paste(resources, collapse = "\n- "),
           "\n\nSupported indicators:\n-",
             paste(indicators, collapse = "\n- ")))
+```
+
+## Setting the environment
+
+```{r}
+
+Sys.setenv("AWS_ACCESS_KEY_ID" = "GD8CI0UQQPTETOZS65J2",
+           "AWS_SECRET_ACCESS_KEY" = "e0bsXE55qz+xmNeVdwhTb39wKoQuIJFC0Y6eqPoG",
+           "AWS_DEFAULT_REGION" = "us-east-1",
+           "AWS_SESSION_TOKEN" = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3NLZXkiOiJHRDhDSTBVUVFQVEVUT1pTNjVKMiIsImFsbG93ZWQtb3JpZ2lucyI6WyIqIl0sImF1ZCI6WyJtaW5pby1kYXRhbm9kZSIsIm9ueXhpYSIsImFjY291bnQiXSwiYXV0aF90aW1lIjoxNjg4NjUxNjk5LCJhenAiOiJvbnl4aWEiLCJlbWFpbCI6InZ1aWxsb3RhQGFmZC5mciIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJleHAiOjE2ODg3Mzg4NzgsImZhbWlseV9uYW1lIjoiVnVpbGxvdCIsImdpdmVuX25hbWUiOiJBbnRvaW5lIiwiZ3JvdXBzIjpbImFmZC1ldmEtYXAiXSwiaWF0IjoxNjg4NjUxNzAwLCJpc3MiOiJodHRwczovL2F1dGgubGFiLnNzcGNsb3VkLmZyL2F1dGgvcmVhbG1zL3NzcGNsb3VkIiwianRpIjoiN2ZmMjJhNmEtM2IyYS00NWFiLWJmYTItNmVhZDZkNzY5YzBhIiwibmFtZSI6IkFudG9pbmUgVnVpbGxvdCIsIm5vbmNlIjoiYjQzM2E1N2MtMjZiNS00NmE0LTkzOGItOGMyM2FmOTVlYTI5IiwicG9saWN5Ijoic3Rzb25seSIsInByZWZlcnJlZF91c2VybmFtZSI6InZ1aWxsb3RhIiwicmVhbG1fYWNjZXNzIjp7InJvbGVzIjpbIm9mZmxpbmVfYWNjZXNzIiwidW1hX2F1dGhvcml6YXRpb24iLCJkZWZhdWx0LXJvbGVzLXNzcGNsb3VkIl19LCJyZXNvdXJjZV9hY2Nlc3MiOnsiYWNjb3VudCI6eyJyb2xlcyI6WyJtYW5hZ2UtYWNjb3VudCIsIm1hbmFnZS1hY2NvdW50LWxpbmtzIiwidmlldy1wcm9maWxlIl19fSwic2NvcGUiOiJvcGVuaWQgcHJvZmlsZSBncm91cHMgZW1haWwiLCJzZXNzaW9uUG9saWN5IjoiZXlKV1pYSnphVzl1SWpvaU1qQXhNaTB4TUMweE55SXNJbE4wWVhSbGJXVnVkQ0k2VzNzaVJXWm1aV04wSWpvaVFXeHNiM2NpTENKQlkzUnBiMjRpT2xzaWN6TTZLaUpkTENKU1pYTnZkWEpqWlNJNld5SmhjbTQ2WVhkek9uTXpPam82Y0hKdmFtVjBMV0ZtWkMxbGRtRXRZWEFpTENKaGNtNDZZWGR6T25Nek9qbzZjSEp2YW1WMExXRm1aQzFsZG1FdFlYQXZLaUpkZlN4N0lrVm1abVZqZENJNklrRnNiRzkzSWl3aVFXTjBhVzl1SWpwYkluTXpPa3hwYzNSQ2RXTnJaWFFpWFN3aVVtVnpiM1Z5WTJVaU9sc2lZWEp1T21GM2N6cHpNem82T2lvaVhTd2lRMjl1WkdsMGFXOXVJanA3SWxOMGNtbHVaMHhwYTJVaU9uc2ljek02Y0hKbFptbDRJam9pWkdsbVpuVnphVzl1THlvaWZYMTlMSHNpUldabVpXTjBJam9pUVd4c2IzY2lMQ0pCWTNScGIyNGlPbHNpY3pNNlIyVjBUMkpxWldOMElsMHNJbEpsYzI5MWNtTmxJanBiSW1GeWJqcGhkM002Y3pNNk9qb3FMMlJwWm1aMWMybHZiaThxSWwxOVhYMD0iLCJzZXNzaW9uX3N0YXRlIjoiYWYyMDdlY2UtOWEzNi00OTQyLTllODYtNjA1NTJmNGYxZTg1Iiwic2lkIjoiYWYyMDdlY2UtOWEzNi00OTQyLTllODYtNjA1NTJmNGYxZTg1Iiwic3ViIjoiOTI3N2Y3MzMtNTBmMy00MjM4LWI1YzctNjRjMmU4YTZiNDI0IiwidHlwIjoiQmVhcmVyIn0.40_wwJeo7HhTJjvPyob96nNEvbCmvohcN7Wnd02ETirLobdTmE7QZZbd9q5P1ZGANkkIkAf8who86ELp1crWfw",
+           "AWS_S3_ENDPOINT"= "minio.lab.sspcloud.fr",
+           "AWS_HTTPS" = "FALSE",
+           "AWS_VIRTUAL_HOSTING"="FALSE")
+
+
+bucketlist(region="")
 ```
 
 ## Importing PAs datasets
@@ -79,8 +84,8 @@ pa_shp =
   aws.s3::s3read_using(
   FUN = sf::read_sf,
   # Mettre les options de FUN ici
-  object = "diffusion/data_tidy/BDD_SHP_nodupl_pub.gpkg",
-  bucket = "vuillota",
+  object = "data_tidy/BDD_SHP_nodupl_pub.gpkg",
+  bucket = "projet-afd-eva-ap",
   opts = list("region" = "")) %>%
   #Check geometry are valid, and make it valid if not. Necessary to compute indicators in the polygons
   st_make_valid() %>%
@@ -89,7 +94,14 @@ pa_shp =
   clean_names()
 
 #From BDD_joint, that is the combination of the SIOP dataset and the AP dataset from ARB team in AFD. Imported to have the information on the PA area (combination of areas reported by WDPA and ARB)
-pa_nodupl = fread("data_tidy/BDD_DesStat_nodupl.csv") %>%
+pa_nodupl = 
+  #fread("data_tidy/BDD_DesStat_nodupl.csv") %>%
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  object = "data_tidy/BDD_DesStat_nodupl_pub.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = "")) %>%
   dplyr::select(c(wdpaid, superficie))
 
 pa_pfolio = pa_shp %>%
@@ -99,7 +111,10 @@ pa_pfolio = pa_shp %>%
                  add_resources = TRUE,
                  verbose = TRUE)
 
-
+my_s3_portfolio = get_bucket("projet-afd-eva-ap", 
+                              prefix = "data_raw/mapme_bio_data", 
+                              region = "",
+                              use_https = FALSE)
 
 ```
 
@@ -146,12 +161,12 @@ data_pfolio_forest = fread("data_tidy/mapme_bio_data/data_pfolio_forest.csv")
 ##~~~~~~~~~~~~~~~~~~
 
 ##Downloading data and computing indicators 
-# pa_pfolio_mang = 
-#   get_resources(pa_pfolio,
-#     resources = c("gmw")) %>%
-#   # FAO forest definition here: Minimum treecover = 10%, minimum size =1      #hectare
-#   calc_indicators(indicators = "mangroves_area",
-#                 overwrite=T) 
+pa_pfolio_mang =
+  get_resources(pa_pfolio,
+    resources = c("gmw")) %>%
+  # FAO forest definition here: Minimum treecover = 10%, minimum size =1      #hectare
+  calc_indicators(indicators = "mangroves_area",
+                overwrite=T)
 
 # write_portfolio(pa_pfolio_mang,
 #       dsn = "data_tidy/mapme_bio_data/pa_pfolio_mang.gpkg",
