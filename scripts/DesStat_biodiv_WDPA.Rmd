@@ -39,7 +39,6 @@ library(terra)
 library(janitor)
 library(ARTofR)
 library(aws.s3)
-library("paws")
 ```
 
 ```{r}
@@ -104,17 +103,16 @@ pa_nodupl =
   opts = list("region" = "")) %>%
   dplyr::select(c(wdpaid, superficie))
 
-pa_pfolio = pa_shp %>%
+save_folder = get_bucket("projet-afd-eva-ap")
+
+spa_pfolio = pa_shp %>%
   init_portfolio(2000:2020,
-                 outdir = "data_raw/mapme_bio_data",
+                 outdir = save_folder,
                  cores = 4,
                  add_resources = TRUE,
                  verbose = TRUE)
 
-my_s3_portfolio = get_bucket("projet-afd-eva-ap", 
-                              prefix = "data_raw/mapme_bio_data", 
-                              region = "",
-                              use_https = FALSE)
+
 
 ```
 
