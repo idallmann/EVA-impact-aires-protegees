@@ -9,6 +9,18 @@ output: html_document
 
 In this document are computed and plotted descriptive statistics for the protected areas (PAs) using the mapme biodiversity package. This package provides an easy access to biodiversity-related data and allow to compute different indicators.
 
+##Setting environment
+
+```{r}
+Sys.setenv("AWS_ACCESS_KEY_ID" = "minioadmin",
+           "AWS_SECRET_ACCESS_KEY" = "minioadmin",
+           "AWS_S3_ENDPOINT"= "localhost:9000",
+           "AWS_SESSION_TOKEN" = "",
+           "AWS_HTTPS" = "FALSE",
+           "AWS_VIRTUAL_HOSTING"="FALSE")
+```
+
+
 ## Importing packages and functions
 
 ```{r setup, include=FALSE}
@@ -63,13 +75,13 @@ sf_use_s2(FALSE)
 
 #/!\ : in pa_shp, variable sprfc is the area reported by AFD members, and is not equal to rep_a (area reported by WDPA) nor superficie in the BDD_joint. The latter is a combination of rep_a and sprfc, where superficie = rep_a except if rep_a = 0 or not reported.
 pa_shp = 
-  read_sf("data_tidy/BDD_SHP_nodupl_pub.gpkg") %>%
-  # aws.s3::s3read_using(
-  # FUN = sf::read_sf,
-  # # Mettre les options de FUN ici
-  # object = "diffusion/data_tidy/BDD_SHP_nodupl_pub.gpkg",
-  # bucket = "vuillota",
-  # opts = list("region" = "")) %>%
+  #read_sf("data_tidy/BDD_SHP_nodupl_pub.gpkg") %>%
+  aws.s3::s3read_using(
+  FUN = sf::read_sf,
+  # Mettre les options de FUN ici
+  object = "diffusion/data_tidy/BDD_SHP_nodupl_pub.gpkg",
+  bucket = "vuillota",
+  opts = list("region" = "")) %>%
   #Check geometry are valid, and make it valid if not. Necessary to compute indicators in the polygons
   st_make_valid() %>%
   #transform multiploygons to polygons, supported by the mapme package (88 group of polygons to 152 single polygons)
