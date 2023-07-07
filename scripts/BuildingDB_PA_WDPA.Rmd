@@ -142,7 +142,7 @@ data_PA_tidy = data_PA_raw %>%
                           "montant_total_projet"), 
                 .fns = ~stri_enc_toutf8(.x)))
 
-#fwrite(data_PA_tidy, "data_tidy/BDD_joint_tidy_nopub.csv")
+#fwrite(data_PA_tidy, "data_tidy/BDD_joint_tidy.csv")
 
 ```
 
@@ -249,11 +249,11 @@ data_stat_fund = data_PA_tidy %>%
 
 ```{r}
 pa_shp = read_sf("data_raw/WDPA_SHP/BDD_SHP_nodupl.shp") %>%
-  clean_names() %>%
-  select(c("wdpaid", "name", "desig_e", "iucn", "marin":"gis_a"))
+  clean_names() 
 # 
-# st_write(pa_shp,
-#          dsn = "data_tidy/BDD_shp_tidy.gpkg")
+st_write(pa_shp,
+         dsn = "data_tidy/BDD_shp_tidy.gpkg",
+         delete_dsn = TRUE)
 ```
 
 ## Old code
