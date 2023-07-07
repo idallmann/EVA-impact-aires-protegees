@@ -22,6 +22,7 @@ library(readxl)
 library(splitstackshape) 
 library(janitor)
 library(stringi)
+library(sf)
 ```
 
 ## Datasets for descriptive statistics
@@ -125,7 +126,7 @@ data_PA_tidy = data_PA_raw %>%
     mutate(across(.cols = names(.), 
                 .fns = ~stri_enc_toutf8(.x)))
 
-#fwrite(data_PA_tidy, "data_tidy/BDD_joint_tidy.csv")
+#fwrite(data_PA_tidy, "data_tidy/BDD_joint_tidy_nopub.csv")
 
 ```
 
@@ -200,3 +201,64 @@ data_stat_nodupl = rbind(data_stat_wdpa, data_stat_na) %>%
 #fwrite(data_stat_nodupl, "data_tidy/BDD_DesStat_nodupl.csv")
 ```
 
+### pa_shp
+
+```{r}
+pa_shp = read_sf("data_raw/WDPA_SHP/BDD_SHP_nodupl.shp") %>%
+  clean_names() %>%
+  select()
+```
+
+## Public datasets
+
+### Descriptive statistics
+
+Some variables are removed so that the dataset can be made public or uploaded to external sources (SSPCloud for instance).
+
+```{r}
+#Listing variables public or confidential
+
+#Public variables in the PAs dataset
+list_var_PA_open = c("id_projet", "nom_du_projet", "nom_ap", "id_concours", 
+                "wdpaid", "wdpaid_2", "wdpaid_3", "wdpa_pid",
+                "pays", "iso3", "direction_regionale", "annee_octroi",
+                "cofinancier_1", "cofinancier_2", "cofinancier_3", 
+                "cofinancier_4", "cofinancier_5", "cofinancier_6",
+                "kfw_bin", "ffem_bin", "nb_ap_nombre_potentiel", "detail",
+                "iucn_cat", "iucn_des", "marine", "superficie",
+                "status", "status_yr", "gov_type","own_type", "mang_auth")
+#Confidential variables in the PAs dataset
+list_var_PA_conf = list_var_joint_conf = 
+  c("montant_prevu_concours_euro_octroi", "mt_global_projet_prevu_devise",
+    "engagements_nets_euro_octroi" , "montant_total_projet",
+    "produit", "libelle_produit",
+    "date_de_1er_versement_projet", "dernier_versement_en_date_projet",
+    "date_signature_convention_cf", "duree_du_concours_annee",
+    "duree_du_concours_annee_et_mois", "beneficiaire_primaire",
+    "responsable_equipe_projet", "directeur_trice_dagence", "maitrise_ouvrage"
+    )
+#Confidential variables among shapefiles
+list_var_shp_conf = c("mntnt", "mtglb", "e", "mnt", "prodt", "lbllp",
+                      "rspns", "dr", "detal", "projt", "cmmnt")
+```
+
+```{r}
+
+data_PA_tidy_pub = data_PA_tidy %>%
+  dplyr::select(-all_of(list_var_joint_conf))
+#fwrite(data_PA_tidy_pub, "data_tidy/BDD_joint_tidy_pub.csv")
+
+data_stat_pub = data_stat %>%
+  dplyr::select(all_of(list_var_PA_open))
+#fwrite(data_stat_pub, "data_tidy/BDD_DesStat_pub.csv")
+
+data_stat_nodupl_pub = data_stat_nodupl %>%
+  dplyr::select(all_of(list_var_PA_open))
+#fwrite(data_stat_nodupl_pub, "data_tidy/BDD_DesStat_nodupl_pub.csv")
+
+# pa_shp_open = pa_shp %>%
+#   dplyr::select(-all_of(list_var_shp_conf))
+#  st_write(pa_shp_open,
+#          dsn = "data_tidy/BDD_SHP_nodupl_pub.gpkg",
+#          delete_dsn = TRUE)
+```

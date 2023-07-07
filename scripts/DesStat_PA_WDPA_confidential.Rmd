@@ -45,37 +45,37 @@ library(aws.s3)
 ```{r}
 #Both datasets are imported also in UTF8 encoding, for some variables
 ##A first dataset with some PA on more than one row (one line per funding for instance)
-data_stat = 
-  #fread("data_tidy/BDD_DesStat.csv", encoding = "UTF-8")
-  aws.s3::s3read_using(
-  FUN = data.table::fread,
-  encoding = "UTF-8",
-  # Mettre les options de FUN ici
-  object = "data_tidy/BDD_DesStat_pub.csv",
-  bucket = "projet-afd-eva-ap",
-  opts = list("region" = ""))
+data_stat_nopub = 
+  fread("data_tidy/BDD_DesStat.csv", encoding = "UTF-8")
+  # aws.s3::s3read_using(
+  # FUN = data.table::fread,
+  # encoding = "UTF-8",
+  # # Mettre les options de FUN ici
+  # object = "data_tidy/BDD_DesStat_nopub.csv",
+  # bucket = "projet-afd-eva-ap",
+  # opts = list("region" = ""))
 
 ##A second dataset with one line per PA, more suited for some statistics
 data_stat_nodupl = 
-  #fread("data_tidy/BDD_DesStat_nodupl.csv" , encoding = "UTF-8")
-  aws.s3::s3read_using(
-  FUN = data.table::fread,
-  encoding = "UTF-8",
-  # Mettre les options de FUN ici
-  object = "data_tidy/BDD_DesStat_nodupl_pub.csv",
-  bucket = "projet-afd-eva-ap",
-  opts = list("region" = ""))
+  fread("data_tidy/BDD_DesStat_nodupl.csv" , encoding = "UTF-8")
+  # aws.s3::s3read_using(
+  # FUN = data.table::fread,
+  # encoding = "UTF-8",
+  # # Mettre les options de FUN ici
+  # object = "data_tidy/BDD_DesStat_nodupl_pub.csv",
+  # bucket = "projet-afd-eva-ap",
+  # opts = list("region" = ""))
 
 base_nodupl_lea = 
-  #fread("data_tidy/base_nodupl_lea.xlsx")
-  aws.s3::s3read_using(
-  FUN = data.table::fread,
-  encoding = "UTF-8",
-  # Mettre les options de FUN ici
-  object = "data_tidy/BDD_DesStat_nodupl_lea_pub.csv",
-  bucket = "projet-afd-eva-ap",
-  opts = list("region" = "")) %>%
-  select(any_of(names(data_stat_nodupl)))
+  fread("data_tidy/base_nodupl_lea.xlsx")
+  # aws.s3::s3read_using(
+  # FUN = data.table::fread,
+  # encoding = "UTF-8",
+  # # Mettre les options de FUN ici
+  # object = "data_tidy/BDD_DesStat_nodupl_lea_pub.csv",
+  # bucket = "projet-afd-eva-ap",
+  # opts = list("region" = "")) %>%
+  # select(any_of(names(data_stat_nodupl)))
   
 #import a dataset with country anmes and corresponding ISO3 code
 data_iso = data_stat %>%
@@ -84,24 +84,24 @@ data_iso = data_stat %>%
   slice(1)
 
 base_nodupl_old = 
-  #fread("data_tidy/base_nodupl_old.csv") 
-  aws.s3::s3read_using(
-  FUN = data.table::fread,
-  encoding = "UTF-8",
-  # Mettre les options de FUN ici
-  object = "data_tidy/BDD_DesStat_nodupl_old_pub.csv",
-  bucket = "projet-afd-eva-ap",
-  opts = list("region" = ""))%>%
-  select(any_of(names(data_stat_nodupl))) %>%
-  select(-iso3) %>%
-  left_join(data_iso, by = "pays") %>%
-  mutate(iso3 = case_when(
-    pays %in% c("Mayotte", "P-N N.Caléd", "P-S N.Caléd", 
-                "Polynesie Francaise", "Nlle Caledonie") ~ "FRA",
-    pays == "Multi-Pays" ~ "ZZ",
-    !(pays %in% c("Mayotte", "P-N N.Caléd", "P-S N.Caléd", 
-                "Polynesie Francaise", "Nlle Caledonie", "Multi-Pays")) ~ iso3
-  ))
+  fread("data_tidy/base_nodupl_old.csv") 
+  # aws.s3::s3read_using(
+  # FUN = data.table::fread,
+  # encoding = "UTF-8",
+  # # Mettre les options de FUN ici
+  # object = "data_tidy/BDD_DesStat_nodupl_old_pub.csv",
+  # bucket = "projet-afd-eva-ap",
+  # opts = list("region" = ""))%>%
+  # select(any_of(names(data_stat_nodupl))) %>%
+  # select(-iso3) %>%
+  # left_join(data_iso, by = "pays") %>%
+  # mutate(iso3 = case_when(
+  #   pays %in% c("Mayotte", "P-N N.Caléd", "P-S N.Caléd", 
+  #               "Polynesie Francaise", "Nlle Caledonie") ~ "FRA",
+  #   pays == "Multi-Pays" ~ "ZZ",
+  #   !(pays %in% c("Mayotte", "P-N N.Caléd", "P-S N.Caléd", 
+  #               "Polynesie Francaise", "Nlle Caledonie", "Multi-Pays")) ~ iso3
+  # ))
   
 # projet_nodupl_old = 
 #   #readxl::read_xlsx("data_tidy/projet_nodupl_old.xlsx")
@@ -113,21 +113,21 @@ base_nodupl_old =
 #   opts = list("region" = ""))
 
 bdd_joint = 
-  #fread("data_raw/BDD_joint.xlsx")
-  aws.s3::s3read_using(
-  FUN = data.table::fread,
-  # Mettre les options de FUN ici
-  encoding = "UTF-8",
-  object = "data_tidy/BDD_joint_tidy_pub.csv",
-  bucket = "projet-afd-eva-ap",
-  opts = list("region" = "")) %>%
-  select(any_of(names(data_stat_nodupl)))
+  fread("data_raw/BDD_joint.xlsx")
+  # aws.s3::s3read_using(
+  # FUN = data.table::fread,
+  # # Mettre les options de FUN ici
+  # encoding = "UTF-8",
+  # object = "data_tidy/BDD_joint_tidy_pub.csv",
+  # bucket = "projet-afd-eva-ap",
+  # opts = list("region" = "")) %>%
+  # select(any_of(names(data_stat_nodupl)))
 
 
 
 ```
 
-##Descriptive statistics
+## Descriptive statistics
 
 ### Funding
 
