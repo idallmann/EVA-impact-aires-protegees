@@ -83,51 +83,43 @@ tbl_fund_proj = summary(data_stat_projet_nodupl$montant_total_projet) %>%
   as.data.frame() %>%
   dplyr::select(-c("1st Qu.","3rd Qu."))
 
-
-#Boxplot
-# fig_fund_proj = ggplot(data = data_stat_projet_nodupl,
-#                        aes(y = montant_total_projet)) %>%
-#   + geom_boxplot() %>%
-#   + theme(legend.position = "bottom",
-#       legend.key = element_rect(fill = "white"),
-#       plot.title = element_text(size = 14, face = "bold"), 
-#       axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
-#       axis.title.x = element_text(margin = margin(t = 10)),
-#       panel.background = element_rect(fill = 'white', colour = 'white', 
-#                                       linewidth = 0.5, linetype = 'solid'),
-#       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
-#       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
-#       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-#fig_fund_proj
+# print(xtable(tbl_fund_proj, "Latex"),
+#       file = "DesStat/funding/tbl_fund_proj_stat.tex")
 
 ```
 
 Average funds given by each concours
 
-/! Weird : montant_total_projet is similar for each row of ID_concours
-
 ```{r}
 
-# tbl_fund_avg_concours = data_stat_fund %>%
-#   group_by(id_concours) %>%
-#   slice(1) %>%
-#   summarize(Mean = mean(montant_prevu_concours_euro_octroi))
+data_fund_concours = data_stat_fund %>%
+  group_by(id_concours) %>%
+  slice(1) %>%
+  ungroup()
+
+tbl_fund_concours = 
+  summary(data_fund_concours$montant_prevu_concours_euro_octroi) %>%
+  format(scientific = FALSE) %>%
+  t() %>%
+  as.data.frame() %>%
+  dplyr::select(-c("1st Qu.","3rd Qu."))
+
+# print(xtable(tbl_fund_concours, "Latex"),
+#       file = "DesStat/funding/tbl_fund_concours_stat.tex")
 
 ```
 
 **Average fund received by each project in the different concours**
 
-/! Weird : montant_total_projet is similar for each row of ID_projet
-
 ```{r}
 
-# tbl_fund_avg_project = data_stat_fund %>%
+# tbl_fund_project_concours = data_stat_fund %>%
 #   group_by(id_projet) %>%
 #   summarize(Mean = mean(montant_prevu_concours_euro_octroi))
 
 ```
 
-**Average funding by country/region**
+**Funding by country/region**
 
 ```{r}
 #Attention un même projet peut concerner plusieurs pays
@@ -137,24 +129,87 @@ Average funds given by each concours
 
 
 #By country ...
-tbl_fund_avg_ctry = data_stat_fund_nodupl %>%
-  group_by(pays, iso3) %>%
-  summarize(avg_fund = mean(montant_total_projet, na.rm = TRUE)) %>%
-  arrange(avg_fund)
+# tbl_fund_avg_ctry = data_stat_projet_nodupl %>%
+#   group_by(pays, iso3) %>%
+#   summarize(avg_fund = mean(montant_total_projet, na.rm = TRUE)) %>%
+#   arrange(avg_fund)
 
 #By region
-tbl_fund_avg_dr = data_stat_fund_nodupl %>%
+##Average fund 
+data_fund_avg_dr = data_stat_projet_nodupl %>%
   group_by(direction_regionale) %>%
-  summarise(avg_fund = mean(montant_total_projet, na.rm = TRUE)) %>%
+  summarise(n_proj = n(),
+            avg_fund = mean(montant_total_projet, na.rm = TRUE)) %>%
   arrange(avg_fund)
 
+fig_fund_avg_dr = ggplot(data = data_fund_avg_dr,
+                         aes(x = direction_regionale, y = avg_fund,
+                             fill = direction_regionale)) %>%
+  + geom_bar(stat = "identity", width = 0.50, fill="#3182BD") %>%
+  + geom_text(aes(label = n_proj, y = avg_fund), 
+            vjust = -0.2, color="black",
+            size=3.5) %>%
+  + labs(title = "Fonds moyens alloués aux projets par région",
+         subtitle = paste("Echantillon :", sum(tbl_fund_avg_dr$n_proj), "projets. Nombre de projets indiqué sur les barres."),
+          x = "", 
+          y = "Montant (€)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=9, hjust = .5, vjust = .6),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+fig_fund_avg_dr
 
+# ggsave(plot = fig_fund_avg_dr,
+#        filename = "fig_fund_avg_dr.png",
+#        path = "DesStat/funding",
+#        device = "png",
+#        height = 6, width = 9)
+
+##Total fund
+data_fund_tot_dr = data_stat_projet_nodupl %>%
+  group_by(direction_regionale) %>%
+  summarise(n_proj = n(),
+            tot_fund = sum(montant_total_projet, na.rm = TRUE)) %>%
+  arrange(tot_fund)
+
+fig_fund_tot_dr = ggplot(data = data_fund_tot_dr,
+                         aes(x = direction_regionale, y = tot_fund,
+                             fill = direction_regionale)) %>%
+  + geom_bar(stat = "identity", width = 0.50, fill="#3182BD") %>%
+  + geom_text(aes(label = n_proj, y = tot_fund), 
+            vjust = -0.2, color="black",
+            size=3.5) %>%
+  + labs(title = "Total des fonds alloués aux projets par région",
+         subtitle = paste("Echantillon :", sum(tbl_fund_tot_dr$n_proj), "projets. Nombre de projets indiqué sur les barres."),
+          x = "", 
+          y = "Montant (€)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=9, hjust = .5, vjust = .6),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+fig_fund_tot_dr
+
+# ggsave(plot = fig_fund_tot_dr,
+#        filename = "fig_fund_tot_dr.png",
+#        path = "DesStat/funding",
+#        device = "png",
+#        height = 6, width = 9)
 
 ```
 
 **Average funding per unit or area (marine and terrestrial), at regional and world level**
 
-Some projects cover more than one country (e.g CZZ3012), but the total fund is given at project level. Thus it is not possible to compute funding per unit of area at country level for all countries. Still at country level, Tanzania, India, "Ocean Indien", "Multipays" and "Dr Asie du Sud" have no fund per area in the computations. In fact PAs are reported in these regions/countries, with area and total funding. But without WDPAID and PA name, so these PAs are not kept in the dataset without duplicates.
+Some projects cover more than one country (e.g CZZ3012), but the total fund is given at project level. Thus it is not possible to compute funding per unit of area at country level for all countries.
 
 It is possible however at DR level. Note that the total superficie at world level is different from the total superficie from the DR, taking the overlap into account. Indeed, overlap between polygons from different DR is subtracted at world level but not at DR level.
 
@@ -174,13 +229,13 @@ It is possible however at DR level. Note that the total superficie at world leve
 
 
 #By region 
-data_fund_sum_dr = data_stat_projet_nodupl %>%
+data_fund_tot_dr = data_stat_projet_nodupl %>%
   group_by(direction_regionale) %>%
-  summarize(tot_fund = sum(montant_total_projet, na.rm = TRUE)) %>%
-  ungroup() %>%
+  summarise(n_proj = n(),
+            tot_fund = sum(montant_total_projet, na.rm = TRUE)) %>%
   arrange(tot_fund)
 
-data_fund_per_area_dr = data_fund_sum_dr %>%
+data_fund_per_area_dr = data_fund_tot_dr %>%
   left_join(select(pa_area_dr, c(direction_regionale, sprfc_tot_noint_km2)), by = "direction_regionale") %>%
   mutate(fund_per_area = tot_fund/sprfc_tot_noint_km2)
 names(data_fund_per_area_dr) = c("Direction régionale", "Montant total (€)", "Superficie totale (km2)", "Financement moyen par km2 (€/km2)")
