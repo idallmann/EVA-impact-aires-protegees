@@ -69,7 +69,11 @@ data_PA_tidy = data_PA_raw %>%
   #Get rid of the iso code in the initial dataset, to avoid confusion when merging with data_iso
   dplyr::select(-iso3) %>%
   #Modify class of some variables
-  mutate(wdpaid = as.numeric(wdpaid)) %>%
+  mutate(across(.cols = c("wdpaid", "montant_prevu_concours_euro_octroi",
+                          "mt_global_projet_prevu_devise" ,
+                          "engagements_nets_euro_octroi",
+                          "montant_total_projet"),
+                .fns = ~as.numeric(.x))) %>%
   #Create dummy variables for main investors
   #AFD is always funder, so no need of a dummy
   mutate(
@@ -123,7 +127,11 @@ data_PA_tidy = data_PA_raw %>%
   !is.na(wdpaid) & iucn_cat == "Not Reported" ~ "Non catégorisée",
   !is.na(wdpaid) & iucn_cat == "Not Assigned" ~ "Non catégorisée",
   TRUE ~ "Non référencée"), .after = iucn_cat) %>%
-    mutate(across(.cols = names(.), 
+    mutate(across(.cols = -c("wdpaid",
+                                  "montant_prevu_concours_euro_octroi",
+                          "mt_global_projet_prevu_devise" ,
+                          "engagements_nets_euro_octroi",
+                          "montant_total_projet"), 
                 .fns = ~stri_enc_toutf8(.x)))
 
 #fwrite(data_PA_tidy, "data_tidy/BDD_joint_tidy_nopub.csv")
@@ -160,45 +168,195 @@ data_siop_AP = data_PA_tidy %>%
 
 ```
 
-### data_stat
+### data_stat_nofund
 
 To perform descriptive statistics we want to keep one row per PA, characterized by WDPA ID or a name (if no ID reported). Some PAs can have several lines if they receive funds at different time or by different investors.
 
 ```{r}
 
 #Listing relevant variables for descriptive statistics
-list_var_PA = c("id_projet", "nom_du_projet", "nom_ap", "id_concours", 
-                "wdpaid", "wdpaid_2", "wdpaid_3", "wdpa_pid",
-                "pays", "iso3", "direction_regionale", "montant_prevu_concours_euro_octroi",
-                "mt_global_projet_prevu_devise", "engagements_nets_euro_octroi",
-                "montant_total_projet", "libelle_produit", "annee_octroi",
-                "cofinancier_1", "cofinancier_2", "cofinancier_3", 
-                "cofinancier_4", "cofinancier_5", "cofinancier_6",
-                 "kfw_bin", "ffem_bin", "nb_ap_nombre_potentiel", "detail",
-                "iucn_cat", "iucn_des", "marine", "superficie",
-                "status", "status_yr", "gov_type","own_type", "mang_auth")
+list_var_PA_nofund = 
+  c("id_projet", "nom_du_projet", "nom_ap", "id_concours", 
+    "wdpaid", 
+    "pays", "iso3", "direction_regionale",
+    "annee_octroi", "nb_ap_nombre_potentiel", "detail",
+    "iucn_cat", "iucn_des", "marine", "superficie",
+    "status", "status_yr", "gov_type","own_type", "mang_auth")
 
 #Defining dataset for descriptive statistics
-data_stat = data_PA_tidy %>%
-  select(all_of(list_var_PA), iso3)
+data_stat_nofund = data_PA_tidy %>%
+  select(all_of(list_var_PA_nofund), iso3)
 
-#fwrite(data_stat, "data_tidy/BDD_DesStat.csv")
+#fwrite(data_stat_nofund, "data_tidy/BDD_DesStat_nofund.csv")
 
 #Then to keep only one row per PA, we need to consider separately PAs having WDPA ID and PAs which do not.
 
-data_stat_wdpa = data_stat %>%
+data_stat_nofund_wdpa = data_stat_nofund %>%
   subset(is.na(wdpaid) == FALSE) %>%
-  distinct(wdpaid, .keep_all= TRUE)
+  group_by(wdpaid) %>% 
+  arrange(annee_octroi) %>%
+  slice(1) %>%
+  ungroup()
 
-data_stat_na = data_stat %>%
+data_stat_nofund_na = data_stat_nofund %>%
   subset(is.na(wdpaid) == TRUE) %>%
-  distinct(nom_ap, .keep_all= TRUE)
+  mutate(id1 = paste(id_projet, iso3, nom_ap, sep = "_"),
+       .before = id_projet) %>%
+  group_by(id1) %>%
+  arrange(annee_octroi) %>%
+  slice(1) %>%
+  ungroup() %>%
+  #remove id1 variable, to bind data_stat_na and data_stat_wdpa by row
+  select(-id1)
 
-data_stat_nodupl = rbind(data_stat_wdpa, data_stat_na) %>%
-  #Remove AP with no wdpaid and no name
-  subset(is.na(wdpaid) == FALSE | is.na(nom_ap) == FALSE) 
+data_stat_nofund_nodupl = rbind(data_stat_nofund_wdpa, data_stat_nofund_na) 
 
-#fwrite(data_stat_nodupl, "data_tidy/BDD_DesStat_nodupl.csv")
+#fwrite(data_stat_nofund_nodupl, "data_tidy/BDD_DesStat_nofund_nodupl.csv")
+```
+
+### data_stat_fund
+
+```{r}
+
+#Listing relevant variables for descriptive statistics
+list_var_PA_fund = c("id_projet", "nom_du_projet", "nom_ap", "id_concours", 
+                "wdpaid",
+                "pays", "iso3", "direction_regionale",
+                "montant_prevu_concours_euro_octroi",
+                "mt_global_projet_prevu_devise",
+                "engagements_nets_euro_octroi",
+                "montant_total_projet", "libelle_produit", "annee_octroi",
+                "cofinancier_1", "cofinancier_2", "cofinancier_3", 
+                "cofinancier_4", "cofinancier_5", "cofinancier_6",
+                 "kfw_bin", "ffem_bin")
+
+#Defining dataset for descriptive statistics
+#Duplicates are not revmoved here, as we want the information on the different concours for instance. Peculiar datasets 
+data_stat_fund = data_PA_tidy %>%
+  select(all_of(list_var_PA_fund), iso3)
+
+#fwrite(data_stat_fund, "data_tidy/BDD_DesStat_fund.csv")
+
+```
+
+### Test pour data_stat_nodupl
+
+```{r}
+base_nodupl_lea = 
+  #fread("data_tidy/base_nodupl_lea.xlsx")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  # Mettre les options de FUN ici
+  object = "data_tidy/BDD_DesStat_nodupl_lea_pub.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = "")) %>%
+  select(any_of(names(data_stat_nodupl)))
+  
+#import a dataset with country anmes and corresponding ISO3 code
+data_iso = data_stat %>%
+  select(c(pays, iso3)) %>%
+  group_by(iso3) %>%
+  slice(1)
+
+base_nodupl_old = 
+  #fread("data_tidy/base_nodupl_old.csv") 
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  # Mettre les options de FUN ici
+  object = "data_tidy/BDD_DesStat_nodupl_old_pub.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))%>%
+  select(any_of(names(data_stat_nodupl))) %>%
+  select(-iso3) %>%
+  left_join(data_iso, by = "pays") %>%
+  mutate(iso3 = case_when(
+    pays %in% c("Mayotte", "P-N N.Caléd", "P-S N.Caléd", 
+                "Polynesie Francaise", "Nlle Caledonie") ~ "FRA",
+    pays == "Multi-Pays" ~ "ZZ",
+    !(pays %in% c("Mayotte", "P-N N.Caléd", "P-S N.Caléd", 
+                "Polynesie Francaise", "Nlle Caledonie", "Multi-Pays")) ~ iso3
+  ))
+
+# projet_nodupl_old = 
+#   #readxl::read_xlsx("data_tidy/projet_nodupl_old.xlsx")
+#   aws.s3::s3read_using(
+#   FUN = readxl::read_xlsx,
+#   # Mettre les options de FUN ici
+#   object = "data_tidy/projet_nodupl_old.xlsx",
+#   bucket = "projet-afd-eva-ap",
+#   opts = list("region" = ""))
+
+bdd_joint = 
+  #fread("data_raw/BDD_joint.xlsx")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  # Mettre les options de FUN ici
+  encoding = "UTF-8",
+  object = "data_tidy/BDD_joint_tidy_pub.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = "")) %>%
+  select(any_of(names(data_stat_nodupl)))
+```
+
+```{r}
+#Test : differences between Léa's figures and my results
+
+#PA identified with unique WDPAID. If more than 1 WDPAID, take the earlier annee_octroi
+base_id = data_stat %>% 
+  filter(!is.na(wdpaid)) %>% 
+  group_by(wdpaid) %>% 
+  arrange(annee_octroi) %>%
+  slice(1) %>%
+  ungroup()
+
+test = base_id[duplicated(base_id$wdpaid),]
+
+base_old_id = base_nodupl_old %>% 
+  filter(grepl("NA", wdpaid) == FALSE)  %>%
+  group_by(wdpaid) %>% 
+  slice(1) %>%
+  mutate(wdpaid = as.numeric(wdpaid)) %>%
+  ungroup()
+
+#Identify PA in common among them with WDPAID reported
+test_id = base_old_id %>%
+  select(c(id_projet, nom_du_projet, nom_ap, id_concours, wdpaid)) %>%
+  left_join(select(base_id, 
+                   c(id_projet, nom_du_projet, nom_ap, id_concours, wdpaid)),
+            by = "wdpaid")
+
+#PA whose WDPAID is unknown, identified by id1 uniquely
+#The duplicates comes from different concours ID, so do not correspond to different PA
+base_na = data_stat %>% filter(is.na(wdpaid)) %>%
+  mutate(id1 = paste(id_projet, iso3, nom_ap, sep = "_"),
+         .before = id_projet) %>%
+  group_by(id1) %>%
+  arrange(annee_octroi) %>%
+  slice(1) %>%
+  ungroup()
+
+base_old_na = base_nodupl_old %>% 
+  filter(grepl("NA", wdpaid) == TRUE) %>%
+  mutate(id1 = paste(id_projet, iso3, nom_ap, sep = "_"),
+         .before = id_projet) %>%
+  group_by(id1) %>%
+  arrange(annee_octroi) %>%
+  slice(1) %>%
+  ungroup()
+
+test_na = base_na %>%
+  select(c(id1, id_projet, nom_du_projet, nom_ap, id_concours)) %>%
+  left_join(select(base_old_na, 
+                   c(id1, id_projet, nom_du_projet, nom_ap, id_concours)),
+            by = "id1")
+
+nrow(test_na %>% subset(is.na(id_projet.y) == TRUE))
+
+#base_nodupl
+
+base_nodupl = rbind(select(base_na, -id1), base_id)
 ```
 
 ### pa_shp

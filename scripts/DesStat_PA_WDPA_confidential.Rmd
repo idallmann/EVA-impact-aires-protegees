@@ -33,11 +33,6 @@ library(data.table)
 library(janitor)
 library(xtable)
 library(questionr)
-library(tidyterra)
-library(terra)
-library(sf)
-library(mapview)
-library(aws.s3)
 ```
 
 ## Importing datasets
@@ -45,8 +40,8 @@ library(aws.s3)
 ```{r}
 #Both datasets are imported also in UTF8 encoding, for some variables
 ##A first dataset with some PA on more than one row (one line per funding for instance)
-data_stat_nopub = 
-  fread("data_tidy/BDD_DesStat.csv", encoding = "UTF-8")
+data_stat_fund = 
+  fread("data_tidy/BDD_DesStat_fund.csv", encoding = "UTF-8")
   # aws.s3::s3read_using(
   # FUN = data.table::fread,
   # encoding = "UTF-8",
@@ -55,76 +50,9 @@ data_stat_nopub =
   # bucket = "projet-afd-eva-ap",
   # opts = list("region" = ""))
 
-##A second dataset with one line per PA, more suited for some statistics
-data_stat_nodupl = 
-  fread("data_tidy/BDD_DesStat_nodupl.csv" , encoding = "UTF-8")
-  # aws.s3::s3read_using(
-  # FUN = data.table::fread,
-  # encoding = "UTF-8",
-  # # Mettre les options de FUN ici
-  # object = "data_tidy/BDD_DesStat_nodupl_pub.csv",
-  # bucket = "projet-afd-eva-ap",
-  # opts = list("region" = ""))
-
-base_nodupl_lea = 
-  fread("data_tidy/base_nodupl_lea.xlsx")
-  # aws.s3::s3read_using(
-  # FUN = data.table::fread,
-  # encoding = "UTF-8",
-  # # Mettre les options de FUN ici
-  # object = "data_tidy/BDD_DesStat_nodupl_lea_pub.csv",
-  # bucket = "projet-afd-eva-ap",
-  # opts = list("region" = "")) %>%
-  # select(any_of(names(data_stat_nodupl)))
-  
-#import a dataset with country anmes and corresponding ISO3 code
-data_iso = data_stat %>%
-  select(c(pays, iso3)) %>%
-  group_by(iso3) %>%
-  slice(1)
-
-base_nodupl_old = 
-  fread("data_tidy/base_nodupl_old.csv") 
-  # aws.s3::s3read_using(
-  # FUN = data.table::fread,
-  # encoding = "UTF-8",
-  # # Mettre les options de FUN ici
-  # object = "data_tidy/BDD_DesStat_nodupl_old_pub.csv",
-  # bucket = "projet-afd-eva-ap",
-  # opts = list("region" = ""))%>%
-  # select(any_of(names(data_stat_nodupl))) %>%
-  # select(-iso3) %>%
-  # left_join(data_iso, by = "pays") %>%
-  # mutate(iso3 = case_when(
-  #   pays %in% c("Mayotte", "P-N N.Caléd", "P-S N.Caléd", 
-  #               "Polynesie Francaise", "Nlle Caledonie") ~ "FRA",
-  #   pays == "Multi-Pays" ~ "ZZ",
-  #   !(pays %in% c("Mayotte", "P-N N.Caléd", "P-S N.Caléd", 
-  #               "Polynesie Francaise", "Nlle Caledonie", "Multi-Pays")) ~ iso3
-  # ))
-  
-# projet_nodupl_old = 
-#   #readxl::read_xlsx("data_tidy/projet_nodupl_old.xlsx")
-#   aws.s3::s3read_using(
-#   FUN = readxl::read_xlsx,
-#   # Mettre les options de FUN ici
-#   object = "data_tidy/projet_nodupl_old.xlsx",
-#   bucket = "projet-afd-eva-ap",
-#   opts = list("region" = ""))
-
-bdd_joint = 
-  fread("data_raw/BDD_joint.xlsx")
-  # aws.s3::s3read_using(
-  # FUN = data.table::fread,
-  # # Mettre les options de FUN ici
-  # encoding = "UTF-8",
-  # object = "data_tidy/BDD_joint_tidy_pub.csv",
-  # bucket = "projet-afd-eva-ap",
-  # opts = list("region" = "")) %>%
-  # select(any_of(names(data_stat_nodupl)))
-
-
-
+pa_area_ctry = fread("data_tidy/area/pa_area_ctry.csv")
+pa_area_dr = fread("data_tidy/area/pa_area_dr.csv")
+load("data_tidy/area/pa_area_wld.RDdata")
 ```
 
 ## Descriptive statistics
@@ -139,7 +67,7 @@ Create a dataset with one row per project (funding is given by project, so dupli
 
 ```{r}
 
-data_stat_projet_nodupl = data_stat %>%
+data_stat_projet_nodupl = data_stat_fund %>%
   dplyr::distinct(id_projet, .keep_all = TRUE)
 
 ```
@@ -180,10 +108,10 @@ Average funds given by each concours
 
 ```{r}
 
-# tbl_fund_avg_concours = data_stat %>%
+# tbl_fund_avg_concours = data_stat_fund %>%
 #   group_by(id_concours) %>%
 #   slice(1) %>%
-#   summarize(Mean = mean(montant_total_projet))
+#   summarize(Mean = mean(montant_prevu_concours_euro_octroi))
 
 ```
 
@@ -193,24 +121,29 @@ Average funds given by each concours
 
 ```{r}
 
-# tbl_fund_avg_project = data_stat %>%
+# tbl_fund_avg_project = data_stat_fund %>%
 #   group_by(id_projet) %>%
-#   slice(1) %>%
-#   summarize(Mean = mean(montant_total_projet))
+#   summarize(Mean = mean(montant_prevu_concours_euro_octroi))
 
 ```
 
 **Average funding by country/region**
 
 ```{r}
+#Attention un même projet peut concerner plusieurs pays
+#CZZ1260; CZZ1282; CZZ1382; CZZ1419; CZZ1667; CZZ1879, CZZ1909; 	
+#CZZ1914; CZZ3012; CZZ3092 ...
+#On ne peut pas décomposer par Pays vu la base SIOP et ses variables ... mais pas DR oui !
+
+
 #By country ...
-tbl_fund_avg_ctry = data_stat_projet_nodupl %>%
+tbl_fund_avg_ctry = data_stat_fund_nodupl %>%
   group_by(pays, iso3) %>%
   summarize(avg_fund = mean(montant_total_projet, na.rm = TRUE)) %>%
   arrange(avg_fund)
 
 #By region
-tbl_fund_avg_dr = data_stat_projet_nodupl %>%
+tbl_fund_avg_dr = data_stat_fund_nodupl %>%
   group_by(direction_regionale) %>%
   summarise(avg_fund = mean(montant_total_projet, na.rm = TRUE)) %>%
   arrange(avg_fund)
