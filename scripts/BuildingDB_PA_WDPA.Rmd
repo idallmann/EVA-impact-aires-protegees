@@ -249,11 +249,12 @@ data_stat_fund = data_PA_tidy %>%
 
 ```{r}
 pa_shp = read_sf("data_raw/WDPA_SHP/BDD_SHP_nodupl.shp") %>%
-  clean_names() 
+  clean_names() %>%
+  select(-c(mntnt, mtglb, e, mnt, prodt, lbllp, dt_ct, d_1, d, d_c, durdcncrs_a, drdcncrs_an, atrsp, ett, lbllt, rspns, dr, mtrs, detal, projt, cmmnt, cmmnt_1))
 # 
-st_write(pa_shp,
-         dsn = "data_tidy/BDD_shp_tidy.gpkg",
-         delete_dsn = TRUE)
+# st_write(pa_shp,
+#          dsn = "data_tidy/BDD_shp_tidy.gpkg",
+#          delete_dsn = TRUE)
 ```
 
 ## Old code
