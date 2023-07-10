@@ -50,47 +50,66 @@ library(aws.s3)
 #Both datasets are imported also in UTF8 encoding, for some variables
 ##A first dataset with some PA on more than one row (one line per funding for instance)
 data_stat = 
-  fread("data_tidy/BDD_DesStat_nofund.csv", encoding = "UTF-8")
-  # aws.s3::s3read_using(
-  # FUN = data.table::fread,
-  # encoding = "UTF-8",
-  # # Mettre les options de FUN ici
-  # object = "data_tidy/BDD_DesStat_nofund.csv",
-  # bucket = "projet-afd-eva-ap",
-  # opts = list("region" = ""))
+  #fread("data_tidy/BDD_DesStat_nofund.csv", encoding = "UTF-8")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  # Mettre les options de FUN ici
+  object = "data_tidy/BDD_DesStat_nofund.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
 
 ##A second dataset with one line per PA, more suited for some statistics
 data_stat_nodupl = 
-  fread("data_tidy/BDD_DesStat_nofund_nodupl.csv" , encoding = "UTF-8")
-  # aws.s3::s3read_using(
-  # FUN = data.table::fread,
-  # encoding = "UTF-8",
-  # # Mettre les options de FUN ici
-  # object = "data_tidy/BDD_DesStat_nofund_nodupl.csv",
-  # bucket = "projet-afd-eva-ap",
-  # opts = list("region" = ""))
+  #fread("data_tidy/BDD_DesStat_nofund_nodupl.csv" , encoding = "UTF-8")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  # Mettre les options de FUN ici
+  object = "data_tidy/BDD_DesStat_nofund_nodupl.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
 
 pa_area_ctry = 
-  fread("data_tidy/area/pa_area_ctry.csv", encoding = "UTF-8")
-  # aws.s3::s3read_using(
-  # FUN = data.table::fread,
-  # encoding = "UTF-8",
-  # # Mettre les options de FUN ici
-  # object = "data_tidy/area/pa_area_ctry.csv",
-  # bucket = "projet-afd-eva-ap",
-  # opts = list("region" = ""))
+  #fread("data_tidy/area/pa_area_ctry.csv", encoding = "UTF-8")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  # Mettre les options de FUN ici
+  object = "data_tidy/area/pa_area_ctry.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
 
 pa_area_dr = 
-  fread("data_tidy/area/pa_area_dr.csv", encoding = "UTF-8")
-  # aws.s3::s3read_using(
-  # FUN = data.table::fread,
-  # encoding = "UTF-8",
-  # # Mettre les options de FUN ici
-  # object = "data_tidy/area/pa_area_dr.csv",
-  # bucket = "projet-afd-eva-ap",
-  # opts = list("region" = ""))
+  #fread("data_tidy/area/pa_area_dr.csv", encoding = "UTF-8")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  # Mettre les options de FUN ici
+  object = "data_tidy/area/pa_area_dr.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
 
-load("data_tidy/area/pa_area_wld.RData")
+pa_area_wld = 
+  #fread("data_tidy/area/pa_area_wld.csv", encoding = "UTF-8")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  # Mettre les options de FUN ici
+  object = "data_tidy/area/pa_area_wld.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
+
+pa_int_yr = 
+  #fread("data_tidy/area/pa_area_dr.csv", encoding = "UTF-8")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  # Mettre les options de FUN ici
+  object = "data_tidy/area/pa_int_yr.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
+
 ```
 
 ## Performing descriptive statistics
@@ -110,31 +129,10 @@ data_cat_iucn = data_stat_nodupl %>%
   ungroup() %>%
   #Frequency of IUCN categories
   mutate(n_pa = sum(n_iucn),
-         freq_iucn = n_iucn/n_pa*100) %>%
+         freq_iucn = round(n_iucn/n_pa*100, 1)) %>%
   arrange(desc(iucn_des)) %>%
   mutate(ypos_iucn = cumsum(freq_iucn) - 0.5*freq_iucn) 
 
-# test = base_nodupl_lea %>%
-#   group_by(iucn_cat) %>%
-#   #number of PAs per IUCN category
-#   summarize(n_iucn = n()) %>%
-#   ungroup() %>%
-#   #Frequency of IUCN categories
-#   mutate(n_pa = sum(n_iucn),
-#          freq_iucn = n_iucn/n_pa*100) %>%
-#   arrange(desc(iucn_cat)) %>%
-#   mutate(ypos_iucn = cumsum(freq_iucn) - 0.5*freq_iucn) 
-# 
-# test2 = base_nodupl_old %>%
-#   group_by(iucn_cat) %>%
-#   #number of PAs per IUCN category
-#   summarize(n_iucn = n()) %>%
-#   ungroup() %>%
-#   #Frequency of IUCN categories
-#   mutate(n_pa = sum(n_iucn),
-#          freq_iucn = n_iucn/n_pa*100) %>%
-#   arrange(desc(iucn_cat)) %>%
-#   mutate(ypos_iucn = cumsum(freq_iucn) - 0.5*freq_iucn)
 
 ##... and for referenced PAs only
 data_cat_iucn_ref = data_stat_nodupl %>%
@@ -146,7 +144,7 @@ data_cat_iucn_ref = data_stat_nodupl %>%
   ungroup() %>%
   #Frequency of IUCN categories
   mutate(n_pa = sum(n_iucn),
-         freq_iucn = n_iucn/n_pa*100) %>%
+         freq_iucn = round(n_iucn/n_pa*100, 1)) %>%
   arrange(freq_iucn) %>%
   mutate(ypos_iucn = cumsum(freq_iucn) - 0.5*freq_iucn) 
 
@@ -155,17 +153,21 @@ tbl_cat_iucn = data_cat_iucn %>%
   select(c(iucn_des, n_iucn, freq_iucn))
 names(tbl_cat_iucn) <- c("Catégories IUCN","Nombre d'AP", "Proportion d'AP (%)")
 
+tbl_cat_iucn_ref = data_cat_iucn_ref %>%
+  select(c(iucn_des, n_iucn, freq_iucn))
+names(tbl_cat_iucn_ref) <- c("Catégories IUCN","Nombre d'AP", "Proportion d'AP (%)")
+
 
 #Histogram including non-referenced PAs
 hist_cat_iucn = ggplot(data_cat_iucn, 
                        aes(x = reorder(iucn_des, -freq_iucn), 
                            y = freq_iucn, fill = iucn_des)) %>% 
   + geom_bar(stat = "identity", width = 0.50, fill="#3182BD") %>%
-  + geom_text(aes(label = round(n_iucn, 1), y = 0), 
-            vjust = "inward", color="black",
+  + geom_text(aes(label = round(n_iucn, 1), y = freq_iucn), 
+            vjust = -0.1, color="black",
             size=3.5) %>%
   + labs(title = "Proportion d'aires protégées par catégorie IUCN",
-         subtitle = paste("Echantillon :", sum(data_cat_iucn$n_iucn), "aires protégées. Nombre d'aires indiqué à la base du graphique"),
+         subtitle = paste("Echantillon :", sum(data_cat_iucn$n_iucn), "aires protégées. Nombre d'aires indiqué sur les barres."),
           x = "Catégories IUCN", 
           y = "Nombre (%)") %>%
   + theme(legend.position = "bottom",
@@ -184,11 +186,11 @@ hist_cat_iucn_ref = ggplot(data_cat_iucn_ref,
                        aes(x = reorder(iucn_des, -freq_iucn), 
                            y = freq_iucn, fill = iucn_des)) %>% 
   + geom_bar(stat = "identity", width = 0.50, fill="#3182BD") %>%
-  + geom_text(aes(label = round(n_iucn, 1), y = 0), 
-            vjust = "inward", color="black",
+  + geom_text(aes(label = round(n_iucn, 1), y = freq_iucn), 
+            vjust = -0.1, color="black",
             size=3.5) %>%
   + labs(title = "Proportion d'aires protégées par catégorie IUCN (hors AP non-répertoriées)",
-         subtitle = paste("Echantillon :", sum(data_cat_iucn_ref$n_iucn), "aires protégées. Nombre d'aires indiqué à la base du graphique"),
+         subtitle = paste("Echantillon :", sum(data_cat_iucn_ref$n_iucn), "aires protégées. Nombre d'aires indiqué sur les barres."),
           x = "Catégories IUCN", 
           y = "Nombre (%)") %>%
   + theme(legend.position = "bottom",
@@ -200,7 +202,7 @@ hist_cat_iucn_ref = ggplot(data_cat_iucn_ref,
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-# hist_cat_iucn_ref
+hist_cat_iucn_ref
 
 
 #Pie chart INcluding non-referenced PAs
@@ -217,7 +219,8 @@ pie_cat_iucn = ggplot(data_cat_iucn,
   #              position = position_stack(vjust = 0.7), size=2.5, 
   #              show.legend = FALSE) %>%
   + labs(x = "", y = "",
-         title = "Proportion d'aires protégées par catégorie IUCN (%)") %>%
+         title = "Proportion d'aires protégées par catégorie IUCN (%)",
+         subtitle = paste("Echantillon :", sum(data_cat_iucn$n_iucn), "aires protégées")) %>%
   + scale_fill_brewer(name = "Catégories", palette = "Dark2") %>%
   + theme_void()
 pie_cat_iucn
@@ -238,8 +241,8 @@ pie_cat_iucn_ref = ggplot(data_cat_iucn_ref,
   #              position = position_stack(vjust = 0.7), size=2.5, 
   #              show.legend = FALSE) %>%
   + labs(x = "", y = "",
-         title = "Proportion d'aires protégées par catégorie IUCN (%)",
-         subtitle = "hors AP non répertoriées") %>%
+         title = "Proportion d'aires protégées par catégorie IUCN \nhors aires non répertoriées (%)",
+         subtitle = paste("Echantillon :", sum(data_cat_iucn_ref$n_iucn), "aires protégées")) %>%
   + scale_fill_brewer(name = "Catégories", palette = "Dark2") %>%
   + theme_void()
 pie_cat_iucn_ref
@@ -253,9 +256,6 @@ pie_cat_iucn_ref
 #Saving figures
 
 tmp = paste(tempdir(), "fig", sep = "/")
-
-print(xtable(tbl_cat_iucn, type = "latex"),
-      file = paste(tmp, "tbl_cat_iucn.tex", sep = "/"))
 
 ggsave(paste(tmp, "hist_cat_iucn.png", sep = "/"),
        plot = hist_cat_iucn,
@@ -276,6 +276,12 @@ ggsave(paste(tmp, "pie_cat_iucn_ref.png", sep = "/"),
        plot = pie_cat_iucn_ref,
        device = "png",
        height = 6, width = 9)
+
+print(xtable(tbl_cat_iucn, type = "latex"),
+      file = paste(tmp, "tbl_cat_iucn.tex", sep = "/"))
+
+print(xtable(tbl_cat_iucn_ref, type = "latex"),
+      file = paste(tmp, "tbl_cat_iucn_ref.tex", sep = "/"))
 
 #Export to S3 storage
 
@@ -372,17 +378,8 @@ data_eco$ecosyst_fr = fct_recode(data_eco$marine,
 data_eco_hist = data_eco %>%
   group_by(ecosyst_en, ecosyst_fr) %>%
   summarize(n = n(),
-            freq = round(n/nrow(data_eco), 3)*100) %>%
+            freq = round(n/nrow(data_eco), 1)*100) %>%
   ungroup()
-
-#/!\ résultats un peu différents que Léa j'ai une AP en plus), mais la méthode est équivalente
-
-#Table
-# tbl_eco_wdpaid = table(data_eco$wdpaid, data_eco$ecosyst) %>%
-#   rprop() %>%
-#   as.data.frame() %>%
-#   mutate(Freq = round(Freq,2)) %>%
-#   pivot_wider(names_from = Var2, values_from = Freq)
 
 tbl_eco_world_fr = data_eco_hist %>%
   select(c(ecosyst_fr, n, freq)) %>%
@@ -401,11 +398,11 @@ tbl_eco_world_en = data_eco_hist %>%
 hist_eco_shr_fr = ggplot(data_eco_hist, 
                      aes(x = ecosyst_fr, y = freq, fill = ecosyst_fr)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ geom_text(aes(label = round(n, 1), y = 0), 
-        vjust = "inward", color="black",
++ geom_text(aes(label = round(n, 1), y = freq), 
+        vjust = -0.1, color="black",
         size=3.5) %>%
-+ labs(title = "Proportion d'aires protégées par type d'écosystème (hors AP non-référencées)",
-       subtitle = paste("Echantillon :", sum(data_eco_hist$n), "aires protégées. Nombre d'aires indiqué à la base du graphique"),
++ labs(title = "Proportion d'aires protégées par type d'écosystème \n(hors AP non-référencées)",
+       subtitle = paste("Echantillon :", sum(data_eco_hist$n), "aires protégées. Nombre d'aires indiqué sur les barres."),
          x = "Type d'écosystème",
          y = "Proportion d'aires protégées(%)") %>%
   + theme(legend.position = "bottom",
@@ -418,7 +415,7 @@ hist_eco_shr_fr = ggplot(data_eco_hist,
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-#hist_eco_shr_fr
+hist_eco_shr_fr
 # 
 
 
@@ -427,11 +424,11 @@ hist_eco_shr_fr = ggplot(data_eco_hist,
 hist_eco_shr_en = ggplot(data_eco_hist, 
                      aes(x = ecosyst_en, y = freq, fill = ecosyst_en)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ geom_text(aes(label = round(n, 1), y = 0), 
-        vjust = "inward", color="black",
++ geom_text(aes(label = round(n, 1), y = freq), 
+        vjust = -0.1, color="black",
         size=3.5) %>%
-+ labs(title = "Proportion of protected areas by ecosystem type (excluding non-references PAs)",
-       subtitle = paste("Sample :", sum(data_eco_hist$n), "protected areas. Number of areas indicated below."),
++ labs(title = "Proportion of protected areas by ecosystem type \n(excluding non-references PAs)",
+       subtitle = paste("Sample :", sum(data_eco_hist$n), "protected areas. Number of areas indicated above."),
          x = "Ecosystem type",
          y = "Proportion of protected areas(%)") %>%
   + theme(legend.position = "bottom",
@@ -452,7 +449,7 @@ hist_eco_shr_en = ggplot(data_eco_hist,
 hist_eco_n_fr = ggplot(data_eco_hist, 
                      aes(x = ecosyst_fr, y = n, fill = ecosyst_fr)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ labs(title = "Proportion d'aires protégées par type d'écosystème (hors AP non-référencées)",
++ labs(title = "Proportion d'aires protégées par type d'écosystème \n(hors AP non-référencées)",
        subtitle = paste("Echantillon :", sum(data_eco_hist$n), "aires protégées"),
          x = "Type d'écosystème",
          y = "Proportion d'aires protégées") %>%
@@ -466,7 +463,7 @@ hist_eco_n_fr = ggplot(data_eco_hist,
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-#hist_eco_n_fr
+hist_eco_n_fr
 
 
 
@@ -475,7 +472,7 @@ hist_eco_n_fr = ggplot(data_eco_hist,
 hist_eco_n_en = ggplot(data_eco_hist, 
                      aes(x = ecosyst_en, y = n, fill = ecosyst_en)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ labs(title = "Proportion of protected areas by ecosystem type (excluding non-referenced PAs)",
++ labs(title = "Proportion of protected areas by ecosystem type \n(excluding non-referenced PAs)",
        subtitle = paste("Sample :", sum(data_eco_hist$n), "protected areas"),
          x = "Ecosystem type",
          y = "Proportion of protected areas") %>%
@@ -499,7 +496,7 @@ pie_eco_fr = ggplot(data_eco_hist,
              color = "black", position = position_stack(vjust = 0.55), 
              size=2.5, show.legend = FALSE) %>%
 + coord_polar("y", start=0) %>%
-+ labs(title = "Proportion d'aires protégées par type d'écosystème (hors AP non-référencées)",
++ labs(title = "Proportion d'aires protégées par type d'écosystème \n(hors AP non-référencées)",
        subtitle = paste("Echantillon :", sum(data_eco_hist$n), "aires protégées"),
          x = "Type d'écosystème",
          y = "Proportion d'aires protégées") %>%
@@ -516,13 +513,13 @@ pie_eco_en = ggplot(data_eco_hist,
              color = "black", position = position_stack(vjust = 0.55), 
              size=2.5, show.legend = FALSE) %>%
 + coord_polar("y", start=0) %>%
-+ labs(title = "Proportion of protected areas by ecosystem type (exluding non-referenced PAs)",
++ labs(title = "Proportion of protected areas by ecosystem type \n(exluding non-referenced PAs)",
        subtitle = paste("Sample :", sum(data_eco_hist$n), "protected areas"),
          x = "Ecosystem type",
          y = "Proportion of protected areas") %>%
   + scale_fill_brewer(name = "Ecosystem", palette="Paired") %>%
   + theme_void()
-#pie_eco_en
+pie_eco_en
   
 ```
 
@@ -531,10 +528,7 @@ pie_eco_en = ggplot(data_eco_hist,
 
 tmp = paste(tempdir(), "fig", sep = "/")
 
-print(xtable(tbl_eco_world_fr, type = "latex"), 
-      file = paste(tmp, "tbl_ecosyst_fr.tex", sep = "/"))
-print(xtable(tbl_eco_world_en, type = "latex"), 
-      file = paste(tmp, "tbl_ecosyst_en.tex", sep = "/"))
+
 ggsave(paste(tmp, "hist_eco_shr_fr.png", sep = "/"),
        plot = hist_eco_shr_fr,
        device = "png",
@@ -559,6 +553,11 @@ ggsave(paste(tmp, "pie_eco_en.png", sep = "/"),
        plot = pie_eco_en,
        device = "png",
        height = 6, width = 9)
+
+print(xtable(tbl_eco_world_fr, type = "latex"), 
+      file = paste(tmp, "tbl_ecosyst_fr.tex", sep = "/"))
+print(xtable(tbl_eco_world_en, type = "latex"), 
+      file = paste(tmp, "tbl_ecosyst_en.tex", sep = "/"))
 
 #Export to S3 storage
 
@@ -589,38 +588,9 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 data_distrib_ctry = data_stat_nodupl %>%
   group_by(pays, iso3) %>%
   summarize(n = n(),
-            freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
-  ungroup() %>%
-  mutate(pays = case_when(
-    pays == "P-N N.CalÃ©d" ~ "P-N N.Caléd",
-    pays == "Polynesie Francaise" ~ "Polynesie Fr.",
-    pays == "P-S N.CalÃ©d" ~ "P-S N.Caléd",
-    TRUE ~ pays
-  ))
+            freq = round(n/nrow(data_stat_nodupl), 1)*100) %>%
+  ungroup() 
 
-# test = base_nodupl_lea %>%
-#     group_by(pays) %>%
-#   summarize(n = n(),
-#             freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
-#   ungroup() %>%
-#   mutate(pays = case_when(
-#     pays == "P-N N.CalÃ©d" ~ "P-N N.Caléd",
-#     pays == "Polynesie Francaise" ~ "Polynesie Fr.",
-#     pays == "P-S N.CalÃ©d" ~ "P-S N.Caléd",
-#     TRUE ~ pays
-#   ))
-# 
-# test2 = base_nodupl_old %>%
-#   group_by(pays) %>%
-#   summarize(n = n(),
-#             freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
-#   ungroup() %>%
-#   mutate(pays = case_when(
-#     pays == "P-N N.CalÃ©d" ~ "P-N N.Caléd",
-#     pays == "Polynesie Francaise" ~ "Polynesie Fr.",
-#     pays == "P-S N.CalÃ©d" ~ "P-S N.Caléd",
-#     TRUE ~ pays
-#   ))
 
 data_distrib_ctry_top = data_distrib_ctry %>%
   subset(freq >= 5)
@@ -629,8 +599,8 @@ data_distrib_ctry_top = data_distrib_ctry %>%
 hist_distrib_ctry_top_shr_fr = ggplot(data_distrib_ctry_top, 
                      aes(x = reorder(pays, -freq), y = freq, fill = pays)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ geom_text(aes(label = round(n, 1), y = 0.1), 
-        vjust = "inward", color="black",
++ geom_text(aes(label = round(n, 1), y = freq), 
+        vjust = -0.1, color="black",
         size=3.5) %>%
 + labs(title = "Les pays abritant le plus d'aires protégées",
        subtitle = paste("Echantillon :", sum(data_distrib_ctry$n), "aires protégées. Nombre d'aires indiqué à la base du graphique"),
@@ -646,7 +616,7 @@ hist_distrib_ctry_top_shr_fr = ggplot(data_distrib_ctry_top,
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-#hist_distrib_ctry_top_shr_fr
+hist_distrib_ctry_top_shr_fr
 # 
 
 
@@ -655,7 +625,7 @@ hist_distrib_ctry_n_fr = ggplot(data_distrib_ctry,
                      aes(x = reorder(pays, -n), y = n, fill = pays)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
 + geom_text(aes(label = round(n, 1), y = n), 
-        vjust = -0.2, color="black",
+        vjust = -0.1, color="black",
         size=3.5) %>%
 + labs(title = "Proportion d'aires protégées par pays",
        subtitle = paste("Echantillon :", sum(data_distrib_ctry$n), "aires protégées. Nombre d'aires indiqué sur chaque barre"),
@@ -721,39 +691,6 @@ data_distrib_reg = data_stat_nodupl %>%
   mutate(region = gsub("Dr ", "", direction_regionale),
          .after = "direction_regionale")
 
-#####################
-# 
-# test = base_nodupl_lea %>%
-#   group_by(direction_regionale) %>%
-#   summarize(n = n(),
-#             freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
-#   ungroup() %>%
-#   mutate(region = gsub("Dr ", "", direction_regionale),
-#          .after = "direction_regionale")
-# #
-# test2 = base_nodupl_old %>%
-#   group_by(direction_regionale) %>%
-#   summarize(n = n(),
-#             freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
-#   ungroup() %>%
-#   mutate(region = gsub("Dr ", "", direction_regionale),
-#          .after = "direction_regionale")
-# 
-# ap_region2 <- data.frame(table(base_nodupl_old$direction_regionale))
-# ap_region2$Freq <- round(ap_region2$Freq/sum(ap_region2$Freq),3)*100
-# #
-# # #TOP 6 REGION
-# ap_region_6 = subset(ap_region2, Freq >= 5)
-# 
-# ggplot(ap_region_6, aes(x = reorder(Var1,-Freq), y=Freq, fill=Var1)) +
-#   geom_bar(width = 0.80, fill="blue",stat="identity") +
-#   ggtitle("Les 6 régions abritant le plus d'aires protégées") +
-#   theme(plot.title = element_text(size= 14, face = "bold",hjust=0.5)) +
-#   xlab("Région") +
-#   ylab("Proportion d'aires protégées(%)")
-
-
-##############
 
 data_distrib_reg_top = data_distrib_reg %>%
   subset(freq >= 5)
@@ -762,11 +699,11 @@ data_distrib_reg_top = data_distrib_reg %>%
 hist_distrib_reg_top_shr_fr = ggplot(data_distrib_reg_top, 
                      aes(x = reorder(region, -freq), y = freq, fill = region)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ geom_text(aes(label = round(n, 1), y = 0.1), 
-        vjust = "inward", color="black",
++ geom_text(aes(label = round(n, 1), y = freq), 
+        vjust = -0.1, color="black",
         size=3.5) %>%
-+ labs(title = "Les régions abritant le plus d'aires protégées",
-       subtitle = paste("Echantillon :", sum(data_distrib_reg$n), "aires protégées. Nombre d'aires indiqué à la base du graphique"),
++ labs(title = "Les directions régionales finançant le plus d'aires protégées",
+       subtitle = paste("Echantillon :", sum(data_distrib_reg$n), "aires protégées. Nombre d'aires indiqué sur chaque barre."),
          x = "Direction régionale",
          y = "Proportion d'aires protégées(%)") %>%
   + theme(legend.position = "bottom",
@@ -788,10 +725,10 @@ hist_distrib_reg_n_fr = ggplot(data_distrib_reg,
                      aes(x = reorder(direction_regionale, -n), y = n, fill = direction_regionale)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
 + geom_text(aes(label = round(n, 1), y = n), 
-        vjust = -0.2, color="black",
+        vjust = -0.1, color="black",
         size=3.5) %>%
 + labs(title = "Proportion d'aires protégées par région",
-       subtitle = paste("Echantillon :", sum(data_distrib_ctry$n), "aires protégées. Nombre d'aires indiqué sur chaque barre"),
+       subtitle = paste("Echantillon :", sum(data_distrib_ctry$n), "aires protégées. Nombre d'aires indiqué sur chaque barre."),
          x = "Direction régionale",
          y = "Proportion d'aires protégées(%)") %>%
   + theme(legend.position = "bottom",
@@ -850,7 +787,7 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 tbl_distrib_area_no0 = summary(
   filter(data_stat_nodupl, superficie != 0)$superficie) %>%
-  format(scientific = FALSE) %>%
+  format(scientific = FALSE, big.mark = " ") %>%
   as.array() %>%
   t() %>%
   as.data.frame() %>%
@@ -861,22 +798,6 @@ tbl_distrib_area_no0 = summary(
 
 #### Average surface in countries and regions
 
-Comparison with Léa, differences that are not explained by the use of intersections :
-
--   Afrique centrale : 3723 vs 3274 in my case
-
--   Afrique de l'Est : 762 vs 614
-
--   Amerique centrale : 842 vs 38
-
--   Asie du Sud : 3925 vs 0
-
--   Chine 1114 vs 2000
-
--   Ocean Indien : 13153 vs 14483
-
--   Siege Paris : 2685 vs 2919
-
 ```{r}
 #Distribution of PA WITH SURFACE >0 across countries and regions
 ##Country
@@ -884,21 +805,15 @@ data_distrib_no0_ctry = data_stat_nodupl %>%
   filter(superficie != 0) %>%
   group_by(iso3, pays) %>%
   summarize(n = n(),
-            freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
-  ungroup() %>%
-  mutate(pays = case_when(
-    pays == "P-N N.CalÃ©d" ~ "P-N N.Caléd",
-    pays == "Polynesie Francaise" ~ "Polynesie Fr.",
-    pays == "P-S N.CalÃ©d" ~ "P-S N.Caléd",
-    TRUE ~ pays
-  ))
+            freq = round(n/nrow(data_stat_nodupl), 1)*100) %>%
+  ungroup()
 
 ##Region
 data_distrib_no0_dr = data_stat_nodupl %>%
   filter(superficie != 0) %>%
   group_by(direction_regionale) %>%
   summarize(n = n(),
-            freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
+            freq = round(n/nrow(data_stat_nodupl), 1)*100) %>%
   ungroup() %>%
   mutate(region = gsub("Dr ", "", direction_regionale),
          .after = "direction_regionale")
@@ -908,7 +823,9 @@ tbl_area_avg_ctry = data_distrib_no0_ctry %>%
   select(-freq) %>%
   left_join(pa_area_ctry, by = "iso3") %>%
   select(-c(iso3, sprfc_tot_km2, tot_area_int)) %>%
-  mutate(sprfc_avg_noint_km2 = sprfc_tot_noint_km2/n)
+  mutate(sprfc_avg_noint_km2 = format(sprfc_tot_noint_km2/n, big.mark = " ", scientific = FALSE, digits = 1),
+         sprfc_tot_noint_km2 = format(sprfc_tot_noint_km2, big.mark  = " ", scientific = FALSE, digits = 1),
+         )
 names(tbl_area_avg_ctry) = c("Pays", "Nombre d'AP", "Superficie totale (km2)", "Superficie moyenne (km2)")
 
 #By region
@@ -916,13 +833,11 @@ tbl_area_avg_dr = data_distrib_no0_dr %>%
   select(-freq) %>%
   left_join(pa_area_dr, by = "direction_regionale") %>%
   select(-c(sprfc_tot_km2, tot_area_int, direction_regionale)) %>%
-  mutate(sprfc_avg_noint_km2 = sprfc_tot_noint_km2/n)
+  mutate(sprfc_avg_noint_km2 = format(sprfc_tot_noint_km2/n, big.mark = " ", scientific = FALSE, digits = 1),
+         sprfc_tot_noint_km2 = format(sprfc_tot_noint_km2, big.mark  = " ", scientific = FALSE, digits = 1),
+         )
 names(tbl_area_avg_dr) = c("Direction régionale", "Nombre d'AP", "Superficie totale (km2)", "Superficie moyenne (km2)")
 
-
-#Note
-#test = aggregate(superficie ~ direction_regionale, data = filter(data_stat_nodupl, superficie != 0), FUN = mean)
-#Does not take intersection into account : slightly different results.
 
 ```
 
@@ -964,8 +879,6 @@ In this section is plotted the evolution in the number and surafe of PAs over ti
 
 #### Number of PAs
 
-*/!\\ Mon graphique ne correspond pas à celui de Léa. Elle a plus de PA pour certaines années. Je ne vois pas d'où ça peut venir : j'ai 142 observations comme elle dans la base sans duplicata a priori (cf son script).*
-
 ```{r}
 
 data_time_range = data.frame(annee = 
@@ -981,12 +894,14 @@ data_time_n = data_stat_nodupl %>%
   arrange(annee_octroi) %>%
   mutate(n_cum = cumsum(n)) 
 
-#Number of PAs funded by year (fig)
+#Number of PAs funded by year 
 fig_n_pa = ggplot(data_time_n,
-                  aes(x = annee_octroi, y = n)) %>%
-  + geom_point(color = "#3182BD", size = 1.5) %>%
-  + geom_line(color = "#3182BD", size = 1) %>% 
-  + labs(title = "Evolution du nombre d'aires protégées appuyées par l'AFD",
+                  aes(x = factor(annee_octroi), y = n)) %>%
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>% 
+  + geom_text(aes(y = n, label = ifelse(n == 0, NA, n)), 
+              color = "black", size=4, vjust = -0.3) %>%
+  + labs(title = "Nombre d'aires protégées appuyées par année",
+         subtitle = paste("Echantillon :", sum(data_time_n$n), "aires protégées"),
          x = "Année",
          y = "Nombre d'aires protégées") %>%
   + theme(legend.position = "bottom",
@@ -1001,27 +916,6 @@ fig_n_pa = ggplot(data_time_n,
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
 fig_n_pa
 
-#Number of PAs funded by year (histogram)
-hist_n_pa = ggplot(data_time_n,
-                  aes(x = factor(annee_octroi), y = n)) %>%
-  + geom_bar(stat = 'identity', fill = "#3182BD") %>% 
-  + geom_text(aes(y = n, label = ifelse(n == 0, NA, n)), 
-              color = "black", size=4, vjust = -0.3) %>%
-  + labs(title = "Nombre d'aires protégées appuyées par année",
-         x = "Année",
-         y = "Nombre d'aires protégées") %>%
-  + theme(legend.position = "bottom",
-      legend.key = element_rect(fill = "white"),
-      plot.title = element_text(size = 14, face = "bold"), 
-      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
-      axis.title.x = element_text(margin = margin(t = 10)),
-      panel.background = element_rect(fill = 'white', colour = 'white', 
-                                      linewidth = 0.5, linetype = 'solid'),
-      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
-      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
-      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-hist_n_pa
-
 
 
 #Cumulative number over time
@@ -1033,6 +927,7 @@ fig_ncum_pa = ggplot(data_time_n,
   + geom_text(aes(y = n_cum, label = n_cum), 
               color = "black", size=4, vjust = -0.3) %>%
   + labs(title = "Evolution cumulée du nombre d'aires protégées appuyées par l'AFD",
+         subtitle = paste("Echantillon :", sum(data_time_n$n), "aires protégées"),
          x = "Année",
          y = "Nombre d'aires protégées") %>%
   + theme(legend.position = "bottom",
@@ -1057,10 +952,6 @@ tmp = paste(tempdir(), "fig", sep = "/")
 
 ggsave(paste(tmp, "fig_n_pa.png", sep = "/"),
        fig_n_pa,
-       device = "png",
-       height = 6, width = 9)
-ggsave(paste(tmp, "hist_n_pa.png", sep = "/"),
-       hist_n_pa,
        device = "png",
        height = 6, width = 9)
 ggsave(paste(tmp, "fig_ncum_pa.png", sep = "/"),
@@ -1092,8 +983,6 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 #### Surface of PAs
 
-Difference with Léa : no area in 2010 because I removed the PA in India (no WDPAID nor name_ap)
-
 ```{r}
 data_time_range = data.frame(annee = 
                               c(min(data_stat_nodupl$annee_octroi):max(data_stat_nodupl$annee_octroi))
@@ -1113,8 +1002,6 @@ data_time_area = data_stat_nodupl %>%
 #Evolution of area over time
 fig_area_pa = ggplot(data_time_area,
                   aes(x = factor(annee_octroi), y = tot_area_noint_km2)) %>%
-  # + geom_point(color = "#3182BD", size = 1.5) %>%
-  # + geom_line(color = "#3182BD", size = 1) %>% 
   + geom_bar(stat = 'identity', fill = "#3182BD") %>%
   + geom_text(aes(y = tot_area_noint_km2, 
                   label = ifelse(tot_area_noint_km2 != 0,
@@ -1124,6 +1011,7 @@ fig_area_pa = ggplot(data_time_area,
                                  NA)), 
               color = "black", size=3, vjust = -0.3) %>%
   + labs(title = "Evolution de la superficie des aires protégées",
+         subtitle = paste("Echantillon :", sum(data_time_n$n), "aires protégées couvrant", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km2"),
          x = "Année",
          y = "Superficie (km2)") %>%
   + theme(legend.position = "bottom",
@@ -1153,6 +1041,7 @@ fig_area_cum_pa = ggplot(data_time_area,
                                  scientific = TRUE)), 
               color = "black", size=3, vjust = -0.3) %>%
   + labs(title = "Evolution cumulée de la superficie des aires protégées",
+          subtitle = paste("Echantillon :", sum(data_time_n$n), "aires protégées couvrant", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km2"),
          x = "Année",
          y = "Superficie (km2)") %>%
   + theme(legend.position = "bottom",
@@ -1213,39 +1102,22 @@ Here is plotted the distribution of PAs across governance type.
 
 #Table of the governance type distribution
 ##English version
-tbl_gov_en = data_stat_nodupl %>%
+data_gov_en = data_stat_nodupl %>%
   mutate(gov_type = case_when(gov_type == "" ~ "Not referenced",
                               TRUE ~ gov_type)) %>%
   group_by(gov_type) %>%
   summarize(n = n()) %>%
   mutate(n_tot = sum(n),
-         freq = round(n/n_tot*100,3)) %>%
+         freq = round(n/n_tot*100,1)) %>%
   select(-n_tot) %>%
   arrange(-freq)
+
+tbl_gov_en = data_gov_en
 names(tbl_gov_en) = c("Governance","Number of PAs","Share of PAs (%)")
 
-# test = base_nodupl_lea %>%
-#   mutate(gov_type = case_when(gov_type == "" ~ "Not referenced",
-#                               TRUE ~ gov_type)) %>%
-#   group_by(gov_type) %>%
-#   summarize(n = n()) %>%
-#   mutate(n_tot = sum(n),
-#          freq = round(n/n_tot*100,3)) %>%
-#   select(-n_tot) %>%
-#   arrange(-freq)
-# 
-# test2 = base_nodupl_old %>%
-#   mutate(gov_type = case_when(gov_type == "" ~ "Not referenced",
-#                               TRUE ~ gov_type)) %>%
-#   group_by(gov_type) %>%
-#   summarize(n = n()) %>%
-#   mutate(n_tot = sum(n),
-#          freq = round(n/n_tot*100,3)) %>%
-#   select(-n_tot) %>%
-#   arrange(-freq)
 
 ##French Version
-tbl_gov_fr = data_stat_nodupl %>%
+data_gov_fr = data_stat_nodupl %>%
   mutate(gov_type = case_when(gov_type == "" ~ "Non référencée",
                               gov_type == "Collaborative governance" ~ "Gouvernance collaborative",
                               gov_type == "Federal or national ministry or agency" ~ "Ministère ou agence, fédérale ou nationale",
@@ -1261,30 +1133,34 @@ tbl_gov_fr = data_stat_nodupl %>%
   group_by(gov_type) %>%
   summarize(n = n()) %>%
   mutate(n_tot = sum(n),
-         freq = round(n/n_tot*100,3)) %>%
+         freq = round(n/n_tot*100,1)) %>%
   select(-n_tot) %>%
   arrange(-freq)
+
+tbl_gov_fr = data_gov_fr
 names(tbl_gov_fr) = c("Gouvernance","Nombre d'AP","Proportion (%)")
 
 
 
-#PAs with nureported or unreferences governance types are removed
+#PAs with nureported or unreferenced governance types are removed
 ##Tables
 ###English
-tbl_gov_knwn_en = data_stat_nodupl %>%
+data_gov_knwn_en = data_stat_nodupl %>%
   mutate(gov_type = case_when(gov_type == "" ~ "Not referenced",
                               TRUE ~ gov_type)) %>%
   filter(gov_type != "Not Reported" & gov_type != "Not referenced") %>%
   group_by(gov_type) %>%
   summarize(n = n()) %>%
   mutate(n_tot = sum(n),
-         freq = round(n/n_tot*100,3)) %>%
+         freq = round(n/n_tot*100,1)) %>%
   select(-n_tot) %>%
   arrange(-freq)
+
+tbl_gov_knwn_en = data_gov_knwn_en
 names(tbl_gov_knwn_en) = c("Governance","Number of PAs","Share of PAs (%)")
 
 ###French
-tbl_gov_knwn_fr = data_stat_nodupl %>%
+data_gov_knwn_fr = data_stat_nodupl %>%
   mutate(gov_type = case_when(gov_type == "" ~ "Non référencée",
                               gov_type == "Collaborative governance" ~ "Gouvernance collaborative",
                               gov_type == "Federal or national ministry or agency" ~ "Ministère ou agence, fédérale ou nationale",
@@ -1301,45 +1177,47 @@ tbl_gov_knwn_fr = data_stat_nodupl %>%
   group_by(gov_type) %>%
   summarize(n = n()) %>%
   mutate(n_tot = sum(n),
-         freq = round(n/n_tot*100,3)) %>%
+         freq = round(n/n_tot*100,1)) %>%
   select(-n_tot) %>%
   arrange(-freq)
+
+tbl_gov_knwn_fr = data_gov_knwn_fr
 names(tbl_gov_knwn_fr) = c("Gouvernance","Nombre d'AP","Proportion (%)")
  
 
 ##Pie charts
 ###English
 pie_gov_knwn_en = 
-  ggplot(tbl_gov_knwn_en, 
-       aes(x="", y= `Share of PAs (%)`, fill= Governance)) %>%
+  ggplot(data_gov_knwn_en, 
+       aes(x="", y= freq, fill= gov_type)) %>%
   + geom_bar(width = 1, stat = "identity", color="white") %>%
   + geom_label(aes(x=1.3, 
-                   label = paste0(format(`Share of PAs (%)`, digits = 2), "%")), 
+                   label = paste0(format(freq, digits = 2), "%")), 
                color = "black", 
                position = position_stack(vjust = 0.55), 
                size=2.5, show.legend = FALSE) %>%
   + coord_polar("y", start=0) %>%
-  + labs(title = "Governance type of PAs",
-         subtitle = "PAs with governance not referenced/reported are omitted") %>%
-  + scale_fill_brewer(palette="Paired") %>%
+  + labs(title = "Governance type of PAs, except not referenced/reported PAs",
+         subtitle = paste("Sample :", sum(data_gov_knwn_en$n), "PAs")) %>%
+  + scale_fill_brewer(name = "Governance", palette="Paired") %>%
   + theme_void()
 
 
 
 ###French
 pie_gov_knwn_fr =
-  ggplot(tbl_gov_knwn_fr, 
-       aes(x="", y= `Proportion (%)`, fill= Gouvernance)) %>%
+  ggplot(data_gov_knwn_fr, 
+       aes(x="", y= freq, fill= gov_type)) %>%
   + geom_bar(width = 1, stat = "identity", color="white") %>%
   + geom_label(aes(x=1.3, 
-                   label = paste0(format(`Proportion (%)`, digits = 2), "%")), 
+                   label = paste0(format(freq, digits = 2), "%")), 
                color = "black", 
                position = position_stack(vjust = 0.55), 
                size=2.5, show.legend = FALSE) %>%
   + coord_polar("y", start=0) %>%
-  + labs(title = "Gouvernance",
-         subtitle = "AP avec une gouvernance non rapportées/référencées omises") %>%
-  + scale_fill_brewer(palette="Paired") %>%
+  + labs(title = "Gouvernance, hors aires protégées avec une gouvernance \nnon-rapportée/référencée",
+         subtitle = paste("Echantillon :", sum(data_gov_knwn_fr$n), "aires protégées")) %>%
+  + scale_fill_brewer(name = "Gouvernance", palette="Paired") %>%
   + theme_void()
 pie_gov_knwn_fr
 
