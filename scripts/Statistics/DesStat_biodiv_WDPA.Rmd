@@ -16,7 +16,7 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 ```
 
 ```{r message=FALSE, warning=FALSE}
-source("scripts/functions_DesStat_biodiv.R", encoding = "utf-8")
+source("scripts/Statistics/functions_DesStat_biodiv.R", encoding = "utf-8")
 ```
 
 ```{r message=FALSE, warning=FALSE}
@@ -56,16 +56,14 @@ cat(paste("Supported resources:\n-",
 
 ```{r}
 
-Sys.setenv("AWS_ACCESS_KEY_ID" = "GD8CI0UQQPTETOZS65J2",
-           "AWS_SECRET_ACCESS_KEY" = "e0bsXE55qz+xmNeVdwhTb39wKoQuIJFC0Y6eqPoG",
-           "AWS_DEFAULT_REGION" = "us-east-1",
-           "AWS_SESSION_TOKEN" = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3NLZXkiOiJHRDhDSTBVUVFQVEVUT1pTNjVKMiIsImFsbG93ZWQtb3JpZ2lucyI6WyIqIl0sImF1ZCI6WyJtaW5pby1kYXRhbm9kZSIsIm9ueXhpYSIsImFjY291bnQiXSwiYXV0aF90aW1lIjoxNjg4NjUxNjk5LCJhenAiOiJvbnl4aWEiLCJlbWFpbCI6InZ1aWxsb3RhQGFmZC5mciIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJleHAiOjE2ODg3Mzg4NzgsImZhbWlseV9uYW1lIjoiVnVpbGxvdCIsImdpdmVuX25hbWUiOiJBbnRvaW5lIiwiZ3JvdXBzIjpbImFmZC1ldmEtYXAiXSwiaWF0IjoxNjg4NjUxNzAwLCJpc3MiOiJodHRwczovL2F1dGgubGFiLnNzcGNsb3VkLmZyL2F1dGgvcmVhbG1zL3NzcGNsb3VkIiwianRpIjoiN2ZmMjJhNmEtM2IyYS00NWFiLWJmYTItNmVhZDZkNzY5YzBhIiwibmFtZSI6IkFudG9pbmUgVnVpbGxvdCIsIm5vbmNlIjoiYjQzM2E1N2MtMjZiNS00NmE0LTkzOGItOGMyM2FmOTVlYTI5IiwicG9saWN5Ijoic3Rzb25seSIsInByZWZlcnJlZF91c2VybmFtZSI6InZ1aWxsb3RhIiwicmVhbG1fYWNjZXNzIjp7InJvbGVzIjpbIm9mZmxpbmVfYWNjZXNzIiwidW1hX2F1dGhvcml6YXRpb24iLCJkZWZhdWx0LXJvbGVzLXNzcGNsb3VkIl19LCJyZXNvdXJjZV9hY2Nlc3MiOnsiYWNjb3VudCI6eyJyb2xlcyI6WyJtYW5hZ2UtYWNjb3VudCIsIm1hbmFnZS1hY2NvdW50LWxpbmtzIiwidmlldy1wcm9maWxlIl19fSwic2NvcGUiOiJvcGVuaWQgcHJvZmlsZSBncm91cHMgZW1haWwiLCJzZXNzaW9uUG9saWN5IjoiZXlKV1pYSnphVzl1SWpvaU1qQXhNaTB4TUMweE55SXNJbE4wWVhSbGJXVnVkQ0k2VzNzaVJXWm1aV04wSWpvaVFXeHNiM2NpTENKQlkzUnBiMjRpT2xzaWN6TTZLaUpkTENKU1pYTnZkWEpqWlNJNld5SmhjbTQ2WVhkek9uTXpPam82Y0hKdmFtVjBMV0ZtWkMxbGRtRXRZWEFpTENKaGNtNDZZWGR6T25Nek9qbzZjSEp2YW1WMExXRm1aQzFsZG1FdFlYQXZLaUpkZlN4N0lrVm1abVZqZENJNklrRnNiRzkzSWl3aVFXTjBhVzl1SWpwYkluTXpPa3hwYzNSQ2RXTnJaWFFpWFN3aVVtVnpiM1Z5WTJVaU9sc2lZWEp1T21GM2N6cHpNem82T2lvaVhTd2lRMjl1WkdsMGFXOXVJanA3SWxOMGNtbHVaMHhwYTJVaU9uc2ljek02Y0hKbFptbDRJam9pWkdsbVpuVnphVzl1THlvaWZYMTlMSHNpUldabVpXTjBJam9pUVd4c2IzY2lMQ0pCWTNScGIyNGlPbHNpY3pNNlIyVjBUMkpxWldOMElsMHNJbEpsYzI5MWNtTmxJanBiSW1GeWJqcGhkM002Y3pNNk9qb3FMMlJwWm1aMWMybHZiaThxSWwxOVhYMD0iLCJzZXNzaW9uX3N0YXRlIjoiYWYyMDdlY2UtOWEzNi00OTQyLTllODYtNjA1NTJmNGYxZTg1Iiwic2lkIjoiYWYyMDdlY2UtOWEzNi00OTQyLTllODYtNjA1NTJmNGYxZTg1Iiwic3ViIjoiOTI3N2Y3MzMtNTBmMy00MjM4LWI1YzctNjRjMmU4YTZiNDI0IiwidHlwIjoiQmVhcmVyIn0.40_wwJeo7HhTJjvPyob96nNEvbCmvohcN7Wnd02ETirLobdTmE7QZZbd9q5P1ZGANkkIkAf8who86ELp1crWfw",
-           "AWS_S3_ENDPOINT"= "minio.lab.sspcloud.fr",
-           "AWS_HTTPS" = "FALSE",
-           "AWS_VIRTUAL_HOSTING"="FALSE")
+# Sys.setenv("AWS_ACCESS_KEY_ID" = "GD8CI0UQQPTETOZS65J2",
+#            "AWS_SECRET_ACCESS_KEY" = "e0bsXE55qz+xmNeVdwhTb39wKoQuIJFC0Y6eqPoG",
+#            "AWS_DEFAULT_REGION" = "us-east-1",
+#            "AWS_SESSION_TOKEN" = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3NLZXkiOiJHRDhDSTBVUVFQVEVUT1pTNjVKMiIsImFsbG93ZWQtb3JpZ2lucyI6WyIqIl0sImF1ZCI6WyJtaW5pby1kYXRhbm9kZSIsIm9ueXhpYSIsImFjY291bnQiXSwiYXV0aF90aW1lIjoxNjg4NjUxNjk5LCJhenAiOiJvbnl4aWEiLCJlbWFpbCI6InZ1aWxsb3RhQGFmZC5mciIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJleHAiOjE2ODg3Mzg4NzgsImZhbWlseV9uYW1lIjoiVnVpbGxvdCIsImdpdmVuX25hbWUiOiJBbnRvaW5lIiwiZ3JvdXBzIjpbImFmZC1ldmEtYXAiXSwiaWF0IjoxNjg4NjUxNzAwLCJpc3MiOiJodHRwczovL2F1dGgubGFiLnNzcGNsb3VkLmZyL2F1dGgvcmVhbG1zL3NzcGNsb3VkIiwianRpIjoiN2ZmMjJhNmEtM2IyYS00NWFiLWJmYTItNmVhZDZkNzY5YzBhIiwibmFtZSI6IkFudG9pbmUgVnVpbGxvdCIsIm5vbmNlIjoiYjQzM2E1N2MtMjZiNS00NmE0LTkzOGItOGMyM2FmOTVlYTI5IiwicG9saWN5Ijoic3Rzb25seSIsInByZWZlcnJlZF91c2VybmFtZSI6InZ1aWxsb3RhIiwicmVhbG1fYWNjZXNzIjp7InJvbGVzIjpbIm9mZmxpbmVfYWNjZXNzIiwidW1hX2F1dGhvcml6YXRpb24iLCJkZWZhdWx0LXJvbGVzLXNzcGNsb3VkIl19LCJyZXNvdXJjZV9hY2Nlc3MiOnsiYWNjb3VudCI6eyJyb2xlcyI6WyJtYW5hZ2UtYWNjb3VudCIsIm1hbmFnZS1hY2NvdW50LWxpbmtzIiwidmlldy1wcm9maWxlIl19fSwic2NvcGUiOiJvcGVuaWQgcHJvZmlsZSBncm91cHMgZW1haWwiLCJzZXNzaW9uUG9saWN5IjoiZXlKV1pYSnphVzl1SWpvaU1qQXhNaTB4TUMweE55SXNJbE4wWVhSbGJXVnVkQ0k2VzNzaVJXWm1aV04wSWpvaVFXeHNiM2NpTENKQlkzUnBiMjRpT2xzaWN6TTZLaUpkTENKU1pYTnZkWEpqWlNJNld5SmhjbTQ2WVhkek9uTXpPam82Y0hKdmFtVjBMV0ZtWkMxbGRtRXRZWEFpTENKaGNtNDZZWGR6T25Nek9qbzZjSEp2YW1WMExXRm1aQzFsZG1FdFlYQXZLaUpkZlN4N0lrVm1abVZqZENJNklrRnNiRzkzSWl3aVFXTjBhVzl1SWpwYkluTXpPa3hwYzNSQ2RXTnJaWFFpWFN3aVVtVnpiM1Z5WTJVaU9sc2lZWEp1T21GM2N6cHpNem82T2lvaVhTd2lRMjl1WkdsMGFXOXVJanA3SWxOMGNtbHVaMHhwYTJVaU9uc2ljek02Y0hKbFptbDRJam9pWkdsbVpuVnphVzl1THlvaWZYMTlMSHNpUldabVpXTjBJam9pUVd4c2IzY2lMQ0pCWTNScGIyNGlPbHNpY3pNNlIyVjBUMkpxWldOMElsMHNJbEpsYzI5MWNtTmxJanBiSW1GeWJqcGhkM002Y3pNNk9qb3FMMlJwWm1aMWMybHZiaThxSWwxOVhYMD0iLCJzZXNzaW9uX3N0YXRlIjoiYWYyMDdlY2UtOWEzNi00OTQyLTllODYtNjA1NTJmNGYxZTg1Iiwic2lkIjoiYWYyMDdlY2UtOWEzNi00OTQyLTllODYtNjA1NTJmNGYxZTg1Iiwic3ViIjoiOTI3N2Y3MzMtNTBmMy00MjM4LWI1YzctNjRjMmU4YTZiNDI0IiwidHlwIjoiQmVhcmVyIn0.40_wwJeo7HhTJjvPyob96nNEvbCmvohcN7Wnd02ETirLobdTmE7QZZbd9q5P1ZGANkkIkAf8who86ELp1crWfw",
+#            "AWS_S3_ENDPOINT"= "minio.lab.sspcloud.fr",
+#            "AWS_HTTPS" = "FALSE",
+#            "AWS_VIRTUAL_HOSTING"="FALSE")
 
-
-bucketlist(region="")
 ```
 
 ## Importing PAs datasets
@@ -83,14 +81,11 @@ pa_shp =
   aws.s3::s3read_using(
   FUN = sf::read_sf,
   # Mettre les options de FUN ici
-  object = "data_tidy/BDD_SHP_nodupl_pub.gpkg",
+  object = "data_tidy/BDD_shp_tidy.gpkg",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = "")) %>%
-  #Check geometry are valid, and make it valid if not. Necessary to compute indicators in the polygons
-  st_make_valid() %>%
-  #transform multiploygons to polygons, supported by the mapme package (88 group of polygons to 152 single polygons)
-  sf::st_cast(to="POLYGON") %>%
-  clean_names()
+  #st_make_valid() %>%
+  sf::st_cast(to = "POLYGON")
 
 #From BDD_joint, that is the combination of the SIOP dataset and the AP dataset from ARB team in AFD. Imported to have the information on the PA area (combination of areas reported by WDPA and ARB)
 pa_nodupl = 
@@ -98,25 +93,31 @@ pa_nodupl =
   aws.s3::s3read_using(
   FUN = data.table::fread,
   encoding = "UTF-8",
-  object = "data_tidy/BDD_DesStat_nodupl_pub.csv",
+  object = "data_tidy/BDD_DesStat_nofund_nodupl.csv",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = "")) %>%
   dplyr::select(c(wdpaid, superficie))
 
-save_folder = get_bucket("projet-afd-eva-ap")
-
-spa_pfolio = pa_shp %>%
-  init_portfolio(2000:2020,
-                 outdir = save_folder,
-                 cores = 4,
-                 add_resources = TRUE,
-                 verbose = TRUE)
-
-
-
+#mapview(pa_shp)
 ```
 
 ## Downloading data of interests and compute relevant indicators
+
+### Create the portfolio
+
+```{r}
+#The raw data from mapme package are stored in a temporary folder
+tmp = paste(tempdir(), "mapme", sep = "/")
+#save_folder = get_bucket("projet-afd-eva-ap", region = "")
+
+#Creating the portfolio
+pa_pfolio = pa_shp %>%
+  init_portfolio(2000:2020,
+                 outdir = tmp,
+                 cores = 4,
+                 add_resources = TRUE,
+                 verbose = TRUE)
+```
 
 ```{r message=FALSE, warning=FALSE}
 
@@ -166,21 +167,59 @@ pa_pfolio_mang =
   calc_indicators(indicators = "mangroves_area",
                 overwrite=T)
 
-# write_portfolio(pa_pfolio_mang,
-#       dsn = "data_tidy/mapme_bio_data/pa_pfolio_mang.gpkg",
-#       overwrite = FALSE)
-
-pa_pfolio_mang = read_portfolio("data_tidy/mapme_bio_data/pa_pfolio_mang.gpkg")
-
 ##Unest the sf file into a classic data frame without geometry
 # data_pfolio_mang = unnest(pa_pfolio_mang, cols="mangroves_area") %>%
 #   sf::st_drop_geometry() %>%
-#   dplyr::select(id_pr,wdpaid,year,mangrove_extent)
+#   dplyr::select(wdpaid, assetid, year,mangrove_extent)
 
-# fwrite(data_pfolio_mang,
-#        "data_tidy/mapme_bio_data/data_pfolio_mang.csv")
+# s3write_using(data_pfolio_mang,
+#               data.table::fwrite,
+#               object = "data_tidy/mapme_bio_data/data_pfolio_mang.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = "")
+#               )
 
-data_pfolio_mang = fread("data_tidy/mapme_bio_data/data_pfolio_mang.csv")
+data_pfolio_mang = s3read_using(data.table::fread,
+              object = "data_tidy/mapme_bio_data/data_pfolio_mang.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = "")
+                                )
+
+##~~~~~~~~~~~~~~~~~~~~
+##  ~ Land cover   --
+##~~~~~~~~~~~~~~~~~~~~
+
+##Downloading data and computing indicators 
+pa_pfolio_land = 
+  get_resources(pa_pfolio,
+    resources = c("esalandcover")) %>%
+  calc_indicators(indicators = "landcover",
+                overwrite=T) 
+
+# write_portfolio(pa_pfolio_mang, 
+#       dsn = "01_data_tidy/mapme_bio_data/pa_pfolio_mang.gpkg",
+#       overwrite = FALSE)
+
+##Unnest data
+# data_pfolio_land = unnest(pa_pfolio_land, cols = "landcover") %>%
+#   st_drop_geometry() %>%
+#   dplyr::select(wdpaid, assetid, year, area, classes)
+
+# s3write_using(data_pfolio_land,
+#               data.table::fwrite,
+#               object = "data_tidy/mapme_bio_data/data_pfolio_land.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = "")
+#               )
+
+# data_pfolio_land = s3read_using(data.table::fread,
+#               object = "data_tidy/mapme_bio_data/data_pfolio_land.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = "")
+#                                 )
+
+
+
 
 ##~~~~~~~~~~~~~~~~~~~
 ##  ~ Emissions  ----
@@ -255,30 +294,6 @@ pa_pfolio_soil =
 #   sf::st_drop_geometry() %>%
 #   dplyr::select(id_pr,wdpaid,year,mangrove_extent)
 
-
-##~~~~~~~~~~~~~~~~~~~~
-##  ~ Land cover   --
-##~~~~~~~~~~~~~~~~~~~~
-
-#/!\ voir quels indicateurs/mesures prendre !!
-
-##Downloading data and computing indicators 
-
-
-pa_pfolio_land = 
-  get_resources(pa_pfolio,
-    resources = c("esalandcover")) %>%
-  calc_indicators(indicators = "landcover",
-                overwrite=T) 
-
-# write_portfolio(pa_pfolio_mang, 
-#       dsn = "01_data_tidy/mapme_bio_data/pa_pfolio_mang.gpkg",
-#       overwrite = FALSE)
-
-##Unest the sf file into a classic data frame without geometry
-# data_biome = unnest(pa_pfolio_biome, cols="biome") %>%
-#   sf::st_drop_geometry() %>%
-#   dplyr::select(id_pr,wdpaid,year,mangrove_extent)
 
 ##~~~~~~~~~~~~~~~~~~~~
 ##  ~ Accessibility --
