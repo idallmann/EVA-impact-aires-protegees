@@ -253,13 +253,13 @@ pa_shp = read_sf("data_raw/WDPA_SHP/BDD_SHP_nodupl.shp") %>%
   select(-c(mntnt, mtglb, e, mnt, prodt, lbllp, dt_ct, d_1, d, d_c, durdcncrs_a, drdcncrs_an, atrsp, ett, lbllt, rspns, dr, mtrs, detal, projt, cmmnt, cmmnt_1))
 
 # st_write(pa_shp,
-#          dsn = "data_tidy/BDD_shp_tidy.gpkg",
+#          dsn = "data_tidy/BDD_shp_raw.gpkg",
 #          delete_dsn = TRUE)
 
 rm(pa_shp)
 ```
 
-### Computing total areas covered by PAs in the sample
+## Computing total areas covered by PAs in the sample
 
 Knowing the total area covered by PAs at different level of aggregation is interesting per se. It is also necessary to compute several statistics (e.g average funding by unit of area). According to the WDPA documentation, it is likely that some reported polygons overlap. Simply summing the areas would thus lead to a biased estimate of the total area at a given level of aggregation. We follow the procedure of the WDPA (<https://www.protectedplanet.net/en/resources/calculating-protected-area-coverage>). Our case is simpler as all of the PAs we consider are given a polygon.
 
@@ -276,7 +276,7 @@ Knowing the total area covered by PAs at different level of aggregation is inter
 #Importing shapefiles
 sf_use_s2(FALSE)
 pa_shp = 
-  read_sf("data_tidy/BDD_shp_tidy.gpkg") %>%
+  read_sf("data_tidy/BDD_shp_raw.gpkg") %>%
   # aws.s3::s3read_using(
   # FUN = sf::read_sf,
   # # Mettre les options de FUN ici
@@ -310,6 +310,9 @@ pa_shp_tidy = pa_shp %>%
   mutate(area_sf_moll = as.numeric(st_area(geom)/1e6),
          sprfc_km2 = ifelse(wdpaid == 555547988, yes = area_sf_moll, no = rep_a))
 
+# st_write(pa_shp_tidy,
+#          dsn = "data_tidy/BDD_shp_tidy.gpkg",
+#          delete_dsn = TRUE)
 ```
 
 ### Computing the intersection at country, region, world level
