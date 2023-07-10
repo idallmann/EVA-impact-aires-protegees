@@ -33,6 +33,8 @@ Different datasets are built. First a dataset (data_PA_tidy) enriched of informa
 
 From this dataset are extracted : (1) a dataset with only SIOP variables, to allow future working on PAs; (2) a dataset to perform most descriptive statistics, except confidential ones related to funding; (3) a confidential dataset with funding data.
 
+Then a dataset of PAs polygons is imported from the WDPA, and confidential data removed.
+
 Some statistics need size of PAs at country/region/world level (evolution of area covered by PAs at world level for instance). Datasets with total areas at country/region/world level are created. As many areas overlap (according to WDPA documentation), a sum of reported area would overestimate aggregated area. The computation method of WDPA is followed (<https://www.protectedplanet.net/en/resources/calculating-protected-area-coverage>).
 
 ### Cleaning the raw dataset
