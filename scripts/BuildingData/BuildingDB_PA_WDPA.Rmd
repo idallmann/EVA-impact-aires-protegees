@@ -396,7 +396,7 @@ pa_area_ctry = data_stat_nofund_nodupl %>%
 pa_area_dr = data_stat_nofund_nodupl %>%
   #Compute total area at dr level
   group_by(direction_regionale) %>%
-  summarize(sprfc_tot_km2 = sum(superficie)) %>%
+  summarize(sprfc_tot_km2 = sum(superficie)) %>% 
   ungroup() %>%
   #Add information on intersection area in each DR. Modify the variable so that NA value -> 0
   left_join(pa_int_dr, by = c("direction_regionale" = "drct")) %>%
@@ -408,8 +408,10 @@ pa_area_dr = data_stat_nofund_nodupl %>%
 #fwrite(pa_area_dr, "data_tidy/area/pa_area_dr.csv")
 
 #At world level
-pa_area_wld = sum(data_stat_nofund_nodupl$superficie) - pa_int_wld 
-#save(pa_area_wld, file = "data_tidy/area/pa_area_wld.RDdata")
+pa_area_wld = sum(data_stat_nofund_nodupl$superficie) - pa_int_wld %>%
+  as.data.frame() %>%
+  rename("sprfc_tot_noint_km2" = ".")
+#fwrite(pa_area_wld, "data_tidy/area/pa_area_wld.csv")
 
 ```
 
