@@ -301,6 +301,11 @@ geom_555547988_1245 = st_difference(pa_shp[pa_shp$wdpaid == 555547988,]$geom, pa
 pa_shp[pa_shp$wdpaid == 555547988,]$geom = geom_555547988_1245
 pa_shp[pa_shp$wdpaid == 555547988,]$iso3 = "CAF"
 
+#Save this tidy version
+# st_write(pa_shp,
+#          dsn = "data_tidy/BDD_shp_tidy.gpkg",
+#          delete_dsn = TRUE)
+
 #Define a tidy version of the former dataset, with modifications on wdpaid 555547988
 pa_shp_tidy = pa_shp %>%
   #Project to Mollweide to compute relevant areas in km2
@@ -309,10 +314,6 @@ pa_shp_tidy = pa_shp %>%
   #Then to take into account potential refinements of the geometries (as for wdpaid 55547988), a variable for relevant area is defined. It takes rep_a value except for modified geometries where area_sf_moll is taken
   mutate(area_sf_moll = as.numeric(st_area(geom)/1e6),
          sprfc_km2 = ifelse(wdpaid == 555547988, yes = area_sf_moll, no = rep_a))
-
-# st_write(pa_shp_tidy,
-#          dsn = "data_tidy/BDD_shp_tidy.gpkg",
-#          delete_dsn = TRUE)
 ```
 
 ### Computing the intersection at country, region, world level
