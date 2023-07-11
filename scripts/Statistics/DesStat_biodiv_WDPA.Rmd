@@ -155,7 +155,7 @@ pa_pfolio_tcover =
                 min_size = 1, overwrite=T)
 
 #Unest the sf file into a classic data frame without geometry
-data_pfolio_tcover = unnest(pa_pfolio_mang, cols="treecover_area") %>%
+data_pfolio_tcover = unnest(pa_pfolio_tcover, cols="treecover_area") %>%
   sf::st_drop_geometry() %>%
   dplyr::select(wdpaid, assetid, years,treecover) %>%
   mutate(treecover = case_when(treecover == 0 ~ NA, TRUE ~ treecover)) %>%
@@ -169,7 +169,43 @@ s3write_using(data_pfolio_tcover,
               opts = list("region" = "")
               )
 
-#do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+files_emi <- list.files(paste(tmp, "gfw_emissions", sep = "/"), 
+                        full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+for(f in files_emi) 
+  {
+  cat("Uploading file", paste0("'", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/data_raw/mapme_bio_data/gfw_emissions", 
+                     region = "", show_progress = TRUE)
+}
+
+files_lossyear <- list.files(paste(tmp, "gfw_lossyear", sep = "/"), 
+                        full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+for(f in files_emi) 
+  {
+  cat("Uploading file", paste0("'", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/data_raw/mapme_bio_data/gfw_lossyear", 
+                     region = "", show_progress = TRUE)
+}
+
+files_treecover <- list.files(paste(tmp, "gfw_treecover", sep = "/"), 
+                        full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+for(f in files_emi) 
+  {
+  cat("Uploading file", paste0("'", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/data_raw/mapme_bio_data/gfw_treecover", 
+                     region = "", show_progress = TRUE)
+}
+
+
+do.call(file.remove, list(list.files(paste(tmp, "gfw_emissions", sep = "/"), full.names = TRUE)))
+do.call(file.remove, list(list.files(paste(tmp, "gfw_lossyear", sep = "/"), full.names = TRUE)))
+do.call(file.remove, list(list.files(paste(tmp, "gfw_treecover", sep = "/"), full.names = TRUE)))
 
 ##~~~~~~~~~~~~~~~~~~
 ##  ~ Mangroves ----
