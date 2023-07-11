@@ -23,6 +23,7 @@ library(splitstackshape)
 library(janitor)
 library(stringi)
 library(sf)
+library(mapview)
 ```
 
 ## Datasets for descriptive statistics
