@@ -256,7 +256,7 @@ pa_shp = read_sf("data_raw/WDPA_SHP/BDD_SHP_nodupl.shp") %>%
   select(-c(mntnt, mtglb, e, mnt, prodt, lbllp, dt_ct, d_1, d, d_c, durdcncrs_a, drdcncrs_an, atrsp, ett, lbllt, rspns, dr, mtrs, detal, projt, cmmnt, cmmnt_1))
 
 # st_write(pa_shp,
-#          dsn = "data_tidy/BDD_shp_raw.gpkg",
+#          dsn = "data_tidy/BDD_shp_pub.gpkg",
 #          delete_dsn = TRUE)
 
 rm(pa_shp)
@@ -271,6 +271,8 @@ Knowing the total area covered by PAs at different level of aggregation is inter
 2.  Intersection of polygons and the corresponding area are computed.
 
 3.  Then the intersection can be aggregated at country, region or world level. Then it is subtracted to the sum of areas at country, region or world level. Note that intersections between PAs whose polygon is unknown won't be taken into account.
+
+Note that the following codes are about computing total area at country/region/world level, taking potential intersections into account. It is not about generating a new shape files for the impact analysis. Indeed the overlap should be taken into account in the impact evaluation analysis codes.
 
 ### Computations of polygons' area
 
@@ -303,11 +305,6 @@ pa_shp =
 geom_555547988_1245 = st_difference(pa_shp[pa_shp$wdpaid == 555547988,]$geom, pa_shp[pa_shp$wdpaid == 1245,]$geom)
 pa_shp[pa_shp$wdpaid == 555547988,]$geom = geom_555547988_1245
 pa_shp[pa_shp$wdpaid == 555547988,]$iso3 = "CAF"
-
-#Save this tidy version
-# st_write(pa_shp,
-#          dsn = "data_tidy/BDD_shp_tidy.gpkg",
-#          delete_dsn = TRUE)
 
 #Define a tidy version of the former dataset, with modifications on wdpaid 555547988
 pa_shp_tidy = pa_shp %>%
