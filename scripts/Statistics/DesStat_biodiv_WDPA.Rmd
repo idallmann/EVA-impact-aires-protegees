@@ -20,6 +20,8 @@ source("scripts/Statistics/functions_DesStat_biodiv.R", encoding = "utf-8")
 ```
 
 ```{r message=FALSE, warning=FALSE}
+#The last version of mapme.biodiversity package is downloaded directly from github
+remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
 library(mapme.biodiversity)
 library(sf)
 library(tidyverse)
@@ -54,6 +56,8 @@ cat(paste("Supported resources:\n-",
 
 ## Setting the environment
 
+This might be necessary to access SSPCloud storage from mapme.biodiversity functions.
+
 ```{r}
 
 # Sys.setenv("AWS_ACCESS_KEY_ID" = "GD8CI0UQQPTETOZS65J2",
@@ -81,10 +85,10 @@ pa_shp =
   aws.s3::s3read_using(
   FUN = sf::read_sf,
   # Mettre les options de FUN ici
-  object = "data_tidy/BDD_shp_tidy.gpkg",
+  object = "data_tidy/BDD_shp_pub.gpkg",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = "")) %>%
-  #st_make_valid() %>%
+  st_make_valid() %>%
   sf::st_cast(to = "POLYGON")
 
 #From BDD_joint, that is the combination of the SIOP dataset and the AP dataset from ARB team in AFD. Imported to have the information on the PA area (combination of areas reported by WDPA and ARB)
@@ -103,7 +107,19 @@ pa_nodupl =
 
 ## Downloading data of interests and compute relevant indicators
 
-### Create the portfolio
+For the moment, mapme.biodiversity functions do not support reading/writing in a S3 server like SSPCloud. Waiting for the new release of the package, the following process is followed :
+
+1.  Create a sub-folder in the temporary folder (RAM of the R session) to download and store the raw data
+
+2.  Associate the portfolio to this sub-folder
+
+3.  Download the raw data and compute the indicators of interest, unnest the data obtained
+
+4.  Then, a dataframe can be saved.
+
+Note that this solution is not time-optimal : raw data must be downloaded each time.
+
+### Creating the portfolio
 
 ```{r}
 #The raw data from mapme package are stored in a temporary folder
@@ -119,6 +135,8 @@ pa_pfolio = pa_shp %>%
                  verbose = TRUE)
 ```
 
+### Compute indicators from geospatial data
+
 ```{r message=FALSE, warning=FALSE}
 
 ##~~~~~~~~~~~~~~~~
@@ -126,7 +144,7 @@ pa_pfolio = pa_shp %>%
 ##~~~~~~~~~~~~~~~~
 
 ##Downloading data and computing indicators 
-pa_pfolio_forest =
+pa_pfolio_tcover =
   get_resources(pa_pfolio,
     resources = c("gfw_lossyear","gfw_treecover","gfw_emissions"),
     vers_treecover = "GFC-2020-v1.8",
@@ -136,24 +154,22 @@ pa_pfolio_forest =
                 min_cover = 10,
                 min_size = 1, overwrite=T)
 
-# write_portfolio(pa_pfolio_forest,
-#       dsn = "data_tidy/mapme_bio_data/pa_pfolio_forest.gpkg",
-#       overwrite = FALSE)
+#Unest the sf file into a classic data frame without geometry
+data_pfolio_tcover = unnest(pa_pfolio_mang, cols="treecover_area") %>%
+  sf::st_drop_geometry() %>%
+  dplyr::select(wdpaid, assetid, years,treecover) %>%
+  mutate(treecover = case_when(treecover == 0 ~ NA, TRUE ~ treecover)) %>%
+  filter(!is.na(treecover))
 
-pa_pfolio_forest = read_portfolio("data_tidy/mapme_bio_data/pa_pfolio_forest.gpkg")
+#Write the dataframe into the bucket
+s3write_using(data_pfolio_tcover,
+              data.table::fwrite,
+              object = "data_tidy/mapme_bio_data/data_pfolio_tcover.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = "")
+              )
 
-##Unest the sf file into a classic data frame without geometry
-#Note replace() could be used instead of wase_when, and filter instead of subset for the same result
-# data_pfolio_forest = unnest(pa_pfolio_forest, cols="treecover_area") %>%
-#   sf::st_drop_geometry() %>%
-#   dplyr::select(id_pr,nm_ap,drct,wdpaid,ann_c,years,treecover) %>%
-#   mutate(treecover = case_when(treecover == 0 ~ NA, TRUE ~ treecover)) %>%
-#   filter(!is.na(treecover))
-
-# fwrite(data_pfolio_forest,
-#        "data_tidy/mapme_bio_data/data_pfolio_forest.csv")
-
-data_pfolio_forest = fread("data_tidy/mapme_bio_data/data_pfolio_forest.csv")
+#do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 ##~~~~~~~~~~~~~~~~~~
 ##  ~ Mangroves ----
@@ -168,22 +184,21 @@ pa_pfolio_mang =
                 overwrite=T)
 
 ##Unest the sf file into a classic data frame without geometry
-# data_pfolio_mang = unnest(pa_pfolio_mang, cols="mangroves_area") %>%
-#   sf::st_drop_geometry() %>%
-#   dplyr::select(wdpaid, assetid, year,mangrove_extent)
-
-# s3write_using(data_pfolio_mang,
-#               data.table::fwrite,
-#               object = "data_tidy/mapme_bio_data/data_pfolio_mang.csv",
-#               bucket = "projet-afd-eva-ap",
-#               opts = list("region" = "")
-#               )
-
-data_pfolio_mang = s3read_using(data.table::fread,
+data_pfolio_mang = unnest(pa_pfolio_mang, cols="mangroves_area") %>%
+  sf::st_drop_geometry() %>%
+  dplyr::select(wdpaid, assetid, year,mangrove_extent)
+s3write_using(data_pfolio_mang,
+              data.table::fwrite,
               object = "data_tidy/mapme_bio_data/data_pfolio_mang.csv",
               bucket = "projet-afd-eva-ap",
               opts = list("region" = "")
-                                )
+              )
+
+# data_pfolio_mang = s3read_using(data.table::fread,
+#               object = "data_tidy/mapme_bio_data/data_pfolio_mang.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = "")
+#                                 )
 
 ##~~~~~~~~~~~~~~~~~~~~
 ##  ~ Land cover   --
@@ -196,21 +211,20 @@ pa_pfolio_land =
   calc_indicators(indicators = "landcover",
                 overwrite=T) 
 
-# write_portfolio(pa_pfolio_mang, 
-#       dsn = "01_data_tidy/mapme_bio_data/pa_pfolio_mang.gpkg",
-#       overwrite = FALSE)
+write_portfolio(pa_pfolio_mang,
+      dsn = "01_data_tidy/mapme_bio_data/pa_pfolio_mang.gpkg",
+      overwrite = FALSE)
 
 ##Unnest data
-# data_pfolio_land = unnest(pa_pfolio_land, cols = "landcover") %>%
-#   st_drop_geometry() %>%
-#   dplyr::select(wdpaid, assetid, year, area, classes)
-
-# s3write_using(data_pfolio_land,
-#               data.table::fwrite,
-#               object = "data_tidy/mapme_bio_data/data_pfolio_land.csv",
-#               bucket = "projet-afd-eva-ap",
-#               opts = list("region" = "")
-#               )
+data_pfolio_land = unnest(pa_pfolio_land, cols = "landcover") %>%
+  st_drop_geometry() %>%
+  dplyr::select(wdpaid, assetid, year, area, classes)
+s3write_using(data_pfolio_land,
+              data.table::fwrite,
+              object = "data_tidy/mapme_bio_data/data_pfolio_land.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = "")
+              )
 
 # data_pfolio_land = s3read_using(data.table::fread,
 #               object = "data_tidy/mapme_bio_data/data_pfolio_land.csv",
@@ -219,6 +233,9 @@ pa_pfolio_land =
 #                                 )
 
 
+#####
+#A voir ensuite !!!
+#####
 
 
 ##~~~~~~~~~~~~~~~~~~~
