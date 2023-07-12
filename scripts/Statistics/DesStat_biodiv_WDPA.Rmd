@@ -130,9 +130,32 @@ tmp = paste(tempdir(), "mapme", sep = "/")
 pa_pfolio = pa_shp %>%
   init_portfolio(2000:2020,
                  outdir = tmp,
-                 cores = 4,
+                 #cores = 4,
                  add_resources = TRUE,
                  verbose = TRUE)
+```
+
+### TEST : importing data from SSPCloud
+
+data are downloaded from an other script and stored in the SSPCloud. Here : copy these data to the temporary storage of the R session, and use them to compute indicators.
+
+```{r}
+
+df_files = aws.s3::get_bucket("projet-afd-eva-ap",
+                   prefix = "data_raw/mapme_bio_data/gfw_treecover/",
+                   region = "") %>%
+  as.data.frame()
+list_files = df_files$Key
+i = list_files[1]
+for (i in list_files) 
+{
+  temp_file = s3read_using(FUN = terra::rast,
+               object = i,
+               bucket = "projet-afd-eva-ap",
+               opts = list("region"=""))
+  terra::writeRaster(temp_file, file.path(tempdir(), "test.tif"), overwrite = TRUE)
+}
+plot(temp_file)
 ```
 
 ### Compute indicators from geospatial data
