@@ -46,6 +46,9 @@ knitr::opts_chunk$set(
  fig.asp = 0.8,
  out.width = "80%"
 )
+#  httr::set_config(httr::config(ssl_verifypeer = 0L)) 
+# options(download.file.method="wget", download.file.extra="--no-check-certificate")
+options(download.file.method="curl", download.file.extra="-k -L")
 ```
 
 ```{r theme_ggplot2, echo = FALSE}
@@ -80,6 +83,9 @@ library(wdpar) # For getting protected areas
 library(exactextractr) # For zonal statistics
 #remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
 library(mapme.biodiversity)
+
+#Install the river to download wdpa data directly
+webdriver::install_phantomjs()
 ```
 
 Let's then define some user-specified variables. **This tutorial is composed in the way that, once our readers specify the variables listed below, the final matching frame can be generated with rest of the codes staying untouched, as long as the covariates are the same.** In case different covariates are wanted, users should modify the codes as guided in [section 4]().
@@ -98,22 +104,31 @@ In this demo, we are going to have Madagascar as example, specify buffers zones 
 
 ```{r}
 # Define the path to a working directory
-wdir = file.path("C:/EAGLE/kfw_internship/git_myBranch/MDG/mapme.pa-impact-evaluation/data")
-wdir = file.path("/datadrive/datalake/mapme.pa-impact-evaluation/MDG/data/")
+# wdir = file.path("C:/EAGLE/kfw_internship/git_myBranch/MDG/mapme.pa-impact-evaluation/data")
+wdir = paste(tempdir(), "mapme", sep = "/")
 
 # Define the file name of the output matching frame
 name_output = "matching_frame_10km.gpkg"
 
 # Specify a country; 
-country = "MDG"
+country = "CMR"
 
 # Specify buffer width in meter
 buffer_m = 10000
 # Specify the grid cell size in meter
 gridSize = 10000 
 
+data_stat_nodupl = 
+  #fread("data_tidy/BDD_DesStat_nofund_nodupl.csv" , encoding = "UTF-8")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  # Mettre les options de FUN ici
+  object = "data_tidy/BDD_DesStat_nofund_nodupl.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
 # Specify a list of WDPA IDs of funded protected areas (treated areas)
-paid = c(5037, 2303, 5024, 303698, 303702, 26072, 5028, 303695, 20272, 20287, 20273)
+paid = data_stat_nodupl[data_stat_nodupl$iso3 == country,]$wdpaid
 
 # Start year
 y_first = 2000
@@ -355,7 +370,6 @@ Furthermore, please be cautious**(!)** with the function argument `add_resources
 aoi = init_portfolio(grid.param,
                      years = y_first:y_last,
                      outdir = wdir,
-                     tmpdir = file.path(wdir, "tmp"),
                      cores = 12,
                      add_resources = FALSE)
 ```
@@ -398,27 +412,32 @@ get.soil = get_resources(aoi,
 -   **Covariate: Average Elevation**
 
 ```{r, eval=F, echo=TRUE}
+
+#Issues with the SSL certificate : at first, this resource is not downloaded
+
 # Covariate: Elevation
 # Download Raster Data
-get.elevation = get_resources(aoi, "nasa_srtm") %>%
-# Calculate Indicator
-  calc_indicators(.,
-                  indicators = "elevation",
-                  stats_elevation = c("mean")) %>%
-# Transform the output dataframe into a pivot dataframe
-  unnest(elevation)
+# get.elevation = get_resources(aoi, "nasa_srtm") %>%
+# # Calculate Indicator
+#   calc_indicators(.,
+#                   indicators = "elevation",
+#                   stats_elevation = c("mean")) %>%
+# # Transform the output dataframe into a pivot dataframe
+#   unnest(elevation)
 ```
 
 -   **Covariate: Terrain Ruggedness Index (TRI)**
 
 ```{r, eval=F, echo=TRUE}
+#Issues with the SSL certificate : at first, this resource is not downloaded
+
 # Covariate: TRI
 # Download Data
-get.tri = get_resources(aoi, "nasa_srtm") %>%
-# Calculate Indicator
-  calc_indicators(., indicators = "tri") %>%
-# Transform the output dataframe into a pivot dataframe
-  unnest(tri)
+# get.tri = get_resources(aoi, "nasa_srtm") %>%
+# # Calculate Indicator
+#   calc_indicators(., indicators = "tri") %>%
+# # Transform the output dataframe into a pivot dataframe
+#   unnest(tri)
 ```
 
 -   **Covariate: Median Traveltime to cities with at least 5000 population**
@@ -472,10 +491,11 @@ dropLast = head(colnames_tree, -1)
 # Set list of new column names for tree loss time series
 colnames_loss = dropFirst %>% str_split(., "_")
 
+get.tree2 = get.tree 
 # Add new columns: treeloss_tn = treecover_tn - treecover_t(n-1)  
 for (i in 1:length(dropFirst)) {
   new_colname <- paste0("treeloss_", colnames_loss[[i]][2]) 
-  get.tree[[new_colname]] <- get.tree[[dropFirst[i]]] - get.tree[[dropLast[i]]]
+  get.tree2[[new_colname]] <- get.tree2[[dropFirst[i]]] - get.tree2[[dropLast[i]]]
 }
 ```
 
@@ -486,14 +506,16 @@ for (i in 1:length(dropFirst)) {
 df.tree = get.tree %>% mutate(x = NULL) %>% as.data.frame()
 df.travelT = get.travelT %>% mutate(x = NULL) %>% as.data.frame()
 df.soil = get.soil %>% mutate(x = NULL) %>% as.data.frame()
-df.elevation = get.elevation %>% mutate(x = NULL) %>% as.data.frame()
-df.tri = get.tri %>% mutate(x=NULL) %>% as.data.frame()
+# df.elevation = get.elevation %>% mutate(x = NULL) %>% as.data.frame()
+# df.tri = get.tri %>% mutate(x=NULL) %>% as.data.frame()
 
 # Make a dataframe containing only "assetid" and geometry
 df.geom = get.tree[, c("assetid", "x")] %>% as.data.frame()
 
 # Merge all output dataframes 
-pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.elevation, df.tri, df.geom)) %>%
+# pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.elevation, df.tri, df.geom)) %>%
+#   st_as_sf()
+pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.geom)) %>%
   st_as_sf()
 # Make column Group ID and WDPA ID have data type "integer"
 pivot.all$group = as.integer(pivot.all$group)
