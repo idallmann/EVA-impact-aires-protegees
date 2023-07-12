@@ -1,508 +1,497 @@
 ---
-title: "Tutorial on pre-processing"
+title: "Template for post-processing"
 author: "Kemeng Liu"
-date: "28/02/2023"
+date: "25/05/2023"
 output: html_document
 ---
 
 ## Introduction
 
-This tutorial presents the data pre-processing part of a statistical analysis that aims at estimating the impact of KfW financing on reducing deforastation rates in terrestrial *protected areas (PA)*.
+This script is a template for implementing "Matching" strategy to select treatment and control objects, and visualizing analysis results.
 
-In the statistical analysis, the deforastation rates in funded protected areas *(treatment group)* will be compared with that in non-protected regions *(control group)* in both pre- and post-project phase in a user-specified country. When selecting samples for treated group and control group, a so-called **"matching"** strategy is followed in order to mitigate selection bias.
+## 0. Initial Settings
 
-The "matching" will be taken over by R package `Matchit` (more details in [next tutorial]()), which requires a **matching dataframe** as input. <ins>The goal of this tutorial is to guide users through a pre-designed data processing flow to generate a matching frame for a given country.</ins>
-
-So what is a *matching frame*? In fact, it is a dataframe containing **observations** from all treated areas and non-treated areas in one country. Each row represents an observation and each column contains **attributes** for individual observations.
-
-And what do we consider an *observation*? In our method design, a squared grid at user-specified ground spacing is distributed over the studied country, and each grid cell corresponds to an obervation.
-
-As for *attributes*, we included the following variables:
-
--   **Group ID**: indicating which group a grid cell belongs to. In order to mitigate \<...effect...\>, observations from protected areas that are not funded by KfW or from buffer zones around any protected area aren't supposed to be chosen as control group. So four groups are made:
-
-    -   Candidates for control group
-    -   Candidates for treatment group
-    -   Protected areas not funded by KfW
-    -   Buffer zones
-
--   **WDPA ID**: the ID in the World Database on Protected Area (WDPA) if a grid cell is located in one.
-
--   **Deforestation area** at annual interval across pre- and post-project phase.
-
--   **Covariates**: user-selected variables, based on which the objects for treatment and control group will be selected by `Matchit` package.
-
-This tutorial is structured as follows:
-
--   [Section 1](##1.initial-settings): Initial settings;
--   [Section 2](): Generating observation units for matching frame;
--   [Section 3](): Determining **Group IDs** and **WDPA IDs** for all observation units;
--   [Section 4](): Calculating **deforestation area** and other **covariates** for all observation units, by means of a KfW initiated R package `mapme.biodiversity`.
-
-```{r setup, include=FALSE}
-# Chunk options
-knitr::opts_chunk$set(
- fig.width = 6,
- fig.asp = 0.8,
- out.width = "80%"
-)
-```
-
-```{r theme_ggplot2, echo = FALSE}
-# Creating a ggplot2 theme
-library(ggplot2)
-theme_ben <- function(base_size = 14) {
-  theme_bw(base_size = base_size) %+replace%
-    theme(
-      # changed theme options
-    )
-}
-# Changing the default theme
-theme_set(theme_ben())
-```
-
-## 1. Initial Settings
-
-Let's firstly load the needed R packages. Since `mapme.biodiversity` package is still undergoing development, it is recommended to install the package directly from Github to get its most recent version by calling `remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")`.
-
-```{r, message=FALSE, warning=FALSE}
-# Load Libraries
+```{r, echo=FALSE}
 library(dplyr)
 library(tidyr)
-library(stringr)
-library(ggplot2) # For plotting
-library(sf) # For handling vector data
-library(terra) # For handling raster data
-library(raster) # For handling raster data
-library(rgeos)
-library(geodata) # For getting country files
-library(wdpar) # For getting protected areas
-library(exactextractr) # For zonal statistics
-#remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
-library(mapme.biodiversity)
+library(tidyverse)
+library(sf)
+library(MatchIt)
+library(fixest)
+library(cobalt)
 ```
 
-Let's then define some user-specified variables. **This tutorial is composed in the way that, once our readers specify the variables listed below, the final matching frame can be generated with rest of the codes staying untouched, as long as the covariates are the same.** In case different covariates are wanted, users should modify the codes as guided in [section 4]().
-
-The variables to be specified by users are:
-
--   **`wdir`**: Path to a working directory; all output and intermediate files will be written to this directory.
--   **`name_output`**: Name of the output matching frame. The suffix represents file format of geospatial dataframe; the usual options are `.gpkg`, `.shp` or `.geojson`.
--   **`country`**: The name of the studied country. Both full country name and <ins>3-digit</ins> ISO country code are valid. *A list of country names and equivalent ISO codes are available [here](https://en.wikipedia.org/wiki/ISO_3166-1#Officially_assigned_code_elements)*.
--   **`buffer_m`**: The width of buffer zones around PAs in meter.
--   **`gridSize`**: The length of a grid cell in meter.
--   **`wdpaid`**: The official IDs of funded PAs.
--   **`y_first`**/**`y_last`**: The first and the last year that the analysis should cover.
-
-In this demo, we are going to have Madagascar as example, specify buffers zones around PAs to be 10 km wide, and calculate attributes for a squared grid with cells in 10 km long.
-
 ```{r}
+# TO BE CUSTOMIZED...
+
 # Define the path to a working directory
-wdir = file.path("C:/EAGLE/kfw_internship/git_myBranch/MDG/mapme.pa-impact-evaluation/data")
+wdir = file.path("C:/EAGLE/kfw_internship/git_myBranch/MDG/mapme.pa-impact-evaluation/data/output")
+
 wdir = file.path("/datadrive/datalake/mapme.pa-impact-evaluation/MDG/data/")
 
-# Define the file name of the output matching frame
-name_output = "matching_frame_10km.gpkg"
+# Define the file name of the input matching frame
+name_input = "matching_frame_10km.gpkg"
 
-# Specify a country; 
-country = "MDG"
+# Define Column Names of Covariates
+colname.travelTime = "minutes_median_5k_110mio"
+colname.clayContent = "clay_0.5cm_mean"
+colname.elevation = "elevation_mean"
+colname.tri = "tri_mean"
+colname.fcIni = "treecover_2000"
 
-# Specify buffer width in meter
-buffer_m = 10000
-# Specify the grid cell size in meter
-gridSize = 10000 
 
-# Specify a list of WDPA IDs of funded protected areas (treated areas)
-paid = c(5037, 2303, 5024, 303698, 303702, 26072, 5028, 303695, 20272, 20287, 20273)
+# Prefix of columns for forest cover
+colfc.prefix = "treecover"
+# Separation between prefix and year
+colfc.bind = "_"
+# Prefix of columns for forest loss
+colfl.prefix = "treeloss"
 
-# Start year
-y_first = 2000
-# End year
-y_last = 2021
+# Year of Funding Start
+funding.start = 2007
 ```
 
-## 2. Generating observation units for matching frame
 
-As indicated in the introduction, observations in a matching frame correspond to individual grid cells of a vector grid in our method design. In this section, we are going to create a squared grid at 10 km ground resolution (defined by `gridSize`).
+## 1. Load Matching Frame
 
 ```{r}
-# Download country polygon to working directory and load it into workspace
-gadm <- gadm(country = country, resolution = 1, level = 0, path = wdir) %>% 
-  st_as_sf() 
-# If the country polygon file already exists in working directory, it can be loaded into work space by
-#gadm = readRDS(file.path(wdir, <"name_of_the_file">)) %>% st_as_sf()
-```
-
-The code chunk below projects the country polygon into a projected *Geographical Coordinate System (CRS)*, i.e. the planar WGS84 UTM zone where the polygon's centroid stands. It is beyond the scope of this tutorial to roll out explanations on CRS because it is a broad technical domain in remote sensing and geoinformatics. For readers who are interested in learning more about it, this [book chapter](https://r.geocompx.org/reproj-geo-data.html#which-crs) gives a nice start. Otherwise you don't have to bother with this issue because the projection is done automatically for the specified country.
-
-The solution given here to cope with CRS is to some extent traded-off for the convenience of computation, but we consider the bias risen here is tolerable for our use case, because the later statistical analysis has a stronger focus on depicting changes and extracting trends.
-
-```{r, warning=FALSE}
-# Find UTM zone of the country centroid
-centroid = st_coordinates(st_centroid(gadm))
-lonlat2UTM = function(lonlat) {
-  utm = (floor((lonlat[1] + 180) / 6) %% 60) + 1
-  if (lonlat[2] > 0) {
-    utm + 32600
-  } else{
-    utm + 32700
-  }
-}
-utm_code = lonlat2UTM(centroid)
-# Reproject GADM
-gadm_prj = gadm %>% st_transform(crs = utm_code)
+# Load matching frame
+mf = st_read(file.path(wdir, name_input)) %>%
+  filter(group==0 | group==1) %>%
+  drop_na() #%>%
+  #st_drop_geometry()
 ```
 
 ```{r}
-# Make bounding box of projected country polygon
-bbox = st_bbox(gadm_prj) %>% st_as_sfc() %>% st_as_sf() 
+# Add column: average treeloss before funding starts, 
+# In ths case, from 2001 to 2006
+#mf$avgLoss_pre_fund = round(rowMeans(mf[grepl(colfl.prefix, names(mf))][1:6]), 2)
+#colname.flAvg = "avgLoss_pre_fund"
 
-# Make a Grid to the extent of the bounding box
-grid.ini = st_make_grid(bbox, cellsize = c(gridSize,gridSize))
+# Columns treeloss 2001 ~ 2006, without geometry
+df_fl0106 = mf[grepl(colfl.prefix, names(mf))][1:6] %>% st_drop_geometry()
+# Add column: average treeloss before funding starts, 
+mf$avgLoss_pre_fund = round(rowMeans(df_fl0106), 2)
+colname.flAvg = "avgLoss_pre_fund"
+rm(df_fl0106)
 
-# Crop Grid to the extent of country boundary by
-  # subsetting to the grid cells that intersect with the country
-grid.sub = grid.ini %>% 
-  st_intersects(gadm_prj, .) %>% 
-  unlist()
-  # Filter the grid to the subset
-grid = grid.ini[sort(grid.sub)] %>%
-  st_as_sf() %>%
-  mutate(gridID = seq(1:nrow(.))) # Add id for grid cells
+```
+
+
+## 2a. Matching 
+
+```{r}
+# Make cut-off list ####
+lst_cutoffs = c()
+
+# Quantile in 8 parts
+lst_cutoffs[[colname.travelTime]] = as.integer(quantile(mf[[colname.travelTime]], probs = seq(0, 1, 0.125), na.rm=TRUE))
+
+#lst_cutoffs[[colname.clayContent]] = as.integer(quantile(mf[[colname.clayContent]], probs = seq(0, 1, 0.05), na.rm=TRUE))
+lst_cutoffs[[colname.clayContent]] = as.integer(c(0,10,20,30, 32,34,36,38,40, 50,60,70,80,90,100))
+
+lst_cutoffs[[colname.elevation]] = as.integer(quantile(mf[[colname.elevation]], probs = seq(0, 1, 0.125), na.rm=TRUE))
+
+lst_cutoffs[[colname.tri]] = as.integer(quantile(mf[[colname.tri]], probs = seq(0, 1, 0.125), na.rm=TRUE))
+
+lst_cutoffs[[colname.fcIni]] = as.integer(quantile(mf[[colname.fcIni]], probs = seq(0, 1, 0.025), na.rm=TRUE))
+
+lst_cutoffs[[colname.flAvg]] = as.integer(quantile(mf[[colname.flAvg]], probs = seq(0, 1, 0.025), na.rm=TRUE))
 ```
 
 ```{r}
-# Visualize
-ggplot() +
-  geom_sf(data = st_geometry(bbox)) +
-  geom_sf(data = st_geometry(gadm_prj)) +
-  geom_sf(data = st_geometry(grid), alpha = 0)
-```
+# Create Formula from Variables
+# Ref: https://stackoverflow.com/questions/66357664/using-variable-as-function-argument-in-r
+formula = eval(bquote(group ~ .(as.name(colname.travelTime)) + .(as.name(colname.clayContent)) +
+                     .(as.name(colname.elevation)) + .(as.name(colname.tri)) +
+                     .(as.name(colname.fcIni)) + .(as.name(colname.flAvg))
+                     ))
+#print(formula)
 
-## 3. Determining Group IDs and WDPA IDs for all observation units
-
-Now that we have the vector grid ready, in this section we're going to assign `Group ID` and `WDPA ID` as attributes to each observation unit (i.e. grid cell). This is achieved by:
-
-**A**. Getting the vector file of all protected areas in a specified country;
-
-**B**. Making buffer zones in specified width around all protected areas;
-
-**C**. Assigning number `3` as `Group ID` to all buffer polygons;
-
-**D**. Separating the protected areas funded by KfW from the others;
-
-**E**. Assigning number `1` as `Group ID` to funded PA polygons and number `2` to not funded ones;
-
-**F**. Rasterizing PA and buffer polygons by assigning their `Group ID` values to raster pixels;
-
-**G**. Rasterizing PA polygons by assigning the `WDPA ID` to raster pixels;
-
-**H**. Laying the previously generated grid over both rasters, agrregating values from pixels that are covered by individual grid cell, and sorting each grid cell into groups and WDPA IDs based on the aggregated value.
-
--   **Step-A**
-
-```{r, warning=FALSE}
-# Get the PA polygons/points of the specified country; 
-# They're downloaded to the working directory.
-wdpa = wdpa_fetch(country, wait = TRUE, download_dir = wdir)
-
-# If the PA file already exists, it can be loaded in this way
-#wdpa = wdpa_read(paste0(wdir, '/WDPA_Dec2022_MDG-shapefile.zip'))
+# CEM Match
+out.cem = matchit(formula,
+                  data = mf, 
+                  method = "cem", 
+                  cutpoints = lst_cutoffs)
 ```
 
 ```{r}
-# PAs are projected, and column "geometry_type" is added
-wdpa_prj = wdpa_clean(wdpa, geometry_precision = 1000) %>%
-  # Remove the PAs that are only proposed, or have geometry type "point"
-  filter(STATUS != "Proposed") %>%
-  filter(GEOMETRY_TYPE != "POINT") %>%
-  # Project PA polygons to the previously determined UTM zone
-  st_transform(crs = utm_code) 
+# Summary of matching output
+summary(out.cem)
 ```
 
--   **Step-B & -C**
+
+## 2b. Plot Covariate Balance
+
+`cobalt` library naturally supports the visualization of `MatchIt` outputs,
+Reference: https://cloud.r-project.org/web/packages/cobalt/vignettes/cobalt.html#bal.plot
 
 ```{r}
-# Make Buffers of 10km around all protected areas
-buffer <- st_buffer(wdpa_prj, dist = buffer_m) %>% 
-  # Assign an ID "3" to the buffer group
-  mutate(group=3)
-```
-
--   **Step-D & -E**
-
-```{r}
-# Separate funded and non-funded protected areas
-wdpaID_funded = paid
-wdpa_funded = wdpa_prj %>% filter(WDPAID %in% wdpaID_funded) %>%
-  mutate(group=1) # Assign an ID "1" to the funded PA group
-wdpa_nofund = wdpa_prj %>% filter(!WDPAID %in% wdpaID_funded) %>% 
-  mutate(group=2) # Assign an ID "2" to the non-funded PA group
+# Define Covariate Labels to show on plots
+c_name = data.frame(old = c(colname.travelTime, colname.clayContent, colname.elevation,
+                            colname.tri, colname.fcIni, colname.flAvg),
+                    new = c("Accessibility", "Clay Content", "Elevation",
+                            "TRI", "Forest Cover in 2000", "Avg. Annual Forest \n Loss 2001 ~ 2006"))
 ```
 
 ```{r}
-# Merge the dataframes of funded PAs, non-funded PAs and buffers
-wdpa_groups = rbind(wdpa_funded, wdpa_nofund, buffer)
-# Subset to polygons that intersect with country boundary
-wdpa.sub = wdpa_groups %>% 
-  st_intersects(gadm_prj, .) %>% 
-  unlist()
-# Filter the PA+buffer to the subset
-wdpa_groups = wdpa_groups[sort(wdpa.sub),] %>%
-  st_as_sf()
-```
-
--   **Step-F & -G**
-
-```{r}
-# Initialize an empty raster to the spatial extent of the country
-r.ini = raster()
-extent(r.ini) = extent(gadm_prj)
-# Specify the raster resolution as same as the pre-defined 'gridSize'
-res(r.ini) = gridSize
+# Refer to cobalt::love.plot()
+# https://cloud.r-project.org/web/packages/cobalt/vignettes/cobalt.html#love.plot
+p_covBal = love.plot(out.cem, 
+                     binary = "std", 
+                     abs = TRUE,
+                     #thresholds = c(m = .1),
+                     var.order = "unadjusted",
+                     var.names = c_name,
+                     sample.names = c("Discarded", "Selected"),
+                     wrap = 25 # at how many characters does axis label break to new line
+                    )
 ```
 
 ```{r}
-# Assign the raster pixels with "Group" values, 
-# Take the minial value if a pixel is covered by overlapped polygons, so that PA Group ID has higher priority than Buffer ID.
-# Assign value "0" to the background pixels (control candidates group)
-r.group = rasterize(wdpa_groups, r.ini, field="group", fun="min", background=0) %>%
-  mask(., gadm_prj)
-# Rename Layer
-names(r.group) = "group"
-
-# Rasterize wdpaid
-r.wdpaid = rasterize(wdpa_prj, r.ini, field="WDPAID", fun="first", background=0) %>%
-  mask(., gadm_prj)
-names(r.wdpaid) = "wdpaid"
+# Finetune Layouts using ggplot
+p_covBal + 
+    geom_vline(aes(xintercept=0.1, linetype="Acceptable \n Balance \n (x=0.1)"), color=c("#2ecc71"), linewidth=0.35) +
+    theme_bw() +
+    theme(
+        plot.title = element_text(family="Arial Black", size=16, hjust=0.5),
+        
+        legend.title = element_blank(),
+        legend.text=element_text(size=14),
+        legend.spacing.x = unit(0.5, 'cm'),
+        legend.spacing.y = unit(0.75, 'cm'),
+        
+        axis.text.x = element_text(angle = 20, hjust = 0.5, vjust = 0.5),
+        axis.text=element_text(size=12),
+        axis.title=element_text(size=14),
+        axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+        axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+        
+        panel.grid.major.x = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
+        panel.grid.minor.x = element_line(color = 'grey', linewidth = 0.3, linetype = 2)
+    ) + guides(linetype = guide_legend(override.aes = list(color = "#2ecc71"))) # Add legend for geom_vline
 ```
 
--   **Step-H**
 
-```{r, results='hide'}
-# Aggregate pixel values by taking the majority
+## 2c. Density Plots of Matched Objects
 
-grid.group = exact_extract(x=r.group, y=grid, fun='mode', append_cols="gridID") %>%
-  rename(group = mode)
-
-grid.wdpaid = exact_extract(x=r.wdpaid, y=grid, fun="mode", append_cols="gridID") %>%
-  rename(wdpaid = mode)
+```{r}
+# Define Facet Labels
+fnl = c(`Unadjusted Sample` = "Before Matching",
+        `Adjusted Sample` = "After Matching")
 ```
 
 ```{r}
-# Merge data frames
-grid.param = grid.group %>%
-  merge(., grid.wdpaid, by="gridID") %>%
-  merge(., grid, by="gridID") %>%
-  
-  # drop rows having "NA" in column "group"
-  drop_na(group) %>%
-  # drop the column of "gridID"
-  subset(., select=-c(gridID)) %>%
-  st_as_sf() %>%
-  # Grid is projected to WGS84 because mapme.biodiverty package merely works with this CRS
-  st_transform(crs=4326)
+# Density plot for Travel Time
+p_travel = bal.plot(out.cem, 
+                    var.name = colname.travelTime,
+                    #sample.names = c("Control", "Treatment"),
+                    which = "both")
 
-head(grid.param)
+# Finetune Layouts using ggplot
+p_travel +
+    facet_wrap(.~which, labeller = as_labeller(fnl)) +
+    #scale_fill_viridis(discrete = T) +
+    scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+    labs(title = "Distributional Balance for Accessibility",
+         x = "Accessibility (min)",
+         fill = "Group") +
+    theme_bw() +
+    theme(
+        plot.title = element_text(family="Arial Black", size=16, hjust=0.5),
+        
+        legend.title = element_blank(),
+        legend.text=element_text(size=14),
+        legend.spacing.x = unit(0.5, 'cm'),
+        legend.spacing.y = unit(0.75, 'cm'),
+        
+        axis.text=element_text(size=12),
+        axis.title=element_text(size=14),
+        axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+        axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+        
+        strip.text.x = element_text(size = 12) # Facet Label
+    )
 ```
 
 ```{r}
-# Visualize grouped grid cells
-ggplot(grid.param) +
-  geom_sf(aes(color=as.factor(group))) +
-  scale_color_viridis_d(
-    # legend title
-    name="Group", 
-    # legend label
-    labels=c("control candidate", "treatment candidate", "non-funded PA", "buffer zone")) +
-  theme_bw()
+# Density plot for Clay Content
+p_clay = bal.plot(out.cem, 
+                    var.name = colname.clayContent,
+                    which = "both")
+
+p_clay +
+    facet_wrap(.~which, labeller = as_labeller(fnl)) +
+    #scale_fill_viridis(discrete = T) +
+    scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+    labs(title = "Distributional Balance for Clay Content",
+         x = "Clay Content at 0~20cm soil depth (%)",
+         fill = "Group") +
+    theme_bw() +
+    theme(
+        plot.title = element_text(family="Arial Black", size=16, hjust=0.5),
+        
+        legend.title = element_blank(),
+        legend.text=element_text(size=14),
+        legend.spacing.x = unit(0.5, 'cm'),
+        legend.spacing.y = unit(0.75, 'cm'),
+        
+        axis.text=element_text(size=12),
+        axis.title=element_text(size=14),
+        axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+        axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+        
+        strip.text.x = element_text(size = 12) # Facet Label
+    )
 ```
 
-## 4. Calculating deforestation area and other covariates for all observation units
+```{r}
+# Density plot for Elevation
+p_elevation = bal.plot(out.cem, 
+                    var.name = colname.elevation,
+                    which = "both")
 
-Apart from Group and WDPA, we still need to fill our matching frame with other attributes. In this section we are going to calculate deforestation area in time series and other covariates as further attributes for all observations units (i.e. grid cells). This processing is implemented using KfW initiated open-source R package `mapme.biodiversity`.
-
-As indicated in the introduction, covariates are the information that `Matchit` package will rely on to decide which observation units to consider as treated or control items in later statistical analysis.
-
-The covariates selected for this demo are:
-
--   **Average Elevation**
-
--   **Terrain Ruggedness Index (TRI)**
-
--   **Average Soil Clay Content at 0-5 cm depth**
-
--   **Median Traveltime to cities with at least 5000 population**
-
-The indicator calculation with `mapme.biodiversity` package generally follows the following workflow:
-
-1.  Get input data ready for the calculation (function `init_portfolio()`);
-
-2.  Download raster data for the specified covariates and tree cover (function `get_resources()`);
-
-3.  Calculate the specified covariates and time series of tree cover (function `calc_indicators()`);
-
-### 4.1. Initialize Portfolio
-
-The function `init_portfolio()` will assign individual input polygon with an asset id, define a time span for tree area time series, specify the path to a directory for outputs and intermediate files, as well as core numbers for parallel processing if available.
-
-Please note that the input study area (in our case the vector grid) must have a geometry type of **POLYGON** to be accepted by this function.
-
-Furthermore, please be cautious**(!)** with the function argument `add_resources`. It is set to `TRUE` by default, which will stage the raster data directly for indicator calculation after being downloaded. Experience-wise this setting would trigger errors when the spatial extent of study area is extended or the directory path to the raster data changes. Therefore, it is strongly recommended to set **`add_resources = FALSE`**, in which case if the input study area changes, additional raster data will be downloaded and already existing data won't be re-downloaded (no duplicated downloading).
-
-```{r, warning=FALSE}
-# Get input data ready for indicator calculation
-aoi = init_portfolio(grid.param,
-                     years = y_first:y_last,
-                     outdir = wdir,
-                     tmpdir = file.path(wdir, "tmp"),
-                     cores = 12,
-                     add_resources = FALSE)
+p_elevation +
+    facet_wrap(.~which, labeller = as_labeller(fnl)) +
+    #scale_fill_viridis(discrete = T) +
+    scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+    labs(title = "Distributional Balance for Elevation",
+         x = "Elevation (m)",
+         fill = "Group") +
+    theme_bw() +
+    theme(
+        plot.title = element_text(family="Arial Black", size=16, hjust=0.5),
+        
+        legend.title = element_blank(),
+        legend.text=element_text(size=14),
+        legend.spacing.x = unit(0.5, 'cm'),
+        legend.spacing.y = unit(0.75, 'cm'),
+        
+        axis.text=element_text(size=12),
+        axis.title=element_text(size=14),
+        axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+        axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+        
+        strip.text.x = element_text(size = 12) # Facet Label
+    )
 ```
 
-### 4.2. Download Rasters and Calculate Covariates
+```{r}
+# Density plot for TRI
+p_tri = bal.plot(out.cem, 
+                    var.name = colname.tri,
+                    which = "both")
 
-The demo script for calculating the pre-selected indicators can be run as it is, without requiring our tutorial followers to modify it. **But in case our readers wish to calculate new covariates, here is a short guide on how to do that, which is very simple!**
-
-A list of all indicators supported by `mapme.biodiversity` package can be seen [here](https://mapme-initiative.github.io/mapme.biodiversity/). Once an indicator is selected,
-
--   By typing `?<indicator_name>` in R console, e.g. `?soilproperties`, we can check **required resources** for download; e.g. for indicator `soilproperties`, the required resource is `soilgrids`.
-
--   On the same documentation page as above, we can look for **indicator-specific arguments** needed for `calc_indicator()` function.
-
--   By clicking at the resource name, or typing `?<resource_name>` in the R console, e.g. `?soilgrids`, we can look for **resource-specific arguments** needed for `get_resources()` function.
-
-The calculation of the pre-selected covariates and forest cover time series in the code chunks below is shown as examples.
-
--   **Covariate: Average Soil Clay Content at 0-5 cm depth**
-
-```{r, eval=F, echo=TRUE}
-# Covariate: Soil
-# Download Data
-get.soil = get_resources(aoi, 
-              resources = c("soilgrids"), 
-              layers = c("clay"), # resource specific argument
-              depths = c("0-5cm"), # resource specific argument
-              stats = c("mean")) %>%
-# Calculate Indicator
-  calc_indicators(., 
-                 indicators = "soilproperties",
-                 stats_soil = c("mean"),
-                 engine = "zonal") %>%
-# Transform the output dataframe into a pivot dataframe
-  unnest(soilproperties) %>%
-  mutate(across(mean, round, 3)) %>% # Round numeric columns
-  pivot_wider(names_from = c("layer", "depth", "stat"), values_from = "mean")
+p_tri +
+    facet_wrap(.~which, labeller = as_labeller(fnl)) +
+    #scale_fill_viridis(discrete = T) +
+    scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+    labs(title = "Distributional Balance for Terrain Ruggedness Index (TRI)",
+         x = "TRI",
+         fill = "Group") +
+    theme_bw() +
+    theme(
+        plot.title = element_text(family="Arial Black", size=16, hjust=0.5),
+        
+        legend.title = element_blank(),
+        legend.text=element_text(size=14),
+        legend.spacing.x = unit(0.5, 'cm'),
+        legend.spacing.y = unit(0.75, 'cm'),
+        
+        axis.text=element_text(size=12),
+        axis.title=element_text(size=14),
+        axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+        axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+        
+        strip.text.x = element_text(size = 12) # Facet Label
+    )
 ```
 
--   **Covariate: Average Elevation**
+```{r}
+# Density plot for covariate "forest cover 2000"
+p_fc = bal.plot(out.cem, 
+                    var.name = colname.fcIni,
+                    which = "both")
 
-```{r, eval=F, echo=TRUE}
-# Covariate: Elevation
-# Download Raster Data
-get.elevation = get_resources(aoi, "nasa_srtm") %>%
-# Calculate Indicator
-  calc_indicators(.,
-                  indicators = "elevation",
-                  stats_elevation = c("mean")) %>%
-# Transform the output dataframe into a pivot dataframe
-  unnest(elevation)
+p_fc +
+    facet_wrap(.~which, labeller = as_labeller(fnl)) +
+    #scale_fill_viridis(discrete = T) +
+    scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+    labs(title = "Distributional Balance for Forest Cover in 2000",
+         x = "Forest Cover (%)",
+         fill = "Group") +
+    theme_bw() +
+    theme(
+        plot.title = element_text(family="Arial Black", size=16, hjust=0.5),
+        
+        legend.title = element_blank(),
+        legend.text=element_text(size=14),
+        legend.spacing.x = unit(0.5, 'cm'),
+        legend.spacing.y = unit(0.75, 'cm'),
+        
+        axis.text=element_text(size=12),
+        axis.title=element_text(size=14),
+        axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+        axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+        
+        strip.text.x = element_text(size = 12) # Facet Label
+    )
 ```
 
--   **Covariate: Terrain Ruggedness Index (TRI)**
+```{r}
+# Density plot for covariate "avg. annual forest loss prior funding"
+p_fl = bal.plot(out.cem, 
+                    var.name = colname.flAvg,
+                    which = "both")
 
-```{r, eval=F, echo=TRUE}
-# Covariate: TRI
-# Download Data
-get.tri = get_resources(aoi, "nasa_srtm") %>%
-# Calculate Indicator
-  calc_indicators(., indicators = "tri") %>%
-# Transform the output dataframe into a pivot dataframe
-  unnest(tri)
+p_fl +
+    facet_wrap(.~which, labeller = as_labeller(fnl)) +
+    #scale_fill_viridis(discrete = T) +
+    scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+    labs(title = "Distributional Balance for avgerage Forest Loss 2001~2006",
+         x = "Forest Loss (%)",
+         fill = "Group") +
+    theme_bw() +
+    theme(
+        plot.title = element_text(family="Arial Black", size=16, hjust=0.5),
+        
+        legend.title = element_blank(),
+        legend.text=element_text(size=14),
+        legend.spacing.x = unit(0.5, 'cm'),
+        legend.spacing.y = unit(0.75, 'cm'),
+        
+        axis.text=element_text(size=12),
+        axis.title=element_text(size=14),
+        axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+        axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+        
+        strip.text.x = element_text(size = 12) # Facet Label
+    )
 ```
 
--   **Covariate: Median Traveltime to cities with at least 5000 population**
 
-```{r, eval=F, echo=TRUE}
-# Covariate: Travel Time
-# Download Data
-get.travelT = get_resources(aoi, resources = "nelson_et_al",
-              range_traveltime = c("5k_110mio")) %>% # resource specific argument
-# Calculate Indicator
-  calc_indicators(., 
-                 indicators = "traveltime",
-                 stats_accessibility = c("median")) %>%
-# Transform the output dataframe into a pivot dataframe
-  unnest(traveltime) %>%
-  pivot_wider(names_from = "distance", values_from = "minutes_median", names_prefix = "minutes_median_")
+## 3. Panelize (Un-)Matched Dataframe
+
+```{r}
+# Convert dataframe of matched objects to pivot wide form
+matched.wide = match.data(object=out.cem, data=mf)
+
+# Pivot Wide ==> Pivot Long
+matched.long = matched.wide %>%
+    select(c(group, wdpaid, assetid, weights, starts_with(colfc.prefix))) %>%
+    pivot_longer(cols = c(starts_with(colfc.prefix)),
+                 names_to = c("var", "year"),
+                 names_sep = colfc.bind,
+                 values_to = "fc_pct")
+
+# Pivot wide Dataframe of un-matched objects
+unmatched.wide = mf
+
+# Pivot Wide ==> Pivot Long
+unmatched.long = unmatched.wide %>%
+    select(c(group, wdpaid, assetid, starts_with(colfc.prefix))) %>%
+    pivot_longer(cols = c(starts_with(colfc.prefix)),
+                 names_to = c("var", "year"),
+                 names_sep = colfc.bind,
+                 values_to = "fc_pct")
 ```
 
-### 4.3. Calculate Deforestation Area in Time Series
 
-We calculate time series of forest cover area in exactly the same way as for the other covariates.
+## 4. Trend Plot
 
-```{r, eval=F, echo=TRUE}
-# Time Series of Tree Cover Area
-# Download Data
-get.tree = get_resources(aoi, resources = c("gfw_treecover", "gfw_lossyear")) %>%
-# Calculate time series
-  calc_indicators(.,
-                 indicators = "treecover_area", 
-                 min_size=1, # indicator-specific argument
-                 min_cover=10) %>% # indicator-specific argument
-# Transform the output dataframe into a pivot dataframe
-  unnest(treecover_area) %>%
-  mutate(across(treecover, round, 3)) %>% # Round numeric columns
-  pivot_wider(names_from = "years", values_from = "treecover", names_prefix = "treecover_")
+```{r}
+# Make dataframe for plotting Trend
+df.matched.trend = matched.long %>%
+    group_by(group, year) %>%
+    summarise(avgFC = mean(fc_pct, na.rm=TRUE), n = n(), matched = TRUE)
+
+df.unmatched.trend = unmatched.long %>%
+    group_by(group, year) %>%
+    summarise(avgFC = mean(fc_pct, na.rm=TRUE), n = n(), matched = FALSE)
+
+df.trend = rbind(df.matched.trend, df.unmatched.trend)
+
+head(df.trend)
 ```
 
-Unlike for forest cover time series and other covariates, the calculation of deforestation area is more straitforward because it is directly conducted on dataframe base. **The deforested area in year** $Y_{n}$ is derived from subtracting the forest area in year $Y_{n}$ by the forest area in year $Y_{n-1}$, expressed as ($y$ for year):
+```{r}
+# Change Facet Labels
+fct.labs <- c("Before Matching", "After Matching")
+names(fct.labs) <- c(FALSE, TRUE)
 
-$$Treeloss_{y} = Treecover_{y} - Treecover_{y-1}$$
+# Trend Plot
+ggplot(df.trend, aes(x = year, y = avgFC)) +
+    geom_line(aes(group = group, color = as.character(group))) +
+    geom_point(aes(color = as.character(group))) +
+    geom_vline(aes(xintercept=as.character(funding.start), size="Funding Start"), linetype=2, linewidth=0.5, color="orange") +
+    
+    scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) +
+    scale_color_hue(labels = c("Control", "Treatment")) +
 
-```{r, eval=F, echo=TRUE}
-# The calculation of tree loss area is performed at dataframe base
+    facet_wrap(matched~., ncol = 2, #scales = 'free_x',
+             labeller = labeller(matched = fct.labs)) +
 
-# Get the column names of tree cover time series
-colnames_tree = names(get.tree)[startsWith(names(get.tree), "treecover")]
-# Drop the first year
-dropFirst = tail(colnames_tree, -1)
-# Drop the last year
-dropLast = head(colnames_tree, -1)
-# Set list of new column names for tree loss time series
-colnames_loss = dropFirst %>% str_split(., "_")
+    labs(x = "Year", y = "Average Tree Cover (%) per KM2", color = "Group") +
+    theme_bw() +
+    theme(
+        axis.text.x = element_text(angle = -20, hjust = 0.5, vjust = 0.5),
+        axis.text=element_text(size=11),
+        axis.title=element_text(size=14),
+        
+        #legend.position = "bottom",
+        legend.title = element_blank(),
+        legend.text=element_text(size=14),
+        #legend.spacing.x = unit(1.0, 'cm'),
+        legend.spacing.y = unit(0.75, 'cm'),
+        legend.key.size = unit(2, 'line'),
 
-# Add new columns: treeloss_tn = treecover_tn - treecover_t(n-1)  
-for (i in 1:length(dropFirst)) {
-  new_colname <- paste0("treeloss_", colnames_loss[[i]][2]) 
-  get.tree[[new_colname]] <- get.tree[[dropFirst[i]]] - get.tree[[dropLast[i]]]
-}
+        panel.grid.major.x = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
+        panel.grid.minor.x = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
+        panel.grid.major.y = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
+        panel.grid.minor.y = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
+        
+        strip.text.x = element_text(size = 12) # Facet Label 
+    ) + guides(size = guide_legend(override.aes = list(color = "orange"))) # Add legend for geom_vline
 ```
 
-### 4.4. Export Matching Frame
+```{r}
+# Trend Plot
+ggplot(df.matched.trend, aes(x = year, y = avgFC)) +
+    geom_line(aes(group = group, color = as.character(group))) +
+    geom_point(aes(color = as.character(group))) +
+    geom_vline(aes(xintercept=as.character(funding.start), size="Funding Start"), linetype=2, linewidth=0.5, color="orange") +
+    
+    #scale_y_continuous(breaks=seq(0,100,10), labels=paste(seq(0,100,10)),
+    #                   expand=c(0,0), limits=c(0,100)) +
+    scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) +
+    scale_color_hue(labels = c("Control", "Treatment")) +
 
-```{r, eval=F}
-# Remove "geometry" column from pivot dataframes
-df.tree = get.tree %>% mutate(x = NULL) %>% as.data.frame()
-df.travelT = get.travelT %>% mutate(x = NULL) %>% as.data.frame()
-df.soil = get.soil %>% mutate(x = NULL) %>% as.data.frame()
-df.elevation = get.elevation %>% mutate(x = NULL) %>% as.data.frame()
-df.tri = get.tri %>% mutate(x=NULL) %>% as.data.frame()
+    labs(x = "Year", y = "Average Tree Cover (%) per KM2", color = "Group") +
+    theme_bw() +
+    theme(
+        axis.text.x = element_text(angle = -20, hjust = 0.5, vjust = 0.5),
+        axis.text=element_text(size=11),
+        axis.title=element_text(size=14),
+        
+        #legend.position = "bottom",
+        legend.title = element_blank(),
+        legend.text=element_text(size=14),
+        #legend.spacing.x = unit(1.0, 'cm'),
+        legend.spacing.y = unit(0.75, 'cm'),
+        legend.key.size = unit(2, 'line'),
 
-# Make a dataframe containing only "assetid" and geometry
-df.geom = get.tree[, c("assetid", "x")] %>% as.data.frame()
-
-# Merge all output dataframes 
-pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.elevation, df.tri, df.geom)) %>%
-  st_as_sf()
-# Make column Group ID and WDPA ID have data type "integer"
-pivot.all$group = as.integer(pivot.all$group)
-pivot.all$wdpaid = as.integer(pivot.all$wdpaid)
-
-head(pivot.all)
+        panel.grid.major.x = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
+        panel.grid.minor.x = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
+        panel.grid.major.y = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
+        panel.grid.minor.y = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
+        
+    ) + guides(size = guide_legend(override.aes = list(color = "orange"))) # Add legend for geom_vline
 ```
 
-```{r, eval=F}
-# Export the matching frame
-st_write(pivot.all, dsn = file.path(wdir, name_output), delete_dsn = TRUE) 
+## 5. Regression
+
+```{r}
+feols(fc_pct ~ group | year,
+      data = matched.long, 
+      weights = matched.long$weights)
 ```
