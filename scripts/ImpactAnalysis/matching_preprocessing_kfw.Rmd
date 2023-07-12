@@ -83,7 +83,7 @@ library(wdpar) # For getting protected areas
 library(exactextractr) # For zonal statistics
 #remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
 library(mapme.biodiversity)
-
+library(aws.s3)
 #Install the river to download wdpa data directly
 webdriver::install_phantomjs()
 ```
@@ -491,11 +491,11 @@ dropLast = head(colnames_tree, -1)
 # Set list of new column names for tree loss time series
 colnames_loss = dropFirst %>% str_split(., "_")
 
-get.tree2 = get.tree 
+get.tree = get.tree 
 # Add new columns: treeloss_tn = treecover_tn - treecover_t(n-1)  
 for (i in 1:length(dropFirst)) {
   new_colname <- paste0("treeloss_", colnames_loss[[i]][2]) 
-  get.tree2[[new_colname]] <- get.tree2[[dropFirst[i]]] - get.tree2[[dropLast[i]]]
+  get.tree[[new_colname]] <- get.tree[[dropFirst[i]]] - get.tree[[dropLast[i]]]
 }
 ```
 
@@ -526,5 +526,11 @@ head(pivot.all)
 
 ```{r, eval=F}
 # Export the matching frame
-st_write(pivot.all, dsn = file.path(wdir, name_output), delete_dsn = TRUE) 
+#st_write(pivot.all, dsn = file.path(wdir, name_output), delete_dsn = TRUE)
+s3write_using(pivot.all,
+              sf::st_write,
+              object = paste0("data_tidy/mapme_bio_data/", name_output),
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = "")
+              )
 ```
