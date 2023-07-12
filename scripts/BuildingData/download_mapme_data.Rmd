@@ -1,0 +1,221 @@
+---
+title: "download_mapme_data"
+author: "Antoine Vuillot"
+date: "2023-07-12"
+output: html_document
+---
+
+## Importing packages and functions
+
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+```
+
+```{r message=FALSE, warning=FALSE}
+#The last version of mapme.biodiversity package is downloaded directly from github
+remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
+library(mapme.biodiversity)
+library(sf)
+library(tidyverse)
+library(mapview)
+library(ggplot2)
+library(data.table)
+library(sp)
+library(raster)
+library(terra)
+library(ARTofR)
+library(aws.s3)
+```
+
+## Importing PAs datasets
+
+```{r message=FALSE, warning=FALSE}
+
+#Load spatial data and transform into polygons (requirement of the mapme package)
+
+#If the function get_resources used later returns an error "...Loop 0 is not valid: Edge 94 crosses edge 96>...", then the following function might solve it. It works if sf was updated v1.0 and more, and brings back to old way of working. sf uses mostly a flat Earth model instead of s2 spherical geometry in the new versions. 
+sf_use_s2(FALSE)
+
+#/!\ : in pa_shp, variable sprfc is the area reported by AFD members, and is not equal to rep_a (area reported by WDPA) nor superficie in the BDD_joint. The latter is a combination of rep_a and sprfc, where superficie = rep_a except if rep_a = 0 or not reported.
+pa_shp = 
+  #read_sf("data_tidy/BDD_SHP_nodupl_pub.gpkg") %>%
+  aws.s3::s3read_using(
+  FUN = sf::read_sf,
+  # Mettre les options de FUN ici
+  object = "data_tidy/BDD_shp_pub.gpkg",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = "")) %>%
+  st_make_valid() %>%
+  sf::st_cast(to = "POLYGON")
+
+#From BDD_joint, that is the combination of the SIOP dataset and the AP dataset from ARB team in AFD. Imported to have the information on the PA area (combination of areas reported by WDPA and ARB)
+pa_nodupl = 
+  #fread("data_tidy/BDD_DesStat_nodupl.csv") %>%
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  object = "data_tidy/BDD_DesStat_nofund_nodupl.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = "")) %>%
+  dplyr::select(c(wdpaid, superficie))
+
+#mapview(pa_shp)
+```
+
+## Downloading data of interests and compute relevant indicators
+
+For the moment, mapme.biodiversity functions do not support reading/writing in a S3 server like SSPCloud. Waiting for the new release of the package, the following process is followed :
+
+1.  Create a sub-folder in the temporary folder (RAM of the R session) to download and store the raw data
+
+2.  Associate the portfolio to this sub-folder
+
+3.  Download the raw data
+
+4.  Move it to SSP Cloud storage
+
+### Creating the portfolio
+
+```{r}
+#The raw data from mapme package are stored in a temporary folder
+tmp = paste(tempdir(), "mapme", sep = "/")
+#save_folder = get_bucket("projet-afd-eva-ap", region = "")
+
+#Creating the portfolio
+pa_pfolio = pa_shp %>%
+  init_portfolio(2000:2020,
+                 outdir = tmp,
+                 cores = 4,
+                 add_resources = TRUE,
+                 verbose = TRUE)
+```
+
+### Download data
+
+#### Forests
+
+```{r message=FALSE, warning=FALSE}
+
+##Downloading data and computing indicators 
+pa_pfolio_tcover =
+  get_resources(pa_pfolio,
+    resources = c("gfw_lossyear","gfw_treecover","gfw_emissions"),
+    vers_treecover = "GFC-2020-v1.8",
+    vers_lossyear = "GFC-2020-v1.8")# %>%
+  # # FAO forest definition here: Minimum treecover = 10%, minimum size =1 hectare
+  # calc_indicators(indicators = "treecover_area",
+  #               min_cover = 10,
+  #               min_size = 1, overwrite=T)
+
+# #Unest the sf file into a classic data frame without geometry
+# data_pfolio_tcover = unnest(pa_pfolio_tcover, cols="treecover_area") %>%
+#   sf::st_drop_geometry() %>%
+#   dplyr::select(wdpaid, assetid, years,treecover) %>%
+#   mutate(treecover = case_when(treecover == 0 ~ NA, TRUE ~ treecover)) %>%
+#   filter(!is.na(treecover))
+# 
+# #Write the dataframe into the bucket
+# s3write_using(data_pfolio_tcover,
+#               data.table::fwrite,
+#               object = "data_tidy/mapme_bio_data/data_pfolio_tcover.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = "")
+#               )
+
+```
+
+```{r}
+#Copying files to SSPCloud
+##emissions
+files_emi <- list.files(paste(tmp, "gfw_emissions", sep = "/"), 
+                        full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+for(f in files_emi) 
+  {
+  cat("Uploading file", paste0("'", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/data_raw/mapme_bio_data/gfw_emissions", 
+                     region = "", show_progress = TRUE)
+}
+
+##loss years
+files_lossyear <- list.files(paste(tmp, "gfw_lossyear", sep = "/"), 
+                        full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+for(f in files_emi) 
+  {
+  cat("Uploading file", paste0("'", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/data_raw/mapme_bio_data/gfw_lossyear", 
+                     region = "", show_progress = TRUE)
+}
+
+##Treecover loss
+files_treecover <- list.files(paste(tmp, "gfw_treecover", sep = "/"), 
+                        full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+for(f in files_emi) 
+  {
+  cat("Uploading file", paste0("'", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/data_raw/mapme_bio_data/gfw_treecover", 
+                     region = "", show_progress = TRUE)
+}
+
+```
+
+```{r}
+#Removing files from temp
+do.call(file.remove, list(list.files(paste(tmp, "gfw_emissions", sep = "/"), full.names = TRUE)))
+do.call(file.remove, list(list.files(paste(tmp, "gfw_lossyear", sep = "/"), full.names = TRUE)))
+do.call(file.remove, list(list.files(paste(tmp, "gfw_treecover", sep = "/"), full.names = TRUE)))
+```
+
+#### Mangroves
+
+```{r message=FALSE, warning=FALSE}
+
+##Downloading data and computing indicators 
+pa_pfolio_mang =
+  get_resources(pa_pfolio,
+    resources = c("gmw"))  # %>%
+  # calc_indicators(indicators = "mangroves_area",
+  #               overwrite=T)
+
+# ##Unest the sf file into a classic data frame without geometry
+# data_pfolio_mang = unnest(pa_pfolio_mang, cols="mangroves_area") %>%
+#   sf::st_drop_geometry() %>%
+#   dplyr::select(wdpaid, assetid, year,mangrove_extent)
+# # s3write_using(data_pfolio_mang,
+# #               data.table::fwrite,
+# #               object = "data_tidy/mapme_bio_data/data_pfolio_mang.csv",
+# #               bucket = "projet-afd-eva-ap",
+# #               opts = list("region" = "")
+# #               )
+# 
+# # data_pfolio_mang = s3read_using(data.table::fread,
+# #               object = "data_tidy/mapme_bio_data/data_pfolio_mang.csv",
+# #               bucket = "projet-afd-eva-ap",
+# #               opts = list("region" = "")
+# #                                 )
+
+```
+
+```{r}
+#Removing files from temp
+##emissions
+files_mang <- list.files(paste(tmp, "gmw", sep = "/"), 
+                        full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+for(f in files_mang) 
+  {
+  cat("Uploading file", paste0("'", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/data_raw/mapme_bio_data/gmw", 
+                     region = "", show_progress = TRUE)
+}
+```
+
+```{r}
+do.call(file.remove, list(list.files(paste(tmp, "gmw", sep = "/"), full.names = TRUE)))
+```
