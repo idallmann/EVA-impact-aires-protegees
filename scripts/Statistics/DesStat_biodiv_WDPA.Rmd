@@ -169,6 +169,8 @@ s3write_using(data_pfolio_tcover,
               opts = list("region" = "")
               )
 
+#Copying files to SSPCloud
+##emissions
 files_emi <- list.files(paste(tmp, "gfw_emissions", sep = "/"), 
                         full.names = TRUE)
 ##Add each file in the bucket (same foler for every file in the temp)
@@ -180,6 +182,7 @@ for(f in files_emi)
                      region = "", show_progress = TRUE)
 }
 
+##loss years
 files_lossyear <- list.files(paste(tmp, "gfw_lossyear", sep = "/"), 
                         full.names = TRUE)
 ##Add each file in the bucket (same foler for every file in the temp)
@@ -191,6 +194,7 @@ for(f in files_emi)
                      region = "", show_progress = TRUE)
 }
 
+##Treecover loss
 files_treecover <- list.files(paste(tmp, "gfw_treecover", sep = "/"), 
                         full.names = TRUE)
 ##Add each file in the bucket (same foler for every file in the temp)
@@ -202,10 +206,15 @@ for(f in files_emi)
                      region = "", show_progress = TRUE)
 }
 
-
+#Removing files from temp
 do.call(file.remove, list(list.files(paste(tmp, "gfw_emissions", sep = "/"), full.names = TRUE)))
 do.call(file.remove, list(list.files(paste(tmp, "gfw_lossyear", sep = "/"), full.names = TRUE)))
 do.call(file.remove, list(list.files(paste(tmp, "gfw_treecover", sep = "/"), full.names = TRUE)))
+
+
+```
+
+```{r message=FALSE, warning=FALSE}
 
 ##~~~~~~~~~~~~~~~~~~
 ##  ~ Mangroves ----
@@ -223,18 +232,36 @@ pa_pfolio_mang =
 data_pfolio_mang = unnest(pa_pfolio_mang, cols="mangroves_area") %>%
   sf::st_drop_geometry() %>%
   dplyr::select(wdpaid, assetid, year,mangrove_extent)
-s3write_using(data_pfolio_mang,
-              data.table::fwrite,
-              object = "data_tidy/mapme_bio_data/data_pfolio_mang.csv",
-              bucket = "projet-afd-eva-ap",
-              opts = list("region" = "")
-              )
+# s3write_using(data_pfolio_mang,
+#               data.table::fwrite,
+#               object = "data_tidy/mapme_bio_data/data_pfolio_mang.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = "")
+#               )
 
 # data_pfolio_mang = s3read_using(data.table::fread,
 #               object = "data_tidy/mapme_bio_data/data_pfolio_mang.csv",
 #               bucket = "projet-afd-eva-ap",
 #               opts = list("region" = "")
 #                                 )
+
+#Removing files from temp
+##emissions
+files_mang <- list.files(paste(tmp, "gmw", sep = "/"), 
+                        full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+for(f in files_mang) 
+  {
+  cat("Uploading file", paste0("'", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/data_raw/mapme_bio_data/gmw", 
+                     region = "", show_progress = TRUE)
+}
+
+do.call(file.remove, list(list.files(paste(tmp, "gmw", sep = "/"), full.names = TRUE)))
+```
+
+```{r message=FALSE, warning=FALSE}
 
 ##~~~~~~~~~~~~~~~~~~~~
 ##  ~ Land cover   --
@@ -246,10 +273,6 @@ pa_pfolio_land =
     resources = c("esalandcover")) %>%
   calc_indicators(indicators = "landcover",
                 overwrite=T) 
-
-write_portfolio(pa_pfolio_mang,
-      dsn = "01_data_tidy/mapme_bio_data/pa_pfolio_mang.gpkg",
-      overwrite = FALSE)
 
 ##Unnest data
 data_pfolio_land = unnest(pa_pfolio_land, cols = "landcover") %>%
@@ -268,11 +291,9 @@ s3write_using(data_pfolio_land,
 #               opts = list("region" = "")
 #                                 )
 
+```
 
-#####
-#A voir ensuite !!!
-#####
-
+```{r message=FALSE, warning=FALSE}
 
 ##~~~~~~~~~~~~~~~~~~~
 ##  ~ Emissions  ----
@@ -303,6 +324,11 @@ pa_pfolio_emi = read_portfolio("data_tidy/mapme_bio_data/pa_pfolio_emi.gpkg")
 
 data_pfolio_emi = fread("data_tidy/mapme_bio_data/data_pfolio_emi.csv")
 
+
+```
+
+```{r message=FALSE, warning=FALSE}
+
 ##~~~~~~~~~~~~~~~~~~~~
 ##  ~ Biome       ----
 ##~~~~~~~~~~~~~~~~~~~~
@@ -322,6 +348,11 @@ pa_pfolio_biome =
 # data_biome = unnest(pa_pfolio_biome, cols="biome") %>%
 #   sf::st_drop_geometry() %>%
 #   dplyr::select(id_pr,wdpaid,year,mangrove_extent)
+
+
+```
+
+```{r message=FALSE, warning=FALSE}
 
 ##~~~~~~~~~~~~~~~~~~~~
 ##  ~ Soil features --
@@ -348,6 +379,10 @@ pa_pfolio_soil =
 #   dplyr::select(id_pr,wdpaid,year,mangrove_extent)
 
 
+
+```
+
+```{r message=FALSE, warning=FALSE}
 ##~~~~~~~~~~~~~~~~~~~~
 ##  ~ Accessibility --
 ##~~~~~~~~~~~~~~~~~~~~
@@ -369,12 +404,6 @@ pa_pfolio_acc =
 # data_biome = unnest(pa_pfolio_biome, cols="biome") %>%
 #   sf::st_drop_geometry() %>%
 #   dplyr::select(id_pr,wdpaid,year,mangrove_extent)
-
-
-
-
-
-
 ```
 
 Faire une fonction pour l'extraction de tout jeu de données ? Répétitif en soit de faire forêts, mangroves, etc.
