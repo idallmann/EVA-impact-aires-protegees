@@ -19,15 +19,15 @@ library(sf)
 library(MatchIt)
 library(fixest)
 library(cobalt)
+library(aws.s3)
 ```
 
 ```{r}
 # TO BE CUSTOMIZED...
 
 # Define the path to a working directory
-wdir = file.path("C:/EAGLE/kfw_internship/git_myBranch/MDG/mapme.pa-impact-evaluation/data/output")
-
-wdir = file.path("/datadrive/datalake/mapme.pa-impact-evaluation/MDG/data/")
+# wdir = file.path("C:/EAGLE/kfw_internship/git_myBranch/MDG/mapme.pa-impact-evaluation/data/output")
+wdir = paste(tempdir(), "mapme", sep = "/")
 
 # Define the file name of the input matching frame
 name_input = "matching_frame_10km.gpkg"
@@ -35,8 +35,8 @@ name_input = "matching_frame_10km.gpkg"
 # Define Column Names of Covariates
 colname.travelTime = "minutes_median_5k_110mio"
 colname.clayContent = "clay_0.5cm_mean"
-colname.elevation = "elevation_mean"
-colname.tri = "tri_mean"
+# colname.elevation = "elevation_mean"
+# colname.tri = "tri_mean"
 colname.fcIni = "treecover_2000"
 
 
@@ -51,15 +51,22 @@ colfl.prefix = "treeloss"
 funding.start = 2007
 ```
 
-
 ## 1. Load Matching Frame
 
 ```{r}
 # Load matching frame
-mf = st_read(file.path(wdir, name_input)) %>%
-  filter(group==0 | group==1) %>%
-  drop_na() #%>%
-  #st_drop_geometry()
+# mf = st_read(file.path(wdir, name_input)) %>%
+#   filter(group==0 | group==1) %>%
+#   drop_na() #%>%
+#   #st_drop_geometry()
+
+mf = s3read_using(sf::st_read,
+                  bucket = "projet-afd-eva-ap",
+                  object = "data_tidy/mapme_bio_data/matching_frame_10km.gpkg",
+                  opts = list("region" = "")) %>%
+    filter(group==0 | group==1) %>%
+    drop_na() #%>%
+   #st_drop_geometry()
 ```
 
 ```{r}
@@ -77,8 +84,7 @@ rm(df_fl0106)
 
 ```
 
-
-## 2a. Matching 
+## 2a. Matching
 
 ```{r}
 # Make cut-off list ####
@@ -90,9 +96,9 @@ lst_cutoffs[[colname.travelTime]] = as.integer(quantile(mf[[colname.travelTime]]
 #lst_cutoffs[[colname.clayContent]] = as.integer(quantile(mf[[colname.clayContent]], probs = seq(0, 1, 0.05), na.rm=TRUE))
 lst_cutoffs[[colname.clayContent]] = as.integer(c(0,10,20,30, 32,34,36,38,40, 50,60,70,80,90,100))
 
-lst_cutoffs[[colname.elevation]] = as.integer(quantile(mf[[colname.elevation]], probs = seq(0, 1, 0.125), na.rm=TRUE))
-
-lst_cutoffs[[colname.tri]] = as.integer(quantile(mf[[colname.tri]], probs = seq(0, 1, 0.125), na.rm=TRUE))
+# lst_cutoffs[[colname.elevation]] = as.integer(quantile(mf[[colname.elevation]], probs = seq(0, 1, 0.125), na.rm=TRUE))
+# 
+# lst_cutoffs[[colname.tri]] = as.integer(quantile(mf[[colname.tri]], probs = seq(0, 1, 0.125), na.rm=TRUE))
 
 lst_cutoffs[[colname.fcIni]] = as.integer(quantile(mf[[colname.fcIni]], probs = seq(0, 1, 0.025), na.rm=TRUE))
 
@@ -102,11 +108,16 @@ lst_cutoffs[[colname.flAvg]] = as.integer(quantile(mf[[colname.flAvg]], probs = 
 ```{r}
 # Create Formula from Variables
 # Ref: https://stackoverflow.com/questions/66357664/using-variable-as-function-argument-in-r
-formula = eval(bquote(group ~ .(as.name(colname.travelTime)) + .(as.name(colname.clayContent)) +
-                     .(as.name(colname.elevation)) + .(as.name(colname.tri)) +
-                     .(as.name(colname.fcIni)) + .(as.name(colname.flAvg))
+# formula = eval(bquote(group ~ .(as.name(colname.travelTime)) + .(as.name(colname.clayContent)) +
+#                      .(as.name(colname.elevation)) + .(as.name(colname.tri)) +
+#                      .(as.name(colname.fcIni)) + .(as.name(colname.flAvg))
+#                      ))
+formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
+                      + .(as.name(colname.clayContent))  
+                      +  .(as.name(colname.fcIni)) 
+                      + .(as.name(colname.flAvg))
                      ))
-#print(formula)
+print(formula)
 
 # CEM Match
 out.cem = matchit(formula,
@@ -120,18 +131,20 @@ out.cem = matchit(formula,
 summary(out.cem)
 ```
 
-
 ## 2b. Plot Covariate Balance
 
-`cobalt` library naturally supports the visualization of `MatchIt` outputs,
-Reference: https://cloud.r-project.org/web/packages/cobalt/vignettes/cobalt.html#bal.plot
+`cobalt` library naturally supports the visualization of `MatchIt` outputs, Reference: <https://cloud.r-project.org/web/packages/cobalt/vignettes/cobalt.html#bal.plot>
 
 ```{r}
 # Define Covariate Labels to show on plots
-c_name = data.frame(old = c(colname.travelTime, colname.clayContent, colname.elevation,
-                            colname.tri, colname.fcIni, colname.flAvg),
-                    new = c("Accessibility", "Clay Content", "Elevation",
-                            "TRI", "Forest Cover in 2000", "Avg. Annual Forest \n Loss 2001 ~ 2006"))
+# c_name = data.frame(old = c(colname.travelTime, colname.clayContent, colname.elevation,
+#                             colname.tri, colname.fcIni, colname.flAvg),
+#                     new = c("Accessibility", "Clay Content", "Elevation",
+#                             "TRI", "Forest Cover in 2000", "Avg. Annual Forest \n Loss 2001 ~ 2006"))
+c_name = data.frame(old = c(colname.travelTime, colname.clayContent,
+                            colname.fcIni, colname.flAvg),
+                    new = c("Accessibility", "Clay Content", "Forest Cover in 2000",
+                            "Avg. Annual Forest \n Loss 2001 ~ 2006"))
 ```
 
 ```{r}
@@ -171,7 +184,6 @@ p_covBal +
         panel.grid.minor.x = element_line(color = 'grey', linewidth = 0.3, linetype = 2)
     ) + guides(linetype = guide_legend(override.aes = list(color = "#2ecc71"))) # Add legend for geom_vline
 ```
-
 
 ## 2c. Density Plots of Matched Objects
 
@@ -247,64 +259,64 @@ p_clay +
 
 ```{r}
 # Density plot for Elevation
-p_elevation = bal.plot(out.cem, 
-                    var.name = colname.elevation,
-                    which = "both")
-
-p_elevation +
-    facet_wrap(.~which, labeller = as_labeller(fnl)) +
-    #scale_fill_viridis(discrete = T) +
-    scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
-    labs(title = "Distributional Balance for Elevation",
-         x = "Elevation (m)",
-         fill = "Group") +
-    theme_bw() +
-    theme(
-        plot.title = element_text(family="Arial Black", size=16, hjust=0.5),
-        
-        legend.title = element_blank(),
-        legend.text=element_text(size=14),
-        legend.spacing.x = unit(0.5, 'cm'),
-        legend.spacing.y = unit(0.75, 'cm'),
-        
-        axis.text=element_text(size=12),
-        axis.title=element_text(size=14),
-        axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
-        axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
-        
-        strip.text.x = element_text(size = 12) # Facet Label
-    )
+# p_elevation = bal.plot(out.cem, 
+#                     var.name = colname.elevation,
+#                     which = "both")
+# 
+# p_elevation +
+#     facet_wrap(.~which, labeller = as_labeller(fnl)) +
+#     #scale_fill_viridis(discrete = T) +
+#     scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+#     labs(title = "Distributional Balance for Elevation",
+#          x = "Elevation (m)",
+#          fill = "Group") +
+#     theme_bw() +
+#     theme(
+#         plot.title = element_text(family="Arial Black", size=16, hjust=0.5),
+#         
+#         legend.title = element_blank(),
+#         legend.text=element_text(size=14),
+#         legend.spacing.x = unit(0.5, 'cm'),
+#         legend.spacing.y = unit(0.75, 'cm'),
+#         
+#         axis.text=element_text(size=12),
+#         axis.title=element_text(size=14),
+#         axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+#         axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+#         
+#         strip.text.x = element_text(size = 12) # Facet Label
+#     )
 ```
 
 ```{r}
 # Density plot for TRI
-p_tri = bal.plot(out.cem, 
-                    var.name = colname.tri,
-                    which = "both")
-
-p_tri +
-    facet_wrap(.~which, labeller = as_labeller(fnl)) +
-    #scale_fill_viridis(discrete = T) +
-    scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
-    labs(title = "Distributional Balance for Terrain Ruggedness Index (TRI)",
-         x = "TRI",
-         fill = "Group") +
-    theme_bw() +
-    theme(
-        plot.title = element_text(family="Arial Black", size=16, hjust=0.5),
-        
-        legend.title = element_blank(),
-        legend.text=element_text(size=14),
-        legend.spacing.x = unit(0.5, 'cm'),
-        legend.spacing.y = unit(0.75, 'cm'),
-        
-        axis.text=element_text(size=12),
-        axis.title=element_text(size=14),
-        axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
-        axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
-        
-        strip.text.x = element_text(size = 12) # Facet Label
-    )
+# p_tri = bal.plot(out.cem, 
+#                     var.name = colname.tri,
+#                     which = "both")
+# 
+# p_tri +
+#     facet_wrap(.~which, labeller = as_labeller(fnl)) +
+#     #scale_fill_viridis(discrete = T) +
+#     scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+#     labs(title = "Distributional Balance for Terrain Ruggedness Index (TRI)",
+#          x = "TRI",
+#          fill = "Group") +
+#     theme_bw() +
+#     theme(
+#         plot.title = element_text(family="Arial Black", size=16, hjust=0.5),
+#         
+#         legend.title = element_blank(),
+#         legend.text=element_text(size=14),
+#         legend.spacing.x = unit(0.5, 'cm'),
+#         legend.spacing.y = unit(0.75, 'cm'),
+#         
+#         axis.text=element_text(size=12),
+#         axis.title=element_text(size=14),
+#         axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+#         axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+#         
+#         strip.text.x = element_text(size = 12) # Facet Label
+#     )
 ```
 
 ```{r}
@@ -369,7 +381,6 @@ p_fl +
     )
 ```
 
-
 ## 3. Panelize (Un-)Matched Dataframe
 
 ```{r}
@@ -378,7 +389,7 @@ matched.wide = match.data(object=out.cem, data=mf)
 
 # Pivot Wide ==> Pivot Long
 matched.long = matched.wide %>%
-    select(c(group, wdpaid, assetid, weights, starts_with(colfc.prefix))) %>%
+    dplyr::select(c(group, wdpaid, assetid, weights, starts_with(colfc.prefix))) %>%
     pivot_longer(cols = c(starts_with(colfc.prefix)),
                  names_to = c("var", "year"),
                  names_sep = colfc.bind,
@@ -389,13 +400,12 @@ unmatched.wide = mf
 
 # Pivot Wide ==> Pivot Long
 unmatched.long = unmatched.wide %>%
-    select(c(group, wdpaid, assetid, starts_with(colfc.prefix))) %>%
+    dplyr::select(c(group, wdpaid, assetid, starts_with(colfc.prefix))) %>%
     pivot_longer(cols = c(starts_with(colfc.prefix)),
                  names_to = c("var", "year"),
                  names_sep = colfc.bind,
                  values_to = "fc_pct")
 ```
-
 
 ## 4. Trend Plot
 
@@ -491,7 +501,9 @@ ggplot(df.matched.trend, aes(x = year, y = avgFC)) +
 ## 5. Regression
 
 ```{r}
-feols(fc_pct ~ group | year,
+reg = feols(fc_pct ~ group | year,
       data = matched.long, 
       weights = matched.long$weights)
+
+summary(reg)
 ```
