@@ -1,5 +1,5 @@
 ---
-title: "buildingDB_PA_WDPA"
+title: "Building the datasets"
 author: "Antoine Vuillot"
 date: "08/06/2023"
 output: html_document
@@ -9,11 +9,11 @@ output: html_document
 
 ## Importing relevant packages
 
-```{r setup, include = FALSE}
+```{r setup, include = FALSE, eval = FALSE}
 knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 ```
 
-```{r message=TRUE, warning=TRUE}
+```{r message=TRUE, warning=TRUE, eval = FALSE}
 library(tidyverse)
 library(stargazer)
 library(dplyr)
@@ -24,6 +24,7 @@ library(janitor)
 library(stringi)
 library(sf)
 library(mapview)
+
 ```
 
 ## Datasets for descriptive statistics
@@ -40,7 +41,7 @@ Some statistics need size of PAs at country/region/world level (evolution of are
 
 ### Cleaning the raw dataset
 
-```{r}
+```{r, eval = FALSE}
 #import a dataset with country names and corresponding ISO3 code
 data_iso = fread("data_raw/liste-197-etats-2020.csv") %>%
   rename("iso3" = "CODE",
@@ -150,7 +151,7 @@ data_PA_tidy = data_PA_raw %>%
 
 ### Dataset with only SIOP variables
 
-```{r}
+```{r, eval = FALSE}
 #Select info corresponding to SIOP extract and AP 
 list_var_siop_AP = c( "id_projet", "nom_du_projet", "nom_de_projet_pour_les_instances",
                       "id_concours", "libelle_du_concours", "description_du_projet",
@@ -181,7 +182,7 @@ data_siop_AP = data_PA_tidy %>%
 
 To perform descriptive statistics we want to keep one row per PA, characterized by WDPA ID or a name (if no ID reported). Some PAs can have several lines if they receive funds at different time or by different investors.
 
-```{r}
+```{r, eval = FALSE}
 
 #Listing relevant variables for descriptive statistics that are NOT confidential (i.e not concern funding)
 list_var_PA_nofund = 
@@ -225,7 +226,7 @@ data_stat_nofund_nodupl = rbind(data_stat_nofund_wdpa, data_stat_nofund_na)
 
 ### Dataset for confidential descriptive statistics
 
-```{r}
+```{r, eval = FALSE}
 
 #Listing relevant variables for descriptive statistics
 list_var_PA_fund = c("id_projet", "nom_du_projet", "nom_ap", "id_concours", 
@@ -249,7 +250,7 @@ data_stat_fund = data_PA_tidy %>%
 
 ### A polygon dataset without confidential information
 
-```{r}
+```{r, eval = FALSE}
 #The confidential information removed concern funding or nominative variables
 pa_shp = read_sf("data_raw/WDPA_SHP/BDD_SHP_nodupl.shp") %>%
   clean_names() %>%
@@ -276,7 +277,7 @@ Note that the following codes are about computing total area at country/region/w
 
 ### Computations of polygons' area
 
-```{r}
+```{r, eval = FALSE}
 
 #Importing shapefiles
 sf_use_s2(FALSE)
@@ -318,7 +319,7 @@ pa_shp_tidy = pa_shp %>%
 
 ### Computing the intersection at country, region, world level
 
-```{r}
+```{r, eval = FALSE}
 
 #Compute intersecting areas of polygons
 pa_int = st_intersection(pa_shp_tidy, pa_shp_tidy) %>%
@@ -381,7 +382,7 @@ pa_int_yr = pa_int %>%
 
 ### Computing total areas without intersection
 
-```{r}
+```{r, eval = FALSE}
 #At country level ...
 pa_area_ctry = data_stat_nofund_nodupl %>%
   #Compute total area at country level
@@ -421,7 +422,7 @@ pa_area_wld = sum(data_stat_nofund_nodupl$superficie) - pa_int_wld %>%
 
 ## Old code
 
-```{r}
+```{r, eval = FALSE}
 #Listing variables public or confidential
 
 #Public variables in the PAs dataset
@@ -448,7 +449,7 @@ list_var_shp_conf = c("mntnt", "mtglb", "e", "mnt", "prodt", "lbllp",
                       "rspns", "dr", "detal", "projt", "cmmnt")
 ```
 
-```{r}
+```{r, eval = FALSE}
 base_nodupl_lea = 
   #fread("data_tidy/base_nodupl_lea.xlsx")
   aws.s3::s3read_using(
@@ -507,7 +508,7 @@ bdd_joint =
   select(any_of(names(data_stat_nodupl)))
 ```
 
-```{r}
+```{r, eval = FALSE}
 #Test : differences between Léa's figures and my results
 
 #PA identified with unique WDPAID. If more than 1 WDPAID, take the earlier annee_octroi
