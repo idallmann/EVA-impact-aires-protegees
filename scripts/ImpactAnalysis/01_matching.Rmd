@@ -1,0 +1,147 @@
+---
+title: "Matching"
+author: "Antoine Vuillot"
+date: "2023-07-13"
+output: html_document
+---
+
+# Matching
+
+## 1. Outline
+
+In this R Markdown are performed the different steps to obtain a matched dataset, i.e a dataset with control and treated observational units to compute the Average Treatment on the Treated (ATT). The treatment here is to be under protected area status, and we look at the impact on deforestation.
+
+The steps are the following
+
+1.  Pre-processing : in a loop for each country
+
+    1.  Create a grid of a given country
+
+    2.  Import geospatial data on PAs from the WDPA dataset, and assign each observation unit/pixel to a group : PA funded by the AFD (treated), PA non-funded by the AFD, buffer (closed to but not a PA), other (so potential control).
+
+    3.  Compute the covariates and outcome of interest for all pixels thanks to the mapme.biodiversity package
+
+    4.  Build the matching data frame
+
+2.  Post-processing
+
+    1.  Load the matching dataframe of the given country
+
+    2.  Perform the matching
+
+    3.  Plot covariate balance and density plots to ensure relevant matching
+
+    4.  Panelize the dataframe
+
+    5.  Perform regressions
+
+## 2. Initial settings
+
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+
+```
+
+```{r}
+# Load Libraries
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(ggplot2) # For plotting
+library(sf) # For handling vector data
+library(terra) # For handling raster data
+library(raster) # For handling raster data
+library(rgeos)
+library(geodata) # For getting country files
+library(wdpar) # For getting protected areas
+library(exactextractr) # For zonal statistics
+remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
+library(mapme.biodiversity)
+library(aws.s3)
+library(MatchIt) #For matching
+library(fixest) #For estimating the models
+library(cobalt) #To visualize density plots and covariate balance from MatchIt outcomes
+#Install the river to download wdpa data directly
+webdriver::install_phantomjs()
+
+```
+
+```{r message=FALSE, warning=FALSE}
+#Import functions
+source("scripts/ImpactAnalysis/fns_matching.R", encoding = "utf-8")
+```
+
+```{r}
+# Define the path to a working directory
+wdir_s3 = file.path("data_tidy/mapme_bio_data/matching")
+tmp_pre = paste(tempdir(), "matching_pre", sep = "/")
+tmp_post = paste(tempdir(), "matching_post", sep = "/")
+
+# Define the file name of the output matching frame
+name_output = "matching_frame_10km"
+ext_output = ".gpkg"
+
+
+##Buffer and gridsize : make it depends on the country ? For instance, a typical size of grid such that the smaller PA is sampled with at least N pixels ?
+# Specify buffer width in meter
+buffer_m = 10000
+# Specify the grid cell size in meter
+gridSize = 10000 
+
+#Load data 
+data_nodupl = 
+  #fread("data_tidy/BDD_DesStat_nofund_nodupl.csv" , encoding = "UTF-8")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  # Mettre les options de FUN ici
+  object = "data_tidy/BDD_DesStat_nofund_nodupl.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
+
+#List of countries in the sample
+#list_iso = unique(data_nodupl$iso3)
+list_iso = "CMR"
+# Specify a list of WDPA IDs of funded protected areas (treated areas)
+# paid = data_stat_nodupl[data_stat_nodupl$iso3 == country,]$wdpaid
+
+# Start year
+y_first = 2000
+# End year
+y_last = 2021
+```
+
+## 3. Pre-processing
+
+```{r message=FALSE, warning=FALSE}
+#For each country in the list, the different steps of the pre-processing are performed
+count = 0
+max_i = length(list_iso)
+for (i in list_iso)
+{
+  count = count+1
+  print(paste0(i, " : country ", count, "/", max_i))
+  #Generate observation units
+  print("--Generating observation units")
+  output_pre_grid = fn_pre_grid(iso = i, path_tmp = tmp_pre, 
+                                path_save = wdir_s3, gridSize = gridSize)
+  ##Load the outputs 
+  utm_code = output_pre_grid$utm_code
+  gadm_prj = output_pre_grid$ctry_shp_prj
+  grid = output_pre_grid$grid
+  
+  #Determining Group IDs and WDPA IDs for all observation units
+  print("--Determining Group IDs and WDPA IDs")
+  grid_param = fn_pre_group(iso = i, path_tmp = tmp_pre, utm_code = utm_code,
+                            buffer_m = buffer_m, data = data_nodupl,
+                            gadm_prj = gadm_prj, grid = grid, 
+                            gridSize = gridSize)
+  
+  #Calculating outcome and other covariates for all observation units
+  print("--#Calculating outcome and other covariates")
+  fn_pre_mf(grid.param = grid_param, path_tmp = tmp_pre, iso = i,
+            name_output = name_output, ext_output = ext_output)
+  
+}
+
+```
