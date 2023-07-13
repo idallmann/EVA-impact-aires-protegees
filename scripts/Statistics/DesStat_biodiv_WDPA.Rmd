@@ -16,7 +16,7 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 ```
 
 ```{r message=FALSE, warning=FALSE}
-source("scripts/Statistics/functions_DesStat_biodiv.R", encoding = "utf-8")
+source("scripts/Statistics/fns_DesStat_biodiv.R", encoding = "utf-8")
 ```
 
 ```{r message=FALSE, warning=FALSE}
