@@ -45,6 +45,7 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 ```{r}
 # Load Libraries
 library(dplyr)
+library(xtable)
 library(tidyr)
 library(stringr)
 library(ggplot2) # For plotting
@@ -77,9 +78,9 @@ wdir_s3 = file.path("data_tidy/mapme_bio_data/matching")
 tmp_pre = paste(tempdir(), "matching_pre", sep = "/")
 tmp_post = paste(tempdir(), "matching_post", sep = "/")
 
-# Define the file name of the output matching frame
-name_output = "matching_frame_10km"
-ext_output = ".gpkg"
+# Define the file name of the matching frame
+name_output = name_input = "matching_frame_10km"
+ext_output = ext_input = ".gpkg"
 
 
 ##Buffer and gridsize : make it depends on the country ? For instance, a typical size of grid such that the smaller PA is sampled with at least N pixels ?
@@ -109,9 +110,35 @@ list_iso = "CMR"
 y_first = 2000
 # End year
 y_last = 2021
+
+#####
+###Post-processing
+#####
+
+# Define Column Names of Covariates
+colname.travelTime = "minutes_median_5k_110mio"
+colname.clayContent = "clay_0.5cm_mean"
+# colname.elevation = "elevation_mean"
+# colname.tri = "tri_mean"
+colname.fcIni = "treecover_2000"
+
+
+# Prefix of columns for forest cover
+colfc.prefix = "treecover"
+# Separation between prefix and year
+colfc.bind = "_"
+# Prefix of columns for forest loss
+colfl.prefix = "treeloss"
+#Prefix of columns for average forest loss pre-funding
+colname.flAvg = "avgLoss_pre_fund"
+
+# Year of Funding Start
+funding.start = 2007
 ```
 
-## 3. Pre-processing
+## 3. Matching
+
+### 3.1 Pre-processing
 
 ```{r message=FALSE, warning=FALSE}
 #For each country in the list, the different steps of the pre-processing are performed
@@ -144,4 +171,79 @@ for (i in list_iso)
   
 }
 
+```
+
+### 3.2 Post-processing
+
+```{r message=FALSE, warning=FALSE}
+#For each country in the list, the different steps of the post-processing are performed
+count = 0
+max_i = length(list_iso)
+
+for (i in list_iso)
+{
+  count = count+1
+  print(paste0(i, " : country ", count, "/", max_i))
+  
+  #Load the matching frame
+  print("--Loading the matching frame")
+  mf_ini = fn_post_load_mf(iso = i)
+  
+  
+  #Add average pre-loss
+  print("--Add covariate : average tree loss pre-funding")
+  mf = fn_post_avgLoss_prefund(mf = mf_ini, yr_start = y_first, yr_end = y_last, colfl.prefix = colfl.prefix)
+  
+  #Define cut-offs
+  print("--Define cutoffs")
+  ##CAREFUL : ADD elevation and TRI when available
+  lst_cutoffs = fn_post_cutoff(mf = mf, 
+                               colname.travelTime = colname.travelTime, 
+                               colname.clayContent = colname.clayContent,
+                               colname.fcIni = colname.fcIni, 
+                               colname.flAvg = colname.flAvg
+                               )
+  
+  #Run Coarsened Exact Matching
+  print("--Run CEM")
+  out.cem = fn_post_cem(mf = mf, iso = i, path_tmp = tmp_post,
+                        lst_cutoffs = lst_cutoffs,
+                       colname.travelTime = colname.travelTime, 
+                       colname.clayContent = colname.clayContent,
+                       colname.fcIni = colname.fcIni, 
+                       colname.flAvg = colname.flAvg)
+  
+  #Plots : covariates
+  print("--Some plots : covariates")
+  print("----Covariate balance")
+  fn_post_plot_covbal(out.cem = out.cem, 
+                      colname.travelTime = colname.travelTime, 
+                       colname.clayContent = colname.clayContent,
+                       colname.fcIni = colname.fcIni, 
+                       colname.flAvg = colname.flAvg,
+                      iso = i,
+                      path_tmp = tmp_post)
+  print("----Density plots")
+  fn_post_plot_density(out.cem = out.cem, 
+                      colname.travelTime = colname.travelTime, 
+                       colname.clayContent = colname.clayContent,
+                       colname.fcIni = colname.fcIni, 
+                       colname.flAvg = colname.flAvg,
+                      iso = i,
+                      path_tmp = tmp_post)
+  
+  #Panelize dataframes
+  print("----Panelize (Un-)Matched Dataframe")
+  output_post_panel = fn_post_panel(out.cem = out.cem, mf = mf, colfc.prefix = colfc.prefix, colfc.bind = colfc.bind)
+  matched.wide = output_post_panel$matched.wide
+  unmatched.wide = output_post_panel$unmatched.wide
+  matched.long = output_post_panel$matched.long
+  unmatched.long = output_post_panel$unmatched.long  
+  
+  #Plots : trend
+  print("----Plots again : trend")
+  fn_post_plot_trend(matched.long = matched.long, unmatched.long = unmatched.long)
+  
+  
+}
 ```
