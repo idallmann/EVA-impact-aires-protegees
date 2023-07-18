@@ -90,7 +90,7 @@ buffer_m = 10000
 gridSize = 10000 
 
 #Load data 
-data_nodupl = 
+data_pa_full = 
   #fread("data_tidy/BDD_DesStat_nofund_nodupl.csv" , encoding = "UTF-8")
   aws.s3::s3read_using(
   FUN = data.table::fread,
@@ -101,7 +101,7 @@ data_nodupl =
   opts = list("region" = ""))
 
 #List of countries in the sample
-#list_iso = unique(data_nodupl$iso3)
+#list_iso = unique(data_pa_full$iso3)
 list_iso = "CMR"
 # Specify a list of WDPA IDs of funded protected areas (treated areas)
 # paid = data_stat_nodupl[data_stat_nodupl$iso3 == country,]$wdpaid
@@ -150,8 +150,7 @@ for (i in list_iso)
   print(paste0(i, " : country ", count, "/", max_i))
   #Generate observation units
   print("--Generating observation units")
-  output_pre_grid = fn_pre_grid(iso = i, path_tmp = tmp_pre, 
-                                path_save = wdir_s3, gridSize = gridSize)
+  output_pre_grid = fn_pre_grid(iso = i, path_tmp = tmp_pre, gridSize = gridSize)
   ##Load the outputs 
   utm_code = output_pre_grid$utm_code
   gadm_prj = output_pre_grid$ctry_shp_prj
