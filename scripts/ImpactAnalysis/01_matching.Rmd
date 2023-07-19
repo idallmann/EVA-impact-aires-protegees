@@ -45,6 +45,7 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 ```{r}
 # Load Libraries
 library(dplyr)
+library(tictoc)
 library(xtable)
 library(tidyr)
 library(stringr)
@@ -74,13 +75,17 @@ source("scripts/ImpactAnalysis/fns_matching.R", encoding = "utf-8")
 
 ```{r}
 # Define the path to a working directory
-wdir_s3 = file.path("data_tidy/mapme_bio_data/matching")
+#wdir_s3 = file.path("data_tidy/mapme_bio_data/matching")
 tmp_pre = paste(tempdir(), "matching_pre", sep = "/")
 tmp_post = paste(tempdir(), "matching_post", sep = "/")
 
 # Define the file name of the matching frame
 name_output = name_input = "matching_frame_10km"
 ext_output = ext_input = ".gpkg"
+
+#####
+###Pre-processing
+#####
 
 
 ##Buffer and gridsize : make it depends on the country ? For instance, a typical size of grid such that the smaller PA is sampled with at least N pixels ?
@@ -144,14 +149,17 @@ funding.start = 2007
 #For each country in the list, the different steps of the pre-processing are performed
 count = 0
 max_i = length(list_iso)
+tic_pre = tic()
 for (i in list_iso)
 {
   count = count+1
   print(paste0(i, " : country ", count, "/", max_i))
+  
   #Generate observation units
   print("--Generating observation units")
   output_pre_grid = fn_pre_grid(iso = i, path_tmp = tmp_pre, gridSize = gridSize)
-  ##Load the outputs 
+  
+  #Load the outputs 
   utm_code = output_pre_grid$utm_code
   gadm_prj = output_pre_grid$ctry_shp_prj
   grid = output_pre_grid$grid
@@ -159,7 +167,7 @@ for (i in list_iso)
   #Determining Group IDs and WDPA IDs for all observation units
   print("--Determining Group IDs and WDPA IDs")
   grid_param = fn_pre_group(iso = i, path_tmp = tmp_pre, utm_code = utm_code,
-                            buffer_m = buffer_m, data = data_nodupl,
+                            buffer_m = buffer_m, data = data_pa_full,
                             gadm_prj = gadm_prj, grid = grid, 
                             gridSize = gridSize)
   
@@ -170,6 +178,13 @@ for (i in list_iso)
   
 }
 
+toc_pre = toc()
+duration_pre = tic_pre - toc_pre 
+
+#NOTE : 
+## the limiting step in terms of time is the final one, due to data downloading. Otherwise, a few seconds by country
+## The gridding could depend on the country and the area of PAs. Indeed the sampling might be inappropriate if the PA area is lower the the pixel area.
+## 
 ```
 
 ### 3.2 Post-processing
@@ -178,7 +193,7 @@ for (i in list_iso)
 #For each country in the list, the different steps of the post-processing are performed
 count = 0
 max_i = length(list_iso)
-
+tic_post = tic()
 for (i in list_iso)
 {
   count = count+1
@@ -191,7 +206,8 @@ for (i in list_iso)
   
   #Add average pre-loss
   print("--Add covariate : average tree loss pre-funding")
-  mf = fn_post_avgLoss_prefund(mf = mf_ini, yr_start = y_first, yr_end = y_last, colfl.prefix = colfl.prefix)
+  mf = fn_post_avgLoss_prefund(mf = mf_ini, yr_start = funding.start - 5,
+                               yr_end = funding.start - 1, colfl.prefix = colfl.prefix)
   
   #Define cut-offs
   print("--Define cutoffs")
@@ -245,4 +261,16 @@ for (i in list_iso)
   
   
 }
+
+toc_post = toc()
+duration_post = tic_post - toc_post
+
+#Notes
+## Automate the definition of cutoffs for CEM
+### Coder 5.5.3 de Iacus et al. 2012 ? Permet de savoir le gain de matched units pour une modification des seuils d'une variable
+## Loop for different treatment years : need to adapt fn_post_avgLoss_prefund function
+## Allow to enter a list of any covariates to perform the matching
+## Function to plot Fig. 3 in Iacus et al. 2012
+## Il faut contrôler le nombre de paired units à la fin ! Typiquement on veut que tous les pixels traités soient retenus, idéalement.
+## On veut ATE ou ATT ?? Je dirai ATT car on ne veut pas estimer l'effet de mettre une AP, mais l'effet des AP financés par l'AFD 
 ```

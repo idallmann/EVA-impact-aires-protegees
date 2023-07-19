@@ -18,7 +18,6 @@ lonlat2UTM = function(lonlat)
     utm + 32700
   }
   
-  return(utm)
 }
 
 #Create a gridding of a given country
@@ -41,7 +40,8 @@ fn_pre_grid = function(iso, path_tmp, gridSize)
   centroid = st_coordinates(st_centroid(gadm))
   utm_code = lonlat2UTM(centroid)
   # Reproject GADM
-  gadm_prj = gadm %>% st_transform(crs = utm_code)
+  gadm_prj = gadm %>% 
+    st_transform(crs = utm_code)
   
   # Make bounding box of projected country polygon
   bbox = st_bbox(gadm_prj) %>% st_as_sfc() %>% st_as_sf() 
