@@ -4,8 +4,7 @@ navbar:
   title: "Protected areas funded by the AFD : an impact analysis"
   type: default
   left:
-    - text: "Home"
-      icon: fa-home
+    - icon: fa-home
       href: index.html
     - text: "Building the datasets"
       href: BuildingDB_PA_WDPA.html
@@ -14,8 +13,12 @@ navbar:
     - text: "Impact Analysis"
       menu:
         - text: "Matching"
-        - text: "Pre-processing"
-          href: matching_preprocessing_kfw.html
-    - text: "About"
-      icon: fa-info
+          href: 01_matching.html
+    - icon: fa-info
       href: about.html
+
+output :
+  html_document :
+    theme : paper
+    highlight : default
+    code_folding: hide

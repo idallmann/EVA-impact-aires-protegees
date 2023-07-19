@@ -5,9 +5,7 @@ date: "2023-07-13"
 output: html_document
 ---
 
-# Matching
-
-## 1. Outline
+# 1. Outline
 
 In this R Markdown are performed the different steps to obtain a matched dataset, i.e a dataset with control and treated observational units to compute the Average Treatment on the Treated (ATT). The treatment here is to be under protected area status, and we look at the impact on deforestation.
 
@@ -35,14 +33,14 @@ The steps are the following
 
     5.  Perform regressions
 
-## 2. Initial settings
+# 2. Initial settings
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE, eval = FALSE}
 knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 
 ```
 
-```{r}
+```{r, eval = FALSE}
 # Load Libraries
 library(dplyr)
 library(tictoc)
@@ -68,12 +66,12 @@ webdriver::install_phantomjs()
 
 ```
 
-```{r message=FALSE, warning=FALSE}
+```{r message=FALSE, warning=FALSE, eval = FALSE}
 #Import functions
 source("scripts/ImpactAnalysis/fns_matching.R", encoding = "utf-8")
 ```
 
-```{r}
+```{r, eval = FALSE}
 # Define the path to a working directory
 #wdir_s3 = file.path("data_tidy/mapme_bio_data/matching")
 tmp_pre = paste(tempdir(), "matching_pre", sep = "/")
@@ -141,11 +139,11 @@ colname.flAvg = "avgLoss_pre_fund"
 funding.start = 2007
 ```
 
-## 3. Matching
+# 3. Matching
 
-### 3.1 Pre-processing
+## 3.1 Pre-processing
 
-```{r message=FALSE, warning=FALSE}
+```{r message=FALSE, warning=FALSE, eval = FALSE}
 #For each country in the list, the different steps of the pre-processing are performed
 count = 0
 max_i = length(list_iso)
@@ -187,9 +185,9 @@ duration_pre = tic_pre - toc_pre
 ## 
 ```
 
-### 3.2 Post-processing
+## 3.2 Post-processing
 
-```{r message=FALSE, warning=FALSE}
+```{r message=FALSE, warning=FALSE, eval = FALSE}
 #For each country in the list, the different steps of the post-processing are performed
 count = 0
 max_i = length(list_iso)
