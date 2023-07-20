@@ -1,0 +1,31 @@
+.navbar-inverse {
+  background-color: #222;
+}
+.navbar-inverse .navbar-brand {
+  color: #9d9d9d;
+}
+.navbar-inverse .navbar-nav>li>a {
+  color: #9d9d9d;
+}
+.navbar-inverse .navbar-nav>.active>a {
+  background-color: #222;
+}
+.list-group-item.active {
+  background-color: #222;
+  border-color: #222;
+}
+item.active, .list-group-item.active:hover {
+  background-color: #222;
+  border-color: #222;
+}
+
+#header.fluid-row::before {
+ content: "";
+ height: 150px;
+ width: 150px;
+ float: right;
+ background-image: url("logo-afd.png");
+ background-size: contain;
+ background-position: center center;
+ background-repeat: no-repeat;
+}

@@ -2,7 +2,6 @@
 title: "Building the datasets"
 author: "Antoine Vuillot"
 date: "08/06/2023"
-output: html_document
 ---
 
 # Building the database on PAs

@@ -1,6 +1,6 @@
 ---
 title: "Impact analysis of protected areas, funded by the French Agency for Development (AFD)"
-author : "Antoine Vuillot"
+author : "IRS/EVA"
 output : "html_document"
 email_adress : "vuillota@afd.fr"
 github_repo : "https://github.com/vuillota/EVA-impact-aires-protegees.git"
@@ -9,21 +9,39 @@ github_repo : "https://github.com/vuillota/EVA-impact-aires-protegees.git"
 ```{r echo= FALSE, message=FALSE, warning=FALSE}
 
 library(lubridate)
+library(dplyr)
+library(ggplot2)
 
-````
+```
 
 ```{css echo= FALSE, message=FALSE, warning=FALSE}
 
 body
 {
-  background-color : yellow;
-  
+  /*background-color : pink;*/
 }
-````
 
+#navbar
+{
+  /*background-color : yellow;*/
+  
 
+}
+```
 
-Site developed by [Antoine Vuillot](mailto:`r rmarkdown::metadata$email_adress`) to document the impact analysis of protected areas funded by the AFD. Codes are freely accessible in the following [github repository](`r rmarkdown::metadata$github_repo`).
+# A first graph
+
+```{r}
+
+ggplot(data = cars, aes(x = speed, y = dist)) %>%
+  + geom_point() %>%
+  + theme_minimal()
+  
+
+```
+
+# Some info'
+
+Site developed by [Antoine Vuillot](mailto:%60r%20rmarkdown::metadata$email_adress%60) to document the impact analysis of protected areas funded by the AFD. Codes are freely accessible in the following [github repository](%60r%20rmarkdown::metadata$github_repo%60).
 
 Last updated on `r today()`
-

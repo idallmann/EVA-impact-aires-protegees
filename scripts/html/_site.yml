@@ -2,23 +2,34 @@ name: "ie-pa-doc"
 output_dir: "docs"
 navbar:
   #title: ""
-  type: default
+  #type: default
   left:
     - icon: fa-home
       href: index.html
     - text: "Building the datasets"
       href: BuildingDB_PA_WDPA.html
     - text: "Descriptive statistics"
-      href: DesStat_PA_WDPA.html
+      menu :
+        - text: "Project"
+          href: BuildingDB_PA_WDPA.html
+        - text: "Biodiversity"
+          href: DesStat_biodiv_WDPA.html
     - text: "Impact Analysis"
       menu:
         - text: "Matching"
           href: 01_matching.html
-    - icon: fa-info
-      href: about.html
+  right:
+    - icon: fa-envelope fa-lg
+      href: mailto:vuillota@afd.fr
+    - icon: fa-github fa-lg
+      href: https://github.com/vuillota/EVA-impact-aires-protegees.git
 
 output :
   html_document :
     theme : paper
-    highlight : default
+    highlight : tango
+    css : style.css
     code_folding: hide
+    toc: true
+    toc_float: true
+    number_sections: true
