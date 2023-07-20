@@ -16,12 +16,10 @@ credentials.txt
 *.tif
 
 #Ignore documents
-#*.pdf
-#*.html
-#*.htm
-#*.doc
-#*.docx
-#*.odt
+*.pdf
+*.doc
+*.docx
+*.odt
 
 #Ignore images
 *.png
@@ -32,6 +30,5 @@ credentials.txt
 data_raw/*
 data_tidy/*
 DesStat/*
-#docs/*
 literature/*
 reports/*

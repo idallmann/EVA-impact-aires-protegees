@@ -41,6 +41,13 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 ```
 
 ```{r, eval = FALSE}
+#Install some libraries
+install.packages(c("tictoc", "geodata", "wdpar", "exactextractr", "MatchIt", "fixest", "cobalt"))
+remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
+
+#Install the river to download wdpa data directly
+webdriver::install_phantomjs()
+
 # Load Libraries
 library(dplyr)
 library(tictoc)
@@ -55,20 +62,16 @@ library(rgeos)
 library(geodata) # For getting country files
 library(wdpar) # For getting protected areas
 library(exactextractr) # For zonal statistics
-remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
 library(mapme.biodiversity)
 library(aws.s3)
 library(MatchIt) #For matching
 library(fixest) #For estimating the models
 library(cobalt) #To visualize density plots and covariate balance from MatchIt outcomes
-#Install the river to download wdpa data directly
-webdriver::install_phantomjs()
-
 ```
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
 #Import functions
-source("scripts/ImpactAnalysis/fns_matching.R", encoding = "utf-8")
+source("scripts/ImpactAnalysis/fns_matching.R")
 ```
 
 ```{r, eval = FALSE}
@@ -105,7 +108,7 @@ data_pa_full =
 
 #List of countries in the sample
 #list_iso = unique(data_pa_full$iso3)
-list_iso = "CMR"
+list_iso = c("COM", "MMR")
 # Specify a list of WDPA IDs of funded protected areas (treated areas)
 # paid = data_stat_nodupl[data_stat_nodupl$iso3 == country,]$wdpaid
 
@@ -136,7 +139,7 @@ colfl.prefix = "treeloss"
 colname.flAvg = "avgLoss_pre_fund"
 
 # Year of Funding Start
-funding.start = 2007
+funding.start = 2014
 ```
 
 # 3. Matching
@@ -174,14 +177,14 @@ for (i in list_iso)
   fn_pre_mf(grid.param = grid_param, path_tmp = tmp_pre, iso = i,
             name_output = name_output, ext_output = ext_output)
   
+  
 }
 
 toc_pre = toc()
-duration_pre = tic_pre - toc_pre 
 
 #NOTE : 
-## the limiting step in terms of time is the final one, due to data downloading. Otherwise, a few seconds by country
-## The gridding could depend on the country and the area of PAs. Indeed the sampling might be inappropriate if the PA area is lower the the pixel area.
+## the limiting step in terms of time is the final one, due to data downloading. Otherwise, a few seconds by country. Especially computing time for forest indicators
+## The gridding could depend on the country and the area of PAs. Indeed the sampling might be inappropriate if the PA area is lower the the pixel area. This cuases issue regarding significance. Or it could cause long computing time for large countries like China.
 ## 
 ```
 
@@ -261,7 +264,6 @@ for (i in list_iso)
 }
 
 toc_post = toc()
-duration_post = tic_post - toc_post
 
 #Notes
 ## Automate the definition of cutoffs for CEM

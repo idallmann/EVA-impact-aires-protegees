@@ -294,8 +294,11 @@ fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output)
                 sf::st_write,
                 object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", name_save),
                 bucket = "projet-afd-eva-ap",
-                opts = list("region" = "")
-  )
+                opts = list("region" = ""))
+                
+  #Removing files in the temporary folder
+  do.call(file.remove, list(list.files(tmp_pre, include.dirs = F, full.names = T, recursive = T)))
+  
   
   
 }
