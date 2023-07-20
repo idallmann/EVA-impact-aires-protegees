@@ -1,7 +1,7 @@
 name: "ie-pa-doc"
 output_dir: "_site"
 navbar:
-  title: "Protected areas funded by the AFD : an impact analysis"
+  #title: ""
   type: default
   left:
     - icon: fa-home

@@ -1,5 +1,29 @@
 ---
-title: "My Website"
+title: "Impact analysis of protected areas, funded by the French Agency for Development (AFD)"
+author : "Antoine Vuillot"
+output : "html_document"
+email_adress : "vuillota@afd.fr"
+github_repo : "https://github.com/vuillota/EVA-impact-aires-protegees.git"
 ---
 
-Hello, Website!
+```{r echo= FALSE, message=FALSE, warning=FALSE}
+
+library(lubridate)
+
+````
+
+```{css echo= FALSE, message=FALSE, warning=FALSE}
+
+body
+{
+  background-color : yellow;
+  font-size : 1.2vw; 
+}
+````
+
+
+
+Site developed by [Antoine Vuillot](mailto:`r rmarkdown::metadata$email_adress`) to document the impact analysis of protected areas funded by the AFD. Codes are freely accessible in the following [github repository](`r rmarkdown::metadata$github_repo`).
+
+Last updated on `r today()`
+
