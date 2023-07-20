@@ -1,5 +1,5 @@
 name: "ie-pa-doc"
-output_dir: "_site"
+output_dir: "docs"
 navbar:
   #title: ""
   type: default
