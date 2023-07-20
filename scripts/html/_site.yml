@@ -28,7 +28,7 @@ output :
   html_document :
     theme : paper
     highlight : tango
-    css : style.css
+    #css : style.css
     code_folding: hide
     toc: true
     toc_float: true
