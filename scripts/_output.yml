@@ -1,17 +1,22 @@
 bookdown::gitbook:
   highlight : haddock #or tango
-  css: style.css
+  css: assets/style.css
   config:
     edit:
-      link: https://github.com/vuillota/EVA-impact-aires-protegees/edit/master/%s
+      link: https://github.com/vuillota/EVA-impact-aires-protegees/edit/main/%s
       text: "Suggest an edit"
+    sharing:
+      github: yes
+      twitter : no
+      facebook : no
+      all: no
     toc:
       collapse: section
       before: |
         <li><a href="./">Impact analysis of protected areas funded by the AFD</a></li>
       after: |
         <li><a href="https://github.com/rstudio/bookdown" target="blank">Published with bookdown</a></li>
-    download: ["pdf"]
+    download: ["rmd"]
 bookdown::pdf_book:
   includes:
     in_header: preamble.tex

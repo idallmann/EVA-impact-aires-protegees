@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+<head>
+
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Section 4 Matching | Impact analysis of protected areas funded by the AFD : an open-guide for reproductibility</title>
+  <meta name="description" content="This is a minimal example of using the bookdown package to write a book. The output format for this example is bookdown::gitbook." />
+  <meta name="generator" content="bookdown 0.34 and GitBook 2.6.7" />
+
+  <meta property="og:title" content="Section 4 Matching | Impact analysis of protected areas funded by the AFD : an open-guide for reproductibility" />
+  <meta property="og:type" content="book" />
+  
+  <meta property="og:description" content="This is a minimal example of using the bookdown package to write a book. The output format for this example is bookdown::gitbook." />
+  <meta name="github-repo" content="vuillota/EVA-impact-aires-protegees.git" />
+
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Section 4 Matching | Impact analysis of protected areas funded by the AFD : an open-guide for reproductibility" />
+  
+  <meta name="twitter:description" content="This is a minimal example of using the bookdown package to write a book. The output format for this example is bookdown::gitbook." />
+  
+
+<meta name="author" content="Antoine Vuillot" />
+<meta name="author" content="Ingrid Dallmann" />
+<meta name="author" content="Léa Poulin" />
+<meta name="author" content="Pierre-Yves Durand" />
+
+
+<meta name="date" content="2023-07-21" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  
+  
+<link rel="prev" href="biodiversity-in-the-protected-areas.html"/>
+<link rel="next" href="references.html"/>
+<script src="libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.4.6/dist/fuse.min.js"></script>
+<link href="libs/gitbook-2.6.7/css/style.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-table.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-bookdown.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-highlight.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-search.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-fontsettings.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-clipboard.css" rel="stylesheet" />
+
+
+
+
+
+
+
+
+<link href="libs/anchor-sections-1.1.0/anchor-sections.css" rel="stylesheet" />
+<link href="libs/anchor-sections-1.1.0/anchor-sections-hash.css" rel="stylesheet" />
+<script src="libs/anchor-sections-1.1.0/anchor-sections.js"></script>
+
+
+<style type="text/css">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; } /* Alert */
+code span.an { color: #008000; } /* Annotation */
+code span.at { } /* Attribute */
+code span.bu { } /* BuiltIn */
+code span.cf { color: #0000ff; } /* ControlFlow */
+code span.ch { color: #008080; } /* Char */
+code span.cn { } /* Constant */
+code span.co { color: #008000; } /* Comment */
+code span.cv { color: #008000; } /* CommentVar */
+code span.do { color: #008000; } /* Documentation */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.im { } /* Import */
+code span.in { color: #008000; } /* Information */
+code span.kw { color: #0000ff; } /* Keyword */
+code span.op { } /* Operator */
+code span.ot { color: #ff4000; } /* Other */
+code span.pp { color: #ff4000; } /* Preprocessor */
+code span.sc { color: #008080; } /* SpecialChar */
+code span.ss { color: #008080; } /* SpecialString */
+code span.st { color: #008080; } /* String */
+code span.va { } /* Variable */
+code span.vs { color: #008080; } /* VerbatimString */
+code span.wa { color: #008000; font-weight: bold; } /* Warning */
+</style>
+
+<style type="text/css">
+  
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+</style>
+
+<link rel="stylesheet" href="assets/style.css" type="text/css" />
+</head>
+
+<body>
+
+
+
+  <div class="book without-animation with-summary font-size-2 font-family-1" data-basepath=".">
+
+    <div class="book-summary">
+      <nav role="navigation">
+
+<ul class="summary">
+<li><a href="./">Impact analysis of protected areas funded by the AFD</a></li>
+
+<li class="divider"></li>
+<li class="chapter" data-level="" data-path="index.html"><a href="index.html"><i class="fa fa-check"></i>About this website</a></li>
+<li class="chapter" data-level="1" data-path="building-the-datasets.html"><a href="building-the-datasets.html"><i class="fa fa-check"></i><b>1</b> Building the datasets</a>
+<ul>
+<li class="chapter" data-level="1.1" data-path="building-the-datasets.html"><a href="building-the-datasets.html#importing-relevant-packages"><i class="fa fa-check"></i><b>1.1</b> Importing relevant packages</a></li>
+<li class="chapter" data-level="1.2" data-path="building-the-datasets.html"><a href="building-the-datasets.html#datasets-for-descriptive-statistics"><i class="fa fa-check"></i><b>1.2</b> Datasets for descriptive statistics</a>
+<ul>
+<li class="chapter" data-level="1.2.1" data-path="building-the-datasets.html"><a href="building-the-datasets.html#cleaning-the-raw-dataset"><i class="fa fa-check"></i><b>1.2.1</b> Cleaning the raw dataset</a></li>
+<li class="chapter" data-level="1.2.2" data-path="building-the-datasets.html"><a href="building-the-datasets.html#dataset-with-only-siop-variables"><i class="fa fa-check"></i><b>1.2.2</b> Dataset with only SIOP variables</a></li>
+<li class="chapter" data-level="1.2.3" data-path="building-the-datasets.html"><a href="building-the-datasets.html#dataset-for-non-confidential-statistics"><i class="fa fa-check"></i><b>1.2.3</b> Dataset for non-confidential statistics</a></li>
+<li class="chapter" data-level="1.2.4" data-path="building-the-datasets.html"><a href="building-the-datasets.html#dataset-for-confidential-descriptive-statistics"><i class="fa fa-check"></i><b>1.2.4</b> Dataset for confidential descriptive statistics</a></li>
+<li class="chapter" data-level="1.2.5" data-path="building-the-datasets.html"><a href="building-the-datasets.html#a-polygon-dataset-without-confidential-information"><i class="fa fa-check"></i><b>1.2.5</b> A polygon dataset without confidential information</a></li>
+</ul></li>
+<li class="chapter" data-level="1.3" data-path="building-the-datasets.html"><a href="building-the-datasets.html#computing-total-areas-covered-by-pas-in-the-sample"><i class="fa fa-check"></i><b>1.3</b> Computing total areas covered by PAs in the sample</a>
+<ul>
+<li class="chapter" data-level="1.3.1" data-path="building-the-datasets.html"><a href="building-the-datasets.html#computations-of-polygons-area"><i class="fa fa-check"></i><b>1.3.1</b> Computations of polygons’ area</a></li>
+<li class="chapter" data-level="1.3.2" data-path="building-the-datasets.html"><a href="building-the-datasets.html#computing-the-intersection-at-country-region-world-level"><i class="fa fa-check"></i><b>1.3.2</b> Computing the intersection at country, region, world level</a></li>
+<li class="chapter" data-level="1.3.3" data-path="building-the-datasets.html"><a href="building-the-datasets.html#computing-total-areas-without-intersection"><i class="fa fa-check"></i><b>1.3.3</b> Computing total areas without intersection</a></li>
+</ul></li>
+<li class="chapter" data-level="1.4" data-path="building-the-datasets.html"><a href="building-the-datasets.html#old-code"><i class="fa fa-check"></i><b>1.4</b> Old code</a></li>
+</ul></li>
+<li class="part"><span><b>Descriptive statistics</b></span></li>
+<li class="chapter" data-level="2" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html"><i class="fa fa-check"></i><b>2</b> Projects funded by the AFD</a>
+<ul>
+<li class="chapter" data-level="2.1" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#importing-packages"><i class="fa fa-check"></i><b>2.1</b> Importing packages</a></li>
+<li class="chapter" data-level="2.2" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#importing-datasets"><i class="fa fa-check"></i><b>2.2</b> Importing datasets</a></li>
+<li class="chapter" data-level="2.3" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#performing-descriptive-statistics"><i class="fa fa-check"></i><b>2.3</b> Performing descriptive statistics</a>
+<ul>
+<li class="chapter" data-level="2.3.1" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#iucn-categories"><i class="fa fa-check"></i><b>2.3.1</b> IUCN categories</a></li>
+<li class="chapter" data-level="2.3.2" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#ecosystems-excluding-non-referenced-pas"><i class="fa fa-check"></i><b>2.3.2</b> Ecosystems (excluding non-referenced PAs)</a></li>
+<li class="chapter" data-level="2.3.3" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#distribution-of-pas-across-countries-and-regions"><i class="fa fa-check"></i><b>2.3.3</b> Distribution of PAs across countries and regions</a></li>
+<li class="chapter" data-level="2.3.4" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#surface-of-pas"><i class="fa fa-check"></i><b>2.3.4</b> Surface of PAs</a></li>
+<li class="chapter" data-level="2.3.5" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#temporal-evolution"><i class="fa fa-check"></i><b>2.3.5</b> Temporal evolution</a></li>
+<li class="chapter" data-level="2.3.6" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#governance"><i class="fa fa-check"></i><b>2.3.6</b> Governance</a></li>
+</ul></li>
+</ul></li>
+<li class="chapter" data-level="3" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html"><i class="fa fa-check"></i><b>3</b> Biodiversity in the protected areas</a>
+<ul>
+<li class="chapter" data-level="3.1" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#importing-packages-and-functions"><i class="fa fa-check"></i><b>3.1</b> Importing packages and functions</a></li>
+<li class="chapter" data-level="3.2" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#setting-the-environment"><i class="fa fa-check"></i><b>3.2</b> Setting the environment</a></li>
+<li class="chapter" data-level="3.3" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#importing-pas-datasets"><i class="fa fa-check"></i><b>3.3</b> Importing PAs datasets</a></li>
+<li class="chapter" data-level="3.4" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#downloading-data-of-interests-and-compute-relevant-indicators"><i class="fa fa-check"></i><b>3.4</b> Downloading data of interests and compute relevant indicators</a>
+<ul>
+<li class="chapter" data-level="3.4.1" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#creating-the-portfolio"><i class="fa fa-check"></i><b>3.4.1</b> Creating the portfolio</a></li>
+<li class="chapter" data-level="3.4.2" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#test-importing-data-from-sspcloud"><i class="fa fa-check"></i><b>3.4.2</b> TEST : importing data from SSPCloud</a></li>
+<li class="chapter" data-level="3.4.3" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#compute-indicators-from-geospatial-data"><i class="fa fa-check"></i><b>3.4.3</b> Compute indicators from geospatial data</a></li>
+</ul></li>
+<li class="chapter" data-level="3.5" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#computing-statistics"><i class="fa fa-check"></i><b>3.5</b> Computing statistics</a>
+<ul>
+<li class="chapter" data-level="3.5.1" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#forests"><i class="fa fa-check"></i><b>3.5.1</b> Forests</a></li>
+<li class="chapter" data-level="3.5.2" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#mangrove"><i class="fa fa-check"></i><b>3.5.2</b> Mangrove</a></li>
+<li class="chapter" data-level="3.5.3" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#emissions"><i class="fa fa-check"></i><b>3.5.3</b> Emissions</a></li>
+<li class="chapter" data-level="3.5.4" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#biometeow"><i class="fa fa-check"></i><b>3.5.4</b> Biome/TEOW</a></li>
+</ul></li>
+</ul></li>
+<li class="part"><span><b>Impact analysis</b></span></li>
+<li class="chapter" data-level="4" data-path="matching.html"><a href="matching.html"><i class="fa fa-check"></i><b>4</b> Matching</a>
+<ul>
+<li class="chapter" data-level="4.1" data-path="matching.html"><a href="matching.html#initial-settings"><i class="fa fa-check"></i><b>4.1</b> Initial settings</a></li>
+<li class="chapter" data-level="4.2" data-path="matching.html"><a href="matching.html#matching-process"><i class="fa fa-check"></i><b>4.2</b> Matching process</a>
+<ul>
+<li class="chapter" data-level="4.2.1" data-path="matching.html"><a href="matching.html#pre-processing"><i class="fa fa-check"></i><b>4.2.1</b> Pre-processing</a></li>
+<li class="chapter" data-level="4.2.2" data-path="matching.html"><a href="matching.html#post-processing"><i class="fa fa-check"></i><b>4.2.2</b> Post-processing</a></li>
+</ul></li>
+</ul></li>
+<li class="chapter" data-level="" data-path="references.html"><a href="references.html"><i class="fa fa-check"></i>References</a></li>
+<li class="appendix"><span><b>Appendix</b></span></li>
+<li class="chapter" data-level="A" data-path="appendix-a.html"><a href="appendix-a.html"><i class="fa fa-check"></i><b>A</b> Appendix A</a></li>
+<li class="divider"></li>
+<li><a href="https://github.com/rstudio/bookdown" target="blank">Published with bookdown</a></li>
+
+</ul>
+
+      </nav>
+    </div>
+
+    <div class="book-body">
+      <div class="body-inner">
+        <div class="book-header" role="navigation">
+          <h1>
+            <i class="fa fa-circle-o-notch fa-spin"></i><a href="./">Impact analysis of protected areas funded by the AFD : an open-guide for reproductibility</a>
+          </h1>
+        </div>
+
+        <div class="page-wrapper" tabindex="-1" role="main">
+          <div class="page-inner">
+
+            <section class="normal" id="section-">
+<div id="matching" class="section level1 hasAnchor" number="4">
+<h1><span class="header-section-number">Section 4</span> Matching<a href="matching.html#matching" class="anchor-section" aria-label="Anchor link to header"></a></h1>
+<p>In this R Markdown are performed the different steps to obtain a matched dataset, i.e a dataset with control and treated observational units to compute the Average Treatment on the Treated (ATT). The treatment here is to be under protected area status, and we look at the impact on deforestation.</p>
+<p>The steps are the following</p>
+<ol style="list-style-type: decimal">
+<li><p>Pre-processing : in a loop for each country</p>
+<ol style="list-style-type: decimal">
+<li><p>Create a grid of a given country</p></li>
+<li><p>Import geospatial data on PAs from the WDPA dataset, and assign each observation unit/pixel to a group : PA funded by the AFD (treated), PA non-funded by the AFD, buffer (closed to but not a PA), other (so potential control).</p></li>
+<li><p>Compute the covariates and outcome of interest for all pixels thanks to the mapme.biodiversity package</p></li>
+<li><p>Build the matching data frame</p></li>
+</ol></li>
+<li><p>Post-processing</p>
+<ol style="list-style-type: decimal">
+<li><p>Load the matching dataframe of the given country</p></li>
+<li><p>Perform the matching</p></li>
+<li><p>Plot covariate balance and density plots to ensure relevant matching</p></li>
+<li><p>Panelize the dataframe</p></li>
+<li><p>Perform regressions</p></li>
+</ol></li>
+</ol>
+<div id="initial-settings" class="section level2 hasAnchor" number="4.1">
+<h2><span class="header-section-number">4.1</span> Initial settings<a href="matching.html#initial-settings" class="anchor-section" aria-label="Anchor link to header"></a></h2>
+<p>#<code>{r setup, include=FALSE, eval = FALSE} #knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file()) #</code></p>
+<div class="sourceCode" id="cb53"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb53-1"><a href="matching.html#cb53-1" tabindex="-1"></a><span class="co">#Install some libraries</span></span>
+<span id="cb53-2"><a href="matching.html#cb53-2" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="fu">c</span>(<span class="st">&quot;tictoc&quot;</span>, <span class="st">&quot;geodata&quot;</span>, <span class="st">&quot;wdpar&quot;</span>, <span class="st">&quot;exactextractr&quot;</span>, <span class="st">&quot;MatchIt&quot;</span>, <span class="st">&quot;fixest&quot;</span>, <span class="st">&quot;cobalt&quot;</span>))</span>
+<span id="cb53-3"><a href="matching.html#cb53-3" tabindex="-1"></a>remotes<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">&quot;mapme-initiative/mapme.biodiversity&quot;</span>, <span class="at">upgrade=</span><span class="st">&quot;always&quot;</span>)</span>
+<span id="cb53-4"><a href="matching.html#cb53-4" tabindex="-1"></a></span>
+<span id="cb53-5"><a href="matching.html#cb53-5" tabindex="-1"></a><span class="co">#Install the river to download wdpa data directly</span></span>
+<span id="cb53-6"><a href="matching.html#cb53-6" tabindex="-1"></a>webdriver<span class="sc">::</span><span class="fu">install_phantomjs</span>()</span>
+<span id="cb53-7"><a href="matching.html#cb53-7" tabindex="-1"></a></span>
+<span id="cb53-8"><a href="matching.html#cb53-8" tabindex="-1"></a><span class="co"># Load Libraries</span></span>
+<span id="cb53-9"><a href="matching.html#cb53-9" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb53-10"><a href="matching.html#cb53-10" tabindex="-1"></a><span class="fu">library</span>(tictoc)</span>
+<span id="cb53-11"><a href="matching.html#cb53-11" tabindex="-1"></a><span class="fu">library</span>(xtable)</span>
+<span id="cb53-12"><a href="matching.html#cb53-12" tabindex="-1"></a><span class="fu">library</span>(tidyr)</span>
+<span id="cb53-13"><a href="matching.html#cb53-13" tabindex="-1"></a><span class="fu">library</span>(stringr)</span>
+<span id="cb53-14"><a href="matching.html#cb53-14" tabindex="-1"></a><span class="fu">library</span>(ggplot2) <span class="co"># For plotting</span></span>
+<span id="cb53-15"><a href="matching.html#cb53-15" tabindex="-1"></a><span class="fu">library</span>(sf) <span class="co"># For handling vector data</span></span>
+<span id="cb53-16"><a href="matching.html#cb53-16" tabindex="-1"></a><span class="fu">library</span>(terra) <span class="co"># For handling raster data</span></span>
+<span id="cb53-17"><a href="matching.html#cb53-17" tabindex="-1"></a><span class="fu">library</span>(raster) <span class="co"># For handling raster data</span></span>
+<span id="cb53-18"><a href="matching.html#cb53-18" tabindex="-1"></a><span class="fu">library</span>(rgeos)</span>
+<span id="cb53-19"><a href="matching.html#cb53-19" tabindex="-1"></a><span class="fu">library</span>(geodata) <span class="co"># For getting country files</span></span>
+<span id="cb53-20"><a href="matching.html#cb53-20" tabindex="-1"></a><span class="fu">library</span>(wdpar) <span class="co"># For getting protected areas</span></span>
+<span id="cb53-21"><a href="matching.html#cb53-21" tabindex="-1"></a><span class="fu">library</span>(exactextractr) <span class="co"># For zonal statistics</span></span>
+<span id="cb53-22"><a href="matching.html#cb53-22" tabindex="-1"></a><span class="fu">library</span>(mapme.biodiversity)</span>
+<span id="cb53-23"><a href="matching.html#cb53-23" tabindex="-1"></a><span class="fu">library</span>(aws.s3)</span>
+<span id="cb53-24"><a href="matching.html#cb53-24" tabindex="-1"></a><span class="fu">library</span>(MatchIt) <span class="co">#For matching</span></span>
+<span id="cb53-25"><a href="matching.html#cb53-25" tabindex="-1"></a><span class="fu">library</span>(fixest) <span class="co">#For estimating the models</span></span>
+<span id="cb53-26"><a href="matching.html#cb53-26" tabindex="-1"></a><span class="fu">library</span>(cobalt) <span class="co">#To visualize density plots and covariate balance from MatchIt outcomes</span></span></code></pre></div>
+<div class="sourceCode" id="cb54"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb54-1"><a href="matching.html#cb54-1" tabindex="-1"></a><span class="co">#Import functions</span></span>
+<span id="cb54-2"><a href="matching.html#cb54-2" tabindex="-1"></a><span class="fu">source</span>(<span class="st">&quot;scripts/ImpactAnalysis/fns_matching.R&quot;</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb55"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb55-1"><a href="matching.html#cb55-1" tabindex="-1"></a><span class="co"># Define the path to a working directory</span></span>
+<span id="cb55-2"><a href="matching.html#cb55-2" tabindex="-1"></a><span class="co">#wdir_s3 = file.path(&quot;data_tidy/mapme_bio_data/matching&quot;)</span></span>
+<span id="cb55-3"><a href="matching.html#cb55-3" tabindex="-1"></a>tmp_pre <span class="ot">=</span> <span class="fu">paste</span>(<span class="fu">tempdir</span>(), <span class="st">&quot;matching_pre&quot;</span>, <span class="at">sep =</span> <span class="st">&quot;/&quot;</span>)</span>
+<span id="cb55-4"><a href="matching.html#cb55-4" tabindex="-1"></a>tmp_post <span class="ot">=</span> <span class="fu">paste</span>(<span class="fu">tempdir</span>(), <span class="st">&quot;matching_post&quot;</span>, <span class="at">sep =</span> <span class="st">&quot;/&quot;</span>)</span>
+<span id="cb55-5"><a href="matching.html#cb55-5" tabindex="-1"></a></span>
+<span id="cb55-6"><a href="matching.html#cb55-6" tabindex="-1"></a><span class="co"># Define the file name of the matching frame</span></span>
+<span id="cb55-7"><a href="matching.html#cb55-7" tabindex="-1"></a>name_output <span class="ot">=</span> name_input <span class="ot">=</span> <span class="st">&quot;matching_frame_10km&quot;</span></span>
+<span id="cb55-8"><a href="matching.html#cb55-8" tabindex="-1"></a>ext_output <span class="ot">=</span> ext_input <span class="ot">=</span> <span class="st">&quot;.gpkg&quot;</span></span>
+<span id="cb55-9"><a href="matching.html#cb55-9" tabindex="-1"></a></span>
+<span id="cb55-10"><a href="matching.html#cb55-10" tabindex="-1"></a><span class="do">#####</span></span>
+<span id="cb55-11"><a href="matching.html#cb55-11" tabindex="-1"></a><span class="do">###Pre-processing</span></span>
+<span id="cb55-12"><a href="matching.html#cb55-12" tabindex="-1"></a><span class="do">#####</span></span>
+<span id="cb55-13"><a href="matching.html#cb55-13" tabindex="-1"></a></span>
+<span id="cb55-14"><a href="matching.html#cb55-14" tabindex="-1"></a></span>
+<span id="cb55-15"><a href="matching.html#cb55-15" tabindex="-1"></a><span class="do">##Buffer and gridsize : make it depends on the country ? For instance, a typical size of grid such that the smaller PA is sampled with at least N pixels ?</span></span>
+<span id="cb55-16"><a href="matching.html#cb55-16" tabindex="-1"></a><span class="co"># Specify buffer width in meter</span></span>
+<span id="cb55-17"><a href="matching.html#cb55-17" tabindex="-1"></a>buffer_m <span class="ot">=</span> <span class="dv">10000</span></span>
+<span id="cb55-18"><a href="matching.html#cb55-18" tabindex="-1"></a><span class="co"># Specify the grid cell size in meter</span></span>
+<span id="cb55-19"><a href="matching.html#cb55-19" tabindex="-1"></a>gridSize <span class="ot">=</span> <span class="dv">10000</span> </span>
+<span id="cb55-20"><a href="matching.html#cb55-20" tabindex="-1"></a></span>
+<span id="cb55-21"><a href="matching.html#cb55-21" tabindex="-1"></a><span class="co">#Load data </span></span>
+<span id="cb55-22"><a href="matching.html#cb55-22" tabindex="-1"></a>data_pa_full <span class="ot">=</span> </span>
+<span id="cb55-23"><a href="matching.html#cb55-23" tabindex="-1"></a>  <span class="co">#fread(&quot;data_tidy/BDD_DesStat_nofund_nodupl.csv&quot; , encoding = &quot;UTF-8&quot;)</span></span>
+<span id="cb55-24"><a href="matching.html#cb55-24" tabindex="-1"></a>  aws.s3<span class="sc">::</span><span class="fu">s3read_using</span>(</span>
+<span id="cb55-25"><a href="matching.html#cb55-25" tabindex="-1"></a>  <span class="at">FUN =</span> data.table<span class="sc">::</span>fread,</span>
+<span id="cb55-26"><a href="matching.html#cb55-26" tabindex="-1"></a>  <span class="at">encoding =</span> <span class="st">&quot;UTF-8&quot;</span>,</span>
+<span id="cb55-27"><a href="matching.html#cb55-27" tabindex="-1"></a>  <span class="co"># Mettre les options de FUN ici</span></span>
+<span id="cb55-28"><a href="matching.html#cb55-28" tabindex="-1"></a>  <span class="at">object =</span> <span class="st">&quot;data_tidy/BDD_DesStat_nofund_nodupl.csv&quot;</span>,</span>
+<span id="cb55-29"><a href="matching.html#cb55-29" tabindex="-1"></a>  <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb55-30"><a href="matching.html#cb55-30" tabindex="-1"></a>  <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>))</span>
+<span id="cb55-31"><a href="matching.html#cb55-31" tabindex="-1"></a></span>
+<span id="cb55-32"><a href="matching.html#cb55-32" tabindex="-1"></a><span class="co">#List of countries in the sample</span></span>
+<span id="cb55-33"><a href="matching.html#cb55-33" tabindex="-1"></a><span class="co">#list_iso = unique(data_pa_full$iso3)</span></span>
+<span id="cb55-34"><a href="matching.html#cb55-34" tabindex="-1"></a>list_iso <span class="ot">=</span> <span class="fu">c</span>(<span class="st">&quot;COM&quot;</span>, <span class="st">&quot;MMR&quot;</span>)</span>
+<span id="cb55-35"><a href="matching.html#cb55-35" tabindex="-1"></a><span class="co"># Specify a list of WDPA IDs of funded protected areas (treated areas)</span></span>
+<span id="cb55-36"><a href="matching.html#cb55-36" tabindex="-1"></a><span class="co"># paid = data_stat_nodupl[data_stat_nodupl$iso3 == country,]$wdpaid</span></span>
+<span id="cb55-37"><a href="matching.html#cb55-37" tabindex="-1"></a></span>
+<span id="cb55-38"><a href="matching.html#cb55-38" tabindex="-1"></a><span class="co"># Start year</span></span>
+<span id="cb55-39"><a href="matching.html#cb55-39" tabindex="-1"></a>y_first <span class="ot">=</span> <span class="dv">2000</span></span>
+<span id="cb55-40"><a href="matching.html#cb55-40" tabindex="-1"></a><span class="co"># End year</span></span>
+<span id="cb55-41"><a href="matching.html#cb55-41" tabindex="-1"></a>y_last <span class="ot">=</span> <span class="dv">2021</span></span>
+<span id="cb55-42"><a href="matching.html#cb55-42" tabindex="-1"></a></span>
+<span id="cb55-43"><a href="matching.html#cb55-43" tabindex="-1"></a><span class="do">#####</span></span>
+<span id="cb55-44"><a href="matching.html#cb55-44" tabindex="-1"></a><span class="do">###Post-processing</span></span>
+<span id="cb55-45"><a href="matching.html#cb55-45" tabindex="-1"></a><span class="do">#####</span></span>
+<span id="cb55-46"><a href="matching.html#cb55-46" tabindex="-1"></a></span>
+<span id="cb55-47"><a href="matching.html#cb55-47" tabindex="-1"></a><span class="co"># Define Column Names of Covariates</span></span>
+<span id="cb55-48"><a href="matching.html#cb55-48" tabindex="-1"></a>colname.travelTime <span class="ot">=</span> <span class="st">&quot;minutes_median_5k_110mio&quot;</span></span>
+<span id="cb55-49"><a href="matching.html#cb55-49" tabindex="-1"></a>colname.clayContent <span class="ot">=</span> <span class="st">&quot;clay_0.5cm_mean&quot;</span></span>
+<span id="cb55-50"><a href="matching.html#cb55-50" tabindex="-1"></a><span class="co"># colname.elevation = &quot;elevation_mean&quot;</span></span>
+<span id="cb55-51"><a href="matching.html#cb55-51" tabindex="-1"></a><span class="co"># colname.tri = &quot;tri_mean&quot;</span></span>
+<span id="cb55-52"><a href="matching.html#cb55-52" tabindex="-1"></a>colname.fcIni <span class="ot">=</span> <span class="st">&quot;treecover_2000&quot;</span></span>
+<span id="cb55-53"><a href="matching.html#cb55-53" tabindex="-1"></a></span>
+<span id="cb55-54"><a href="matching.html#cb55-54" tabindex="-1"></a></span>
+<span id="cb55-55"><a href="matching.html#cb55-55" tabindex="-1"></a><span class="co"># Prefix of columns for forest cover</span></span>
+<span id="cb55-56"><a href="matching.html#cb55-56" tabindex="-1"></a>colfc.prefix <span class="ot">=</span> <span class="st">&quot;treecover&quot;</span></span>
+<span id="cb55-57"><a href="matching.html#cb55-57" tabindex="-1"></a><span class="co"># Separation between prefix and year</span></span>
+<span id="cb55-58"><a href="matching.html#cb55-58" tabindex="-1"></a>colfc.bind <span class="ot">=</span> <span class="st">&quot;_&quot;</span></span>
+<span id="cb55-59"><a href="matching.html#cb55-59" tabindex="-1"></a><span class="co"># Prefix of columns for forest loss</span></span>
+<span id="cb55-60"><a href="matching.html#cb55-60" tabindex="-1"></a>colfl.prefix <span class="ot">=</span> <span class="st">&quot;treeloss&quot;</span></span>
+<span id="cb55-61"><a href="matching.html#cb55-61" tabindex="-1"></a><span class="co">#Prefix of columns for average forest loss pre-funding</span></span>
+<span id="cb55-62"><a href="matching.html#cb55-62" tabindex="-1"></a>colname.flAvg <span class="ot">=</span> <span class="st">&quot;avgLoss_pre_fund&quot;</span></span>
+<span id="cb55-63"><a href="matching.html#cb55-63" tabindex="-1"></a></span>
+<span id="cb55-64"><a href="matching.html#cb55-64" tabindex="-1"></a><span class="co"># Year of Funding Start</span></span>
+<span id="cb55-65"><a href="matching.html#cb55-65" tabindex="-1"></a>funding.start <span class="ot">=</span> <span class="dv">2014</span></span></code></pre></div>
+</div>
+<div id="matching-process" class="section level2 hasAnchor" number="4.2">
+<h2><span class="header-section-number">4.2</span> Matching process<a href="matching.html#matching-process" class="anchor-section" aria-label="Anchor link to header"></a></h2>
+<div id="pre-processing" class="section level3 hasAnchor" number="4.2.1">
+<h3><span class="header-section-number">4.2.1</span> Pre-processing<a href="matching.html#pre-processing" class="anchor-section" aria-label="Anchor link to header"></a></h3>
+<div class="sourceCode" id="cb56"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb56-1"><a href="matching.html#cb56-1" tabindex="-1"></a><span class="co">#For each country in the list, the different steps of the pre-processing are performed</span></span>
+<span id="cb56-2"><a href="matching.html#cb56-2" tabindex="-1"></a>count <span class="ot">=</span> <span class="dv">0</span></span>
+<span id="cb56-3"><a href="matching.html#cb56-3" tabindex="-1"></a>max_i <span class="ot">=</span> <span class="fu">length</span>(list_iso)</span>
+<span id="cb56-4"><a href="matching.html#cb56-4" tabindex="-1"></a>tic_pre <span class="ot">=</span> <span class="fu">tic</span>()</span>
+<span id="cb56-5"><a href="matching.html#cb56-5" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> list_iso)</span>
+<span id="cb56-6"><a href="matching.html#cb56-6" tabindex="-1"></a>{</span>
+<span id="cb56-7"><a href="matching.html#cb56-7" tabindex="-1"></a>  count <span class="ot">=</span> count<span class="sc">+</span><span class="dv">1</span></span>
+<span id="cb56-8"><a href="matching.html#cb56-8" tabindex="-1"></a>  <span class="fu">print</span>(<span class="fu">paste0</span>(i, <span class="st">&quot; : country &quot;</span>, count, <span class="st">&quot;/&quot;</span>, max_i))</span>
+<span id="cb56-9"><a href="matching.html#cb56-9" tabindex="-1"></a>  </span>
+<span id="cb56-10"><a href="matching.html#cb56-10" tabindex="-1"></a>  <span class="co">#Generate observation units</span></span>
+<span id="cb56-11"><a href="matching.html#cb56-11" tabindex="-1"></a>  <span class="fu">print</span>(<span class="st">&quot;--Generating observation units&quot;</span>)</span>
+<span id="cb56-12"><a href="matching.html#cb56-12" tabindex="-1"></a>  output_pre_grid <span class="ot">=</span> <span class="fu">fn_pre_grid</span>(<span class="at">iso =</span> i, <span class="at">path_tmp =</span> tmp_pre, <span class="at">gridSize =</span> gridSize)</span>
+<span id="cb56-13"><a href="matching.html#cb56-13" tabindex="-1"></a>  </span>
+<span id="cb56-14"><a href="matching.html#cb56-14" tabindex="-1"></a>  <span class="co">#Load the outputs </span></span>
+<span id="cb56-15"><a href="matching.html#cb56-15" tabindex="-1"></a>  utm_code <span class="ot">=</span> output_pre_grid<span class="sc">$</span>utm_code</span>
+<span id="cb56-16"><a href="matching.html#cb56-16" tabindex="-1"></a>  gadm_prj <span class="ot">=</span> output_pre_grid<span class="sc">$</span>ctry_shp_prj</span>
+<span id="cb56-17"><a href="matching.html#cb56-17" tabindex="-1"></a>  grid <span class="ot">=</span> output_pre_grid<span class="sc">$</span>grid</span>
+<span id="cb56-18"><a href="matching.html#cb56-18" tabindex="-1"></a>  </span>
+<span id="cb56-19"><a href="matching.html#cb56-19" tabindex="-1"></a>  <span class="co">#Determining Group IDs and WDPA IDs for all observation units</span></span>
+<span id="cb56-20"><a href="matching.html#cb56-20" tabindex="-1"></a>  <span class="fu">print</span>(<span class="st">&quot;--Determining Group IDs and WDPA IDs&quot;</span>)</span>
+<span id="cb56-21"><a href="matching.html#cb56-21" tabindex="-1"></a>  grid_param <span class="ot">=</span> <span class="fu">fn_pre_group</span>(<span class="at">iso =</span> i, <span class="at">path_tmp =</span> tmp_pre, <span class="at">utm_code =</span> utm_code,</span>
+<span id="cb56-22"><a href="matching.html#cb56-22" tabindex="-1"></a>                            <span class="at">buffer_m =</span> buffer_m, <span class="at">data =</span> data_pa_full,</span>
+<span id="cb56-23"><a href="matching.html#cb56-23" tabindex="-1"></a>                            <span class="at">gadm_prj =</span> gadm_prj, <span class="at">grid =</span> grid, </span>
+<span id="cb56-24"><a href="matching.html#cb56-24" tabindex="-1"></a>                            <span class="at">gridSize =</span> gridSize)</span>
+<span id="cb56-25"><a href="matching.html#cb56-25" tabindex="-1"></a>  </span>
+<span id="cb56-26"><a href="matching.html#cb56-26" tabindex="-1"></a>  <span class="co">#Calculating outcome and other covariates for all observation units</span></span>
+<span id="cb56-27"><a href="matching.html#cb56-27" tabindex="-1"></a>  <span class="fu">print</span>(<span class="st">&quot;--#Calculating outcome and other covariates&quot;</span>)</span>
+<span id="cb56-28"><a href="matching.html#cb56-28" tabindex="-1"></a>  <span class="fu">fn_pre_mf</span>(<span class="at">grid.param =</span> grid_param, <span class="at">path_tmp =</span> tmp_pre, <span class="at">iso =</span> i,</span>
+<span id="cb56-29"><a href="matching.html#cb56-29" tabindex="-1"></a>            <span class="at">name_output =</span> name_output, <span class="at">ext_output =</span> ext_output)</span>
+<span id="cb56-30"><a href="matching.html#cb56-30" tabindex="-1"></a>  </span>
+<span id="cb56-31"><a href="matching.html#cb56-31" tabindex="-1"></a>  </span>
+<span id="cb56-32"><a href="matching.html#cb56-32" tabindex="-1"></a>}</span>
+<span id="cb56-33"><a href="matching.html#cb56-33" tabindex="-1"></a></span>
+<span id="cb56-34"><a href="matching.html#cb56-34" tabindex="-1"></a>toc_pre <span class="ot">=</span> <span class="fu">toc</span>()</span></code></pre></div>
+</div>
+<div id="post-processing" class="section level3 hasAnchor" number="4.2.2">
+<h3><span class="header-section-number">4.2.2</span> Post-processing<a href="matching.html#post-processing" class="anchor-section" aria-label="Anchor link to header"></a></h3>
+<div class="sourceCode" id="cb57"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb57-1"><a href="matching.html#cb57-1" tabindex="-1"></a><span class="co">#For each country in the list, the different steps of the post-processing are performed</span></span>
+<span id="cb57-2"><a href="matching.html#cb57-2" tabindex="-1"></a>count <span class="ot">=</span> <span class="dv">0</span></span>
+<span id="cb57-3"><a href="matching.html#cb57-3" tabindex="-1"></a>max_i <span class="ot">=</span> <span class="fu">length</span>(list_iso)</span>
+<span id="cb57-4"><a href="matching.html#cb57-4" tabindex="-1"></a>tic_post <span class="ot">=</span> <span class="fu">tic</span>()</span>
+<span id="cb57-5"><a href="matching.html#cb57-5" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> list_iso)</span>
+<span id="cb57-6"><a href="matching.html#cb57-6" tabindex="-1"></a>{</span>
+<span id="cb57-7"><a href="matching.html#cb57-7" tabindex="-1"></a>  count <span class="ot">=</span> count<span class="sc">+</span><span class="dv">1</span></span>
+<span id="cb57-8"><a href="matching.html#cb57-8" tabindex="-1"></a>  <span class="fu">print</span>(<span class="fu">paste0</span>(i, <span class="st">&quot; : country &quot;</span>, count, <span class="st">&quot;/&quot;</span>, max_i))</span>
+<span id="cb57-9"><a href="matching.html#cb57-9" tabindex="-1"></a>  </span>
+<span id="cb57-10"><a href="matching.html#cb57-10" tabindex="-1"></a>  <span class="co">#Load the matching frame</span></span>
+<span id="cb57-11"><a href="matching.html#cb57-11" tabindex="-1"></a>  <span class="fu">print</span>(<span class="st">&quot;--Loading the matching frame&quot;</span>)</span>
+<span id="cb57-12"><a href="matching.html#cb57-12" tabindex="-1"></a>  mf_ini <span class="ot">=</span> <span class="fu">fn_post_load_mf</span>(<span class="at">iso =</span> i)</span>
+<span id="cb57-13"><a href="matching.html#cb57-13" tabindex="-1"></a>  </span>
+<span id="cb57-14"><a href="matching.html#cb57-14" tabindex="-1"></a>  </span>
+<span id="cb57-15"><a href="matching.html#cb57-15" tabindex="-1"></a>  <span class="co">#Add average pre-loss</span></span>
+<span id="cb57-16"><a href="matching.html#cb57-16" tabindex="-1"></a>  <span class="fu">print</span>(<span class="st">&quot;--Add covariate : average tree loss pre-funding&quot;</span>)</span>
+<span id="cb57-17"><a href="matching.html#cb57-17" tabindex="-1"></a>  mf <span class="ot">=</span> <span class="fu">fn_post_avgLoss_prefund</span>(<span class="at">mf =</span> mf_ini, <span class="at">yr_start =</span> funding.start <span class="sc">-</span> <span class="dv">5</span>,</span>
+<span id="cb57-18"><a href="matching.html#cb57-18" tabindex="-1"></a>                               <span class="at">yr_end =</span> funding.start <span class="sc">-</span> <span class="dv">1</span>, <span class="at">colfl.prefix =</span> colfl.prefix)</span>
+<span id="cb57-19"><a href="matching.html#cb57-19" tabindex="-1"></a>  </span>
+<span id="cb57-20"><a href="matching.html#cb57-20" tabindex="-1"></a>  <span class="co">#Define cut-offs</span></span>
+<span id="cb57-21"><a href="matching.html#cb57-21" tabindex="-1"></a>  <span class="fu">print</span>(<span class="st">&quot;--Define cutoffs&quot;</span>)</span>
+<span id="cb57-22"><a href="matching.html#cb57-22" tabindex="-1"></a>  <span class="do">##CAREFUL : ADD elevation and TRI when available</span></span>
+<span id="cb57-23"><a href="matching.html#cb57-23" tabindex="-1"></a>  lst_cutoffs <span class="ot">=</span> <span class="fu">fn_post_cutoff</span>(<span class="at">mf =</span> mf, </span>
+<span id="cb57-24"><a href="matching.html#cb57-24" tabindex="-1"></a>                               <span class="at">colname.travelTime =</span> colname.travelTime, </span>
+<span id="cb57-25"><a href="matching.html#cb57-25" tabindex="-1"></a>                               <span class="at">colname.clayContent =</span> colname.clayContent,</span>
+<span id="cb57-26"><a href="matching.html#cb57-26" tabindex="-1"></a>                               <span class="at">colname.fcIni =</span> colname.fcIni, </span>
+<span id="cb57-27"><a href="matching.html#cb57-27" tabindex="-1"></a>                               <span class="at">colname.flAvg =</span> colname.flAvg</span>
+<span id="cb57-28"><a href="matching.html#cb57-28" tabindex="-1"></a>                               )</span>
+<span id="cb57-29"><a href="matching.html#cb57-29" tabindex="-1"></a>  </span>
+<span id="cb57-30"><a href="matching.html#cb57-30" tabindex="-1"></a>  <span class="co">#Run Coarsened Exact Matching</span></span>
+<span id="cb57-31"><a href="matching.html#cb57-31" tabindex="-1"></a>  <span class="fu">print</span>(<span class="st">&quot;--Run CEM&quot;</span>)</span>
+<span id="cb57-32"><a href="matching.html#cb57-32" tabindex="-1"></a>  out.cem <span class="ot">=</span> <span class="fu">fn_post_cem</span>(<span class="at">mf =</span> mf, <span class="at">iso =</span> i, <span class="at">path_tmp =</span> tmp_post,</span>
+<span id="cb57-33"><a href="matching.html#cb57-33" tabindex="-1"></a>                        <span class="at">lst_cutoffs =</span> lst_cutoffs,</span>
+<span id="cb57-34"><a href="matching.html#cb57-34" tabindex="-1"></a>                       <span class="at">colname.travelTime =</span> colname.travelTime, </span>
+<span id="cb57-35"><a href="matching.html#cb57-35" tabindex="-1"></a>                       <span class="at">colname.clayContent =</span> colname.clayContent,</span>
+<span id="cb57-36"><a href="matching.html#cb57-36" tabindex="-1"></a>                       <span class="at">colname.fcIni =</span> colname.fcIni, </span>
+<span id="cb57-37"><a href="matching.html#cb57-37" tabindex="-1"></a>                       <span class="at">colname.flAvg =</span> colname.flAvg)</span>
+<span id="cb57-38"><a href="matching.html#cb57-38" tabindex="-1"></a>  </span>
+<span id="cb57-39"><a href="matching.html#cb57-39" tabindex="-1"></a>  <span class="co">#Plots : covariates</span></span>
+<span id="cb57-40"><a href="matching.html#cb57-40" tabindex="-1"></a>  <span class="fu">print</span>(<span class="st">&quot;--Some plots : covariates&quot;</span>)</span>
+<span id="cb57-41"><a href="matching.html#cb57-41" tabindex="-1"></a>  <span class="fu">print</span>(<span class="st">&quot;----Covariate balance&quot;</span>)</span>
+<span id="cb57-42"><a href="matching.html#cb57-42" tabindex="-1"></a>  <span class="fu">fn_post_plot_covbal</span>(<span class="at">out.cem =</span> out.cem, </span>
+<span id="cb57-43"><a href="matching.html#cb57-43" tabindex="-1"></a>                      <span class="at">colname.travelTime =</span> colname.travelTime, </span>
+<span id="cb57-44"><a href="matching.html#cb57-44" tabindex="-1"></a>                       <span class="at">colname.clayContent =</span> colname.clayContent,</span>
+<span id="cb57-45"><a href="matching.html#cb57-45" tabindex="-1"></a>                       <span class="at">colname.fcIni =</span> colname.fcIni, </span>
+<span id="cb57-46"><a href="matching.html#cb57-46" tabindex="-1"></a>                       <span class="at">colname.flAvg =</span> colname.flAvg,</span>
+<span id="cb57-47"><a href="matching.html#cb57-47" tabindex="-1"></a>                      <span class="at">iso =</span> i,</span>
+<span id="cb57-48"><a href="matching.html#cb57-48" tabindex="-1"></a>                      <span class="at">path_tmp =</span> tmp_post)</span>
+<span id="cb57-49"><a href="matching.html#cb57-49" tabindex="-1"></a>  <span class="fu">print</span>(<span class="st">&quot;----Density plots&quot;</span>)</span>
+<span id="cb57-50"><a href="matching.html#cb57-50" tabindex="-1"></a>  <span class="fu">fn_post_plot_density</span>(<span class="at">out.cem =</span> out.cem, </span>
+<span id="cb57-51"><a href="matching.html#cb57-51" tabindex="-1"></a>                      <span class="at">colname.travelTime =</span> colname.travelTime, </span>
+<span id="cb57-52"><a href="matching.html#cb57-52" tabindex="-1"></a>                       <span class="at">colname.clayContent =</span> colname.clayContent,</span>
+<span id="cb57-53"><a href="matching.html#cb57-53" tabindex="-1"></a>                       <span class="at">colname.fcIni =</span> colname.fcIni, </span>
+<span id="cb57-54"><a href="matching.html#cb57-54" tabindex="-1"></a>                       <span class="at">colname.flAvg =</span> colname.flAvg,</span>
+<span id="cb57-55"><a href="matching.html#cb57-55" tabindex="-1"></a>                      <span class="at">iso =</span> i,</span>
+<span id="cb57-56"><a href="matching.html#cb57-56" tabindex="-1"></a>                      <span class="at">path_tmp =</span> tmp_post)</span>
+<span id="cb57-57"><a href="matching.html#cb57-57" tabindex="-1"></a>  </span>
+<span id="cb57-58"><a href="matching.html#cb57-58" tabindex="-1"></a>  <span class="co">#Panelize dataframes</span></span>
+<span id="cb57-59"><a href="matching.html#cb57-59" tabindex="-1"></a>  <span class="fu">print</span>(<span class="st">&quot;----Panelize (Un-)Matched Dataframe&quot;</span>)</span>
+<span id="cb57-60"><a href="matching.html#cb57-60" tabindex="-1"></a>  output_post_panel <span class="ot">=</span> <span class="fu">fn_post_panel</span>(<span class="at">out.cem =</span> out.cem, <span class="at">mf =</span> mf, <span class="at">colfc.prefix =</span> colfc.prefix, <span class="at">colfc.bind =</span> colfc.bind)</span>
+<span id="cb57-61"><a href="matching.html#cb57-61" tabindex="-1"></a>  matched.wide <span class="ot">=</span> output_post_panel<span class="sc">$</span>matched.wide</span>
+<span id="cb57-62"><a href="matching.html#cb57-62" tabindex="-1"></a>  unmatched.wide <span class="ot">=</span> output_post_panel<span class="sc">$</span>unmatched.wide</span>
+<span id="cb57-63"><a href="matching.html#cb57-63" tabindex="-1"></a>  matched.long <span class="ot">=</span> output_post_panel<span class="sc">$</span>matched.long</span>
+<span id="cb57-64"><a href="matching.html#cb57-64" tabindex="-1"></a>  unmatched.long <span class="ot">=</span> output_post_panel<span class="sc">$</span>unmatched.long  </span>
+<span id="cb57-65"><a href="matching.html#cb57-65" tabindex="-1"></a>  </span>
+<span id="cb57-66"><a href="matching.html#cb57-66" tabindex="-1"></a>  <span class="co">#Plots : trend</span></span>
+<span id="cb57-67"><a href="matching.html#cb57-67" tabindex="-1"></a>  <span class="fu">print</span>(<span class="st">&quot;----Plots again : trend&quot;</span>)</span>
+<span id="cb57-68"><a href="matching.html#cb57-68" tabindex="-1"></a>  <span class="fu">fn_post_plot_trend</span>(<span class="at">matched.long =</span> matched.long, <span class="at">unmatched.long =</span> unmatched.long, <span class="at">iso =</span> i)</span>
+<span id="cb57-69"><a href="matching.html#cb57-69" tabindex="-1"></a>  </span>
+<span id="cb57-70"><a href="matching.html#cb57-70" tabindex="-1"></a>  </span>
+<span id="cb57-71"><a href="matching.html#cb57-71" tabindex="-1"></a>}</span>
+<span id="cb57-72"><a href="matching.html#cb57-72" tabindex="-1"></a></span>
+<span id="cb57-73"><a href="matching.html#cb57-73" tabindex="-1"></a>toc_post <span class="ot">=</span> <span class="fu">toc</span>()</span>
+<span id="cb57-74"><a href="matching.html#cb57-74" tabindex="-1"></a></span>
+<span id="cb57-75"><a href="matching.html#cb57-75" tabindex="-1"></a><span class="co">#Notes</span></span>
+<span id="cb57-76"><a href="matching.html#cb57-76" tabindex="-1"></a><span class="do">## Automate the definition of cutoffs for CEM</span></span>
+<span id="cb57-77"><a href="matching.html#cb57-77" tabindex="-1"></a><span class="do">### Coder 5.5.3 de Iacus et al. 2012 ? Permet de savoir le gain de matched units pour une modification des seuils d&#39;une variable</span></span>
+<span id="cb57-78"><a href="matching.html#cb57-78" tabindex="-1"></a><span class="do">## Loop for different treatment years : need to adapt fn_post_avgLoss_prefund function</span></span>
+<span id="cb57-79"><a href="matching.html#cb57-79" tabindex="-1"></a><span class="do">## Allow to enter a list of any covariates to perform the matching</span></span>
+<span id="cb57-80"><a href="matching.html#cb57-80" tabindex="-1"></a><span class="do">## Function to plot Fig. 3 in Iacus et al. 2012</span></span>
+<span id="cb57-81"><a href="matching.html#cb57-81" tabindex="-1"></a><span class="do">## Il faut contrôler le nombre de paired units à la fin ! Typiquement on veut que tous les pixels traités soient retenus, idéalement.</span></span>
+<span id="cb57-82"><a href="matching.html#cb57-82" tabindex="-1"></a><span class="do">## On veut ATE ou ATT ?? Je dirai ATT car on ne veut pas estimer l&#39;effet de mettre une AP, mais l&#39;effet des AP financés par l&#39;AFD </span></span></code></pre></div>
+
+</div>
+</div>
+</div>
+            </section>
+
+          </div>
+        </div>
+      </div>
+<a href="biodiversity-in-the-protected-areas.html" class="navigation navigation-prev " aria-label="Previous page"><i class="fa fa-angle-left"></i></a>
+<a href="references.html" class="navigation navigation-next " aria-label="Next page"><i class="fa fa-angle-right"></i></a>
+    </div>
+  </div>
+<script src="libs/gitbook-2.6.7/js/app.min.js"></script>
+<script src="libs/gitbook-2.6.7/js/clipboard.min.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-search.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-sharing.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-fontsettings.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-bookdown.js"></script>
+<script src="libs/gitbook-2.6.7/js/jquery.highlight.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-clipboard.js"></script>
+<script>
+gitbook.require(["gitbook"], function(gitbook) {
+gitbook.start({
+"sharing": {
+"github": true,
+"facebook": false,
+"twitter": false,
+"linkedin": false,
+"weibo": false,
+"instapaper": false,
+"vk": false,
+"whatsapp": false,
+"all": false
+},
+"fontsettings": {
+"theme": "white",
+"family": "sans",
+"size": 2
+},
+"edit": {
+"link": "https://github.com/vuillota/EVA-impact-aires-protegees/edit/main/02_matching.Rmd",
+"text": "Suggest an edit"
+},
+"history": {
+"link": null,
+"text": null
+},
+"view": {
+"link": null,
+"text": null
+},
+"download": ["https://github.com/vuillota/EVA-impact-aires-protegees/raw/main/02_matching.Rmd"],
+"search": {
+"engine": "fuse",
+"options": null
+},
+"toc": {
+"collapse": "section"
+}
+});
+});
+</script>
+
+</body>
+
+</html>

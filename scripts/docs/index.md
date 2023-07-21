@@ -6,7 +6,7 @@ author:
 - Ingrid Dallmann
 - Léa Poulin
 - Pierre-Yves Durand
-date: "`r Sys.Date()`"
+date: "2023-07-21"
 site: bookdown::bookdown_site
 bibliography: 
 - biblio.bib
