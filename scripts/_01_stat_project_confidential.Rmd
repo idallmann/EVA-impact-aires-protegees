@@ -1,5 +1,5 @@
 ---
-title: "DesStat_PA_WDPA_confidential"
+title: "Confidential descriptive statistics"
 author: "Antoine Vuillot"
 date: "05/07/2023"
 output: 
@@ -9,11 +9,9 @@ editor_options:
   chunk_output_type: inline
 ---
 
-# Confidential descriptive statistics
-
 In this document are performed and plotted descriptive statistics of confidential data.
 
-## Importing packages
+# Importing packages
 
 ```{r setup, include=FALSE}
 knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
@@ -35,7 +33,7 @@ library(xtable)
 library(questionr)
 ```
 
-## Importing datasets
+# Importing datasets
 
 ```{r}
 #Both datasets are imported also in UTF8 encoding, for some variables
@@ -56,13 +54,13 @@ pa_int_yr = fread("data_tidy/area/pa_int_yr.csv")
 load("data_tidy/area/pa_area_wld.RDdata")
 ```
 
-## Descriptive statistics
+# Descriptive statistics
 
-### Funding
+## Funding
 
 This section provides several statistics on the funding of PAs : average funding by project, by contest, average funding by region or country, average funding by area, evolution over time, funding type.
 
-#### Average funding
+### Average funding
 
 Create a dataset with one row per project (funding is given by project, so duplicates are avoided)
 
@@ -317,7 +315,7 @@ names(tbl_fund_per_area_wld) = c("Financement moyen par km2 (€/km2)")
 
 ```
 
-#### Evolution of funding over time
+### Evolution of funding over time
 
 ```{r}
 data_fund_year = data_stat_projet_nodupl %>%
@@ -380,7 +378,7 @@ fig_fund_year_cum
 
 ```
 
-#### Type of funding
+### Type of funding
 
 Distribution of funding types
 
@@ -451,7 +449,7 @@ names(tbl_fund_avg_type) = c("Type de financement","Projets", "Proportion d'AP (
 
 ```
 
-#### Co-funders
+### Co-funders
 
 ```{r}
 #Create a table with number of projects funded by AFD, FFEM and KfW. Total fundings and average funds are also reported

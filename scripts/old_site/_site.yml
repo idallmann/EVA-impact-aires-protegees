@@ -1,8 +1,8 @@
 name: "ie-pa-doc"
 output_dir: "docs"
 navbar:
-  #title: "test"
-  #type: default
+  title: "Impact analysis of protected areas funded by the AFD : an open guide for reproductibility"
+  type: default
   left:
     - icon: fa-home
       href: index.html
@@ -25,6 +25,7 @@ navbar:
       href: mailto:vuillota@afd.fr
     - icon: fa-circle-info
       href: about.html
+
 
 output :
   html_document :

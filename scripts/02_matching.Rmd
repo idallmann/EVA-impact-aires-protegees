@@ -1,11 +1,6 @@
----
-title: "Matching"
-author: "Antoine Vuillot"
-date: "2023-07-13"
-output: html_document
----
+# (PART\*) Impact analysis {-}
 
-# 1. Outline
+# Matching
 
 In this R Markdown are performed the different steps to obtain a matched dataset, i.e a dataset with control and treated observational units to compute the Average Treatment on the Treated (ATT). The treatment here is to be under protected area status, and we look at the impact on deforestation.
 
@@ -33,12 +28,11 @@ The steps are the following
 
     5.  Perform regressions
 
-# 2. Initial settings
+## Initial settings
 
-```{r setup, include=FALSE, eval = FALSE}
-knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
-
-```
+#```{r setup, include=FALSE, eval = FALSE}
+#knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+# ```
 
 ```{r, eval = FALSE}
 #Install some libraries
@@ -142,9 +136,9 @@ colname.flAvg = "avgLoss_pre_fund"
 funding.start = 2014
 ```
 
-# 3. Matching
+## Matching process
 
-## 3.1 Pre-processing
+### Pre-processing
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
 #For each country in the list, the different steps of the pre-processing are performed
@@ -184,7 +178,7 @@ toc_pre = toc()
 
 ```
 
-## 3.2 Post-processing
+### Post-processing
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
 #For each country in the list, the different steps of the post-processing are performed

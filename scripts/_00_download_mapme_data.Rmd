@@ -1,11 +1,4 @@
----
-title: "download_mapme_data"
-author: "Antoine Vuillot"
-date: "2023-07-12"
-output: html_document
----
-
-## Importing packages and functions
+# Importing packages and functions
 
 ```{r setup, include=FALSE}
 knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
@@ -27,7 +20,7 @@ library(ARTofR)
 library(aws.s3)
 ```
 
-## Importing PAs datasets
+# Importing PAs datasets
 
 ```{r message=FALSE, warning=FALSE}
 
@@ -62,7 +55,7 @@ pa_nodupl =
 #mapview(pa_shp)
 ```
 
-## Downloading data of interests and compute relevant indicators
+# Downloading data of interests and compute relevant indicators
 
 For the moment, mapme.biodiversity functions do not support reading/writing in a S3 server like SSPCloud. Waiting for the new release of the package, the following process is followed :
 
@@ -74,7 +67,7 @@ For the moment, mapme.biodiversity functions do not support reading/writing in a
 
 4.  Move it to SSP Cloud storage
 
-### Creating the portfolio
+## Creating the portfolio
 
 ```{r}
 #The raw data from mapme package are stored in a temporary folder
@@ -90,9 +83,9 @@ pa_pfolio = pa_shp %>%
                  verbose = TRUE)
 ```
 
-### Download data
+## Download data
 
-#### Forests
+### Forests
 
 ```{r message=FALSE, warning=FALSE}
 
@@ -171,7 +164,7 @@ do.call(file.remove, list(list.files(paste(tmp, "gfw_lossyear", sep = "/"), full
 do.call(file.remove, list(list.files(paste(tmp, "gfw_treecover", sep = "/"), full.names = TRUE)))
 ```
 
-#### Mangroves
+### Mangroves
 
 ```{r message=FALSE, warning=FALSE}
 

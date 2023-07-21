@@ -1,0 +1,15 @@
+book_filename: fake-book
+delete_merged_file: true
+output_dir: docs
+language:
+  ui:
+    chapter_name: "Section "
+new_session: true
+rmd_files:
+- index.Rmd
+- 00_data_build.Rmd
+- 01_stat_project.Rmd
+- 01_stat_biodiv.Rmd
+- 02_matching.Rmd
+- references.Rmd
+- appendix.Rmd

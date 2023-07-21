@@ -8,25 +8,14 @@
   color: #9d9d9d;
 }
 .navbar-inverse .navbar-nav>.active>a {
-  background-color: #222;
+  background-color: #9d9d9d;
 }
 .list-group-item.active {
-  background-color: #222;
-  border-color: #222;
+  background-color: #9d9d9d;
+  border-color: #9d9d9d;
 }
 item.active, .list-group-item.active:hover {
-  background-color: #222;
-  border-color: #222;
+  background-color: #9d9d9d;
+  border-color: #9d9d9d;
 }
 
-
-  #header.fluid-row::before {
-   content: "";
-   height: 150px;
-   width: 150px;
-   float: right;
-   background-image: url("logo-afd.png");
-   background-size: contain;
-   background-position: center center;
-   background-repeat: no-repeat;
- }

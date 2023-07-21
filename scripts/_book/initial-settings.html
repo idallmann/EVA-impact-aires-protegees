@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+<head>
+
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Chapter 10 Initial settings | A Minimal Book Example</title>
+  <meta name="description" content="<p>This is a minimal example of using the bookdown package to write a book.
+The HTML output format for this example is bookdown::gitbook,
+set in the _output.yml file.</p>" />
+  <meta name="generator" content="bookdown 0.34 and GitBook 2.6.7" />
+
+  <meta property="og:title" content="Chapter 10 Initial settings | A Minimal Book Example" />
+  <meta property="og:type" content="book" />
+  
+  <meta property="og:description" content="<p>This is a minimal example of using the bookdown package to write a book.
+The HTML output format for this example is bookdown::gitbook,
+set in the _output.yml file.</p>" />
+  <meta name="github-repo" content="rstudio/bookdown-demo" />
+
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Chapter 10 Initial settings | A Minimal Book Example" />
+  
+  <meta name="twitter:description" content="<p>This is a minimal example of using the bookdown package to write a book.
+The HTML output format for this example is bookdown::gitbook,
+set in the _output.yml file.</p>" />
+  
+
+<meta name="author" content="John Doe" />
+
+
+<meta name="date" content="2023-07-21" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  
+  
+<link rel="prev" href="matching.html"/>
+<link rel="next" href="matching-process.html"/>
+<script src="libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.4.6/dist/fuse.min.js"></script>
+<link href="libs/gitbook-2.6.7/css/style.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-table.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-bookdown.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-highlight.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-search.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-fontsettings.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-clipboard.css" rel="stylesheet" />
+
+
+
+
+
+
+
+
+<link href="libs/anchor-sections-1.1.0/anchor-sections.css" rel="stylesheet" />
+<link href="libs/anchor-sections-1.1.0/anchor-sections-hash.css" rel="stylesheet" />
+<script src="libs/anchor-sections-1.1.0/anchor-sections.js"></script>
+
+
+<style type="text/css">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { color: #008000; } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { color: #008000; font-weight: bold; } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+</style>
+
+<style type="text/css">
+  
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+</style>
+<style type="text/css">
+/* Used with Pandoc 2.11+ new --citeproc when CSL is used */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+}
+.hanging div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}
+</style>
+
+<link rel="stylesheet" href="style.css" type="text/css" />
+</head>
+
+<body>
+
+
+
+  <div class="book without-animation with-summary font-size-2 font-family-1" data-basepath=".">
+
+    <div class="book-summary">
+      <nav role="navigation">
+
+<ul class="summary">
+<li><a href="./">A Minimal Book Example</a></li>
+
+<li class="divider"></li>
+<li class="chapter" data-level="1" data-path="index.html"><a href="index.html"><i class="fa fa-check"></i><b>1</b> About</a>
+<ul>
+<li class="chapter" data-level="1.1" data-path="index.html"><a href="index.html#usage"><i class="fa fa-check"></i><b>1.1</b> Usage</a></li>
+<li class="chapter" data-level="1.2" data-path="index.html"><a href="index.html#render-book"><i class="fa fa-check"></i><b>1.2</b> Render book</a></li>
+<li class="chapter" data-level="1.3" data-path="index.html"><a href="index.html#preview-book"><i class="fa fa-check"></i><b>1.3</b> Preview book</a></li>
+</ul></li>
+<li class="chapter" data-level="2" data-path="section.html"><a href="section.html"><i class="fa fa-check"></i><b>2</b> —</a></li>
+<li class="chapter" data-level="3" data-path="title-building-the-datasets.html"><a href="title-building-the-datasets.html"><i class="fa fa-check"></i><b>3</b> title : “Building the datasets”</a></li>
+<li class="chapter" data-level="4" data-path="section-1.html"><a href="section-1.html"><i class="fa fa-check"></i><b>4</b> —</a></li>
+<li class="chapter" data-level="5" data-path="building-the-datasets.html"><a href="building-the-datasets.html"><i class="fa fa-check"></i><b>5</b> Building the datasets</a>
+<ul>
+<li class="chapter" data-level="5.1" data-path="building-the-datasets.html"><a href="building-the-datasets.html#importing-relevant-packages"><i class="fa fa-check"></i><b>5.1</b> Importing relevant packages</a></li>
+<li class="chapter" data-level="5.2" data-path="building-the-datasets.html"><a href="building-the-datasets.html#datasets-for-descriptive-statistics"><i class="fa fa-check"></i><b>5.2</b> Datasets for descriptive statistics</a>
+<ul>
+<li class="chapter" data-level="5.2.1" data-path="building-the-datasets.html"><a href="building-the-datasets.html#cleaning-the-raw-dataset"><i class="fa fa-check"></i><b>5.2.1</b> Cleaning the raw dataset</a></li>
+<li class="chapter" data-level="5.2.2" data-path="building-the-datasets.html"><a href="building-the-datasets.html#dataset-with-only-siop-variables"><i class="fa fa-check"></i><b>5.2.2</b> Dataset with only SIOP variables</a></li>
+<li class="chapter" data-level="5.2.3" data-path="building-the-datasets.html"><a href="building-the-datasets.html#dataset-for-non-confidential-statistics"><i class="fa fa-check"></i><b>5.2.3</b> Dataset for non-confidential statistics</a></li>
+<li class="chapter" data-level="5.2.4" data-path="building-the-datasets.html"><a href="building-the-datasets.html#dataset-for-confidential-descriptive-statistics"><i class="fa fa-check"></i><b>5.2.4</b> Dataset for confidential descriptive statistics</a></li>
+<li class="chapter" data-level="5.2.5" data-path="building-the-datasets.html"><a href="building-the-datasets.html#a-polygon-dataset-without-confidential-information"><i class="fa fa-check"></i><b>5.2.5</b> A polygon dataset without confidential information</a></li>
+</ul></li>
+<li class="chapter" data-level="5.3" data-path="building-the-datasets.html"><a href="building-the-datasets.html#computing-total-areas-covered-by-pas-in-the-sample"><i class="fa fa-check"></i><b>5.3</b> Computing total areas covered by PAs in the sample</a>
+<ul>
+<li class="chapter" data-level="5.3.1" data-path="building-the-datasets.html"><a href="building-the-datasets.html#computations-of-polygons-area"><i class="fa fa-check"></i><b>5.3.1</b> Computations of polygons’ area</a></li>
+<li class="chapter" data-level="5.3.2" data-path="building-the-datasets.html"><a href="building-the-datasets.html#computing-the-intersection-at-country-region-world-level"><i class="fa fa-check"></i><b>5.3.2</b> Computing the intersection at country, region, world level</a></li>
+<li class="chapter" data-level="5.3.3" data-path="building-the-datasets.html"><a href="building-the-datasets.html#computing-total-areas-without-intersection"><i class="fa fa-check"></i><b>5.3.3</b> Computing total areas without intersection</a></li>
+</ul></li>
+<li class="chapter" data-level="5.4" data-path="building-the-datasets.html"><a href="building-the-datasets.html#old-code"><i class="fa fa-check"></i><b>5.4</b> Old code</a></li>
+</ul></li>
+<li class="chapter" data-level="6" data-path="descriptive-statistics-on-biodiversity-in-the-protected-areas.html"><a href="descriptive-statistics-on-biodiversity-in-the-protected-areas.html"><i class="fa fa-check"></i><b>6</b> Descriptive statistics on biodiversity in the protected areas</a>
+<ul>
+<li class="chapter" data-level="6.1" data-path="descriptive-statistics-on-biodiversity-in-the-protected-areas.html"><a href="descriptive-statistics-on-biodiversity-in-the-protected-areas.html#importing-packages-and-functions"><i class="fa fa-check"></i><b>6.1</b> Importing packages and functions</a></li>
+<li class="chapter" data-level="6.2" data-path="descriptive-statistics-on-biodiversity-in-the-protected-areas.html"><a href="descriptive-statistics-on-biodiversity-in-the-protected-areas.html#setting-the-environment"><i class="fa fa-check"></i><b>6.2</b> Setting the environment</a></li>
+<li class="chapter" data-level="6.3" data-path="descriptive-statistics-on-biodiversity-in-the-protected-areas.html"><a href="descriptive-statistics-on-biodiversity-in-the-protected-areas.html#importing-pas-datasets"><i class="fa fa-check"></i><b>6.3</b> Importing PAs datasets</a></li>
+<li class="chapter" data-level="6.4" data-path="descriptive-statistics-on-biodiversity-in-the-protected-areas.html"><a href="descriptive-statistics-on-biodiversity-in-the-protected-areas.html#downloading-data-of-interests-and-compute-relevant-indicators"><i class="fa fa-check"></i><b>6.4</b> Downloading data of interests and compute relevant indicators</a>
+<ul>
+<li class="chapter" data-level="6.4.1" data-path="descriptive-statistics-on-biodiversity-in-the-protected-areas.html"><a href="descriptive-statistics-on-biodiversity-in-the-protected-areas.html#creating-the-portfolio"><i class="fa fa-check"></i><b>6.4.1</b> Creating the portfolio</a></li>
+<li class="chapter" data-level="6.4.2" data-path="descriptive-statistics-on-biodiversity-in-the-protected-areas.html"><a href="descriptive-statistics-on-biodiversity-in-the-protected-areas.html#test-importing-data-from-sspcloud"><i class="fa fa-check"></i><b>6.4.2</b> TEST : importing data from SSPCloud</a></li>
+<li class="chapter" data-level="6.4.3" data-path="descriptive-statistics-on-biodiversity-in-the-protected-areas.html"><a href="descriptive-statistics-on-biodiversity-in-the-protected-areas.html#compute-indicators-from-geospatial-data"><i class="fa fa-check"></i><b>6.4.3</b> Compute indicators from geospatial data</a></li>
+</ul></li>
+<li class="chapter" data-level="6.5" data-path="descriptive-statistics-on-biodiversity-in-the-protected-areas.html"><a href="descriptive-statistics-on-biodiversity-in-the-protected-areas.html#computing-statistics"><i class="fa fa-check"></i><b>6.5</b> Computing statistics</a>
+<ul>
+<li class="chapter" data-level="6.5.1" data-path="descriptive-statistics-on-biodiversity-in-the-protected-areas.html"><a href="descriptive-statistics-on-biodiversity-in-the-protected-areas.html#forests"><i class="fa fa-check"></i><b>6.5.1</b> Forests</a></li>
+<li class="chapter" data-level="6.5.2" data-path="descriptive-statistics-on-biodiversity-in-the-protected-areas.html"><a href="descriptive-statistics-on-biodiversity-in-the-protected-areas.html#mangrove"><i class="fa fa-check"></i><b>6.5.2</b> Mangrove</a></li>
+<li class="chapter" data-level="6.5.3" data-path="descriptive-statistics-on-biodiversity-in-the-protected-areas.html"><a href="descriptive-statistics-on-biodiversity-in-the-protected-areas.html#emissions"><i class="fa fa-check"></i><b>6.5.3</b> Emissions</a></li>
+<li class="chapter" data-level="6.5.4" data-path="descriptive-statistics-on-biodiversity-in-the-protected-areas.html"><a href="descriptive-statistics-on-biodiversity-in-the-protected-areas.html#biometeow"><i class="fa fa-check"></i><b>6.5.4</b> Biome/TEOW</a></li>
+</ul></li>
+</ul></li>
+<li class="chapter" data-level="7" data-path="descriptive-statistics-on-projects-funded-by-the-afd.html"><a href="descriptive-statistics-on-projects-funded-by-the-afd.html"><i class="fa fa-check"></i><b>7</b> Descriptive statistics on projects funded by the AFD</a>
+<ul>
+<li class="chapter" data-level="7.1" data-path="descriptive-statistics-on-projects-funded-by-the-afd.html"><a href="descriptive-statistics-on-projects-funded-by-the-afd.html#importing-packages"><i class="fa fa-check"></i><b>7.1</b> Importing packages</a></li>
+<li class="chapter" data-level="7.2" data-path="descriptive-statistics-on-projects-funded-by-the-afd.html"><a href="descriptive-statistics-on-projects-funded-by-the-afd.html#importing-datasets"><i class="fa fa-check"></i><b>7.2</b> Importing datasets</a></li>
+<li class="chapter" data-level="7.3" data-path="descriptive-statistics-on-projects-funded-by-the-afd.html"><a href="descriptive-statistics-on-projects-funded-by-the-afd.html#performing-descriptive-statistics"><i class="fa fa-check"></i><b>7.3</b> Performing descriptive statistics</a>
+<ul>
+<li class="chapter" data-level="7.3.1" data-path="descriptive-statistics-on-projects-funded-by-the-afd.html"><a href="descriptive-statistics-on-projects-funded-by-the-afd.html#iucn-categories"><i class="fa fa-check"></i><b>7.3.1</b> IUCN categories</a></li>
+<li class="chapter" data-level="7.3.2" data-path="descriptive-statistics-on-projects-funded-by-the-afd.html"><a href="descriptive-statistics-on-projects-funded-by-the-afd.html#ecosystems-excluding-non-referenced-pas"><i class="fa fa-check"></i><b>7.3.2</b> Ecosystems (excluding non-referenced PAs)</a></li>
+<li class="chapter" data-level="7.3.3" data-path="descriptive-statistics-on-projects-funded-by-the-afd.html"><a href="descriptive-statistics-on-projects-funded-by-the-afd.html#distribution-of-pas-across-countries-and-regions"><i class="fa fa-check"></i><b>7.3.3</b> Distribution of PAs across countries and regions</a></li>
+<li class="chapter" data-level="7.3.4" data-path="descriptive-statistics-on-projects-funded-by-the-afd.html"><a href="descriptive-statistics-on-projects-funded-by-the-afd.html#surface-of-pas"><i class="fa fa-check"></i><b>7.3.4</b> Surface of PAs</a></li>
+<li class="chapter" data-level="7.3.5" data-path="descriptive-statistics-on-projects-funded-by-the-afd.html"><a href="descriptive-statistics-on-projects-funded-by-the-afd.html#temporal-evolution"><i class="fa fa-check"></i><b>7.3.5</b> Temporal evolution</a></li>
+<li class="chapter" data-level="7.3.6" data-path="descriptive-statistics-on-projects-funded-by-the-afd.html"><a href="descriptive-statistics-on-projects-funded-by-the-afd.html#governance"><i class="fa fa-check"></i><b>7.3.6</b> Governance</a></li>
+</ul></li>
+</ul></li>
+<li class="chapter" data-level="8" data-path="hello-bookdown.html"><a href="hello-bookdown.html"><i class="fa fa-check"></i><b>8</b> Hello bookdown</a>
+<ul>
+<li class="chapter" data-level="8.1" data-path="hello-bookdown.html"><a href="hello-bookdown.html#a-section"><i class="fa fa-check"></i><b>8.1</b> A section</a>
+<ul>
+<li class="chapter" data-level="" data-path="hello-bookdown.html"><a href="hello-bookdown.html#an-unnumbered-section"><i class="fa fa-check"></i>An unnumbered section</a></li>
+</ul></li>
+</ul></li>
+<li class="chapter" data-level="9" data-path="matching.html"><a href="matching.html"><i class="fa fa-check"></i><b>9</b> Matching</a></li>
+<li class="chapter" data-level="10" data-path="initial-settings.html"><a href="initial-settings.html"><i class="fa fa-check"></i><b>10</b> Initial settings</a></li>
+<li class="chapter" data-level="11" data-path="matching-process.html"><a href="matching-process.html"><i class="fa fa-check"></i><b>11</b> Matching process</a>
+<ul>
+<li class="chapter" data-level="11.1" data-path="matching-process.html"><a href="matching-process.html#pre-processing"><i class="fa fa-check"></i><b>11.1</b> Pre-processing</a></li>
+<li class="chapter" data-level="11.2" data-path="matching-process.html"><a href="matching-process.html#post-processing"><i class="fa fa-check"></i><b>11.2</b> Post-processing</a></li>
+</ul></li>
+<li class="chapter" data-level="12" data-path="cross.html"><a href="cross.html"><i class="fa fa-check"></i><b>12</b> Cross-references</a>
+<ul>
+<li class="chapter" data-level="12.1" data-path="cross.html"><a href="cross.html#chapters-and-sub-chapters"><i class="fa fa-check"></i><b>12.1</b> Chapters and sub-chapters</a></li>
+<li class="chapter" data-level="12.2" data-path="cross.html"><a href="cross.html#captioned-figures-and-tables"><i class="fa fa-check"></i><b>12.2</b> Captioned figures and tables</a></li>
+</ul></li>
+<li class="chapter" data-level="13" data-path="parts.html"><a href="parts.html"><i class="fa fa-check"></i><b>13</b> Parts</a></li>
+<li class="chapter" data-level="14" data-path="footnotes-and-citations.html"><a href="footnotes-and-citations.html"><i class="fa fa-check"></i><b>14</b> Footnotes and citations</a>
+<ul>
+<li class="chapter" data-level="14.1" data-path="footnotes-and-citations.html"><a href="footnotes-and-citations.html#footnotes"><i class="fa fa-check"></i><b>14.1</b> Footnotes</a></li>
+<li class="chapter" data-level="14.2" data-path="footnotes-and-citations.html"><a href="footnotes-and-citations.html#citations"><i class="fa fa-check"></i><b>14.2</b> Citations</a></li>
+</ul></li>
+<li class="chapter" data-level="15" data-path="blocks.html"><a href="blocks.html"><i class="fa fa-check"></i><b>15</b> Blocks</a>
+<ul>
+<li class="chapter" data-level="15.1" data-path="blocks.html"><a href="blocks.html#equations"><i class="fa fa-check"></i><b>15.1</b> Equations</a></li>
+<li class="chapter" data-level="15.2" data-path="blocks.html"><a href="blocks.html#theorems-and-proofs"><i class="fa fa-check"></i><b>15.2</b> Theorems and proofs</a></li>
+<li class="chapter" data-level="15.3" data-path="blocks.html"><a href="blocks.html#callout-blocks"><i class="fa fa-check"></i><b>15.3</b> Callout blocks</a></li>
+</ul></li>
+<li class="chapter" data-level="16" data-path="sharing-your-book.html"><a href="sharing-your-book.html"><i class="fa fa-check"></i><b>16</b> Sharing your book</a>
+<ul>
+<li class="chapter" data-level="16.1" data-path="sharing-your-book.html"><a href="sharing-your-book.html#publishing"><i class="fa fa-check"></i><b>16.1</b> Publishing</a></li>
+<li class="chapter" data-level="16.2" data-path="sharing-your-book.html"><a href="sharing-your-book.html#pages"><i class="fa fa-check"></i><b>16.2</b> 404 pages</a></li>
+<li class="chapter" data-level="16.3" data-path="sharing-your-book.html"><a href="sharing-your-book.html#metadata-for-sharing"><i class="fa fa-check"></i><b>16.3</b> Metadata for sharing</a></li>
+</ul></li>
+<li class="chapter" data-level="" data-path="references.html"><a href="references.html"><i class="fa fa-check"></i>References</a></li>
+<li class="divider"></li>
+<li><a href="https://github.com/rstudio/bookdown" target="blank">Published with bookdown</a></li>
+
+</ul>
+
+      </nav>
+    </div>
+
+    <div class="book-body">
+      <div class="body-inner">
+        <div class="book-header" role="navigation">
+          <h1>
+            <i class="fa fa-circle-o-notch fa-spin"></i><a href="./">A Minimal Book Example</a>
+          </h1>
+        </div>
+
+        <div class="page-wrapper" tabindex="-1" role="main">
+          <div class="page-inner">
+
+            <section class="normal" id="section-">
+<div id="initial-settings" class="section level1 hasAnchor" number="10">
+<h1><span class="header-section-number">Chapter 10</span> Initial settings<a href="initial-settings.html#initial-settings" class="anchor-section" aria-label="Anchor link to header"></a></h1>
+<p>#<code>{r setup, include=FALSE, eval = FALSE} #knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file()) #</code></p>
+<div class="sourceCode" id="cb55"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb55-1"><a href="initial-settings.html#cb55-1" tabindex="-1"></a><span class="co">#Install some libraries</span></span>
+<span id="cb55-2"><a href="initial-settings.html#cb55-2" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="fu">c</span>(<span class="st">&quot;tictoc&quot;</span>, <span class="st">&quot;geodata&quot;</span>, <span class="st">&quot;wdpar&quot;</span>, <span class="st">&quot;exactextractr&quot;</span>, <span class="st">&quot;MatchIt&quot;</span>, <span class="st">&quot;fixest&quot;</span>, <span class="st">&quot;cobalt&quot;</span>))</span>
+<span id="cb55-3"><a href="initial-settings.html#cb55-3" tabindex="-1"></a>remotes<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">&quot;mapme-initiative/mapme.biodiversity&quot;</span>, <span class="at">upgrade=</span><span class="st">&quot;always&quot;</span>)</span>
+<span id="cb55-4"><a href="initial-settings.html#cb55-4" tabindex="-1"></a></span>
+<span id="cb55-5"><a href="initial-settings.html#cb55-5" tabindex="-1"></a><span class="co">#Install the river to download wdpa data directly</span></span>
+<span id="cb55-6"><a href="initial-settings.html#cb55-6" tabindex="-1"></a>webdriver<span class="sc">::</span><span class="fu">install_phantomjs</span>()</span>
+<span id="cb55-7"><a href="initial-settings.html#cb55-7" tabindex="-1"></a></span>
+<span id="cb55-8"><a href="initial-settings.html#cb55-8" tabindex="-1"></a><span class="co"># Load Libraries</span></span>
+<span id="cb55-9"><a href="initial-settings.html#cb55-9" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb55-10"><a href="initial-settings.html#cb55-10" tabindex="-1"></a><span class="fu">library</span>(tictoc)</span>
+<span id="cb55-11"><a href="initial-settings.html#cb55-11" tabindex="-1"></a><span class="fu">library</span>(xtable)</span>
+<span id="cb55-12"><a href="initial-settings.html#cb55-12" tabindex="-1"></a><span class="fu">library</span>(tidyr)</span>
+<span id="cb55-13"><a href="initial-settings.html#cb55-13" tabindex="-1"></a><span class="fu">library</span>(stringr)</span>
+<span id="cb55-14"><a href="initial-settings.html#cb55-14" tabindex="-1"></a><span class="fu">library</span>(ggplot2) <span class="co"># For plotting</span></span>
+<span id="cb55-15"><a href="initial-settings.html#cb55-15" tabindex="-1"></a><span class="fu">library</span>(sf) <span class="co"># For handling vector data</span></span>
+<span id="cb55-16"><a href="initial-settings.html#cb55-16" tabindex="-1"></a><span class="fu">library</span>(terra) <span class="co"># For handling raster data</span></span>
+<span id="cb55-17"><a href="initial-settings.html#cb55-17" tabindex="-1"></a><span class="fu">library</span>(raster) <span class="co"># For handling raster data</span></span>
+<span id="cb55-18"><a href="initial-settings.html#cb55-18" tabindex="-1"></a><span class="fu">library</span>(rgeos)</span>
+<span id="cb55-19"><a href="initial-settings.html#cb55-19" tabindex="-1"></a><span class="fu">library</span>(geodata) <span class="co"># For getting country files</span></span>
+<span id="cb55-20"><a href="initial-settings.html#cb55-20" tabindex="-1"></a><span class="fu">library</span>(wdpar) <span class="co"># For getting protected areas</span></span>
+<span id="cb55-21"><a href="initial-settings.html#cb55-21" tabindex="-1"></a><span class="fu">library</span>(exactextractr) <span class="co"># For zonal statistics</span></span>
+<span id="cb55-22"><a href="initial-settings.html#cb55-22" tabindex="-1"></a><span class="fu">library</span>(mapme.biodiversity)</span>
+<span id="cb55-23"><a href="initial-settings.html#cb55-23" tabindex="-1"></a><span class="fu">library</span>(aws.s3)</span>
+<span id="cb55-24"><a href="initial-settings.html#cb55-24" tabindex="-1"></a><span class="fu">library</span>(MatchIt) <span class="co">#For matching</span></span>
+<span id="cb55-25"><a href="initial-settings.html#cb55-25" tabindex="-1"></a><span class="fu">library</span>(fixest) <span class="co">#For estimating the models</span></span>
+<span id="cb55-26"><a href="initial-settings.html#cb55-26" tabindex="-1"></a><span class="fu">library</span>(cobalt) <span class="co">#To visualize density plots and covariate balance from MatchIt outcomes</span></span></code></pre></div>
+<div class="sourceCode" id="cb56"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb56-1"><a href="initial-settings.html#cb56-1" tabindex="-1"></a><span class="co">#Import functions</span></span>
+<span id="cb56-2"><a href="initial-settings.html#cb56-2" tabindex="-1"></a><span class="fu">source</span>(<span class="st">&quot;scripts/ImpactAnalysis/fns_matching.R&quot;</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb57"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb57-1"><a href="initial-settings.html#cb57-1" tabindex="-1"></a><span class="co"># Define the path to a working directory</span></span>
+<span id="cb57-2"><a href="initial-settings.html#cb57-2" tabindex="-1"></a><span class="co">#wdir_s3 = file.path(&quot;data_tidy/mapme_bio_data/matching&quot;)</span></span>
+<span id="cb57-3"><a href="initial-settings.html#cb57-3" tabindex="-1"></a>tmp_pre <span class="ot">=</span> <span class="fu">paste</span>(<span class="fu">tempdir</span>(), <span class="st">&quot;matching_pre&quot;</span>, <span class="at">sep =</span> <span class="st">&quot;/&quot;</span>)</span>
+<span id="cb57-4"><a href="initial-settings.html#cb57-4" tabindex="-1"></a>tmp_post <span class="ot">=</span> <span class="fu">paste</span>(<span class="fu">tempdir</span>(), <span class="st">&quot;matching_post&quot;</span>, <span class="at">sep =</span> <span class="st">&quot;/&quot;</span>)</span>
+<span id="cb57-5"><a href="initial-settings.html#cb57-5" tabindex="-1"></a></span>
+<span id="cb57-6"><a href="initial-settings.html#cb57-6" tabindex="-1"></a><span class="co"># Define the file name of the matching frame</span></span>
+<span id="cb57-7"><a href="initial-settings.html#cb57-7" tabindex="-1"></a>name_output <span class="ot">=</span> name_input <span class="ot">=</span> <span class="st">&quot;matching_frame_10km&quot;</span></span>
+<span id="cb57-8"><a href="initial-settings.html#cb57-8" tabindex="-1"></a>ext_output <span class="ot">=</span> ext_input <span class="ot">=</span> <span class="st">&quot;.gpkg&quot;</span></span>
+<span id="cb57-9"><a href="initial-settings.html#cb57-9" tabindex="-1"></a></span>
+<span id="cb57-10"><a href="initial-settings.html#cb57-10" tabindex="-1"></a><span class="do">#####</span></span>
+<span id="cb57-11"><a href="initial-settings.html#cb57-11" tabindex="-1"></a><span class="do">###Pre-processing</span></span>
+<span id="cb57-12"><a href="initial-settings.html#cb57-12" tabindex="-1"></a><span class="do">#####</span></span>
+<span id="cb57-13"><a href="initial-settings.html#cb57-13" tabindex="-1"></a></span>
+<span id="cb57-14"><a href="initial-settings.html#cb57-14" tabindex="-1"></a></span>
+<span id="cb57-15"><a href="initial-settings.html#cb57-15" tabindex="-1"></a><span class="do">##Buffer and gridsize : make it depends on the country ? For instance, a typical size of grid such that the smaller PA is sampled with at least N pixels ?</span></span>
+<span id="cb57-16"><a href="initial-settings.html#cb57-16" tabindex="-1"></a><span class="co"># Specify buffer width in meter</span></span>
+<span id="cb57-17"><a href="initial-settings.html#cb57-17" tabindex="-1"></a>buffer_m <span class="ot">=</span> <span class="dv">10000</span></span>
+<span id="cb57-18"><a href="initial-settings.html#cb57-18" tabindex="-1"></a><span class="co"># Specify the grid cell size in meter</span></span>
+<span id="cb57-19"><a href="initial-settings.html#cb57-19" tabindex="-1"></a>gridSize <span class="ot">=</span> <span class="dv">10000</span> </span>
+<span id="cb57-20"><a href="initial-settings.html#cb57-20" tabindex="-1"></a></span>
+<span id="cb57-21"><a href="initial-settings.html#cb57-21" tabindex="-1"></a><span class="co">#Load data </span></span>
+<span id="cb57-22"><a href="initial-settings.html#cb57-22" tabindex="-1"></a>data_pa_full <span class="ot">=</span> </span>
+<span id="cb57-23"><a href="initial-settings.html#cb57-23" tabindex="-1"></a>  <span class="co">#fread(&quot;data_tidy/BDD_DesStat_nofund_nodupl.csv&quot; , encoding = &quot;UTF-8&quot;)</span></span>
+<span id="cb57-24"><a href="initial-settings.html#cb57-24" tabindex="-1"></a>  aws.s3<span class="sc">::</span><span class="fu">s3read_using</span>(</span>
+<span id="cb57-25"><a href="initial-settings.html#cb57-25" tabindex="-1"></a>  <span class="at">FUN =</span> data.table<span class="sc">::</span>fread,</span>
+<span id="cb57-26"><a href="initial-settings.html#cb57-26" tabindex="-1"></a>  <span class="at">encoding =</span> <span class="st">&quot;UTF-8&quot;</span>,</span>
+<span id="cb57-27"><a href="initial-settings.html#cb57-27" tabindex="-1"></a>  <span class="co"># Mettre les options de FUN ici</span></span>
+<span id="cb57-28"><a href="initial-settings.html#cb57-28" tabindex="-1"></a>  <span class="at">object =</span> <span class="st">&quot;data_tidy/BDD_DesStat_nofund_nodupl.csv&quot;</span>,</span>
+<span id="cb57-29"><a href="initial-settings.html#cb57-29" tabindex="-1"></a>  <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb57-30"><a href="initial-settings.html#cb57-30" tabindex="-1"></a>  <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>))</span>
+<span id="cb57-31"><a href="initial-settings.html#cb57-31" tabindex="-1"></a></span>
+<span id="cb57-32"><a href="initial-settings.html#cb57-32" tabindex="-1"></a><span class="co">#List of countries in the sample</span></span>
+<span id="cb57-33"><a href="initial-settings.html#cb57-33" tabindex="-1"></a><span class="co">#list_iso = unique(data_pa_full$iso3)</span></span>
+<span id="cb57-34"><a href="initial-settings.html#cb57-34" tabindex="-1"></a>list_iso <span class="ot">=</span> <span class="fu">c</span>(<span class="st">&quot;COM&quot;</span>, <span class="st">&quot;MMR&quot;</span>)</span>
+<span id="cb57-35"><a href="initial-settings.html#cb57-35" tabindex="-1"></a><span class="co"># Specify a list of WDPA IDs of funded protected areas (treated areas)</span></span>
+<span id="cb57-36"><a href="initial-settings.html#cb57-36" tabindex="-1"></a><span class="co"># paid = data_stat_nodupl[data_stat_nodupl$iso3 == country,]$wdpaid</span></span>
+<span id="cb57-37"><a href="initial-settings.html#cb57-37" tabindex="-1"></a></span>
+<span id="cb57-38"><a href="initial-settings.html#cb57-38" tabindex="-1"></a><span class="co"># Start year</span></span>
+<span id="cb57-39"><a href="initial-settings.html#cb57-39" tabindex="-1"></a>y_first <span class="ot">=</span> <span class="dv">2000</span></span>
+<span id="cb57-40"><a href="initial-settings.html#cb57-40" tabindex="-1"></a><span class="co"># End year</span></span>
+<span id="cb57-41"><a href="initial-settings.html#cb57-41" tabindex="-1"></a>y_last <span class="ot">=</span> <span class="dv">2021</span></span>
+<span id="cb57-42"><a href="initial-settings.html#cb57-42" tabindex="-1"></a></span>
+<span id="cb57-43"><a href="initial-settings.html#cb57-43" tabindex="-1"></a><span class="do">#####</span></span>
+<span id="cb57-44"><a href="initial-settings.html#cb57-44" tabindex="-1"></a><span class="do">###Post-processing</span></span>
+<span id="cb57-45"><a href="initial-settings.html#cb57-45" tabindex="-1"></a><span class="do">#####</span></span>
+<span id="cb57-46"><a href="initial-settings.html#cb57-46" tabindex="-1"></a></span>
+<span id="cb57-47"><a href="initial-settings.html#cb57-47" tabindex="-1"></a><span class="co"># Define Column Names of Covariates</span></span>
+<span id="cb57-48"><a href="initial-settings.html#cb57-48" tabindex="-1"></a>colname.travelTime <span class="ot">=</span> <span class="st">&quot;minutes_median_5k_110mio&quot;</span></span>
+<span id="cb57-49"><a href="initial-settings.html#cb57-49" tabindex="-1"></a>colname.clayContent <span class="ot">=</span> <span class="st">&quot;clay_0.5cm_mean&quot;</span></span>
+<span id="cb57-50"><a href="initial-settings.html#cb57-50" tabindex="-1"></a><span class="co"># colname.elevation = &quot;elevation_mean&quot;</span></span>
+<span id="cb57-51"><a href="initial-settings.html#cb57-51" tabindex="-1"></a><span class="co"># colname.tri = &quot;tri_mean&quot;</span></span>
+<span id="cb57-52"><a href="initial-settings.html#cb57-52" tabindex="-1"></a>colname.fcIni <span class="ot">=</span> <span class="st">&quot;treecover_2000&quot;</span></span>
+<span id="cb57-53"><a href="initial-settings.html#cb57-53" tabindex="-1"></a></span>
+<span id="cb57-54"><a href="initial-settings.html#cb57-54" tabindex="-1"></a></span>
+<span id="cb57-55"><a href="initial-settings.html#cb57-55" tabindex="-1"></a><span class="co"># Prefix of columns for forest cover</span></span>
+<span id="cb57-56"><a href="initial-settings.html#cb57-56" tabindex="-1"></a>colfc.prefix <span class="ot">=</span> <span class="st">&quot;treecover&quot;</span></span>
+<span id="cb57-57"><a href="initial-settings.html#cb57-57" tabindex="-1"></a><span class="co"># Separation between prefix and year</span></span>
+<span id="cb57-58"><a href="initial-settings.html#cb57-58" tabindex="-1"></a>colfc.bind <span class="ot">=</span> <span class="st">&quot;_&quot;</span></span>
+<span id="cb57-59"><a href="initial-settings.html#cb57-59" tabindex="-1"></a><span class="co"># Prefix of columns for forest loss</span></span>
+<span id="cb57-60"><a href="initial-settings.html#cb57-60" tabindex="-1"></a>colfl.prefix <span class="ot">=</span> <span class="st">&quot;treeloss&quot;</span></span>
+<span id="cb57-61"><a href="initial-settings.html#cb57-61" tabindex="-1"></a><span class="co">#Prefix of columns for average forest loss pre-funding</span></span>
+<span id="cb57-62"><a href="initial-settings.html#cb57-62" tabindex="-1"></a>colname.flAvg <span class="ot">=</span> <span class="st">&quot;avgLoss_pre_fund&quot;</span></span>
+<span id="cb57-63"><a href="initial-settings.html#cb57-63" tabindex="-1"></a></span>
+<span id="cb57-64"><a href="initial-settings.html#cb57-64" tabindex="-1"></a><span class="co"># Year of Funding Start</span></span>
+<span id="cb57-65"><a href="initial-settings.html#cb57-65" tabindex="-1"></a>funding.start <span class="ot">=</span> <span class="dv">2014</span></span></code></pre></div>
+</div>
+            </section>
+
+          </div>
+        </div>
+      </div>
+<a href="matching.html" class="navigation navigation-prev " aria-label="Previous page"><i class="fa fa-angle-left"></i></a>
+<a href="matching-process.html" class="navigation navigation-next " aria-label="Next page"><i class="fa fa-angle-right"></i></a>
+    </div>
+  </div>
+<script src="libs/gitbook-2.6.7/js/app.min.js"></script>
+<script src="libs/gitbook-2.6.7/js/clipboard.min.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-search.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-sharing.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-fontsettings.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-bookdown.js"></script>
+<script src="libs/gitbook-2.6.7/js/jquery.highlight.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-clipboard.js"></script>
+<script>
+gitbook.require(["gitbook"], function(gitbook) {
+gitbook.start({
+"sharing": {
+"github": false,
+"facebook": true,
+"twitter": true,
+"linkedin": false,
+"weibo": false,
+"instapaper": false,
+"vk": false,
+"whatsapp": false,
+"all": ["facebook", "twitter", "linkedin", "weibo", "instapaper"]
+},
+"fontsettings": {
+"theme": "white",
+"family": "sans",
+"size": 2
+},
+"edit": {
+"link": "https://github.com/USERNAME/REPO/edit/BRANCH/02_matching.Rmd",
+"text": "Edit"
+},
+"history": {
+"link": null,
+"text": null
+},
+"view": {
+"link": null,
+"text": null
+},
+"download": ["_main.pdf", "_main.epub"],
+"search": {
+"engine": "fuse",
+"options": null
+},
+"toc": {
+"collapse": "subsection"
+}
+});
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    var src = "true";
+    if (src === "" || src === "true") src = "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/latest.js?config=TeX-MML-AM_CHTML";
+    if (location.protocol !== "file:")
+      if (/^https?:/.test(src))
+        src = src.replace(/^https?:/, '');
+    script.src = src;
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+</body>
+
+</html>

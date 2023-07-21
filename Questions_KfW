@@ -1,2 +1,0 @@
-- Pre-processing et filtrage WDPA : enlever les géométries "point" ?
-- En pratique, est-ce que les codes matching sont lancés pour chaque pays un à un, les ATT calculés au niveau pays puis aggréger si besoin ??

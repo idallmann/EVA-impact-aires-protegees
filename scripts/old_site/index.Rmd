@@ -1,0 +1,48 @@
+---
+title: "Impact analysis of protected areas, funded by the French Agency for Development (AFD)"
+author : "IRS/EVA"
+output : 
+  html_document :
+    code_download: false
+email_adress : "vuillota@afd.fr"
+github_repo : "https://github.com/vuillota/EVA-impact-aires-protegees.git"
+---
+
+```{r echo= FALSE, message=FALSE, warning=FALSE}
+
+library(lubridate)
+library(dplyr)
+library(ggplot2)
+
+```
+
+```{css echo= FALSE, message=FALSE, warning=FALSE}
+
+body
+{
+  /*background-color : pink;*/
+}
+
+#navbar
+{
+  /*background-color : yellow;*/
+  
+
+}
+```
+
+# A first graph
+
+Un premier graphe, juste pour le fun
+
+```{r}
+
+ggplot(data = cars, aes(x = speed, y = dist)) %>%
+  + geom_point() %>%
+  + theme_minimal()
+  
+
+```
+
+
+

@@ -1,19 +1,12 @@
----
-title: "DesStat_biodiversity_wdpa"
-author: "Antoine Vuillot"
-date: "2023-06-14"
-output: html_document
----
-
-# Descriptive statistics on biodiversity in the protected areas
+# Biodiversity in the protected areas
 
 In this document are computed and plotted descriptive statistics for the protected areas (PAs) using the mapme biodiversity package. This package provides an easy access to biodiversity-related data and allow to compute different indicators.
 
 ## Importing packages and functions
 
-```{r setup, include=FALSE, eval = FALSE}
-knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
-```
+#```{r setup, include=FALSE, eval = FALSE}
+#knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+#```
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
 source("scripts/Statistics/fns_DesStat_biodiv.R", encoding = "utf-8")
@@ -452,7 +445,7 @@ Warning and errors face and their meaning.
 -   *Avis : Error : [crop] incorrect number of values (too many) for writing*
 
     Check the error in more details.
-
+    
 ## Computing statistics
 
 From the datasets obtained, statistics of interest can be computed and plotted.
@@ -546,7 +539,7 @@ ggsave(plot = fig_evo5_bamboung,
 
 ```
 
-/!\\ Modifier le code précédent pour inclure plusieurs aires ???
+/!\ Modifier le code précédent pour inclure plusieurs aires ???
 
 -   Statistics at region level
 
@@ -618,7 +611,7 @@ tbl_mang_summary = data_mang %>%
 
 ### Emissions
 
-/!\\ pas clair
+/!\ pas clair
 
 Summary table of emissions in each PA :
 

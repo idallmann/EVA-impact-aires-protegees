@@ -1,15 +1,6 @@
----
-title: "DesStat_PA_WDPA"
-author: "Antoine Vuillot"
-date: "12/06/2023"
-output: 
-  html_document: 
-    fig_caption: yes
-editor_options: 
-  chunk_output_type: inline
----
+# (PART\*) Descriptive statistics {-}
 
-# Descriptive statistics
+# Projects funded by the AFD
 
 In this document are performed and plotted descriptive statistics from the datasets built in buildingDB_PA_WDPA. The following statistics are derived :
 
@@ -19,9 +10,9 @@ In this document are performed and plotted descriptive statistics from the datas
 
 ## Importing packages
 
-```{r setup, include=FALSE, eval = FALSE}
-knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
-```
+#```{r setup, include=FALSE, eval = FALSE}
+#knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+#```
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
 
