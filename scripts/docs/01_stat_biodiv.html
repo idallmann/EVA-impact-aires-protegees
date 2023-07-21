@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="Antoine Vuillot" />
+
+<meta name="date" content="2023-06-14" />
+
+<title>DesStat_biodiversity_wdpa</title>
+
+<script src="site_libs/header-attrs-2.23/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/bootstrap.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<script src="site_libs/navigation-1.1/codefolding.js"></script>
+<script src="site_libs/navigation-1.1/sourceembed.js"></script>
+<link href="site_libs/font-awesome-6.4.0/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.4.0/css/v4-shims.min.css" rel="stylesheet" />
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+
+
+<style type="text/css">
+  code {
+    white-space: pre;
+  }
+  .sourceCode {
+    overflow: visible;
+  }
+</style>
+<style type="text/css" data-origin="pandoc">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; } /* Alert */
+code span.an { color: #008000; } /* Annotation */
+code span.at { } /* Attribute */
+code span.bu { } /* BuiltIn */
+code span.cf { color: #0000ff; } /* ControlFlow */
+code span.ch { color: #008080; } /* Char */
+code span.cn { } /* Constant */
+code span.co { color: #008000; } /* Comment */
+code span.cv { color: #008000; } /* CommentVar */
+code span.do { color: #008000; } /* Documentation */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.im { } /* Import */
+code span.in { color: #008000; } /* Information */
+code span.kw { color: #0000ff; } /* Keyword */
+code span.op { } /* Operator */
+code span.ot { color: #ff4000; } /* Other */
+code span.pp { color: #ff4000; } /* Preprocessor */
+code span.sc { color: #008080; } /* SpecialChar */
+code span.ss { color: #008080; } /* SpecialString */
+code span.st { color: #008080; } /* String */
+code span.va { } /* Variable */
+code span.vs { color: #008080; } /* VerbatimString */
+code span.wa { color: #008000; font-weight: bold; } /* Warning */
+
+.sourceCode .row {
+  width: 100%;
+}
+.sourceCode {
+  overflow-x: auto;
+}
+.code-folding-btn {
+  margin-right: -30px;
+}
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+<style type="text/css">
+#rmd-source-code {
+  display: none;
+}
+</style>
+
+
+<link rel="stylesheet" href="style.css" type="text/css" />
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+<style type="text/css">
+.code-folding-btn { margin-bottom: 4px; }
+</style>
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html"></a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">
+    <span class="fa fa-home"></span>
+     
+  </a>
+</li>
+<li>
+  <a href="00_data_build.html">Building the datasets</a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    Descriptive statistics
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="01_stat_project.html">Project</a>
+    </li>
+    <li>
+      <a href="01_stat_biodiv.html">Biodiversity</a>
+    </li>
+  </ul>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    Impact Analysis
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="02_matching.html">Matching</a>
+    </li>
+  </ul>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/vuillota/EVA-impact-aires-protegees.git">
+    <span class="fa fa-github fa-lg"></span>
+     
+  </a>
+</li>
+<li>
+  <a href="mailto:vuillota@afd.fr">
+    <span class="fa fa-envelope fa-lg"></span>
+     
+  </a>
+</li>
+<li>
+  <a href="about.html">
+    <span class="fa fa-info"></span>
+     
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+<div class="btn-group pull-right float-right">
+<button type="button" class="btn btn-default btn-xs btn-secondary btn-sm dropdown-toggle" data-toggle="dropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span>Code</span> <span class="caret"></span></button>
+<ul class="dropdown-menu dropdown-menu-right" style="min-width: 50px;">
+<li><a id="rmd-show-all-code" href="#">Show All Code</a></li>
+<li><a id="rmd-hide-all-code" href="#">Hide All Code</a></li>
+<li role="separator" class="divider"></li>
+<li><a id="rmd-download-source" href="#">Download Rmd</a></li>
+</ul>
+</div>
+
+
+
+<h1 class="title toc-ignore">DesStat_biodiversity_wdpa</h1>
+<h4 class="author">Antoine Vuillot</h4>
+<h4 class="date">2023-06-14</h4>
+
+</div>
+
+
+<div id="descriptive-statistics-on-biodiversity-in-the-protected-areas"
+class="section level1" number="1">
+<h1><span class="header-section-number">1</span> Descriptive statistics
+on biodiversity in the protected areas</h1>
+<p>In this document are computed and plotted descriptive statistics for
+the protected areas (PAs) using the mapme biodiversity package. This
+package provides an easy access to biodiversity-related data and allow
+to compute different indicators.</p>
+<div id="importing-packages-and-functions" class="section level2"
+number="1.1">
+<h2><span class="header-section-number">1.1</span> Importing packages
+and functions</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">source</span>(<span class="st">&quot;scripts/Statistics/fns_DesStat_biodiv.R&quot;</span>, <span class="at">encoding =</span> <span class="st">&quot;utf-8&quot;</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="co">#The last version of mapme.biodiversity package is downloaded directly from github</span></span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>remotes<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">&quot;mapme-initiative/mapme.biodiversity&quot;</span>, <span class="at">upgrade=</span><span class="st">&quot;always&quot;</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="fu">library</span>(mapme.biodiversity)</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="fu">library</span>(sf)</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="fu">library</span>(mapview)</span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a><span class="fu">library</span>(magrittr)</span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a><span class="fu">library</span>(stargazer)</span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a><span class="fu">library</span>(openxlsx)</span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a><span class="fu">library</span>(writexl)</span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a><span class="fu">library</span>(questionr)</span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a><span class="fu">library</span>(readxl)</span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a><span class="fu">library</span>(data.table)</span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a><span class="fu">library</span>(sp)</span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a><span class="fu">library</span>(raster)</span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a><span class="fu">library</span>(terra)</span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a><span class="fu">library</span>(janitor)</span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a><span class="fu">library</span>(ARTofR)</span>
+<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a><span class="fu">library</span>(aws.s3)</span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="co">#A first look at mapme biodiversity indicators</span></span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>resources <span class="ot">&lt;-</span> <span class="fu">names</span>(<span class="fu">available_resources</span>())</span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>indicators <span class="ot">&lt;-</span> <span class="fu">names</span>(<span class="fu">available_indicators</span>())</span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">paste</span>(<span class="st">&quot;Supported resources:</span><span class="sc">\n</span><span class="st">-&quot;</span>,</span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a>            <span class="fu">paste</span>(resources, <span class="at">collapse =</span> <span class="st">&quot;</span><span class="sc">\n</span><span class="st">- &quot;</span>),</span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a>          <span class="st">&quot;</span><span class="sc">\n\n</span><span class="st">Supported indicators:</span><span class="sc">\n</span><span class="st">-&quot;</span>,</span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a>            <span class="fu">paste</span>(indicators, <span class="at">collapse =</span> <span class="st">&quot;</span><span class="sc">\n</span><span class="st">- &quot;</span>)))</span></code></pre></div>
+</div>
+<div id="setting-the-environment" class="section level2" number="1.2">
+<h2><span class="header-section-number">1.2</span> Setting the
+environment</h2>
+<p>This might be necessary to access SSPCloud storage from
+mapme.biodiversity functions.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="co"># Sys.setenv(&quot;AWS_ACCESS_KEY_ID&quot; = &quot;GD8CI0UQQPTETOZS65J2&quot;,</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="co">#            &quot;AWS_SECRET_ACCESS_KEY&quot; = &quot;e0bsXE55qz+xmNeVdwhTb39wKoQuIJFC0Y6eqPoG&quot;,</span></span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a><span class="co">#            &quot;AWS_DEFAULT_REGION&quot; = &quot;us-east-1&quot;,</span></span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a><span class="co">#            &quot;AWS_SESSION_TOKEN&quot; = &quot;eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3NLZXkiOiJHRDhDSTBVUVFQVEVUT1pTNjVKMiIsImFsbG93ZWQtb3JpZ2lucyI6WyIqIl0sImF1ZCI6WyJtaW5pby1kYXRhbm9kZSIsIm9ueXhpYSIsImFjY291bnQiXSwiYXV0aF90aW1lIjoxNjg4NjUxNjk5LCJhenAiOiJvbnl4aWEiLCJlbWFpbCI6InZ1aWxsb3RhQGFmZC5mciIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJleHAiOjE2ODg3Mzg4NzgsImZhbWlseV9uYW1lIjoiVnVpbGxvdCIsImdpdmVuX25hbWUiOiJBbnRvaW5lIiwiZ3JvdXBzIjpbImFmZC1ldmEtYXAiXSwiaWF0IjoxNjg4NjUxNzAwLCJpc3MiOiJodHRwczovL2F1dGgubGFiLnNzcGNsb3VkLmZyL2F1dGgvcmVhbG1zL3NzcGNsb3VkIiwianRpIjoiN2ZmMjJhNmEtM2IyYS00NWFiLWJmYTItNmVhZDZkNzY5YzBhIiwibmFtZSI6IkFudG9pbmUgVnVpbGxvdCIsIm5vbmNlIjoiYjQzM2E1N2MtMjZiNS00NmE0LTkzOGItOGMyM2FmOTVlYTI5IiwicG9saWN5Ijoic3Rzb25seSIsInByZWZlcnJlZF91c2VybmFtZSI6InZ1aWxsb3RhIiwicmVhbG1fYWNjZXNzIjp7InJvbGVzIjpbIm9mZmxpbmVfYWNjZXNzIiwidW1hX2F1dGhvcml6YXRpb24iLCJkZWZhdWx0LXJvbGVzLXNzcGNsb3VkIl19LCJyZXNvdXJjZV9hY2Nlc3MiOnsiYWNjb3VudCI6eyJyb2xlcyI6WyJtYW5hZ2UtYWNjb3VudCIsIm1hbmFnZS1hY2NvdW50LWxpbmtzIiwidmlldy1wcm9maWxlIl19fSwic2NvcGUiOiJvcGVuaWQgcHJvZmlsZSBncm91cHMgZW1haWwiLCJzZXNzaW9uUG9saWN5IjoiZXlKV1pYSnphVzl1SWpvaU1qQXhNaTB4TUMweE55SXNJbE4wWVhSbGJXVnVkQ0k2VzNzaVJXWm1aV04wSWpvaVFXeHNiM2NpTENKQlkzUnBiMjRpT2xzaWN6TTZLaUpkTENKU1pYTnZkWEpqWlNJNld5SmhjbTQ2WVhkek9uTXpPam82Y0hKdmFtVjBMV0ZtWkMxbGRtRXRZWEFpTENKaGNtNDZZWGR6T25Nek9qbzZjSEp2YW1WMExXRm1aQzFsZG1FdFlYQXZLaUpkZlN4N0lrVm1abVZqZENJNklrRnNiRzkzSWl3aVFXTjBhVzl1SWpwYkluTXpPa3hwYzNSQ2RXTnJaWFFpWFN3aVVtVnpiM1Z5WTJVaU9sc2lZWEp1T21GM2N6cHpNem82T2lvaVhTd2lRMjl1WkdsMGFXOXVJanA3SWxOMGNtbHVaMHhwYTJVaU9uc2ljek02Y0hKbFptbDRJam9pWkdsbVpuVnphVzl1THlvaWZYMTlMSHNpUldabVpXTjBJam9pUVd4c2IzY2lMQ0pCWTNScGIyNGlPbHNpY3pNNlIyVjBUMkpxWldOMElsMHNJbEpsYzI5MWNtTmxJanBiSW1GeWJqcGhkM002Y3pNNk9qb3FMMlJwWm1aMWMybHZiaThxSWwxOVhYMD0iLCJzZXNzaW9uX3N0YXRlIjoiYWYyMDdlY2UtOWEzNi00OTQyLTllODYtNjA1NTJmNGYxZTg1Iiwic2lkIjoiYWYyMDdlY2UtOWEzNi00OTQyLTllODYtNjA1NTJmNGYxZTg1Iiwic3ViIjoiOTI3N2Y3MzMtNTBmMy00MjM4LWI1YzctNjRjMmU4YTZiNDI0IiwidHlwIjoiQmVhcmVyIn0.40_wwJeo7HhTJjvPyob96nNEvbCmvohcN7Wnd02ETirLobdTmE7QZZbd9q5P1ZGANkkIkAf8who86ELp1crWfw&quot;,</span></span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a><span class="co">#            &quot;AWS_S3_ENDPOINT&quot;= &quot;minio.lab.sspcloud.fr&quot;,</span></span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a><span class="co">#            &quot;AWS_HTTPS&quot; = &quot;FALSE&quot;,</span></span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a><span class="co">#            &quot;AWS_VIRTUAL_HOSTING&quot;=&quot;FALSE&quot;)</span></span></code></pre></div>
+</div>
+<div id="importing-pas-datasets" class="section level2" number="1.3">
+<h2><span class="header-section-number">1.3</span> Importing PAs
+datasets</h2>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="co">#Load spatial data and transform into polygons (requirement of the mapme package)</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="co">#If the function get_resources used later returns an error &quot;...Loop 0 is not valid: Edge 94 crosses edge 96&gt;...&quot;, then the following function might solve it. It works if sf was updated v1.0 and more, and brings back to old way of working. sf uses mostly a flat Earth model instead of s2 spherical geometry in the new versions. </span></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="fu">sf_use_s2</span>(<span class="cn">FALSE</span>)</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="co">#/!\ : in pa_shp, variable sprfc is the area reported by AFD members, and is not equal to rep_a (area reported by WDPA) nor superficie in the BDD_joint. The latter is a combination of rep_a and sprfc, where superficie = rep_a except if rep_a = 0 or not reported.</span></span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a>pa_shp <span class="ot">=</span> </span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a>  <span class="co">#read_sf(&quot;data_tidy/BDD_SHP_nodupl_pub.gpkg&quot;) %&gt;%</span></span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a>  aws.s3<span class="sc">::</span><span class="fu">s3read_using</span>(</span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a>  <span class="at">FUN =</span> sf<span class="sc">::</span>read_sf,</span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a>  <span class="co"># Mettre les options de FUN ici</span></span>
+<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a>  <span class="at">object =</span> <span class="st">&quot;data_tidy/BDD_shp_pub.gpkg&quot;</span>,</span>
+<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a>  <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a>  <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a>  <span class="fu">st_make_valid</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_cast</span>(<span class="at">to =</span> <span class="st">&quot;POLYGON&quot;</span>)</span>
+<span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a></span>
+<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a><span class="co">#From BDD_joint, that is the combination of the SIOP dataset and the AP dataset from ARB team in AFD. Imported to have the information on the PA area (combination of areas reported by WDPA and ARB)</span></span>
+<span id="cb5-19"><a href="#cb5-19" tabindex="-1"></a>pa_nodupl <span class="ot">=</span> </span>
+<span id="cb5-20"><a href="#cb5-20" tabindex="-1"></a>  <span class="co">#fread(&quot;data_tidy/BDD_DesStat_nodupl.csv&quot;) %&gt;%</span></span>
+<span id="cb5-21"><a href="#cb5-21" tabindex="-1"></a>  aws.s3<span class="sc">::</span><span class="fu">s3read_using</span>(</span>
+<span id="cb5-22"><a href="#cb5-22" tabindex="-1"></a>  <span class="at">FUN =</span> data.table<span class="sc">::</span>fread,</span>
+<span id="cb5-23"><a href="#cb5-23" tabindex="-1"></a>  <span class="at">encoding =</span> <span class="st">&quot;UTF-8&quot;</span>,</span>
+<span id="cb5-24"><a href="#cb5-24" tabindex="-1"></a>  <span class="at">object =</span> <span class="st">&quot;data_tidy/BDD_DesStat_nofund_nodupl.csv&quot;</span>,</span>
+<span id="cb5-25"><a href="#cb5-25" tabindex="-1"></a>  <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb5-26"><a href="#cb5-26" tabindex="-1"></a>  <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb5-27"><a href="#cb5-27" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="fu">c</span>(wdpaid, superficie))</span>
+<span id="cb5-28"><a href="#cb5-28" tabindex="-1"></a></span>
+<span id="cb5-29"><a href="#cb5-29" tabindex="-1"></a><span class="co">#mapview(pa_shp)</span></span></code></pre></div>
+</div>
+<div id="downloading-data-of-interests-and-compute-relevant-indicators"
+class="section level2" number="1.4">
+<h2><span class="header-section-number">1.4</span> Downloading data of
+interests and compute relevant indicators</h2>
+<p>For the moment, mapme.biodiversity functions do not support
+reading/writing in a S3 server like SSPCloud. Waiting for the new
+release of the package, the following process is followed :</p>
+<ol style="list-style-type: decimal">
+<li><p>Create a sub-folder in the temporary folder (RAM of the R
+session) to download and store the raw data</p></li>
+<li><p>Associate the portfolio to this sub-folder</p></li>
+<li><p>Download the raw data and compute the indicators of interest,
+unnest the data obtained</p></li>
+<li><p>Then, a dataframe can be saved.</p></li>
+</ol>
+<p>Note that this solution is not time-optimal : raw data must be
+downloaded each time.</p>
+<div id="creating-the-portfolio" class="section level3" number="1.4.1">
+<h3><span class="header-section-number">1.4.1</span> Creating the
+portfolio</h3>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="co">#The raw data from mapme package are stored in a temporary folder</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>tmp <span class="ot">=</span> <span class="fu">paste</span>(<span class="fu">tempdir</span>(), <span class="st">&quot;mapme&quot;</span>, <span class="at">sep =</span> <span class="st">&quot;/&quot;</span>)</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="co">#save_folder = get_bucket(&quot;projet-afd-eva-ap&quot;, region = &quot;&quot;)</span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="co">#Creating the portfolio</span></span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a>pa_pfolio <span class="ot">=</span> pa_shp <span class="sc">%&gt;%</span></span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a>  <span class="fu">init_portfolio</span>(<span class="dv">2000</span><span class="sc">:</span><span class="dv">2020</span>,</span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a>                 <span class="at">outdir =</span> tmp,</span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a>                 <span class="co">#cores = 4,</span></span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a>                 <span class="at">add_resources =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb6-11"><a href="#cb6-11" tabindex="-1"></a>                 <span class="at">verbose =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
+</div>
+<div id="test-importing-data-from-sspcloud" class="section level3"
+number="1.4.2">
+<h3><span class="header-section-number">1.4.2</span> TEST : importing
+data from SSPCloud</h3>
+<p>data are downloaded from an other script and stored in the SSPCloud.
+Here : copy these data to the temporary storage of the R session, and
+use them to compute indicators.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>df_files <span class="ot">=</span> aws.s3<span class="sc">::</span><span class="fu">get_bucket</span>(<span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>                   <span class="at">prefix =</span> <span class="st">&quot;data_raw/mapme_bio_data/gfw_treecover/&quot;</span>,</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>                   <span class="at">region =</span> <span class="st">&quot;&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>  <span class="fu">as.data.frame</span>()</span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>list_files <span class="ot">=</span> df_files<span class="sc">$</span>Key</span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>i <span class="ot">=</span> list_files[<span class="dv">1</span>]</span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> list_files) </span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a>{</span>
+<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a>  temp_file <span class="ot">=</span> <span class="fu">s3read_using</span>(<span class="at">FUN =</span> terra<span class="sc">::</span>rast,</span>
+<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a>               <span class="at">object =</span> i,</span>
+<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a>               <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a>               <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span><span class="ot">=</span><span class="st">&quot;&quot;</span>))</span>
+<span id="cb7-13"><a href="#cb7-13" tabindex="-1"></a>  terra<span class="sc">::</span><span class="fu">writeRaster</span>(temp_file, <span class="fu">file.path</span>(<span class="fu">tempdir</span>(), <span class="st">&quot;test.tif&quot;</span>), <span class="at">overwrite =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb7-14"><a href="#cb7-14" tabindex="-1"></a>}</span>
+<span id="cb7-15"><a href="#cb7-15" tabindex="-1"></a><span class="fu">plot</span>(temp_file)</span></code></pre></div>
+</div>
+<div id="compute-indicators-from-geospatial-data" class="section level3"
+number="1.4.3">
+<h3><span class="header-section-number">1.4.3</span> Compute indicators
+from geospatial data</h3>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="do">##~~~~~~~~~~~~~~~~</span></span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="do">##  ~ Forests ----</span></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="do">##~~~~~~~~~~~~~~~~</span></span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a></span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a><span class="do">##Downloading data and computing indicators </span></span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a>pa_pfolio_tcover <span class="ot">=</span></span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a>  <span class="fu">get_resources</span>(pa_pfolio,</span>
+<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a>    <span class="at">resources =</span> <span class="fu">c</span>(<span class="st">&quot;gfw_lossyear&quot;</span>,<span class="st">&quot;gfw_treecover&quot;</span>,<span class="st">&quot;gfw_emissions&quot;</span>),</span>
+<span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a>    <span class="at">vers_treecover =</span> <span class="st">&quot;GFC-2020-v1.8&quot;</span>,</span>
+<span id="cb8-10"><a href="#cb8-10" tabindex="-1"></a>    <span class="at">vers_lossyear =</span> <span class="st">&quot;GFC-2020-v1.8&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb8-11"><a href="#cb8-11" tabindex="-1"></a>  <span class="co"># FAO forest definition here: Minimum treecover = 10%, minimum size =1 hectare</span></span>
+<span id="cb8-12"><a href="#cb8-12" tabindex="-1"></a>  <span class="fu">calc_indicators</span>(<span class="at">indicators =</span> <span class="st">&quot;treecover_area&quot;</span>,</span>
+<span id="cb8-13"><a href="#cb8-13" tabindex="-1"></a>                <span class="at">min_cover =</span> <span class="dv">10</span>,</span>
+<span id="cb8-14"><a href="#cb8-14" tabindex="-1"></a>                <span class="at">min_size =</span> <span class="dv">1</span>, <span class="at">overwrite=</span>T)</span>
+<span id="cb8-15"><a href="#cb8-15" tabindex="-1"></a></span>
+<span id="cb8-16"><a href="#cb8-16" tabindex="-1"></a><span class="co">#Unest the sf file into a classic data frame without geometry</span></span>
+<span id="cb8-17"><a href="#cb8-17" tabindex="-1"></a>data_pfolio_tcover <span class="ot">=</span> <span class="fu">unnest</span>(pa_pfolio_tcover, <span class="at">cols=</span><span class="st">&quot;treecover_area&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb8-18"><a href="#cb8-18" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_drop_geometry</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb8-19"><a href="#cb8-19" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(wdpaid, assetid, years,treecover) <span class="sc">%&gt;%</span></span>
+<span id="cb8-20"><a href="#cb8-20" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">treecover =</span> <span class="fu">case_when</span>(treecover <span class="sc">==</span> <span class="dv">0</span> <span class="sc">~</span> <span class="cn">NA</span>, <span class="cn">TRUE</span> <span class="sc">~</span> treecover)) <span class="sc">%&gt;%</span></span>
+<span id="cb8-21"><a href="#cb8-21" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(treecover))</span>
+<span id="cb8-22"><a href="#cb8-22" tabindex="-1"></a></span>
+<span id="cb8-23"><a href="#cb8-23" tabindex="-1"></a><span class="co">#Write the dataframe into the bucket</span></span>
+<span id="cb8-24"><a href="#cb8-24" tabindex="-1"></a><span class="fu">s3write_using</span>(data_pfolio_tcover,</span>
+<span id="cb8-25"><a href="#cb8-25" tabindex="-1"></a>              data.table<span class="sc">::</span>fwrite,</span>
+<span id="cb8-26"><a href="#cb8-26" tabindex="-1"></a>              <span class="at">object =</span> <span class="st">&quot;data_tidy/mapme_bio_data/data_pfolio_tcover.csv&quot;</span>,</span>
+<span id="cb8-27"><a href="#cb8-27" tabindex="-1"></a>              <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb8-28"><a href="#cb8-28" tabindex="-1"></a>              <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>)</span>
+<span id="cb8-29"><a href="#cb8-29" tabindex="-1"></a>              )</span>
+<span id="cb8-30"><a href="#cb8-30" tabindex="-1"></a></span>
+<span id="cb8-31"><a href="#cb8-31" tabindex="-1"></a><span class="co">#Copying files to SSPCloud</span></span>
+<span id="cb8-32"><a href="#cb8-32" tabindex="-1"></a><span class="do">##emissions</span></span>
+<span id="cb8-33"><a href="#cb8-33" tabindex="-1"></a>files_emi <span class="ot">&lt;-</span> <span class="fu">list.files</span>(<span class="fu">paste</span>(tmp, <span class="st">&quot;gfw_emissions&quot;</span>, <span class="at">sep =</span> <span class="st">&quot;/&quot;</span>), </span>
+<span id="cb8-34"><a href="#cb8-34" tabindex="-1"></a>                        <span class="at">full.names =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb8-35"><a href="#cb8-35" tabindex="-1"></a><span class="do">##Add each file in the bucket (same foler for every file in the temp)</span></span>
+<span id="cb8-36"><a href="#cb8-36" tabindex="-1"></a><span class="cf">for</span>(f <span class="cf">in</span> files_emi) </span>
+<span id="cb8-37"><a href="#cb8-37" tabindex="-1"></a>  {</span>
+<span id="cb8-38"><a href="#cb8-38" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;Uploading file&quot;</span>, <span class="fu">paste0</span>(<span class="st">&quot;&#39;&quot;</span>, f, <span class="st">&quot;&#39;&quot;</span>), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb8-39"><a href="#cb8-39" tabindex="-1"></a>  aws.s3<span class="sc">::</span><span class="fu">put_object</span>(<span class="at">file =</span> f, </span>
+<span id="cb8-40"><a href="#cb8-40" tabindex="-1"></a>                     <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap/data_raw/mapme_bio_data/gfw_emissions&quot;</span>, </span>
+<span id="cb8-41"><a href="#cb8-41" tabindex="-1"></a>                     <span class="at">region =</span> <span class="st">&quot;&quot;</span>, <span class="at">show_progress =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb8-42"><a href="#cb8-42" tabindex="-1"></a>}</span>
+<span id="cb8-43"><a href="#cb8-43" tabindex="-1"></a></span>
+<span id="cb8-44"><a href="#cb8-44" tabindex="-1"></a><span class="do">##loss years</span></span>
+<span id="cb8-45"><a href="#cb8-45" tabindex="-1"></a>files_lossyear <span class="ot">&lt;-</span> <span class="fu">list.files</span>(<span class="fu">paste</span>(tmp, <span class="st">&quot;gfw_lossyear&quot;</span>, <span class="at">sep =</span> <span class="st">&quot;/&quot;</span>), </span>
+<span id="cb8-46"><a href="#cb8-46" tabindex="-1"></a>                        <span class="at">full.names =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb8-47"><a href="#cb8-47" tabindex="-1"></a><span class="do">##Add each file in the bucket (same foler for every file in the temp)</span></span>
+<span id="cb8-48"><a href="#cb8-48" tabindex="-1"></a><span class="cf">for</span>(f <span class="cf">in</span> files_emi) </span>
+<span id="cb8-49"><a href="#cb8-49" tabindex="-1"></a>  {</span>
+<span id="cb8-50"><a href="#cb8-50" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;Uploading file&quot;</span>, <span class="fu">paste0</span>(<span class="st">&quot;&#39;&quot;</span>, f, <span class="st">&quot;&#39;&quot;</span>), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb8-51"><a href="#cb8-51" tabindex="-1"></a>  aws.s3<span class="sc">::</span><span class="fu">put_object</span>(<span class="at">file =</span> f, </span>
+<span id="cb8-52"><a href="#cb8-52" tabindex="-1"></a>                     <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap/data_raw/mapme_bio_data/gfw_lossyear&quot;</span>, </span>
+<span id="cb8-53"><a href="#cb8-53" tabindex="-1"></a>                     <span class="at">region =</span> <span class="st">&quot;&quot;</span>, <span class="at">show_progress =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb8-54"><a href="#cb8-54" tabindex="-1"></a>}</span>
+<span id="cb8-55"><a href="#cb8-55" tabindex="-1"></a></span>
+<span id="cb8-56"><a href="#cb8-56" tabindex="-1"></a><span class="do">##Treecover loss</span></span>
+<span id="cb8-57"><a href="#cb8-57" tabindex="-1"></a>files_treecover <span class="ot">&lt;-</span> <span class="fu">list.files</span>(<span class="fu">paste</span>(tmp, <span class="st">&quot;gfw_treecover&quot;</span>, <span class="at">sep =</span> <span class="st">&quot;/&quot;</span>), </span>
+<span id="cb8-58"><a href="#cb8-58" tabindex="-1"></a>                        <span class="at">full.names =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb8-59"><a href="#cb8-59" tabindex="-1"></a><span class="do">##Add each file in the bucket (same foler for every file in the temp)</span></span>
+<span id="cb8-60"><a href="#cb8-60" tabindex="-1"></a><span class="cf">for</span>(f <span class="cf">in</span> files_emi) </span>
+<span id="cb8-61"><a href="#cb8-61" tabindex="-1"></a>  {</span>
+<span id="cb8-62"><a href="#cb8-62" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;Uploading file&quot;</span>, <span class="fu">paste0</span>(<span class="st">&quot;&#39;&quot;</span>, f, <span class="st">&quot;&#39;&quot;</span>), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb8-63"><a href="#cb8-63" tabindex="-1"></a>  aws.s3<span class="sc">::</span><span class="fu">put_object</span>(<span class="at">file =</span> f, </span>
+<span id="cb8-64"><a href="#cb8-64" tabindex="-1"></a>                     <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap/data_raw/mapme_bio_data/gfw_treecover&quot;</span>, </span>
+<span id="cb8-65"><a href="#cb8-65" tabindex="-1"></a>                     <span class="at">region =</span> <span class="st">&quot;&quot;</span>, <span class="at">show_progress =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb8-66"><a href="#cb8-66" tabindex="-1"></a>}</span>
+<span id="cb8-67"><a href="#cb8-67" tabindex="-1"></a></span>
+<span id="cb8-68"><a href="#cb8-68" tabindex="-1"></a><span class="co">#Removing files from temp</span></span>
+<span id="cb8-69"><a href="#cb8-69" tabindex="-1"></a><span class="fu">do.call</span>(file.remove, <span class="fu">list</span>(<span class="fu">list.files</span>(<span class="fu">paste</span>(tmp, <span class="st">&quot;gfw_emissions&quot;</span>, <span class="at">sep =</span> <span class="st">&quot;/&quot;</span>), <span class="at">full.names =</span> <span class="cn">TRUE</span>)))</span>
+<span id="cb8-70"><a href="#cb8-70" tabindex="-1"></a><span class="fu">do.call</span>(file.remove, <span class="fu">list</span>(<span class="fu">list.files</span>(<span class="fu">paste</span>(tmp, <span class="st">&quot;gfw_lossyear&quot;</span>, <span class="at">sep =</span> <span class="st">&quot;/&quot;</span>), <span class="at">full.names =</span> <span class="cn">TRUE</span>)))</span>
+<span id="cb8-71"><a href="#cb8-71" tabindex="-1"></a><span class="fu">do.call</span>(file.remove, <span class="fu">list</span>(<span class="fu">list.files</span>(<span class="fu">paste</span>(tmp, <span class="st">&quot;gfw_treecover&quot;</span>, <span class="at">sep =</span> <span class="st">&quot;/&quot;</span>), <span class="at">full.names =</span> <span class="cn">TRUE</span>)))</span></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="do">##~~~~~~~~~~~~~~~~~~</span></span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="do">##  ~ Mangroves ----</span></span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a><span class="do">##~~~~~~~~~~~~~~~~~~</span></span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a></span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a><span class="do">##Downloading data and computing indicators </span></span>
+<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a>pa_pfolio_mang <span class="ot">=</span></span>
+<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a>  <span class="fu">get_resources</span>(pa_pfolio,</span>
+<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a>    <span class="at">resources =</span> <span class="fu">c</span>(<span class="st">&quot;gmw&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb9-9"><a href="#cb9-9" tabindex="-1"></a>  <span class="co"># FAO forest definition here: Minimum treecover = 10%, minimum size =1      #hectare</span></span>
+<span id="cb9-10"><a href="#cb9-10" tabindex="-1"></a>  <span class="fu">calc_indicators</span>(<span class="at">indicators =</span> <span class="st">&quot;mangroves_area&quot;</span>,</span>
+<span id="cb9-11"><a href="#cb9-11" tabindex="-1"></a>                <span class="at">overwrite=</span>T)</span>
+<span id="cb9-12"><a href="#cb9-12" tabindex="-1"></a></span>
+<span id="cb9-13"><a href="#cb9-13" tabindex="-1"></a><span class="do">##Unest the sf file into a classic data frame without geometry</span></span>
+<span id="cb9-14"><a href="#cb9-14" tabindex="-1"></a>data_pfolio_mang <span class="ot">=</span> <span class="fu">unnest</span>(pa_pfolio_mang, <span class="at">cols=</span><span class="st">&quot;mangroves_area&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb9-15"><a href="#cb9-15" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_drop_geometry</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb9-16"><a href="#cb9-16" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(wdpaid, assetid, year,mangrove_extent)</span>
+<span id="cb9-17"><a href="#cb9-17" tabindex="-1"></a><span class="co"># s3write_using(data_pfolio_mang,</span></span>
+<span id="cb9-18"><a href="#cb9-18" tabindex="-1"></a><span class="co">#               data.table::fwrite,</span></span>
+<span id="cb9-19"><a href="#cb9-19" tabindex="-1"></a><span class="co">#               object = &quot;data_tidy/mapme_bio_data/data_pfolio_mang.csv&quot;,</span></span>
+<span id="cb9-20"><a href="#cb9-20" tabindex="-1"></a><span class="co">#               bucket = &quot;projet-afd-eva-ap&quot;,</span></span>
+<span id="cb9-21"><a href="#cb9-21" tabindex="-1"></a><span class="co">#               opts = list(&quot;region&quot; = &quot;&quot;)</span></span>
+<span id="cb9-22"><a href="#cb9-22" tabindex="-1"></a><span class="co">#               )</span></span>
+<span id="cb9-23"><a href="#cb9-23" tabindex="-1"></a></span>
+<span id="cb9-24"><a href="#cb9-24" tabindex="-1"></a><span class="co"># data_pfolio_mang = s3read_using(data.table::fread,</span></span>
+<span id="cb9-25"><a href="#cb9-25" tabindex="-1"></a><span class="co">#               object = &quot;data_tidy/mapme_bio_data/data_pfolio_mang.csv&quot;,</span></span>
+<span id="cb9-26"><a href="#cb9-26" tabindex="-1"></a><span class="co">#               bucket = &quot;projet-afd-eva-ap&quot;,</span></span>
+<span id="cb9-27"><a href="#cb9-27" tabindex="-1"></a><span class="co">#               opts = list(&quot;region&quot; = &quot;&quot;)</span></span>
+<span id="cb9-28"><a href="#cb9-28" tabindex="-1"></a><span class="co">#                                 )</span></span>
+<span id="cb9-29"><a href="#cb9-29" tabindex="-1"></a></span>
+<span id="cb9-30"><a href="#cb9-30" tabindex="-1"></a><span class="co">#Removing files from temp</span></span>
+<span id="cb9-31"><a href="#cb9-31" tabindex="-1"></a><span class="do">##emissions</span></span>
+<span id="cb9-32"><a href="#cb9-32" tabindex="-1"></a>files_mang <span class="ot">&lt;-</span> <span class="fu">list.files</span>(<span class="fu">paste</span>(tmp, <span class="st">&quot;gmw&quot;</span>, <span class="at">sep =</span> <span class="st">&quot;/&quot;</span>), </span>
+<span id="cb9-33"><a href="#cb9-33" tabindex="-1"></a>                        <span class="at">full.names =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb9-34"><a href="#cb9-34" tabindex="-1"></a><span class="do">##Add each file in the bucket (same foler for every file in the temp)</span></span>
+<span id="cb9-35"><a href="#cb9-35" tabindex="-1"></a><span class="cf">for</span>(f <span class="cf">in</span> files_mang) </span>
+<span id="cb9-36"><a href="#cb9-36" tabindex="-1"></a>  {</span>
+<span id="cb9-37"><a href="#cb9-37" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;Uploading file&quot;</span>, <span class="fu">paste0</span>(<span class="st">&quot;&#39;&quot;</span>, f, <span class="st">&quot;&#39;&quot;</span>), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb9-38"><a href="#cb9-38" tabindex="-1"></a>  aws.s3<span class="sc">::</span><span class="fu">put_object</span>(<span class="at">file =</span> f, </span>
+<span id="cb9-39"><a href="#cb9-39" tabindex="-1"></a>                     <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap/data_raw/mapme_bio_data/gmw&quot;</span>, </span>
+<span id="cb9-40"><a href="#cb9-40" tabindex="-1"></a>                     <span class="at">region =</span> <span class="st">&quot;&quot;</span>, <span class="at">show_progress =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb9-41"><a href="#cb9-41" tabindex="-1"></a>}</span>
+<span id="cb9-42"><a href="#cb9-42" tabindex="-1"></a></span>
+<span id="cb9-43"><a href="#cb9-43" tabindex="-1"></a><span class="fu">do.call</span>(file.remove, <span class="fu">list</span>(<span class="fu">list.files</span>(<span class="fu">paste</span>(tmp, <span class="st">&quot;gmw&quot;</span>, <span class="at">sep =</span> <span class="st">&quot;/&quot;</span>), <span class="at">full.names =</span> <span class="cn">TRUE</span>)))</span></code></pre></div>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="do">##~~~~~~~~~~~~~~~~~~~~</span></span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a><span class="do">##  ~ Land cover   --</span></span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a><span class="do">##~~~~~~~~~~~~~~~~~~~~</span></span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a></span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a><span class="do">##Downloading data and computing indicators </span></span>
+<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a>pa_pfolio_land <span class="ot">=</span> </span>
+<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a>  <span class="fu">get_resources</span>(pa_pfolio,</span>
+<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a>    <span class="at">resources =</span> <span class="fu">c</span>(<span class="st">&quot;esalandcover&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a>  <span class="fu">calc_indicators</span>(<span class="at">indicators =</span> <span class="st">&quot;landcover&quot;</span>,</span>
+<span id="cb10-10"><a href="#cb10-10" tabindex="-1"></a>                <span class="at">overwrite=</span>T) </span>
+<span id="cb10-11"><a href="#cb10-11" tabindex="-1"></a></span>
+<span id="cb10-12"><a href="#cb10-12" tabindex="-1"></a><span class="do">##Unnest data</span></span>
+<span id="cb10-13"><a href="#cb10-13" tabindex="-1"></a>data_pfolio_land <span class="ot">=</span> <span class="fu">unnest</span>(pa_pfolio_land, <span class="at">cols =</span> <span class="st">&quot;landcover&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb10-14"><a href="#cb10-14" tabindex="-1"></a>  <span class="fu">st_drop_geometry</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb10-15"><a href="#cb10-15" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(wdpaid, assetid, year, area, classes)</span>
+<span id="cb10-16"><a href="#cb10-16" tabindex="-1"></a><span class="fu">s3write_using</span>(data_pfolio_land,</span>
+<span id="cb10-17"><a href="#cb10-17" tabindex="-1"></a>              data.table<span class="sc">::</span>fwrite,</span>
+<span id="cb10-18"><a href="#cb10-18" tabindex="-1"></a>              <span class="at">object =</span> <span class="st">&quot;data_tidy/mapme_bio_data/data_pfolio_land.csv&quot;</span>,</span>
+<span id="cb10-19"><a href="#cb10-19" tabindex="-1"></a>              <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb10-20"><a href="#cb10-20" tabindex="-1"></a>              <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>)</span>
+<span id="cb10-21"><a href="#cb10-21" tabindex="-1"></a>              )</span>
+<span id="cb10-22"><a href="#cb10-22" tabindex="-1"></a></span>
+<span id="cb10-23"><a href="#cb10-23" tabindex="-1"></a><span class="co"># data_pfolio_land = s3read_using(data.table::fread,</span></span>
+<span id="cb10-24"><a href="#cb10-24" tabindex="-1"></a><span class="co">#               object = &quot;data_tidy/mapme_bio_data/data_pfolio_land.csv&quot;,</span></span>
+<span id="cb10-25"><a href="#cb10-25" tabindex="-1"></a><span class="co">#               bucket = &quot;projet-afd-eva-ap&quot;,</span></span>
+<span id="cb10-26"><a href="#cb10-26" tabindex="-1"></a><span class="co">#               opts = list(&quot;region&quot; = &quot;&quot;)</span></span>
+<span id="cb10-27"><a href="#cb10-27" tabindex="-1"></a><span class="co">#                                 )</span></span></code></pre></div>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a><span class="do">##~~~~~~~~~~~~~~~~~~~</span></span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a><span class="do">##  ~ Emissions  ----</span></span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a><span class="do">##~~~~~~~~~~~~~~~~~~~</span></span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a></span>
+<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a><span class="co"># pa_pfolio_emi = </span></span>
+<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a><span class="co">#     get_resources(pa_pfolio,</span></span>
+<span id="cb11-7"><a href="#cb11-7" tabindex="-1"></a><span class="co">#     resources = c(&quot;gfw_lossyear&quot;,&quot;gfw_treecover&quot;,&quot;gfw_emissions&quot;), </span></span>
+<span id="cb11-8"><a href="#cb11-8" tabindex="-1"></a><span class="co">#     vers_treecover = &quot;GFC-2020-v1.8&quot;,</span></span>
+<span id="cb11-9"><a href="#cb11-9" tabindex="-1"></a><span class="co">#     vers_lossyear = &quot;GFC-2020-v1.8&quot;) %&gt;%</span></span>
+<span id="cb11-10"><a href="#cb11-10" tabindex="-1"></a><span class="co">#     calc_indicators(indicators = &quot;treecoverloss_emissions&quot;,</span></span>
+<span id="cb11-11"><a href="#cb11-11" tabindex="-1"></a><span class="co">#                   min_cover = 30,</span></span>
+<span id="cb11-12"><a href="#cb11-12" tabindex="-1"></a><span class="co">#                   min_size = 1, overwrite=T)</span></span>
+<span id="cb11-13"><a href="#cb11-13" tabindex="-1"></a></span>
+<span id="cb11-14"><a href="#cb11-14" tabindex="-1"></a><span class="co"># write_portfolio(pa_pfolio_emi,</span></span>
+<span id="cb11-15"><a href="#cb11-15" tabindex="-1"></a><span class="co">#       dsn = &quot;data_tidy/mapme_bio_data/pa_pfolio_emi.gpkg&quot;,</span></span>
+<span id="cb11-16"><a href="#cb11-16" tabindex="-1"></a><span class="co">#       overwrite = FALSE)</span></span>
+<span id="cb11-17"><a href="#cb11-17" tabindex="-1"></a></span>
+<span id="cb11-18"><a href="#cb11-18" tabindex="-1"></a>pa_pfolio_emi <span class="ot">=</span> <span class="fu">read_portfolio</span>(<span class="st">&quot;data_tidy/mapme_bio_data/pa_pfolio_emi.gpkg&quot;</span>)</span>
+<span id="cb11-19"><a href="#cb11-19" tabindex="-1"></a></span>
+<span id="cb11-20"><a href="#cb11-20" tabindex="-1"></a><span class="co"># data_pfolio_emi = unnest(pa_pfolio_emi,</span></span>
+<span id="cb11-21"><a href="#cb11-21" tabindex="-1"></a><span class="co">#                   cols=&quot;treecoverloss_emissions&quot;) %&gt;%</span></span>
+<span id="cb11-22"><a href="#cb11-22" tabindex="-1"></a><span class="co">#     sf::st_drop_geometry() %&gt;%</span></span>
+<span id="cb11-23"><a href="#cb11-23" tabindex="-1"></a><span class="co">#     dplyr::select(id_pr,wdpaid,years,emissions)</span></span>
+<span id="cb11-24"><a href="#cb11-24" tabindex="-1"></a></span>
+<span id="cb11-25"><a href="#cb11-25" tabindex="-1"></a><span class="co"># fwrite(data_pfolio_emi,</span></span>
+<span id="cb11-26"><a href="#cb11-26" tabindex="-1"></a><span class="co">#        &quot;data_tidy/mapme_bio_data/data_pfolio_emi.csv&quot;)</span></span>
+<span id="cb11-27"><a href="#cb11-27" tabindex="-1"></a></span>
+<span id="cb11-28"><a href="#cb11-28" tabindex="-1"></a>data_pfolio_emi <span class="ot">=</span> <span class="fu">fread</span>(<span class="st">&quot;data_tidy/mapme_bio_data/data_pfolio_emi.csv&quot;</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a><span class="do">##~~~~~~~~~~~~~~~~~~~~</span></span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a><span class="do">##  ~ Biome       ----</span></span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a><span class="do">##~~~~~~~~~~~~~~~~~~~~</span></span>
+<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a></span>
+<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a><span class="do">##Downloading data and computing indicators </span></span>
+<span id="cb12-6"><a href="#cb12-6" tabindex="-1"></a>pa_pfolio_biome <span class="ot">=</span></span>
+<span id="cb12-7"><a href="#cb12-7" tabindex="-1"></a>  <span class="fu">get_resources</span>(pa_pfolio,</span>
+<span id="cb12-8"><a href="#cb12-8" tabindex="-1"></a>    <span class="at">resources =</span> <span class="fu">c</span>(<span class="st">&quot;teow&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb12-9"><a href="#cb12-9" tabindex="-1"></a>  <span class="fu">calc_indicators</span>(<span class="at">indicators =</span> <span class="st">&quot;biome&quot;</span>,</span>
+<span id="cb12-10"><a href="#cb12-10" tabindex="-1"></a>                <span class="at">overwrite=</span>T)</span>
+<span id="cb12-11"><a href="#cb12-11" tabindex="-1"></a></span>
+<span id="cb12-12"><a href="#cb12-12" tabindex="-1"></a><span class="co"># write_portfolio(pa_pfolio_biome, </span></span>
+<span id="cb12-13"><a href="#cb12-13" tabindex="-1"></a><span class="co">#       dsn = &quot;01_data_tidy/mapme_bio_data/pa_pfolio_biome.gpkg&quot;,</span></span>
+<span id="cb12-14"><a href="#cb12-14" tabindex="-1"></a><span class="co">#       overwrite = FALSE)</span></span>
+<span id="cb12-15"><a href="#cb12-15" tabindex="-1"></a></span>
+<span id="cb12-16"><a href="#cb12-16" tabindex="-1"></a><span class="do">##Unest the sf file into a classic data frame without geometry</span></span>
+<span id="cb12-17"><a href="#cb12-17" tabindex="-1"></a><span class="co"># data_biome = unnest(pa_pfolio_biome, cols=&quot;biome&quot;) %&gt;%</span></span>
+<span id="cb12-18"><a href="#cb12-18" tabindex="-1"></a><span class="co">#   sf::st_drop_geometry() %&gt;%</span></span>
+<span id="cb12-19"><a href="#cb12-19" tabindex="-1"></a><span class="co">#   dplyr::select(id_pr,wdpaid,year,mangrove_extent)</span></span></code></pre></div>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="do">##~~~~~~~~~~~~~~~~~~~~</span></span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a><span class="do">##  ~ Soil features --</span></span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a><span class="do">##~~~~~~~~~~~~~~~~~~~~</span></span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a></span>
+<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a><span class="co">#/!\ voir quels indicateurs/mesures prendre !!</span></span>
+<span id="cb13-6"><a href="#cb13-6" tabindex="-1"></a></span>
+<span id="cb13-7"><a href="#cb13-7" tabindex="-1"></a><span class="do">##Downloading data and computing indicators </span></span>
+<span id="cb13-8"><a href="#cb13-8" tabindex="-1"></a></span>
+<span id="cb13-9"><a href="#cb13-9" tabindex="-1"></a>pa_pfolio_soil <span class="ot">=</span> </span>
+<span id="cb13-10"><a href="#cb13-10" tabindex="-1"></a>  <span class="fu">get_resources</span>(pa_pfolio,</span>
+<span id="cb13-11"><a href="#cb13-11" tabindex="-1"></a>    <span class="at">resources =</span> <span class="fu">c</span>(<span class="st">&quot;soilgrids&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb13-12"><a href="#cb13-12" tabindex="-1"></a>  <span class="co"># FAO forest definition here: Minimum treecover = 10%, minimum size =1      #hectare</span></span>
+<span id="cb13-13"><a href="#cb13-13" tabindex="-1"></a>  <span class="fu">calc_indicators</span>(<span class="at">indicators =</span> <span class="st">&quot;soilproperties&quot;</span>,</span>
+<span id="cb13-14"><a href="#cb13-14" tabindex="-1"></a>                <span class="at">overwrite=</span>T) </span>
+<span id="cb13-15"><a href="#cb13-15" tabindex="-1"></a></span>
+<span id="cb13-16"><a href="#cb13-16" tabindex="-1"></a><span class="co"># write_portfolio(pa_pfolio_mang, </span></span>
+<span id="cb13-17"><a href="#cb13-17" tabindex="-1"></a><span class="co">#       dsn = &quot;01_data_tidy/mapme_bio_data/pa_pfolio_mang.gpkg&quot;,</span></span>
+<span id="cb13-18"><a href="#cb13-18" tabindex="-1"></a><span class="co">#       overwrite = FALSE)</span></span>
+<span id="cb13-19"><a href="#cb13-19" tabindex="-1"></a></span>
+<span id="cb13-20"><a href="#cb13-20" tabindex="-1"></a><span class="do">##Unest the sf file into a classic data frame without geometry</span></span>
+<span id="cb13-21"><a href="#cb13-21" tabindex="-1"></a><span class="co"># data_biome = unnest(pa_pfolio_biome, cols=&quot;biome&quot;) %&gt;%</span></span>
+<span id="cb13-22"><a href="#cb13-22" tabindex="-1"></a><span class="co">#   sf::st_drop_geometry() %&gt;%</span></span>
+<span id="cb13-23"><a href="#cb13-23" tabindex="-1"></a><span class="co">#   dplyr::select(id_pr,wdpaid,year,mangrove_extent)</span></span></code></pre></div>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a><span class="do">##~~~~~~~~~~~~~~~~~~~~</span></span>
+<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a><span class="do">##  ~ Accessibility --</span></span>
+<span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a><span class="do">##~~~~~~~~~~~~~~~~~~~~</span></span>
+<span id="cb14-4"><a href="#cb14-4" tabindex="-1"></a></span>
+<span id="cb14-5"><a href="#cb14-5" tabindex="-1"></a><span class="do">##Downloading data and computing indicators </span></span>
+<span id="cb14-6"><a href="#cb14-6" tabindex="-1"></a>pa_pfolio_acc <span class="ot">=</span> </span>
+<span id="cb14-7"><a href="#cb14-7" tabindex="-1"></a>  <span class="fu">get_resources</span>(<span class="st">&quot;nelson_et_al&quot;</span>,</span>
+<span id="cb14-8"><a href="#cb14-8" tabindex="-1"></a>                <span class="at">range_traveltime =</span> <span class="fu">c</span>(<span class="st">&quot;5k_10k&quot;</span>, <span class="st">&quot;100k_200k&quot;</span>, </span>
+<span id="cb14-9"><a href="#cb14-9" tabindex="-1"></a>                                     <span class="st">&quot;500k_1mio&quot;</span>, <span class="st">&quot;1mio_5mio&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb14-10"><a href="#cb14-10" tabindex="-1"></a>  <span class="fu">calc_indicators</span>(<span class="st">&quot;traveltime&quot;</span>, </span>
+<span id="cb14-11"><a href="#cb14-11" tabindex="-1"></a>                  <span class="at">stats_accessibility =</span> <span class="fu">c</span>(<span class="st">&quot;min&quot;</span>, <span class="st">&quot;max&quot;</span>), </span>
+<span id="cb14-12"><a href="#cb14-12" tabindex="-1"></a>                  <span class="at">engine =</span> <span class="st">&quot;extract&quot;</span>)</span>
+<span id="cb14-13"><a href="#cb14-13" tabindex="-1"></a></span>
+<span id="cb14-14"><a href="#cb14-14" tabindex="-1"></a><span class="co"># write_portfolio(pa_pfolio_mang, </span></span>
+<span id="cb14-15"><a href="#cb14-15" tabindex="-1"></a><span class="co">#       dsn = &quot;01_data_tidy/mapme_bio_data/pa_pfolio_mang.gpkg&quot;,</span></span>
+<span id="cb14-16"><a href="#cb14-16" tabindex="-1"></a><span class="co">#       overwrite = FALSE)</span></span>
+<span id="cb14-17"><a href="#cb14-17" tabindex="-1"></a></span>
+<span id="cb14-18"><a href="#cb14-18" tabindex="-1"></a><span class="do">##Unest the sf file into a classic data frame without geometry</span></span>
+<span id="cb14-19"><a href="#cb14-19" tabindex="-1"></a><span class="co"># data_biome = unnest(pa_pfolio_biome, cols=&quot;biome&quot;) %&gt;%</span></span>
+<span id="cb14-20"><a href="#cb14-20" tabindex="-1"></a><span class="co">#   sf::st_drop_geometry() %&gt;%</span></span>
+<span id="cb14-21"><a href="#cb14-21" tabindex="-1"></a><span class="co">#   dplyr::select(id_pr,wdpaid,year,mangrove_extent)</span></span></code></pre></div>
+<p>Faire une fonction pour l’extraction de tout jeu de données ?
+Répétitif en soit de faire forêts, mangroves, etc.</p>
+<p>Warning and errors face and their meaning.</p>
+<ul>
+<li><p><em>although coordinates are longitude/latitude, st_intersects
+assumes that they are planar</em>.</p>
+<ul>
+<li><p>See <a href="https://r-spatial.org/r/2020/06/17/s2.html"
+class="uri">https://r-spatial.org/r/2020/06/17/s2.html</a> and <a
+href="https://r-spatial.github.io/sf/articles/sf7.html#"
+class="uri">https://r-spatial.github.io/sf/articles/sf7.html#</a>.
+Basically I used sf_use_s2(FALSE) at the creation of the portfolio. Thus
+sf uses flat Earth model instead of s2 spherical geometry. The operation
+st_intersects assumes the data lie in a flat plane where one degree
+longitude equals one degree latitude, irrespective where the PA is on
+the world (equirectangular projection). Thus if the polygons are drawn
+from coordinates in a spherical geometry, the operation is performed on
+the wrong projection. Is it a problem in itself ? Well as a projection
+is a bijection between two coordinate systems, plygons that intersect
+(or not) in a projection will intersect in the second. However the
+polygons will be distorded (the more so as they are located closer to
+the poles), and the areas computed could be wrong. Anyway according to
+the documentation the WDPA polygons are provided in WGS84 geographic
+coordinate system, i.e a planar projection (Plate Carree) . No problem
+should arise from the warning then.</p></li>
+<li><p>So according to Florent Bedecarrats, this warning is related to
+an other issue. The sphere representing the Earth is transformed into a
+plane through a cut on a given line. If a polygon is located on this
+line, the flattened polygon is considered to go around the Earth. To
+test for this possibility, compare the area of the polygon to the true
+area of the PA.</p></li>
+</ul></li>
+<li><p><em>Avis : TIFFFillStrip:Read error at scanline 4294967295; got 0
+bytes, expected 1387 (GDAL error 1)Avis : TIFFReadEncodedStrip() failed.
+(GDAL error 1).</em></p>
+<p>This advice occurs during the computation of indicators (a few tenths
+for emissions). Fail to read some parts of the raster file ? Is it
+problematic for the whole process ?</p>
+<p>Best solution : remove the corresponding TIFF and download data
+again.</p></li>
+<li><p><em>Avis :
+D:/projet_AiresProtegees/00_data_raw/mapme_bio_data/gfw_lossyear/Hansen_GFC-2020-v1.8_lossyear_10N_010E.tif,
+band 1: IReadBlock failed at X offset 0, Y offset 29995:
+TIFFReadEncodedStrip() failed. (GDAL error 1)</em></p>
+<p>Same as before. Best solution : remove the corresponding TIFF and
+download data again.</p></li>
+<li><p><em>Avis : Error : [crop] incorrect number of values (too many)
+for writing</em></p>
+<p>Check the error in more details.</p></li>
+</ul>
+</div>
+</div>
+<div id="computing-statistics" class="section level2" number="1.5">
+<h2><span class="header-section-number">1.5</span> Computing
+statistics</h2>
+<p>From the datasets obtained, statistics of interest can be computed
+and plotted.</p>
+<div id="forests" class="section level3" number="1.5.1">
+<h3><span class="header-section-number">1.5.1</span> Forests</h3>
+<p>Variation of forest loss over time :</p>
+<ul>
+<li>Building the figure dataset</li>
+</ul>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a><span class="co">#Building the dataset</span></span>
+<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a>data_stat_treeloss <span class="ot">=</span> data_pfolio_forest <span class="sc">%&gt;%</span></span>
+<span id="cb15-3"><a href="#cb15-3" tabindex="-1"></a>  <span class="fu">group_by</span>(nm_ap) <span class="sc">%&gt;%</span> </span>
+<span id="cb15-4"><a href="#cb15-4" tabindex="-1"></a>  <span class="co">#Comoute variation over time in each PA</span></span>
+<span id="cb15-5"><a href="#cb15-5" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">lag_treecov =</span> <span class="fu">lag</span>(treecover),</span>
+<span id="cb15-6"><a href="#cb15-6" tabindex="-1"></a>         <span class="at">loss =</span> ((treecover <span class="sc">-</span> lag_treecov)<span class="sc">/</span>lag_treecov)<span class="sc">*</span><span class="dv">100</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb15-7"><a href="#cb15-7" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb15-8"><a href="#cb15-8" tabindex="-1"></a>  <span class="co">#Regroup years for analysis in five years intervals</span></span>
+<span id="cb15-9"><a href="#cb15-9" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">years_regroup =</span> <span class="fu">case_when</span>(</span>
+<span id="cb15-10"><a href="#cb15-10" tabindex="-1"></a>  years <span class="sc">&lt;=</span> <span class="dv">2005</span> <span class="sc">~</span> <span class="st">&quot;2000-2005&quot;</span>,</span>
+<span id="cb15-11"><a href="#cb15-11" tabindex="-1"></a>  years <span class="sc">&lt;=</span> <span class="dv">2010</span> <span class="sc">~</span> <span class="st">&quot;2005-2010&quot;</span>,</span>
+<span id="cb15-12"><a href="#cb15-12" tabindex="-1"></a>  years <span class="sc">&lt;=</span> <span class="dv">2015</span> <span class="sc">~</span> <span class="st">&quot;2010-2015&quot;</span>,</span>
+<span id="cb15-13"><a href="#cb15-13" tabindex="-1"></a>  years <span class="sc">&lt;=</span><span class="dv">2020</span> <span class="sc">~</span> <span class="st">&quot;2015-2020&quot;</span>,</span>
+<span id="cb15-14"><a href="#cb15-14" tabindex="-1"></a>  <span class="cn">TRUE</span> <span class="sc">~</span> <span class="cn">NA</span>),</span>
+<span id="cb15-15"><a href="#cb15-15" tabindex="-1"></a>  <span class="at">.after =</span> years) <span class="sc">%&gt;%</span></span>
+<span id="cb15-16"><a href="#cb15-16" tabindex="-1"></a>  <span class="co">#Remove NA values for loss</span></span>
+<span id="cb15-17"><a href="#cb15-17" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(loss)) <span class="sc">%&gt;%</span></span>
+<span id="cb15-18"><a href="#cb15-18" tabindex="-1"></a>  <span class="co">#Compute mean loss for five years intervals in each PA</span></span>
+<span id="cb15-19"><a href="#cb15-19" tabindex="-1"></a>  <span class="fu">group_by</span>(nm_ap, years_regroup) <span class="sc">%&gt;%</span></span>
+<span id="cb15-20"><a href="#cb15-20" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">moy_5 =</span> <span class="fu">mean</span>(loss)) <span class="sc">%&gt;%</span></span>
+<span id="cb15-21"><a href="#cb15-21" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span></code></pre></div>
+<ul>
+<li>Statistics at PA level</li>
+</ul>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a><span class="co">#Evolution for a given PA</span></span>
+<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a><span class="do">##Buba</span></span>
+<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a>stat_forest_buba <span class="ot">=</span> <span class="fu">stat_treeloss_id</span>(<span class="at">df =</span> data_stat_treeloss,</span>
+<span id="cb16-4"><a href="#cb16-4" tabindex="-1"></a>                                    <span class="at">id =</span> <span class="st">&quot;317051&quot;</span>,</span>
+<span id="cb16-5"><a href="#cb16-5" tabindex="-1"></a>                                    <span class="at">name_pa =</span> <span class="st">&quot;AP Buba&quot;</span>,</span>
+<span id="cb16-6"><a href="#cb16-6" tabindex="-1"></a>                                    <span class="at">treatment_yr =</span> <span class="dv">2007</span>)</span>
+<span id="cb16-7"><a href="#cb16-7" tabindex="-1"></a>fig_evo_buba <span class="ot">=</span> stat_forest_buba[[<span class="dv">1</span>]]</span>
+<span id="cb16-8"><a href="#cb16-8" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="at">plot =</span> fig_evo_buba,</span>
+<span id="cb16-9"><a href="#cb16-9" tabindex="-1"></a>       <span class="at">filename =</span> <span class="st">&quot;fig_forest_loss_evo_ap_buba.png&quot;</span>,</span>
+<span id="cb16-10"><a href="#cb16-10" tabindex="-1"></a>       <span class="at">path =</span> <span class="st">&quot;05_StatDes/biodiversity/forest/loss&quot;</span>,</span>
+<span id="cb16-11"><a href="#cb16-11" tabindex="-1"></a>       <span class="at">width =</span> <span class="dv">7</span>, <span class="at">height =</span> <span class="dv">5</span>)</span>
+<span id="cb16-12"><a href="#cb16-12" tabindex="-1"></a>fig_evo5_buba <span class="ot">=</span> stat_forest_buba[[<span class="dv">2</span>]]</span>
+<span id="cb16-13"><a href="#cb16-13" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="at">plot =</span> fig_evo5_buba,</span>
+<span id="cb16-14"><a href="#cb16-14" tabindex="-1"></a>       <span class="at">filename =</span> <span class="st">&quot;fig_forest_loss_evo5_ap_buba.png&quot;</span>,</span>
+<span id="cb16-15"><a href="#cb16-15" tabindex="-1"></a>       <span class="at">path =</span> <span class="st">&quot;05_StatDes/biodiversity/forest/loss&quot;</span>,</span>
+<span id="cb16-16"><a href="#cb16-16" tabindex="-1"></a>       <span class="at">width =</span> <span class="dv">7</span>, <span class="at">height =</span> <span class="dv">5</span>)</span>
+<span id="cb16-17"><a href="#cb16-17" tabindex="-1"></a></span>
+<span id="cb16-18"><a href="#cb16-18" tabindex="-1"></a><span class="co">#Niumi</span></span>
+<span id="cb16-19"><a href="#cb16-19" tabindex="-1"></a>stat_forest_niumi <span class="ot">=</span> <span class="fu">stat_treeloss_id</span>(<span class="at">df =</span> data_stat_treeloss,</span>
+<span id="cb16-20"><a href="#cb16-20" tabindex="-1"></a>                                    <span class="at">id =</span> <span class="st">&quot;109037&quot;</span>,</span>
+<span id="cb16-21"><a href="#cb16-21" tabindex="-1"></a>                                    <span class="at">name_pa =</span> <span class="st">&quot;AP Niumi&quot;</span>,</span>
+<span id="cb16-22"><a href="#cb16-22" tabindex="-1"></a>                                    <span class="at">treatment_yr =</span> <span class="dv">2008</span>)</span>
+<span id="cb16-23"><a href="#cb16-23" tabindex="-1"></a>fig_evo_niumi <span class="ot">=</span> stat_forest_niumi[[<span class="dv">1</span>]]</span>
+<span id="cb16-24"><a href="#cb16-24" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="at">plot =</span> fig_evo_niumi,</span>
+<span id="cb16-25"><a href="#cb16-25" tabindex="-1"></a>       <span class="at">filename =</span> <span class="st">&quot;fig_forest_loss_evo_ap_niumi.png&quot;</span>,</span>
+<span id="cb16-26"><a href="#cb16-26" tabindex="-1"></a>       <span class="at">path =</span> <span class="st">&quot;05_StatDes/biodiversity/forest/loss&quot;</span>,</span>
+<span id="cb16-27"><a href="#cb16-27" tabindex="-1"></a>       <span class="at">width =</span> <span class="dv">7</span>, <span class="at">height =</span> <span class="dv">5</span>)</span>
+<span id="cb16-28"><a href="#cb16-28" tabindex="-1"></a>fig_evo5_niumi <span class="ot">=</span> stat_forest_niumi[[<span class="dv">2</span>]]</span>
+<span id="cb16-29"><a href="#cb16-29" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="at">plot =</span> fig_evo5_niumi,</span>
+<span id="cb16-30"><a href="#cb16-30" tabindex="-1"></a>       <span class="at">filename =</span> <span class="st">&quot;fig_forest_loss_evo5_ap_niumi.png&quot;</span>,</span>
+<span id="cb16-31"><a href="#cb16-31" tabindex="-1"></a>       <span class="at">path =</span> <span class="st">&quot;05_StatDes/biodiversity/forest/loss&quot;</span>,</span>
+<span id="cb16-32"><a href="#cb16-32" tabindex="-1"></a>       <span class="at">width =</span> <span class="dv">7</span>, <span class="at">height =</span> <span class="dv">5</span>)</span>
+<span id="cb16-33"><a href="#cb16-33" tabindex="-1"></a></span>
+<span id="cb16-34"><a href="#cb16-34" tabindex="-1"></a><span class="co">#Bamboung</span></span>
+<span id="cb16-35"><a href="#cb16-35" tabindex="-1"></a>stat_forest_bamboung <span class="ot">=</span> <span class="fu">stat_treeloss_id</span>(<span class="at">df =</span> data_stat_treeloss,</span>
+<span id="cb16-36"><a href="#cb16-36" tabindex="-1"></a>                                    <span class="at">id =</span> <span class="st">&quot;555651496&quot;</span>,</span>
+<span id="cb16-37"><a href="#cb16-37" tabindex="-1"></a>                                    <span class="at">name_pa =</span> <span class="st">&quot;AP Bamboung&quot;</span>,</span>
+<span id="cb16-38"><a href="#cb16-38" tabindex="-1"></a>                                    <span class="at">treatment_yr =</span> <span class="dv">2008</span>)</span>
+<span id="cb16-39"><a href="#cb16-39" tabindex="-1"></a>fig_evo_bamboung <span class="ot">=</span> stat_forest_bamboung[[<span class="dv">1</span>]]</span>
+<span id="cb16-40"><a href="#cb16-40" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="at">plot =</span> fig_evo_bamboung,</span>
+<span id="cb16-41"><a href="#cb16-41" tabindex="-1"></a>       <span class="at">filename =</span> <span class="st">&quot;fig_forest_loss_evo_ap_bamboung.png&quot;</span>,</span>
+<span id="cb16-42"><a href="#cb16-42" tabindex="-1"></a>       <span class="at">path =</span> <span class="st">&quot;05_StatDes/biodiversity/forest/loss&quot;</span>,</span>
+<span id="cb16-43"><a href="#cb16-43" tabindex="-1"></a>       <span class="at">width =</span> <span class="dv">7</span>, <span class="at">height =</span> <span class="dv">5</span>)</span>
+<span id="cb16-44"><a href="#cb16-44" tabindex="-1"></a>fig_evo5_bamboung <span class="ot">=</span> stat_forest_bamboung[[<span class="dv">2</span>]]</span>
+<span id="cb16-45"><a href="#cb16-45" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="at">plot =</span> fig_evo5_bamboung,</span>
+<span id="cb16-46"><a href="#cb16-46" tabindex="-1"></a>       <span class="at">filename =</span> <span class="st">&quot;fig_forest_loss_evo5_ap_bamboung.png&quot;</span>,</span>
+<span id="cb16-47"><a href="#cb16-47" tabindex="-1"></a>       <span class="at">path =</span> <span class="st">&quot;05_StatDes/biodiversity/forest/loss&quot;</span>,</span>
+<span id="cb16-48"><a href="#cb16-48" tabindex="-1"></a>       <span class="at">width =</span> <span class="dv">7</span>, <span class="at">height =</span> <span class="dv">5</span>)</span></code></pre></div>
+<p>/!\ Modifier le code précédent pour inclure plusieurs aires ???</p>
+<ul>
+<li>Statistics at region level</li>
+</ul>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a><span class="co">#Evolution at region level : dataset</span></span>
+<span id="cb17-2"><a href="#cb17-2" tabindex="-1"></a>data_stat_treeloss_reg <span class="ot">=</span> data_stat_treeloss <span class="sc">%&gt;%</span></span>
+<span id="cb17-3"><a href="#cb17-3" tabindex="-1"></a>  <span class="fu">group_by</span>(drct, years) <span class="sc">%&gt;%</span></span>
+<span id="cb17-4"><a href="#cb17-4" tabindex="-1"></a>  <span class="co">#For each region and each period, compute average evolution</span></span>
+<span id="cb17-5"><a href="#cb17-5" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">evo_avg_reg =</span> <span class="fu">mean</span>(treecover)) <span class="sc">%&gt;%</span></span>
+<span id="cb17-6"><a href="#cb17-6" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb17-7"><a href="#cb17-7" tabindex="-1"></a>  <span class="fu">group_by</span>(drct) <span class="sc">%&gt;%</span> </span>
+<span id="cb17-8"><a href="#cb17-8" tabindex="-1"></a>  <span class="co">#Variation of the average evolution over time in each region</span></span>
+<span id="cb17-9"><a href="#cb17-9" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">lag_region =</span> <span class="fu">lag</span>(evo_avg_reg),</span>
+<span id="cb17-10"><a href="#cb17-10" tabindex="-1"></a>         <span class="at">loss_region =</span> ((evo_avg_reg <span class="sc">-</span> lag_region)<span class="sc">/</span>lag_region)<span class="sc">*</span><span class="dv">100</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb17-11"><a href="#cb17-11" tabindex="-1"></a>  <span class="co">#remove 2001 : either NA, or take value above when two regions are consecutive in the data frame (lag by region not applied) ???</span></span>
+<span id="cb17-12"><a href="#cb17-12" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">loss_region =</span> <span class="fu">case_when</span>(</span>
+<span id="cb17-13"><a href="#cb17-13" tabindex="-1"></a>    <span class="sc">!</span><span class="fu">is.na</span>(loss_region) <span class="sc">&amp;</span> years <span class="sc">==</span> <span class="dv">2001</span> <span class="sc">~</span> <span class="cn">NA</span>,</span>
+<span id="cb17-14"><a href="#cb17-14" tabindex="-1"></a>    <span class="cn">TRUE</span> <span class="sc">~</span>loss_region))</span>
+<span id="cb17-15"><a href="#cb17-15" tabindex="-1"></a></span>
+<span id="cb17-16"><a href="#cb17-16" tabindex="-1"></a><span class="co">#Sahel</span></span>
+<span id="cb17-17"><a href="#cb17-17" tabindex="-1"></a>fig_evo_sahel <span class="ot">=</span> <span class="fu">stat_treeloss_reg</span>(<span class="at">df =</span> data_stat_treeloss_reg,</span>
+<span id="cb17-18"><a href="#cb17-18" tabindex="-1"></a>                                  <span class="at">reg =</span> <span class="st">&quot;Dr Grand Sahel&quot;</span>,</span>
+<span id="cb17-19"><a href="#cb17-19" tabindex="-1"></a>                                  <span class="at">name_reg =</span> <span class="st">&quot;Sahel&quot;</span>)</span>
+<span id="cb17-20"><a href="#cb17-20" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="at">plot =</span> fig_evo_sahel,</span>
+<span id="cb17-21"><a href="#cb17-21" tabindex="-1"></a>       <span class="at">filename =</span> <span class="st">&quot;fig_forest_loss_evo_reg_sahel.png&quot;</span>,</span>
+<span id="cb17-22"><a href="#cb17-22" tabindex="-1"></a>       <span class="at">path =</span> <span class="st">&quot;05_StatDes/biodiversity/forest/loss&quot;</span>,</span>
+<span id="cb17-23"><a href="#cb17-23" tabindex="-1"></a>       <span class="at">width =</span> <span class="dv">7</span>, <span class="at">height =</span> <span class="dv">5</span>)</span>
+<span id="cb17-24"><a href="#cb17-24" tabindex="-1"></a></span>
+<span id="cb17-25"><a href="#cb17-25" tabindex="-1"></a><span class="co">#Guinea gulf</span></span>
+<span id="cb17-26"><a href="#cb17-26" tabindex="-1"></a>fig_evo_guinee <span class="ot">=</span> <span class="fu">stat_treeloss_reg</span>(<span class="at">df =</span> data_stat_treeloss_reg,</span>
+<span id="cb17-27"><a href="#cb17-27" tabindex="-1"></a>                                  <span class="at">reg =</span> <span class="st">&quot;Dr Golfe De Guinee&quot;</span>,</span>
+<span id="cb17-28"><a href="#cb17-28" tabindex="-1"></a>                                  <span class="at">name_reg =</span> <span class="st">&quot;Golfe de Guinée&quot;</span>)</span>
+<span id="cb17-29"><a href="#cb17-29" tabindex="-1"></a></span>
+<span id="cb17-30"><a href="#cb17-30" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="at">plot =</span> fig_evo_guinee,</span>
+<span id="cb17-31"><a href="#cb17-31" tabindex="-1"></a>       <span class="at">filename =</span> <span class="st">&quot;fig_forest_loss_evo_reg_guinee.png&quot;</span>,</span>
+<span id="cb17-32"><a href="#cb17-32" tabindex="-1"></a>       <span class="at">path =</span> <span class="st">&quot;05_StatDes/biodiversity/forest/loss&quot;</span>,</span>
+<span id="cb17-33"><a href="#cb17-33" tabindex="-1"></a>       <span class="at">width =</span> <span class="dv">7</span>, <span class="at">height =</span> <span class="dv">5</span>)</span>
+<span id="cb17-34"><a href="#cb17-34" tabindex="-1"></a></span>
+<span id="cb17-35"><a href="#cb17-35" tabindex="-1"></a><span class="co">#Eastern Africa</span></span>
+<span id="cb17-36"><a href="#cb17-36" tabindex="-1"></a>fig_evo_eastAf <span class="ot">=</span> <span class="fu">stat_treeloss_reg</span>(<span class="at">df =</span> data_stat_treeloss_reg,</span>
+<span id="cb17-37"><a href="#cb17-37" tabindex="-1"></a>                                  <span class="at">reg =</span> <span class="st">&quot;Dr Afrique De L&#39;Est&quot;</span>,</span>
+<span id="cb17-38"><a href="#cb17-38" tabindex="-1"></a>                                  <span class="at">name_reg =</span> <span class="st">&quot;Afrique de l&#39;Est&quot;</span>)</span>
+<span id="cb17-39"><a href="#cb17-39" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="at">plot =</span> fig_evo_eastAf,</span>
+<span id="cb17-40"><a href="#cb17-40" tabindex="-1"></a>       <span class="at">filename =</span> <span class="st">&quot;fig_forest_loss_evo_reg_eastAf.png&quot;</span>,</span>
+<span id="cb17-41"><a href="#cb17-41" tabindex="-1"></a>       <span class="at">path =</span> <span class="st">&quot;05_StatDes/biodiversity/forest/loss&quot;</span>,</span>
+<span id="cb17-42"><a href="#cb17-42" tabindex="-1"></a>       <span class="at">width =</span> <span class="dv">7</span>, <span class="at">height =</span> <span class="dv">5</span>)</span>
+<span id="cb17-43"><a href="#cb17-43" tabindex="-1"></a></span>
+<span id="cb17-44"><a href="#cb17-44" tabindex="-1"></a><span class="co">#Eastern Africa</span></span>
+<span id="cb17-45"><a href="#cb17-45" tabindex="-1"></a>fig_evo_austAf <span class="ot">=</span> <span class="fu">stat_treeloss_reg</span>(<span class="at">df =</span> data_stat_treeloss_reg,</span>
+<span id="cb17-46"><a href="#cb17-46" tabindex="-1"></a>                                  <span class="at">reg =</span> <span class="st">&quot;Dr Afrique Australe&quot;</span>,</span>
+<span id="cb17-47"><a href="#cb17-47" tabindex="-1"></a>                                  <span class="at">name_reg =</span> <span class="st">&quot;Afrique australe&quot;</span>)</span>
+<span id="cb17-48"><a href="#cb17-48" tabindex="-1"></a></span>
+<span id="cb17-49"><a href="#cb17-49" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="at">plot =</span> fig_evo_austAf,</span>
+<span id="cb17-50"><a href="#cb17-50" tabindex="-1"></a>       <span class="at">filename =</span> <span class="st">&quot;fig_forest_loss_evo_reg_austAf.png&quot;</span>,</span>
+<span id="cb17-51"><a href="#cb17-51" tabindex="-1"></a>       <span class="at">path =</span> <span class="st">&quot;05_StatDes/biodiversity/forest/loss&quot;</span>,</span>
+<span id="cb17-52"><a href="#cb17-52" tabindex="-1"></a>       <span class="at">width =</span> <span class="dv">7</span>, <span class="at">height =</span> <span class="dv">5</span>)</span></code></pre></div>
+</div>
+<div id="mangrove" class="section level3" number="1.5.2">
+<h3><span class="header-section-number">1.5.2</span> Mangrove</h3>
+<p>Summary table of mangrove area in each PA :</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a>tbl_mang_summary <span class="ot">=</span> data_mang <span class="sc">%&gt;%</span></span>
+<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">group_by</span>(wdpaid) <span class="sc">%&gt;%</span></span>
+<span id="cb18-3"><a href="#cb18-3" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">area_sqkm =</span> <span class="fu">sum</span>(value))</span></code></pre></div>
+</div>
+<div id="emissions" class="section level3" number="1.5.3">
+<h3><span class="header-section-number">1.5.3</span> Emissions</h3>
+<p>/!\ pas clair</p>
+<p>Summary table of emissions in each PA :</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a><span class="co"># create summary table </span></span>
+<span id="cb19-2"><a href="#cb19-2" tabindex="-1"></a>tbl_emi_summary <span class="ot">=</span> data_emi <span class="sc">%&gt;%</span></span>
+<span id="cb19-3"><a href="#cb19-3" tabindex="-1"></a>  <span class="fu">group_by</span>(name) <span class="sc">%&gt;%</span></span>
+<span id="cb19-4"><a href="#cb19-4" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">area_sqkm =</span> <span class="fu">sum</span>(value))</span></code></pre></div>
+</div>
+<div id="biometeow" class="section level3" number="1.5.4">
+<h3><span class="header-section-number">1.5.4</span> Biome/TEOW</h3>
+</div>
+</div>
+</div>
+
+<div id="rmd-source-code">LS0tCnRpdGxlOiAiRGVzU3RhdF9iaW9kaXZlcnNpdHlfd2RwYSIKYXV0aG9yOiAiQW50b2luZSBWdWlsbG90IgpkYXRlOiAiMjAyMy0wNi0xNCIKb3V0cHV0OiBodG1sX2RvY3VtZW50Ci0tLQoKIyBEZXNjcmlwdGl2ZSBzdGF0aXN0aWNzIG9uIGJpb2RpdmVyc2l0eSBpbiB0aGUgcHJvdGVjdGVkIGFyZWFzCgpJbiB0aGlzIGRvY3VtZW50IGFyZSBjb21wdXRlZCBhbmQgcGxvdHRlZCBkZXNjcmlwdGl2ZSBzdGF0aXN0aWNzIGZvciB0aGUgcHJvdGVjdGVkIGFyZWFzIChQQXMpIHVzaW5nIHRoZSBtYXBtZSBiaW9kaXZlcnNpdHkgcGFja2FnZS4gVGhpcyBwYWNrYWdlIHByb3ZpZGVzIGFuIGVhc3kgYWNjZXNzIHRvIGJpb2RpdmVyc2l0eS1yZWxhdGVkIGRhdGEgYW5kIGFsbG93IHRvIGNvbXB1dGUgZGlmZmVyZW50IGluZGljYXRvcnMuCgojIyBJbXBvcnRpbmcgcGFja2FnZXMgYW5kIGZ1bmN0aW9ucwoKYGBge3Igc2V0dXAsIGluY2x1ZGU9RkFMU0UsIGV2YWwgPSBGQUxTRX0Ka25pdHI6Om9wdHNfa25pdCRzZXQocm9vdC5kaXIgPSBycHJvanJvb3Q6OmZpbmRfcnN0dWRpb19yb290X2ZpbGUoKSkKYGBgCgpgYGB7ciBtZXNzYWdlPUZBTFNFLCB3YXJuaW5nPUZBTFNFLCBldmFsID0gRkFMU0V9CnNvdXJjZSgic2NyaXB0cy9TdGF0aXN0aWNzL2Zuc19EZXNTdGF0X2Jpb2Rpdi5SIiwgZW5jb2RpbmcgPSAidXRmLTgiKQpgYGAKCmBgYHtyIG1lc3NhZ2U9RkFMU0UsIHdhcm5pbmc9RkFMU0UsIGV2YWwgPSBGQUxTRX0KI1RoZSBsYXN0IHZlcnNpb24gb2YgbWFwbWUuYmlvZGl2ZXJzaXR5IHBhY2thZ2UgaXMgZG93bmxvYWRlZCBkaXJlY3RseSBmcm9tIGdpdGh1YgpyZW1vdGVzOjppbnN0YWxsX2dpdGh1YigibWFwbWUtaW5pdGlhdGl2ZS9tYXBtZS5iaW9kaXZlcnNpdHkiLCB1cGdyYWRlPSJhbHdheXMiKQpsaWJyYXJ5KG1hcG1lLmJpb2RpdmVyc2l0eSkKbGlicmFyeShzZikKbGlicmFyeSh0aWR5dmVyc2UpCmxpYnJhcnkobWFwdmlldykKbGlicmFyeShtYWdyaXR0cikKbGlicmFyeShzdGFyZ2F6ZXIpCmxpYnJhcnkoZHBseXIpCmxpYnJhcnkob3Blbnhsc3gpCmxpYnJhcnkod3JpdGV4bCkKbGlicmFyeShnZ3Bsb3QyKQpsaWJyYXJ5KHF1ZXN0aW9ucikKbGlicmFyeShyZWFkeGwpCmxpYnJhcnkoZGF0YS50YWJsZSkKbGlicmFyeShzcCkKbGlicmFyeShyYXN0ZXIpCmxpYnJhcnkodGVycmEpCmxpYnJhcnkoamFuaXRvcikKbGlicmFyeShBUlRvZlIpCmxpYnJhcnkoYXdzLnMzKQpgYGAKCmBgYHtyLCBldmFsID0gRkFMU0V9CiNBIGZpcnN0IGxvb2sgYXQgbWFwbWUgYmlvZGl2ZXJzaXR5IGluZGljYXRvcnMKCnJlc291cmNlcyA8LSBuYW1lcyhhdmFpbGFibGVfcmVzb3VyY2VzKCkpCmluZGljYXRvcnMgPC0gbmFtZXMoYXZhaWxhYmxlX2luZGljYXRvcnMoKSkKY2F0KHBhc3RlKCJTdXBwb3J0ZWQgcmVzb3VyY2VzOlxuLSIsCiAgICAgICAgICAgIHBhc3RlKHJlc291cmNlcywgY29sbGFwc2UgPSAiXG4tICIpLAogICAgICAgICAgIlxuXG5TdXBwb3J0ZWQgaW5kaWNhdG9yczpcbi0iLAogICAgICAgICAgICBwYXN0ZShpbmRpY2F0b3JzLCBjb2xsYXBzZSA9ICJcbi0gIikpKQpgYGAKCiMjIFNldHRpbmcgdGhlIGVudmlyb25tZW50CgpUaGlzIG1pZ2h0IGJlIG5lY2Vzc2FyeSB0byBhY2Nlc3MgU1NQQ2xvdWQgc3RvcmFnZSBmcm9tIG1hcG1lLmJpb2RpdmVyc2l0eSBmdW5jdGlvbnMuCgpgYGB7ciwgZXZhbCA9IEZBTFNFfQoKIyBTeXMuc2V0ZW52KCJBV1NfQUNDRVNTX0tFWV9JRCIgPSAiR0Q4Q0kwVVFRUFRFVE9aUzY1SjIiLAojICAgICAgICAgICAgIkFXU19TRUNSRVRfQUNDRVNTX0tFWSIgPSAiZTBic1hFNTVxeit4bU5lVmR3aFRiMzl3S29RdUlKRkMwWTZlcVBvRyIsCiMgICAgICAgICAgICAiQVdTX0RFRkFVTFRfUkVHSU9OIiA9ICJ1cy1lYXN0LTEiLAojICAgICAgICAgICAgIkFXU19TRVNTSU9OX1RPS0VOIiA9ICJleUpoYkdjaU9pSklVelV4TWlJc0luUjVjQ0k2SWtwWFZDSjkuZXlKaFkyTmxjM05MWlhraU9pSkhSRGhEU1RCVlVWRlFWRVZVVDFwVE5qVktNaUlzSW1Gc2JHOTNaV1F0YjNKcFoybHVjeUk2V3lJcUlsMHNJbUYxWkNJNld5SnRhVzVwYnkxa1lYUmhibTlrWlNJc0ltOXVlWGhwWVNJc0ltRmpZMjkxYm5RaVhTd2lZWFYwYUY5MGFXMWxJam94TmpnNE5qVXhOams1TENKaGVuQWlPaUp2Ym5sNGFXRWlMQ0psYldGcGJDSTZJbloxYVd4c2IzUmhRR0ZtWkM1bWNpSXNJbVZ0WVdsc1gzWmxjbWxtYVdWa0lqcDBjblZsTENKbGVIQWlPakUyT0RnM016ZzROemdzSW1aaGJXbHNlVjl1WVcxbElqb2lWblZwYkd4dmRDSXNJbWRwZG1WdVgyNWhiV1VpT2lKQmJuUnZhVzVsSWl3aVozSnZkWEJ6SWpwYkltRm1aQzFsZG1FdFlYQWlYU3dpYVdGMElqb3hOamc0TmpVeE56QXdMQ0pwYzNNaU9pSm9kSFJ3Y3pvdkwyRjFkR2d1YkdGaUxuTnpjR05zYjNWa0xtWnlMMkYxZEdndmNtVmhiRzF6TDNOemNHTnNiM1ZrSWl3aWFuUnBJam9pTjJabU1qSmhObUV0TTJJeVlTMDBOV0ZpTFdKbVlUSXRObVZoWkRaa056WTVZekJoSWl3aWJtRnRaU0k2SWtGdWRHOXBibVVnVm5WcGJHeHZkQ0lzSW01dmJtTmxJam9pWWpRek0yRTFOMk10TWpaaU5TMDBObUUwTFRrek9HSXRPR015TTJGbU9UVmxZVEk1SWl3aWNHOXNhV041SWpvaWMzUnpiMjVzZVNJc0luQnlaV1psY25KbFpGOTFjMlZ5Ym1GdFpTSTZJbloxYVd4c2IzUmhJaXdpY21WaGJHMWZZV05qWlhOeklqcDdJbkp2YkdWeklqcGJJbTltWm14cGJtVmZZV05qWlhOeklpd2lkVzFoWDJGMWRHaHZjbWw2WVhScGIyNGlMQ0prWldaaGRXeDBMWEp2YkdWekxYTnpjR05zYjNWa0lsMTlMQ0p5WlhOdmRYSmpaVjloWTJObGMzTWlPbnNpWVdOamIzVnVkQ0k2ZXlKeWIyeGxjeUk2V3lKdFlXNWhaMlV0WVdOamIzVnVkQ0lzSW0xaGJtRm5aUzFoWTJOdmRXNTBMV3hwYm10eklpd2lkbWxsZHkxd2NtOW1hV3hsSWwxOWZTd2ljMk52Y0dVaU9pSnZjR1Z1YVdRZ2NISnZabWxzWlNCbmNtOTFjSE1nWlcxaGFXd2lMQ0p6WlhOemFXOXVVRzlzYVdONUlqb2laWGxLVjFwWVNucGhWemwxU1dwdmFVMXFRWGhOYVRCNFRVTXdlRTU1U1hOSmJFNHdXVmhTYkdKWFZuVmtRMGsyVnpOemFWSlhXbTFhVjA0d1NXcHZhVkZYZUhOaU0yTnBURU5LUWxrelVuQmlNalJwVDJ4emFXTjZUVFpMYVVwa1RFTktVMXBZVG5aa1dFcHFXbE5KTmxkNVNtaGpiVFEyV1Zoa2VrOXVUWHBQYW04MlkwaEtkbUZ0VmpCTVYwWnRXa014YkdSdFJYUlpXRUZwVEVOS2FHTnRORFpaV0dSNlQyNU5lazlxYnpaalNFcDJZVzFXTUV4WFJtMWFRekZzWkcxRmRGbFlRWFpMYVVwa1psTjROMGxyVm0xYWJWWnFaRU5KTmtsclJuTmlSemt6U1dsM2FWRlhUakJoVnpsMVNXcHdZa2x1VFhwUGEzaHdZek5TUTJSWFRuSmFXRkZwV0ZOM2FWVnRWbnBpTTFaNVdUSlZhVTlzYzJsWldFcDFUMjFHTTJONmNIcE5lbTgyVDJsdmFWaFRkMmxSTWpsMVdrZHNNR0ZYT1hWSmFuQTNTV3hPTUdOdGJIVmFNSGh3WVRKVmFVOXVjMmxqZWswMlkwaEtiRnB0YkRSSmFtOXBXa2RzYlZwdVZucGhWemwxVEhsdmFXWllNVGxNU0hOcFVsZGFiVnBYVGpCSmFtOXBVVmQ0YzJJelkybE1RMHBDV1ROU2NHSXlOR2xQYkhOcFkzcE5ObEl5VmpCVU1rcHhXbGRPTUVsc01ITkpiRXBzWXpJNU1XTnRUbXhKYW5CaVNXMUdlV0pxY0doa00wMDJZM3BOTms5cWIzRk1NbEp3V20xYU1XTXliSFppYVRoeFNXd3hPVmhZTUQwaUxDSnpaWE56YVc5dVgzTjBZWFJsSWpvaVlXWXlNRGRsWTJVdE9XRXpOaTAwT1RReUxUbGxPRFl0TmpBMU5USm1OR1l4WlRnMUlpd2ljMmxrSWpvaVlXWXlNRGRsWTJVdE9XRXpOaTAwT1RReUxUbGxPRFl0TmpBMU5USm1OR1l4WlRnMUlpd2ljM1ZpSWpvaU9USTNOMlkzTXpNdE5UQm1NeTAwTWpNNExXSTFZemN0TmpSak1tVTRZVFppTkRJMElpd2lkSGx3SWpvaVFtVmhjbVZ5SW4wLjQwX3d3SmVvN0hoVEpqdlB5b2I5Nm5ORXZiQ212b2hjTjdXbmQwMkVUaXJMb2JkVG1FN1FaWmJkOXE1UDFaR0FOa2tJa0FmOHdobzg2RUxwMWNyV2Z3IiwKIyAgICAgICAgICAgICJBV1NfUzNfRU5EUE9JTlQiPSAibWluaW8ubGFiLnNzcGNsb3VkLmZyIiwKIyAgICAgICAgICAgICJBV1NfSFRUUFMiID0gIkZBTFNFIiwKIyAgICAgICAgICAgICJBV1NfVklSVFVBTF9IT1NUSU5HIj0iRkFMU0UiKQoKYGBgCgojIyBJbXBvcnRpbmcgUEFzIGRhdGFzZXRzCgpgYGB7ciBtZXNzYWdlPUZBTFNFLCB3YXJuaW5nPUZBTFNFLCBldmFsID0gRkFMU0V9CgojTG9hZCBzcGF0aWFsIGRhdGEgYW5kIHRyYW5zZm9ybSBpbnRvIHBvbHlnb25zIChyZXF1aXJlbWVudCBvZiB0aGUgbWFwbWUgcGFja2FnZSkKCiNJZiB0aGUgZnVuY3Rpb24gZ2V0X3Jlc291cmNlcyB1c2VkIGxhdGVyIHJldHVybnMgYW4gZXJyb3IgIi4uLkxvb3AgMCBpcyBub3QgdmFsaWQ6IEVkZ2UgOTQgY3Jvc3NlcyBlZGdlIDk2Pi4uLiIsIHRoZW4gdGhlIGZvbGxvd2luZyBmdW5jdGlvbiBtaWdodCBzb2x2ZSBpdC4gSXQgd29ya3MgaWYgc2Ygd2FzIHVwZGF0ZWQgdjEuMCBhbmQgbW9yZSwgYW5kIGJyaW5ncyBiYWNrIHRvIG9sZCB3YXkgb2Ygd29ya2luZy4gc2YgdXNlcyBtb3N0bHkgYSBmbGF0IEVhcnRoIG1vZGVsIGluc3RlYWQgb2YgczIgc3BoZXJpY2FsIGdlb21ldHJ5IGluIHRoZSBuZXcgdmVyc2lvbnMuIApzZl91c2VfczIoRkFMU0UpCgojLyFcIDogaW4gcGFfc2hwLCB2YXJpYWJsZSBzcHJmYyBpcyB0aGUgYXJlYSByZXBvcnRlZCBieSBBRkQgbWVtYmVycywgYW5kIGlzIG5vdCBlcXVhbCB0byByZXBfYSAoYXJlYSByZXBvcnRlZCBieSBXRFBBKSBub3Igc3VwZXJmaWNpZSBpbiB0aGUgQkREX2pvaW50LiBUaGUgbGF0dGVyIGlzIGEgY29tYmluYXRpb24gb2YgcmVwX2EgYW5kIHNwcmZjLCB3aGVyZSBzdXBlcmZpY2llID0gcmVwX2EgZXhjZXB0IGlmIHJlcF9hID0gMCBvciBub3QgcmVwb3J0ZWQuCnBhX3NocCA9IAogICNyZWFkX3NmKCJkYXRhX3RpZHkvQkREX1NIUF9ub2R1cGxfcHViLmdwa2ciKSAlPiUKICBhd3MuczM6OnMzcmVhZF91c2luZygKICBGVU4gPSBzZjo6cmVhZF9zZiwKICAjIE1ldHRyZSBsZXMgb3B0aW9ucyBkZSBGVU4gaWNpCiAgb2JqZWN0ID0gImRhdGFfdGlkeS9CRERfc2hwX3B1Yi5ncGtnIiwKICBidWNrZXQgPSAicHJvamV0LWFmZC1ldmEtYXAiLAogIG9wdHMgPSBsaXN0KCJyZWdpb24iID0gIiIpKSAlPiUKICBzdF9tYWtlX3ZhbGlkKCkgJT4lCiAgc2Y6OnN0X2Nhc3QodG8gPSAiUE9MWUdPTiIpCgojRnJvbSBCRERfam9pbnQsIHRoYXQgaXMgdGhlIGNvbWJpbmF0aW9uIG9mIHRoZSBTSU9QIGRhdGFzZXQgYW5kIHRoZSBBUCBkYXRhc2V0IGZyb20gQVJCIHRlYW0gaW4gQUZELiBJbXBvcnRlZCB0byBoYXZlIHRoZSBpbmZvcm1hdGlvbiBvbiB0aGUgUEEgYXJlYSAoY29tYmluYXRpb24gb2YgYXJlYXMgcmVwb3J0ZWQgYnkgV0RQQSBhbmQgQVJCKQpwYV9ub2R1cGwgPSAKICAjZnJlYWQoImRhdGFfdGlkeS9CRERfRGVzU3RhdF9ub2R1cGwuY3N2IikgJT4lCiAgYXdzLnMzOjpzM3JlYWRfdXNpbmcoCiAgRlVOID0gZGF0YS50YWJsZTo6ZnJlYWQsCiAgZW5jb2RpbmcgPSAiVVRGLTgiLAogIG9iamVjdCA9ICJkYXRhX3RpZHkvQkREX0Rlc1N0YXRfbm9mdW5kX25vZHVwbC5jc3YiLAogIGJ1Y2tldCA9ICJwcm9qZXQtYWZkLWV2YS1hcCIsCiAgb3B0cyA9IGxpc3QoInJlZ2lvbiIgPSAiIikpICU+JQogIGRwbHlyOjpzZWxlY3QoYyh3ZHBhaWQsIHN1cGVyZmljaWUpKQoKI21hcHZpZXcocGFfc2hwKQpgYGAKCiMjIERvd25sb2FkaW5nIGRhdGEgb2YgaW50ZXJlc3RzIGFuZCBjb21wdXRlIHJlbGV2YW50IGluZGljYXRvcnMKCkZvciB0aGUgbW9tZW50LCBtYXBtZS5iaW9kaXZlcnNpdHkgZnVuY3Rpb25zIGRvIG5vdCBzdXBwb3J0IHJlYWRpbmcvd3JpdGluZyBpbiBhIFMzIHNlcnZlciBsaWtlIFNTUENsb3VkLiBXYWl0aW5nIGZvciB0aGUgbmV3IHJlbGVhc2Ugb2YgdGhlIHBhY2thZ2UsIHRoZSBmb2xsb3dpbmcgcHJvY2VzcyBpcyBmb2xsb3dlZCA6CgoxLiAgQ3JlYXRlIGEgc3ViLWZvbGRlciBpbiB0aGUgdGVtcG9yYXJ5IGZvbGRlciAoUkFNIG9mIHRoZSBSIHNlc3Npb24pIHRvIGRvd25sb2FkIGFuZCBzdG9yZSB0aGUgcmF3IGRhdGEKCjIuICBBc3NvY2lhdGUgdGhlIHBvcnRmb2xpbyB0byB0aGlzIHN1Yi1mb2xkZXIKCjMuICBEb3dubG9hZCB0aGUgcmF3IGRhdGEgYW5kIGNvbXB1dGUgdGhlIGluZGljYXRvcnMgb2YgaW50ZXJlc3QsIHVubmVzdCB0aGUgZGF0YSBvYnRhaW5lZAoKNC4gIFRoZW4sIGEgZGF0YWZyYW1lIGNhbiBiZSBzYXZlZC4KCk5vdGUgdGhhdCB0aGlzIHNvbHV0aW9uIGlzIG5vdCB0aW1lLW9wdGltYWwgOiByYXcgZGF0YSBtdXN0IGJlIGRvd25sb2FkZWQgZWFjaCB0aW1lLgoKIyMjIENyZWF0aW5nIHRoZSBwb3J0Zm9saW8KCmBgYHtyLCBldmFsID0gRkFMU0V9CiNUaGUgcmF3IGRhdGEgZnJvbSBtYXBtZSBwYWNrYWdlIGFyZSBzdG9yZWQgaW4gYSB0ZW1wb3JhcnkgZm9sZGVyCnRtcCA9IHBhc3RlKHRlbXBkaXIoKSwgIm1hcG1lIiwgc2VwID0gIi8iKQojc2F2ZV9mb2xkZXIgPSBnZXRfYnVja2V0KCJwcm9qZXQtYWZkLWV2YS1hcCIsIHJlZ2lvbiA9ICIiKQoKI0NyZWF0aW5nIHRoZSBwb3J0Zm9saW8KcGFfcGZvbGlvID0gcGFfc2hwICU+JQogIGluaXRfcG9ydGZvbGlvKDIwMDA6MjAyMCwKICAgICAgICAgICAgICAgICBvdXRkaXIgPSB0bXAsCiAgICAgICAgICAgICAgICAgI2NvcmVzID0gNCwKICAgICAgICAgICAgICAgICBhZGRfcmVzb3VyY2VzID0gVFJVRSwKICAgICAgICAgICAgICAgICB2ZXJib3NlID0gVFJVRSkKYGBgCgojIyMgVEVTVCA6IGltcG9ydGluZyBkYXRhIGZyb20gU1NQQ2xvdWQKCmRhdGEgYXJlIGRvd25sb2FkZWQgZnJvbSBhbiBvdGhlciBzY3JpcHQgYW5kIHN0b3JlZCBpbiB0aGUgU1NQQ2xvdWQuIEhlcmUgOiBjb3B5IHRoZXNlIGRhdGEgdG8gdGhlIHRlbXBvcmFyeSBzdG9yYWdlIG9mIHRoZSBSIHNlc3Npb24sIGFuZCB1c2UgdGhlbSB0byBjb21wdXRlIGluZGljYXRvcnMuCgpgYGB7ciwgZXZhbCA9IEZBTFNFfQoKZGZfZmlsZXMgPSBhd3MuczM6OmdldF9idWNrZXQoInByb2pldC1hZmQtZXZhLWFwIiwKICAgICAgICAgICAgICAgICAgIHByZWZpeCA9ICJkYXRhX3Jhdy9tYXBtZV9iaW9fZGF0YS9nZndfdHJlZWNvdmVyLyIsCiAgICAgICAgICAgICAgICAgICByZWdpb24gPSAiIikgJT4lCiAgYXMuZGF0YS5mcmFtZSgpCmxpc3RfZmlsZXMgPSBkZl9maWxlcyRLZXkKaSA9IGxpc3RfZmlsZXNbMV0KZm9yIChpIGluIGxpc3RfZmlsZXMpIAp7CiAgdGVtcF9maWxlID0gczNyZWFkX3VzaW5nKEZVTiA9IHRlcnJhOjpyYXN0LAogICAgICAgICAgICAgICBvYmplY3QgPSBpLAogICAgICAgICAgICAgICBidWNrZXQgPSAicHJvamV0LWFmZC1ldmEtYXAiLAogICAgICAgICAgICAgICBvcHRzID0gbGlzdCgicmVnaW9uIj0iIikpCiAgdGVycmE6OndyaXRlUmFzdGVyKHRlbXBfZmlsZSwgZmlsZS5wYXRoKHRlbXBkaXIoKSwgInRlc3QudGlmIiksIG92ZXJ3cml0ZSA9IFRSVUUpCn0KcGxvdCh0ZW1wX2ZpbGUpCmBgYAoKIyMjIENvbXB1dGUgaW5kaWNhdG9ycyBmcm9tIGdlb3NwYXRpYWwgZGF0YQoKYGBge3IgbWVzc2FnZT1GQUxTRSwgd2FybmluZz1GQUxTRSwgZXZhbCA9IEZBTFNFfQoKIyN+fn5+fn5+fn5+fn5+fn5+CiMjICB+IEZvcmVzdHMgLS0tLQojI35+fn5+fn5+fn5+fn5+fn4KCiMjRG93bmxvYWRpbmcgZGF0YSBhbmQgY29tcHV0aW5nIGluZGljYXRvcnMgCnBhX3Bmb2xpb190Y292ZXIgPQogIGdldF9yZXNvdXJjZXMocGFfcGZvbGlvLAogICAgcmVzb3VyY2VzID0gYygiZ2Z3X2xvc3N5ZWFyIiwiZ2Z3X3RyZWVjb3ZlciIsImdmd19lbWlzc2lvbnMiKSwKICAgIHZlcnNfdHJlZWNvdmVyID0gIkdGQy0yMDIwLXYxLjgiLAogICAgdmVyc19sb3NzeWVhciA9ICJHRkMtMjAyMC12MS44IikgJT4lCiAgIyBGQU8gZm9yZXN0IGRlZmluaXRpb24gaGVyZTogTWluaW11bSB0cmVlY292ZXIgPSAxMCUsIG1pbmltdW0gc2l6ZSA9MSBoZWN0YXJlCiAgY2FsY19pbmRpY2F0b3JzKGluZGljYXRvcnMgPSAidHJlZWNvdmVyX2FyZWEiLAogICAgICAgICAgICAgICAgbWluX2NvdmVyID0gMTAsCiAgICAgICAgICAgICAgICBtaW5fc2l6ZSA9IDEsIG92ZXJ3cml0ZT1UKQoKI1VuZXN0IHRoZSBzZiBmaWxlIGludG8gYSBjbGFzc2ljIGRhdGEgZnJhbWUgd2l0aG91dCBnZW9tZXRyeQpkYXRhX3Bmb2xpb190Y292ZXIgPSB1bm5lc3QocGFfcGZvbGlvX3Rjb3ZlciwgY29scz0idHJlZWNvdmVyX2FyZWEiKSAlPiUKICBzZjo6c3RfZHJvcF9nZW9tZXRyeSgpICU+JQogIGRwbHlyOjpzZWxlY3Qod2RwYWlkLCBhc3NldGlkLCB5ZWFycyx0cmVlY292ZXIpICU+JQogIG11dGF0ZSh0cmVlY292ZXIgPSBjYXNlX3doZW4odHJlZWNvdmVyID09IDAgfiBOQSwgVFJVRSB+IHRyZWVjb3ZlcikpICU+JQogIGZpbHRlcighaXMubmEodHJlZWNvdmVyKSkKCiNXcml0ZSB0aGUgZGF0YWZyYW1lIGludG8gdGhlIGJ1Y2tldApzM3dyaXRlX3VzaW5nKGRhdGFfcGZvbGlvX3Rjb3ZlciwKICAgICAgICAgICAgICBkYXRhLnRhYmxlOjpmd3JpdGUsCiAgICAgICAgICAgICAgb2JqZWN0ID0gImRhdGFfdGlkeS9tYXBtZV9iaW9fZGF0YS9kYXRhX3Bmb2xpb190Y292ZXIuY3N2IiwKICAgICAgICAgICAgICBidWNrZXQgPSAicHJvamV0LWFmZC1ldmEtYXAiLAogICAgICAgICAgICAgIG9wdHMgPSBsaXN0KCJyZWdpb24iID0gIiIpCiAgICAgICAgICAgICAgKQoKI0NvcHlpbmcgZmlsZXMgdG8gU1NQQ2xvdWQKIyNlbWlzc2lvbnMKZmlsZXNfZW1pIDwtIGxpc3QuZmlsZXMocGFzdGUodG1wLCAiZ2Z3X2VtaXNzaW9ucyIsIHNlcCA9ICIvIiksIAogICAgICAgICAgICAgICAgICAgICAgICBmdWxsLm5hbWVzID0gVFJVRSkKIyNBZGQgZWFjaCBmaWxlIGluIHRoZSBidWNrZXQgKHNhbWUgZm9sZXIgZm9yIGV2ZXJ5IGZpbGUgaW4gdGhlIHRlbXApCmZvcihmIGluIGZpbGVzX2VtaSkgCiAgewogIGNhdCgiVXBsb2FkaW5nIGZpbGUiLCBwYXN0ZTAoIiciLCBmLCAiJyIpLCAiXG4iKQogIGF3cy5zMzo6cHV0X29iamVjdChmaWxlID0gZiwgCiAgICAgICAgICAgICAgICAgICAgIGJ1Y2tldCA9ICJwcm9qZXQtYWZkLWV2YS1hcC9kYXRhX3Jhdy9tYXBtZV9iaW9fZGF0YS9nZndfZW1pc3Npb25zIiwgCiAgICAgICAgICAgICAgICAgICAgIHJlZ2lvbiA9ICIiLCBzaG93X3Byb2dyZXNzID0gVFJVRSkKfQoKIyNsb3NzIHllYXJzCmZpbGVzX2xvc3N5ZWFyIDwtIGxpc3QuZmlsZXMocGFzdGUodG1wLCAiZ2Z3X2xvc3N5ZWFyIiwgc2VwID0gIi8iKSwgCiAgICAgICAgICAgICAgICAgICAgICAgIGZ1bGwubmFtZXMgPSBUUlVFKQojI0FkZCBlYWNoIGZpbGUgaW4gdGhlIGJ1Y2tldCAoc2FtZSBmb2xlciBmb3IgZXZlcnkgZmlsZSBpbiB0aGUgdGVtcCkKZm9yKGYgaW4gZmlsZXNfZW1pKSAKICB7CiAgY2F0KCJVcGxvYWRpbmcgZmlsZSIsIHBhc3RlMCgiJyIsIGYsICInIiksICJcbiIpCiAgYXdzLnMzOjpwdXRfb2JqZWN0KGZpbGUgPSBmLCAKICAgICAgICAgICAgICAgICAgICAgYnVja2V0ID0gInByb2pldC1hZmQtZXZhLWFwL2RhdGFfcmF3L21hcG1lX2Jpb19kYXRhL2dmd19sb3NzeWVhciIsIAogICAgICAgICAgICAgICAgICAgICByZWdpb24gPSAiIiwgc2hvd19wcm9ncmVzcyA9IFRSVUUpCn0KCiMjVHJlZWNvdmVyIGxvc3MKZmlsZXNfdHJlZWNvdmVyIDwtIGxpc3QuZmlsZXMocGFzdGUodG1wLCAiZ2Z3X3RyZWVjb3ZlciIsIHNlcCA9ICIvIiksIAogICAgICAgICAgICAgICAgICAgICAgICBmdWxsLm5hbWVzID0gVFJVRSkKIyNBZGQgZWFjaCBmaWxlIGluIHRoZSBidWNrZXQgKHNhbWUgZm9sZXIgZm9yIGV2ZXJ5IGZpbGUgaW4gdGhlIHRlbXApCmZvcihmIGluIGZpbGVzX2VtaSkgCiAgewogIGNhdCgiVXBsb2FkaW5nIGZpbGUiLCBwYXN0ZTAoIiciLCBmLCAiJyIpLCAiXG4iKQogIGF3cy5zMzo6cHV0X29iamVjdChmaWxlID0gZiwgCiAgICAgICAgICAgICAgICAgICAgIGJ1Y2tldCA9ICJwcm9qZXQtYWZkLWV2YS1hcC9kYXRhX3Jhdy9tYXBtZV9iaW9fZGF0YS9nZndfdHJlZWNvdmVyIiwgCiAgICAgICAgICAgICAgICAgICAgIHJlZ2lvbiA9ICIiLCBzaG93X3Byb2dyZXNzID0gVFJVRSkKfQoKI1JlbW92aW5nIGZpbGVzIGZyb20gdGVtcApkby5jYWxsKGZpbGUucmVtb3ZlLCBsaXN0KGxpc3QuZmlsZXMocGFzdGUodG1wLCAiZ2Z3X2VtaXNzaW9ucyIsIHNlcCA9ICIvIiksIGZ1bGwubmFtZXMgPSBUUlVFKSkpCmRvLmNhbGwoZmlsZS5yZW1vdmUsIGxpc3QobGlzdC5maWxlcyhwYXN0ZSh0bXAsICJnZndfbG9zc3llYXIiLCBzZXAgPSAiLyIpLCBmdWxsLm5hbWVzID0gVFJVRSkpKQpkby5jYWxsKGZpbGUucmVtb3ZlLCBsaXN0KGxpc3QuZmlsZXMocGFzdGUodG1wLCAiZ2Z3X3RyZWVjb3ZlciIsIHNlcCA9ICIvIiksIGZ1bGwubmFtZXMgPSBUUlVFKSkpCgoKYGBgCgpgYGB7ciBtZXNzYWdlPUZBTFNFLCB3YXJuaW5nPUZBTFNFLCBldmFsID0gRkFMU0V9CgojI35+fn5+fn5+fn5+fn5+fn5+fgojIyAgfiBNYW5ncm92ZXMgLS0tLQojI35+fn5+fn5+fn5+fn5+fn5+fgoKIyNEb3dubG9hZGluZyBkYXRhIGFuZCBjb21wdXRpbmcgaW5kaWNhdG9ycyAKcGFfcGZvbGlvX21hbmcgPQogIGdldF9yZXNvdXJjZXMocGFfcGZvbGlvLAogICAgcmVzb3VyY2VzID0gYygiZ213IikpICU+JQogICMgRkFPIGZvcmVzdCBkZWZpbml0aW9uIGhlcmU6IE1pbmltdW0gdHJlZWNvdmVyID0gMTAlLCBtaW5pbXVtIHNpemUgPTEgICAgICAjaGVjdGFyZQogIGNhbGNfaW5kaWNhdG9ycyhpbmRpY2F0b3JzID0gIm1hbmdyb3Zlc19hcmVhIiwKICAgICAgICAgICAgICAgIG92ZXJ3cml0ZT1UKQoKIyNVbmVzdCB0aGUgc2YgZmlsZSBpbnRvIGEgY2xhc3NpYyBkYXRhIGZyYW1lIHdpdGhvdXQgZ2VvbWV0cnkKZGF0YV9wZm9saW9fbWFuZyA9IHVubmVzdChwYV9wZm9saW9fbWFuZywgY29scz0ibWFuZ3JvdmVzX2FyZWEiKSAlPiUKICBzZjo6c3RfZHJvcF9nZW9tZXRyeSgpICU+JQogIGRwbHlyOjpzZWxlY3Qod2RwYWlkLCBhc3NldGlkLCB5ZWFyLG1hbmdyb3ZlX2V4dGVudCkKIyBzM3dyaXRlX3VzaW5nKGRhdGFfcGZvbGlvX21hbmcsCiMgICAgICAgICAgICAgICBkYXRhLnRhYmxlOjpmd3JpdGUsCiMgICAgICAgICAgICAgICBvYmplY3QgPSAiZGF0YV90aWR5L21hcG1lX2Jpb19kYXRhL2RhdGFfcGZvbGlvX21hbmcuY3N2IiwKIyAgICAgICAgICAgICAgIGJ1Y2tldCA9ICJwcm9qZXQtYWZkLWV2YS1hcCIsCiMgICAgICAgICAgICAgICBvcHRzID0gbGlzdCgicmVnaW9uIiA9ICIiKQojICAgICAgICAgICAgICAgKQoKIyBkYXRhX3Bmb2xpb19tYW5nID0gczNyZWFkX3VzaW5nKGRhdGEudGFibGU6OmZyZWFkLAojICAgICAgICAgICAgICAgb2JqZWN0ID0gImRhdGFfdGlkeS9tYXBtZV9iaW9fZGF0YS9kYXRhX3Bmb2xpb19tYW5nLmNzdiIsCiMgICAgICAgICAgICAgICBidWNrZXQgPSAicHJvamV0LWFmZC1ldmEtYXAiLAojICAgICAgICAgICAgICAgb3B0cyA9IGxpc3QoInJlZ2lvbiIgPSAiIikKIyAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICkKCiNSZW1vdmluZyBmaWxlcyBmcm9tIHRlbXAKIyNlbWlzc2lvbnMKZmlsZXNfbWFuZyA8LSBsaXN0LmZpbGVzKHBhc3RlKHRtcCwgImdtdyIsIHNlcCA9ICIvIiksIAogICAgICAgICAgICAgICAgICAgICAgICBmdWxsLm5hbWVzID0gVFJVRSkKIyNBZGQgZWFjaCBmaWxlIGluIHRoZSBidWNrZXQgKHNhbWUgZm9sZXIgZm9yIGV2ZXJ5IGZpbGUgaW4gdGhlIHRlbXApCmZvcihmIGluIGZpbGVzX21hbmcpIAogIHsKICBjYXQoIlVwbG9hZGluZyBmaWxlIiwgcGFzdGUwKCInIiwgZiwgIiciKSwgIlxuIikKICBhd3MuczM6OnB1dF9vYmplY3QoZmlsZSA9IGYsIAogICAgICAgICAgICAgICAgICAgICBidWNrZXQgPSAicHJvamV0LWFmZC1ldmEtYXAvZGF0YV9yYXcvbWFwbWVfYmlvX2RhdGEvZ213IiwgCiAgICAgICAgICAgICAgICAgICAgIHJlZ2lvbiA9ICIiLCBzaG93X3Byb2dyZXNzID0gVFJVRSkKfQoKZG8uY2FsbChmaWxlLnJlbW92ZSwgbGlzdChsaXN0LmZpbGVzKHBhc3RlKHRtcCwgImdtdyIsIHNlcCA9ICIvIiksIGZ1bGwubmFtZXMgPSBUUlVFKSkpCmBgYAoKYGBge3IgbWVzc2FnZT1GQUxTRSwgd2FybmluZz1GQUxTRSwgZXZhbCA9IEZBTFNFfQoKIyN+fn5+fn5+fn5+fn5+fn5+fn5+fgojIyAgfiBMYW5kIGNvdmVyICAgLS0KIyN+fn5+fn5+fn5+fn5+fn5+fn5+fgoKIyNEb3dubG9hZGluZyBkYXRhIGFuZCBjb21wdXRpbmcgaW5kaWNhdG9ycyAKcGFfcGZvbGlvX2xhbmQgPSAKICBnZXRfcmVzb3VyY2VzKHBhX3Bmb2xpbywKICAgIHJlc291cmNlcyA9IGMoImVzYWxhbmRjb3ZlciIpKSAlPiUKICBjYWxjX2luZGljYXRvcnMoaW5kaWNhdG9ycyA9ICJsYW5kY292ZXIiLAogICAgICAgICAgICAgICAgb3ZlcndyaXRlPVQpIAoKIyNVbm5lc3QgZGF0YQpkYXRhX3Bmb2xpb19sYW5kID0gdW5uZXN0KHBhX3Bmb2xpb19sYW5kLCBjb2xzID0gImxhbmRjb3ZlciIpICU+JQogIHN0X2Ryb3BfZ2VvbWV0cnkoKSAlPiUKICBkcGx5cjo6c2VsZWN0KHdkcGFpZCwgYXNzZXRpZCwgeWVhciwgYXJlYSwgY2xhc3NlcykKczN3cml0ZV91c2luZyhkYXRhX3Bmb2xpb19sYW5kLAogICAgICAgICAgICAgIGRhdGEudGFibGU6OmZ3cml0ZSwKICAgICAgICAgICAgICBvYmplY3QgPSAiZGF0YV90aWR5L21hcG1lX2Jpb19kYXRhL2RhdGFfcGZvbGlvX2xhbmQuY3N2IiwKICAgICAgICAgICAgICBidWNrZXQgPSAicHJvamV0LWFmZC1ldmEtYXAiLAogICAgICAgICAgICAgIG9wdHMgPSBsaXN0KCJyZWdpb24iID0gIiIpCiAgICAgICAgICAgICAgKQoKIyBkYXRhX3Bmb2xpb19sYW5kID0gczNyZWFkX3VzaW5nKGRhdGEudGFibGU6OmZyZWFkLAojICAgICAgICAgICAgICAgb2JqZWN0ID0gImRhdGFfdGlkeS9tYXBtZV9iaW9fZGF0YS9kYXRhX3Bmb2xpb19sYW5kLmNzdiIsCiMgICAgICAgICAgICAgICBidWNrZXQgPSAicHJvamV0LWFmZC1ldmEtYXAiLAojICAgICAgICAgICAgICAgb3B0cyA9IGxpc3QoInJlZ2lvbiIgPSAiIikKIyAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICkKCmBgYAoKYGBge3IgbWVzc2FnZT1GQUxTRSwgd2FybmluZz1GQUxTRSwgZXZhbCA9IEZBTFNFfQoKIyN+fn5+fn5+fn5+fn5+fn5+fn5+CiMjICB+IEVtaXNzaW9ucyAgLS0tLQojI35+fn5+fn5+fn5+fn5+fn5+fn4KCiMgcGFfcGZvbGlvX2VtaSA9IAojICAgICBnZXRfcmVzb3VyY2VzKHBhX3Bmb2xpbywKIyAgICAgcmVzb3VyY2VzID0gYygiZ2Z3X2xvc3N5ZWFyIiwiZ2Z3X3RyZWVjb3ZlciIsImdmd19lbWlzc2lvbnMiKSwgCiMgICAgIHZlcnNfdHJlZWNvdmVyID0gIkdGQy0yMDIwLXYxLjgiLAojICAgICB2ZXJzX2xvc3N5ZWFyID0gIkdGQy0yMDIwLXYxLjgiKSAlPiUKIyAgICAgY2FsY19pbmRpY2F0b3JzKGluZGljYXRvcnMgPSAidHJlZWNvdmVybG9zc19lbWlzc2lvbnMiLAojICAgICAgICAgICAgICAgICAgIG1pbl9jb3ZlciA9IDMwLAojICAgICAgICAgICAgICAgICAgIG1pbl9zaXplID0gMSwgb3ZlcndyaXRlPVQpCgojIHdyaXRlX3BvcnRmb2xpbyhwYV9wZm9saW9fZW1pLAojICAgICAgIGRzbiA9ICJkYXRhX3RpZHkvbWFwbWVfYmlvX2RhdGEvcGFfcGZvbGlvX2VtaS5ncGtnIiwKIyAgICAgICBvdmVyd3JpdGUgPSBGQUxTRSkKCnBhX3Bmb2xpb19lbWkgPSByZWFkX3BvcnRmb2xpbygiZGF0YV90aWR5L21hcG1lX2Jpb19kYXRhL3BhX3Bmb2xpb19lbWkuZ3BrZyIpCgojIGRhdGFfcGZvbGlvX2VtaSA9IHVubmVzdChwYV9wZm9saW9fZW1pLAojICAgICAgICAgICAgICAgICAgIGNvbHM9InRyZWVjb3Zlcmxvc3NfZW1pc3Npb25zIikgJT4lCiMgICAgIHNmOjpzdF9kcm9wX2dlb21ldHJ5KCkgJT4lCiMgICAgIGRwbHlyOjpzZWxlY3QoaWRfcHIsd2RwYWlkLHllYXJzLGVtaXNzaW9ucykKCiMgZndyaXRlKGRhdGFfcGZvbGlvX2VtaSwKIyAgICAgICAgImRhdGFfdGlkeS9tYXBtZV9iaW9fZGF0YS9kYXRhX3Bmb2xpb19lbWkuY3N2IikKCmRhdGFfcGZvbGlvX2VtaSA9IGZyZWFkKCJkYXRhX3RpZHkvbWFwbWVfYmlvX2RhdGEvZGF0YV9wZm9saW9fZW1pLmNzdiIpCgoKYGBgCgpgYGB7ciBtZXNzYWdlPUZBTFNFLCB3YXJuaW5nPUZBTFNFLCBldmFsID0gRkFMU0V9CgojI35+fn5+fn5+fn5+fn5+fn5+fn5+CiMjICB+IEJpb21lICAgICAgIC0tLS0KIyN+fn5+fn5+fn5+fn5+fn5+fn5+fgoKIyNEb3dubG9hZGluZyBkYXRhIGFuZCBjb21wdXRpbmcgaW5kaWNhdG9ycyAKcGFfcGZvbGlvX2Jpb21lID0KICBnZXRfcmVzb3VyY2VzKHBhX3Bmb2xpbywKICAgIHJlc291cmNlcyA9IGMoInRlb3ciKSkgJT4lCiAgY2FsY19pbmRpY2F0b3JzKGluZGljYXRvcnMgPSAiYmlvbWUiLAogICAgICAgICAgICAgICAgb3ZlcndyaXRlPVQpCgojIHdyaXRlX3BvcnRmb2xpbyhwYV9wZm9saW9fYmlvbWUsIAojICAgICAgIGRzbiA9ICIwMV9kYXRhX3RpZHkvbWFwbWVfYmlvX2RhdGEvcGFfcGZvbGlvX2Jpb21lLmdwa2ciLAojICAgICAgIG92ZXJ3cml0ZSA9IEZBTFNFKQoKIyNVbmVzdCB0aGUgc2YgZmlsZSBpbnRvIGEgY2xhc3NpYyBkYXRhIGZyYW1lIHdpdGhvdXQgZ2VvbWV0cnkKIyBkYXRhX2Jpb21lID0gdW5uZXN0KHBhX3Bmb2xpb19iaW9tZSwgY29scz0iYmlvbWUiKSAlPiUKIyAgIHNmOjpzdF9kcm9wX2dlb21ldHJ5KCkgJT4lCiMgICBkcGx5cjo6c2VsZWN0KGlkX3ByLHdkcGFpZCx5ZWFyLG1hbmdyb3ZlX2V4dGVudCkKCgpgYGAKCmBgYHtyIG1lc3NhZ2U9RkFMU0UsIHdhcm5pbmc9RkFMU0UsIGV2YWwgPSBGQUxTRX0KCiMjfn5+fn5+fn5+fn5+fn5+fn5+fn4KIyMgIH4gU29pbCBmZWF0dXJlcyAtLQojI35+fn5+fn5+fn5+fn5+fn5+fn5+CgojLyFcIHZvaXIgcXVlbHMgaW5kaWNhdGV1cnMvbWVzdXJlcyBwcmVuZHJlICEhCgojI0Rvd25sb2FkaW5nIGRhdGEgYW5kIGNvbXB1dGluZyBpbmRpY2F0b3JzIAoKcGFfcGZvbGlvX3NvaWwgPSAKICBnZXRfcmVzb3VyY2VzKHBhX3Bmb2xpbywKICAgIHJlc291cmNlcyA9IGMoInNvaWxncmlkcyIpKSAlPiUKICAjIEZBTyBmb3Jlc3QgZGVmaW5pdGlvbiBoZXJlOiBNaW5pbXVtIHRyZWVjb3ZlciA9IDEwJSwgbWluaW11bSBzaXplID0xICAgICAgI2hlY3RhcmUKICBjYWxjX2luZGljYXRvcnMoaW5kaWNhdG9ycyA9ICJzb2lscHJvcGVydGllcyIsCiAgICAgICAgICAgICAgICBvdmVyd3JpdGU9VCkgCgojIHdyaXRlX3BvcnRmb2xpbyhwYV9wZm9saW9fbWFuZywgCiMgICAgICAgZHNuID0gIjAxX2RhdGFfdGlkeS9tYXBtZV9iaW9fZGF0YS9wYV9wZm9saW9fbWFuZy5ncGtnIiwKIyAgICAgICBvdmVyd3JpdGUgPSBGQUxTRSkKCiMjVW5lc3QgdGhlIHNmIGZpbGUgaW50byBhIGNsYXNzaWMgZGF0YSBmcmFtZSB3aXRob3V0IGdlb21ldHJ5CiMgZGF0YV9iaW9tZSA9IHVubmVzdChwYV9wZm9saW9fYmlvbWUsIGNvbHM9ImJpb21lIikgJT4lCiMgICBzZjo6c3RfZHJvcF9nZW9tZXRyeSgpICU+JQojICAgZHBseXI6OnNlbGVjdChpZF9wcix3ZHBhaWQseWVhcixtYW5ncm92ZV9leHRlbnQpCgoKCmBgYAoKYGBge3IgbWVzc2FnZT1GQUxTRSwgd2FybmluZz1GQUxTRSwgZXZhbCA9IEZBTFNFfQojI35+fn5+fn5+fn5+fn5+fn5+fn5+CiMjICB+IEFjY2Vzc2liaWxpdHkgLS0KIyN+fn5+fn5+fn5+fn5+fn5+fn5+fgoKIyNEb3dubG9hZGluZyBkYXRhIGFuZCBjb21wdXRpbmcgaW5kaWNhdG9ycyAKcGFfcGZvbGlvX2FjYyA9IAogIGdldF9yZXNvdXJjZXMoIm5lbHNvbl9ldF9hbCIsCiAgICAgICAgICAgICAgICByYW5nZV90cmF2ZWx0aW1lID0gYygiNWtfMTBrIiwgIjEwMGtfMjAwayIsIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIjUwMGtfMW1pbyIsICIxbWlvXzVtaW8iKSkgJT4lCiAgY2FsY19pbmRpY2F0b3JzKCJ0cmF2ZWx0aW1lIiwgCiAgICAgICAgICAgICAgICAgIHN0YXRzX2FjY2Vzc2liaWxpdHkgPSBjKCJtaW4iLCAibWF4IiksIAogICAgICAgICAgICAgICAgICBlbmdpbmUgPSAiZXh0cmFjdCIpCgojIHdyaXRlX3BvcnRmb2xpbyhwYV9wZm9saW9fbWFuZywgCiMgICAgICAgZHNuID0gIjAxX2RhdGFfdGlkeS9tYXBtZV9iaW9fZGF0YS9wYV9wZm9saW9fbWFuZy5ncGtnIiwKIyAgICAgICBvdmVyd3JpdGUgPSBGQUxTRSkKCiMjVW5lc3QgdGhlIHNmIGZpbGUgaW50byBhIGNsYXNzaWMgZGF0YSBmcmFtZSB3aXRob3V0IGdlb21ldHJ5CiMgZGF0YV9iaW9tZSA9IHVubmVzdChwYV9wZm9saW9fYmlvbWUsIGNvbHM9ImJpb21lIikgJT4lCiMgICBzZjo6c3RfZHJvcF9nZW9tZXRyeSgpICU+JQojICAgZHBseXI6OnNlbGVjdChpZF9wcix3ZHBhaWQseWVhcixtYW5ncm92ZV9leHRlbnQpCmBgYAoKRmFpcmUgdW5lIGZvbmN0aW9uIHBvdXIgbCdleHRyYWN0aW9uIGRlIHRvdXQgamV1IGRlIGRvbm7DqWVzID8gUsOpcMOpdGl0aWYgZW4gc29pdCBkZSBmYWlyZSBmb3LDqnRzLCBtYW5ncm92ZXMsIGV0Yy4KCldhcm5pbmcgYW5kIGVycm9ycyBmYWNlIGFuZCB0aGVpciBtZWFuaW5nLgoKLSAgICphbHRob3VnaCBjb29yZGluYXRlcyBhcmUgbG9uZ2l0dWRlL2xhdGl0dWRlLCBzdF9pbnRlcnNlY3RzIGFzc3VtZXMgdGhhdCB0aGV5IGFyZSBwbGFuYXIqLgoKICAgIC0gICBTZWUgPGh0dHBzOi8vci1zcGF0aWFsLm9yZy9yLzIwMjAvMDYvMTcvczIuaHRtbD4gYW5kIDxodHRwczovL3Itc3BhdGlhbC5naXRodWIuaW8vc2YvYXJ0aWNsZXMvc2Y3Lmh0bWwjPi4gQmFzaWNhbGx5IEkgdXNlZCBzZl91c2VfczIoRkFMU0UpIGF0IHRoZSBjcmVhdGlvbiBvZiB0aGUgcG9ydGZvbGlvLiBUaHVzIHNmIHVzZXMgZmxhdCBFYXJ0aCBtb2RlbCBpbnN0ZWFkIG9mIHMyIHNwaGVyaWNhbCBnZW9tZXRyeS4gVGhlIG9wZXJhdGlvbiBzdF9pbnRlcnNlY3RzIGFzc3VtZXMgdGhlIGRhdGEgbGllIGluIGEgZmxhdCBwbGFuZSB3aGVyZSBvbmUgZGVncmVlIGxvbmdpdHVkZSBlcXVhbHMgb25lIGRlZ3JlZSBsYXRpdHVkZSwgaXJyZXNwZWN0aXZlIHdoZXJlIHRoZSBQQSBpcyBvbiB0aGUgd29ybGQgKGVxdWlyZWN0YW5ndWxhciBwcm9qZWN0aW9uKS4gVGh1cyBpZiB0aGUgcG9seWdvbnMgYXJlIGRyYXduIGZyb20gY29vcmRpbmF0ZXMgaW4gYSBzcGhlcmljYWwgZ2VvbWV0cnksIHRoZSBvcGVyYXRpb24gaXMgcGVyZm9ybWVkIG9uIHRoZSB3cm9uZyBwcm9qZWN0aW9uLiBJcyBpdCBhIHByb2JsZW0gaW4gaXRzZWxmID8gV2VsbCBhcyBhIHByb2plY3Rpb24gaXMgYSBiaWplY3Rpb24gYmV0d2VlbiB0d28gY29vcmRpbmF0ZSBzeXN0ZW1zLCBwbHlnb25zIHRoYXQgaW50ZXJzZWN0IChvciBub3QpIGluIGEgcHJvamVjdGlvbiB3aWxsIGludGVyc2VjdCBpbiB0aGUgc2Vjb25kLiBIb3dldmVyIHRoZSBwb2x5Z29ucyB3aWxsIGJlIGRpc3RvcmRlZCAodGhlIG1vcmUgc28gYXMgdGhleSBhcmUgbG9jYXRlZCBjbG9zZXIgdG8gdGhlIHBvbGVzKSwgYW5kIHRoZSBhcmVhcyBjb21wdXRlZCBjb3VsZCBiZSB3cm9uZy4gQW55d2F5IGFjY29yZGluZyB0byB0aGUgZG9jdW1lbnRhdGlvbiB0aGUgV0RQQSBwb2x5Z29ucyBhcmUgcHJvdmlkZWQgaW4gV0dTODQgZ2VvZ3JhcGhpYyBjb29yZGluYXRlIHN5c3RlbSwgaS5lIGEgcGxhbmFyIHByb2plY3Rpb24gKFBsYXRlIENhcnJlZSkgLiBObyBwcm9ibGVtIHNob3VsZCBhcmlzZSBmcm9tIHRoZSB3YXJuaW5nIHRoZW4uCgogICAgLSAgIFNvIGFjY29yZGluZyB0byBGbG9yZW50IEJlZGVjYXJyYXRzLCB0aGlzIHdhcm5pbmcgaXMgcmVsYXRlZCB0byBhbiBvdGhlciBpc3N1ZS4gVGhlIHNwaGVyZSByZXByZXNlbnRpbmcgdGhlIEVhcnRoIGlzIHRyYW5zZm9ybWVkIGludG8gYSBwbGFuZSB0aHJvdWdoIGEgY3V0IG9uIGEgZ2l2ZW4gbGluZS4gSWYgYSBwb2x5Z29uIGlzIGxvY2F0ZWQgb24gdGhpcyBsaW5lLCB0aGUgZmxhdHRlbmVkIHBvbHlnb24gaXMgY29uc2lkZXJlZCB0byBnbyBhcm91bmQgdGhlIEVhcnRoLiBUbyB0ZXN0IGZvciB0aGlzIHBvc3NpYmlsaXR5LCBjb21wYXJlIHRoZSBhcmVhIG9mIHRoZSBwb2x5Z29uIHRvIHRoZSB0cnVlIGFyZWEgb2YgdGhlIFBBLgoKLSAgICpBdmlzIDogVElGRkZpbGxTdHJpcDpSZWFkIGVycm9yIGF0IHNjYW5saW5lIDQyOTQ5NjcyOTU7IGdvdCAwIGJ5dGVzLCBleHBlY3RlZCAxMzg3IChHREFMIGVycm9yIDEpQXZpcyA6IFRJRkZSZWFkRW5jb2RlZFN0cmlwKCkgZmFpbGVkLiAoR0RBTCBlcnJvciAxKS4qCgogICAgVGhpcyBhZHZpY2Ugb2NjdXJzIGR1cmluZyB0aGUgY29tcHV0YXRpb24gb2YgaW5kaWNhdG9ycyAoYSBmZXcgdGVudGhzIGZvciBlbWlzc2lvbnMpLiBGYWlsIHRvIHJlYWQgc29tZSBwYXJ0cyBvZiB0aGUgcmFzdGVyIGZpbGUgPyBJcyBpdCBwcm9ibGVtYXRpYyBmb3IgdGhlIHdob2xlIHByb2Nlc3MgPwoKICAgIEJlc3Qgc29sdXRpb24gOiByZW1vdmUgdGhlIGNvcnJlc3BvbmRpbmcgVElGRiBhbmQgZG93bmxvYWQgZGF0YSBhZ2Fpbi4KCi0gICAqQXZpcyA6IEQ6L3Byb2pldF9BaXJlc1Byb3RlZ2Vlcy8wMF9kYXRhX3Jhdy9tYXBtZV9iaW9fZGF0YS9nZndfbG9zc3llYXIvSGFuc2VuX0dGQy0yMDIwLXYxLjhfbG9zc3llYXJfMTBOXzAxMEUudGlmLCBiYW5kIDE6IElSZWFkQmxvY2sgZmFpbGVkIGF0IFggb2Zmc2V0IDAsIFkgb2Zmc2V0IDI5OTk1OiBUSUZGUmVhZEVuY29kZWRTdHJpcCgpIGZhaWxlZC4gKEdEQUwgZXJyb3IgMSkqCgogICAgU2FtZSBhcyBiZWZvcmUuIEJlc3Qgc29sdXRpb24gOiByZW1vdmUgdGhlIGNvcnJlc3BvbmRpbmcgVElGRiBhbmQgZG93bmxvYWQgZGF0YSBhZ2Fpbi4KCi0gICAqQXZpcyA6IEVycm9yIDogW2Nyb3BdIGluY29ycmVjdCBudW1iZXIgb2YgdmFsdWVzICh0b28gbWFueSkgZm9yIHdyaXRpbmcqCgogICAgQ2hlY2sgdGhlIGVycm9yIGluIG1vcmUgZGV0YWlscy4KCiMjIENvbXB1dGluZyBzdGF0aXN0aWNzCgpGcm9tIHRoZSBkYXRhc2V0cyBvYnRhaW5lZCwgc3RhdGlzdGljcyBvZiBpbnRlcmVzdCBjYW4gYmUgY29tcHV0ZWQgYW5kIHBsb3R0ZWQuCgojIyMgRm9yZXN0cwoKVmFyaWF0aW9uIG9mIGZvcmVzdCBsb3NzIG92ZXIgdGltZSA6CgotICAgQnVpbGRpbmcgdGhlIGZpZ3VyZSBkYXRhc2V0CgpgYGB7ciwgZXZhbCA9IEZBTFNFfQojQnVpbGRpbmcgdGhlIGRhdGFzZXQKZGF0YV9zdGF0X3RyZWVsb3NzID0gZGF0YV9wZm9saW9fZm9yZXN0ICU+JQogIGdyb3VwX2J5KG5tX2FwKSAlPiUgCiAgI0NvbW91dGUgdmFyaWF0aW9uIG92ZXIgdGltZSBpbiBlYWNoIFBBCiAgbXV0YXRlKGxhZ190cmVlY292ID0gbGFnKHRyZWVjb3ZlciksCiAgICAgICAgIGxvc3MgPSAoKHRyZWVjb3ZlciAtIGxhZ190cmVlY292KS9sYWdfdHJlZWNvdikqMTAwKSAlPiUKICB1bmdyb3VwKCkgJT4lCiAgI1JlZ3JvdXAgeWVhcnMgZm9yIGFuYWx5c2lzIGluIGZpdmUgeWVhcnMgaW50ZXJ2YWxzCiAgbXV0YXRlKHllYXJzX3JlZ3JvdXAgPSBjYXNlX3doZW4oCiAgeWVhcnMgPD0gMjAwNSB+ICIyMDAwLTIwMDUiLAogIHllYXJzIDw9IDIwMTAgfiAiMjAwNS0yMDEwIiwKICB5ZWFycyA8PSAyMDE1IH4gIjIwMTAtMjAxNSIsCiAgeWVhcnMgPD0yMDIwIH4gIjIwMTUtMjAyMCIsCiAgVFJVRSB+IE5BKSwKICAuYWZ0ZXIgPSB5ZWFycykgJT4lCiAgI1JlbW92ZSBOQSB2YWx1ZXMgZm9yIGxvc3MKICBmaWx0ZXIoIWlzLm5hKGxvc3MpKSAlPiUKICAjQ29tcHV0ZSBtZWFuIGxvc3MgZm9yIGZpdmUgeWVhcnMgaW50ZXJ2YWxzIGluIGVhY2ggUEEKICBncm91cF9ieShubV9hcCwgeWVhcnNfcmVncm91cCkgJT4lCiAgbXV0YXRlKG1veV81ID0gbWVhbihsb3NzKSkgJT4lCiAgdW5ncm91cCgpCgpgYGAKCi0gICBTdGF0aXN0aWNzIGF0IFBBIGxldmVsCgpgYGB7ciBtZXNzYWdlPUZBTFNFLCB3YXJuaW5nPUZBTFNFLCBldmFsID0gRkFMU0V9CgojRXZvbHV0aW9uIGZvciBhIGdpdmVuIFBBCiMjQnViYQpzdGF0X2ZvcmVzdF9idWJhID0gc3RhdF90cmVlbG9zc19pZChkZiA9IGRhdGFfc3RhdF90cmVlbG9zcywKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgaWQgPSAiMzE3MDUxIiwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgbmFtZV9wYSA9ICJBUCBCdWJhIiwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgdHJlYXRtZW50X3lyID0gMjAwNykKZmlnX2V2b19idWJhID0gc3RhdF9mb3Jlc3RfYnViYVtbMV1dCmdnc2F2ZShwbG90ID0gZmlnX2V2b19idWJhLAogICAgICAgZmlsZW5hbWUgPSAiZmlnX2ZvcmVzdF9sb3NzX2V2b19hcF9idWJhLnBuZyIsCiAgICAgICBwYXRoID0gIjA1X1N0YXREZXMvYmlvZGl2ZXJzaXR5L2ZvcmVzdC9sb3NzIiwKICAgICAgIHdpZHRoID0gNywgaGVpZ2h0ID0gNSkKZmlnX2V2bzVfYnViYSA9IHN0YXRfZm9yZXN0X2J1YmFbWzJdXQpnZ3NhdmUocGxvdCA9IGZpZ19ldm81X2J1YmEsCiAgICAgICBmaWxlbmFtZSA9ICJmaWdfZm9yZXN0X2xvc3NfZXZvNV9hcF9idWJhLnBuZyIsCiAgICAgICBwYXRoID0gIjA1X1N0YXREZXMvYmlvZGl2ZXJzaXR5L2ZvcmVzdC9sb3NzIiwKICAgICAgIHdpZHRoID0gNywgaGVpZ2h0ID0gNSkKCiNOaXVtaQpzdGF0X2ZvcmVzdF9uaXVtaSA9IHN0YXRfdHJlZWxvc3NfaWQoZGYgPSBkYXRhX3N0YXRfdHJlZWxvc3MsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGlkID0gIjEwOTAzNyIsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIG5hbWVfcGEgPSAiQVAgTml1bWkiLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB0cmVhdG1lbnRfeXIgPSAyMDA4KQpmaWdfZXZvX25pdW1pID0gc3RhdF9mb3Jlc3Rfbml1bWlbWzFdXQpnZ3NhdmUocGxvdCA9IGZpZ19ldm9fbml1bWksCiAgICAgICBmaWxlbmFtZSA9ICJmaWdfZm9yZXN0X2xvc3NfZXZvX2FwX25pdW1pLnBuZyIsCiAgICAgICBwYXRoID0gIjA1X1N0YXREZXMvYmlvZGl2ZXJzaXR5L2ZvcmVzdC9sb3NzIiwKICAgICAgIHdpZHRoID0gNywgaGVpZ2h0ID0gNSkKZmlnX2V2bzVfbml1bWkgPSBzdGF0X2ZvcmVzdF9uaXVtaVtbMl1dCmdnc2F2ZShwbG90ID0gZmlnX2V2bzVfbml1bWksCiAgICAgICBmaWxlbmFtZSA9ICJmaWdfZm9yZXN0X2xvc3NfZXZvNV9hcF9uaXVtaS5wbmciLAogICAgICAgcGF0aCA9ICIwNV9TdGF0RGVzL2Jpb2RpdmVyc2l0eS9mb3Jlc3QvbG9zcyIsCiAgICAgICB3aWR0aCA9IDcsIGhlaWdodCA9IDUpCgojQmFtYm91bmcKc3RhdF9mb3Jlc3RfYmFtYm91bmcgPSBzdGF0X3RyZWVsb3NzX2lkKGRmID0gZGF0YV9zdGF0X3RyZWVsb3NzLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBpZCA9ICI1NTU2NTE0OTYiLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBuYW1lX3BhID0gIkFQIEJhbWJvdW5nIiwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgdHJlYXRtZW50X3lyID0gMjAwOCkKZmlnX2V2b19iYW1ib3VuZyA9IHN0YXRfZm9yZXN0X2JhbWJvdW5nW1sxXV0KZ2dzYXZlKHBsb3QgPSBmaWdfZXZvX2JhbWJvdW5nLAogICAgICAgZmlsZW5hbWUgPSAiZmlnX2ZvcmVzdF9sb3NzX2V2b19hcF9iYW1ib3VuZy5wbmciLAogICAgICAgcGF0aCA9ICIwNV9TdGF0RGVzL2Jpb2RpdmVyc2l0eS9mb3Jlc3QvbG9zcyIsCiAgICAgICB3aWR0aCA9IDcsIGhlaWdodCA9IDUpCmZpZ19ldm81X2JhbWJvdW5nID0gc3RhdF9mb3Jlc3RfYmFtYm91bmdbWzJdXQpnZ3NhdmUocGxvdCA9IGZpZ19ldm81X2JhbWJvdW5nLAogICAgICAgZmlsZW5hbWUgPSAiZmlnX2ZvcmVzdF9sb3NzX2V2bzVfYXBfYmFtYm91bmcucG5nIiwKICAgICAgIHBhdGggPSAiMDVfU3RhdERlcy9iaW9kaXZlcnNpdHkvZm9yZXN0L2xvc3MiLAogICAgICAgd2lkdGggPSA3LCBoZWlnaHQgPSA1KQoKCgoKYGBgCgovIVxcIE1vZGlmaWVyIGxlIGNvZGUgcHLDqWPDqWRlbnQgcG91ciBpbmNsdXJlIHBsdXNpZXVycyBhaXJlcyA/Pz8KCi0gICBTdGF0aXN0aWNzIGF0IHJlZ2lvbiBsZXZlbAoKYGBge3IsIGV2YWwgPSBGQUxTRX0KI0V2b2x1dGlvbiBhdCByZWdpb24gbGV2ZWwgOiBkYXRhc2V0CmRhdGFfc3RhdF90cmVlbG9zc19yZWcgPSBkYXRhX3N0YXRfdHJlZWxvc3MgJT4lCiAgZ3JvdXBfYnkoZHJjdCwgeWVhcnMpICU+JQogICNGb3IgZWFjaCByZWdpb24gYW5kIGVhY2ggcGVyaW9kLCBjb21wdXRlIGF2ZXJhZ2UgZXZvbHV0aW9uCiAgbXV0YXRlKGV2b19hdmdfcmVnID0gbWVhbih0cmVlY292ZXIpKSAlPiUKICB1bmdyb3VwKCkgJT4lCiAgZ3JvdXBfYnkoZHJjdCkgJT4lIAogICNWYXJpYXRpb24gb2YgdGhlIGF2ZXJhZ2UgZXZvbHV0aW9uIG92ZXIgdGltZSBpbiBlYWNoIHJlZ2lvbgogIG11dGF0ZShsYWdfcmVnaW9uID0gbGFnKGV2b19hdmdfcmVnKSwKICAgICAgICAgbG9zc19yZWdpb24gPSAoKGV2b19hdmdfcmVnIC0gbGFnX3JlZ2lvbikvbGFnX3JlZ2lvbikqMTAwKSAlPiUKICAjcmVtb3ZlIDIwMDEgOiBlaXRoZXIgTkEsIG9yIHRha2UgdmFsdWUgYWJvdmUgd2hlbiB0d28gcmVnaW9ucyBhcmUgY29uc2VjdXRpdmUgaW4gdGhlIGRhdGEgZnJhbWUgKGxhZyBieSByZWdpb24gbm90IGFwcGxpZWQpID8/PwogIG11dGF0ZShsb3NzX3JlZ2lvbiA9IGNhc2Vfd2hlbigKICAgICFpcy5uYShsb3NzX3JlZ2lvbikgJiB5ZWFycyA9PSAyMDAxIH4gTkEsCiAgICBUUlVFIH5sb3NzX3JlZ2lvbikpCgojU2FoZWwKZmlnX2V2b19zYWhlbCA9IHN0YXRfdHJlZWxvc3NfcmVnKGRmID0gZGF0YV9zdGF0X3RyZWVsb3NzX3JlZywKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJlZyA9ICJEciBHcmFuZCBTYWhlbCIsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBuYW1lX3JlZyA9ICJTYWhlbCIpCmdnc2F2ZShwbG90ID0gZmlnX2V2b19zYWhlbCwKICAgICAgIGZpbGVuYW1lID0gImZpZ19mb3Jlc3RfbG9zc19ldm9fcmVnX3NhaGVsLnBuZyIsCiAgICAgICBwYXRoID0gIjA1X1N0YXREZXMvYmlvZGl2ZXJzaXR5L2ZvcmVzdC9sb3NzIiwKICAgICAgIHdpZHRoID0gNywgaGVpZ2h0ID0gNSkKCiNHdWluZWEgZ3VsZgpmaWdfZXZvX2d1aW5lZSA9IHN0YXRfdHJlZWxvc3NfcmVnKGRmID0gZGF0YV9zdGF0X3RyZWVsb3NzX3JlZywKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJlZyA9ICJEciBHb2xmZSBEZSBHdWluZWUiLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgbmFtZV9yZWcgPSAiR29sZmUgZGUgR3VpbsOpZSIpCgpnZ3NhdmUocGxvdCA9IGZpZ19ldm9fZ3VpbmVlLAogICAgICAgZmlsZW5hbWUgPSAiZmlnX2ZvcmVzdF9sb3NzX2V2b19yZWdfZ3VpbmVlLnBuZyIsCiAgICAgICBwYXRoID0gIjA1X1N0YXREZXMvYmlvZGl2ZXJzaXR5L2ZvcmVzdC9sb3NzIiwKICAgICAgIHdpZHRoID0gNywgaGVpZ2h0ID0gNSkKCiNFYXN0ZXJuIEFmcmljYQpmaWdfZXZvX2Vhc3RBZiA9IHN0YXRfdHJlZWxvc3NfcmVnKGRmID0gZGF0YV9zdGF0X3RyZWVsb3NzX3JlZywKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJlZyA9ICJEciBBZnJpcXVlIERlIEwnRXN0IiwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIG5hbWVfcmVnID0gIkFmcmlxdWUgZGUgbCdFc3QiKQpnZ3NhdmUocGxvdCA9IGZpZ19ldm9fZWFzdEFmLAogICAgICAgZmlsZW5hbWUgPSAiZmlnX2ZvcmVzdF9sb3NzX2V2b19yZWdfZWFzdEFmLnBuZyIsCiAgICAgICBwYXRoID0gIjA1X1N0YXREZXMvYmlvZGl2ZXJzaXR5L2ZvcmVzdC9sb3NzIiwKICAgICAgIHdpZHRoID0gNywgaGVpZ2h0ID0gNSkKCiNFYXN0ZXJuIEFmcmljYQpmaWdfZXZvX2F1c3RBZiA9IHN0YXRfdHJlZWxvc3NfcmVnKGRmID0gZGF0YV9zdGF0X3RyZWVsb3NzX3JlZywKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJlZyA9ICJEciBBZnJpcXVlIEF1c3RyYWxlIiwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIG5hbWVfcmVnID0gIkFmcmlxdWUgYXVzdHJhbGUiKQoKZ2dzYXZlKHBsb3QgPSBmaWdfZXZvX2F1c3RBZiwKICAgICAgIGZpbGVuYW1lID0gImZpZ19mb3Jlc3RfbG9zc19ldm9fcmVnX2F1c3RBZi5wbmciLAogICAgICAgcGF0aCA9ICIwNV9TdGF0RGVzL2Jpb2RpdmVyc2l0eS9mb3Jlc3QvbG9zcyIsCiAgICAgICB3aWR0aCA9IDcsIGhlaWdodCA9IDUpCgpgYGAKCiMjIyBNYW5ncm92ZQoKU3VtbWFyeSB0YWJsZSBvZiBtYW5ncm92ZSBhcmVhIGluIGVhY2ggUEEgOgoKYGBge3IsIGV2YWwgPSBGQUxTRX0KdGJsX21hbmdfc3VtbWFyeSA9IGRhdGFfbWFuZyAlPiUKICBkcGx5cjo6Z3JvdXBfYnkod2RwYWlkKSAlPiUKICBzdW1tYXJpemUoYXJlYV9zcWttID0gc3VtKHZhbHVlKSkKYGBgCgojIyMgRW1pc3Npb25zCgovIVxcIHBhcyBjbGFpcgoKU3VtbWFyeSB0YWJsZSBvZiBlbWlzc2lvbnMgaW4gZWFjaCBQQSA6CgpgYGB7ciwgZXZhbCA9IEZBTFNFfQojIGNyZWF0ZSBzdW1tYXJ5IHRhYmxlIAp0YmxfZW1pX3N1bW1hcnkgPSBkYXRhX2VtaSAlPiUKICBncm91cF9ieShuYW1lKSAlPiUKICBzdW1tYXJpemUoYXJlYV9zcWttID0gc3VtKHZhbHVlKSkKYGBgCgojIyMgQmlvbWUvVEVPVwo=</div>
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+<script>
+$(document).ready(function () {
+  window.initializeSourceEmbed("01_stat_biodiv.Rmd");
+  window.initializeCodeFolding("hide" === "show");
+});
+</script>
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

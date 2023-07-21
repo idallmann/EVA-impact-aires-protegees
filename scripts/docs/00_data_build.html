@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+
+
+<title>00_data_build.knit</title>
+
+<script src="site_libs/header-attrs-2.23/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/bootstrap.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<script src="site_libs/navigation-1.1/codefolding.js"></script>
+<script src="site_libs/navigation-1.1/sourceembed.js"></script>
+<link href="site_libs/font-awesome-6.4.0/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.4.0/css/v4-shims.min.css" rel="stylesheet" />
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+
+
+<style type="text/css">
+  code {
+    white-space: pre;
+  }
+  .sourceCode {
+    overflow: visible;
+  }
+</style>
+<style type="text/css" data-origin="pandoc">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; } /* Alert */
+code span.an { color: #008000; } /* Annotation */
+code span.at { } /* Attribute */
+code span.bu { } /* BuiltIn */
+code span.cf { color: #0000ff; } /* ControlFlow */
+code span.ch { color: #008080; } /* Char */
+code span.cn { } /* Constant */
+code span.co { color: #008000; } /* Comment */
+code span.cv { color: #008000; } /* CommentVar */
+code span.do { color: #008000; } /* Documentation */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.im { } /* Import */
+code span.in { color: #008000; } /* Information */
+code span.kw { color: #0000ff; } /* Keyword */
+code span.op { } /* Operator */
+code span.ot { color: #ff4000; } /* Other */
+code span.pp { color: #ff4000; } /* Preprocessor */
+code span.sc { color: #008080; } /* SpecialChar */
+code span.ss { color: #008080; } /* SpecialString */
+code span.st { color: #008080; } /* String */
+code span.va { } /* Variable */
+code span.vs { color: #008080; } /* VerbatimString */
+code span.wa { color: #008000; font-weight: bold; } /* Warning */
+
+.sourceCode .row {
+  width: 100%;
+}
+.sourceCode {
+  overflow-x: auto;
+}
+.code-folding-btn {
+  margin-right: -30px;
+}
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+<style type="text/css">
+#rmd-source-code {
+  display: none;
+}
+</style>
+
+
+<link rel="stylesheet" href="style.css" type="text/css" />
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+<style type="text/css">
+.code-folding-btn { margin-bottom: 4px; }
+</style>
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html"></a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">
+    <span class="fa fa-home"></span>
+     
+  </a>
+</li>
+<li>
+  <a href="00_data_build.html">Building the datasets</a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    Descriptive statistics
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="01_stat_project.html">Project</a>
+    </li>
+    <li>
+      <a href="01_stat_biodiv.html">Biodiversity</a>
+    </li>
+  </ul>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    Impact Analysis
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="02_matching.html">Matching</a>
+    </li>
+  </ul>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/vuillota/EVA-impact-aires-protegees.git">
+    <span class="fa fa-github fa-lg"></span>
+     
+  </a>
+</li>
+<li>
+  <a href="mailto:vuillota@afd.fr">
+    <span class="fa fa-envelope fa-lg"></span>
+     
+  </a>
+</li>
+<li>
+  <a href="about.html">
+    <span class="fa fa-info"></span>
+     
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+<div class="btn-group pull-right float-right">
+<button type="button" class="btn btn-default btn-xs btn-secondary btn-sm dropdown-toggle" data-toggle="dropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span>Code</span> <span class="caret"></span></button>
+<ul class="dropdown-menu dropdown-menu-right" style="min-width: 50px;">
+<li><a id="rmd-show-all-code" href="#">Show All Code</a></li>
+<li><a id="rmd-hide-all-code" href="#">Hide All Code</a></li>
+<li role="separator" class="divider"></li>
+<li><a id="rmd-download-source" href="#">Download Rmd</a></li>
+</ul>
+</div>
+
+
+
+
+</div>
+
+
+<div id="building-the-database-on-pas" class="section level1"
+number="1">
+<h1><span class="header-section-number">1</span> Building the database
+on PAs</h1>
+<div id="importing-relevant-packages" class="section level2"
+number="1.1">
+<h2><span class="header-section-number">1.1</span> Importing relevant
+packages</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="fu">library</span>(stargazer)</span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="fu">library</span>(data.table)</span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a><span class="fu">library</span>(readxl)</span>
+<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a><span class="fu">library</span>(splitstackshape) </span>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a><span class="fu">library</span>(janitor)</span>
+<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a><span class="fu">library</span>(stringi)</span>
+<span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a><span class="fu">library</span>(sf)</span>
+<span id="cb1-10"><a href="#cb1-10" tabindex="-1"></a><span class="fu">library</span>(mapview)</span></code></pre></div>
+</div>
+<div id="datasets-for-descriptive-statistics" class="section level2"
+number="1.2">
+<h2><span class="header-section-number">1.2</span> Datasets for
+descriptive statistics</h2>
+<p>The raw dataset has been built by Léa Poulin. It comes from the
+merging of SIOP extract, and PAs dataset from ARB covering 2000-2017
+period. Majority of PAs had no corresponding WDPA ID, so it was found
+and reported manually by Léa Poulin and Ingrid Dallmann on WDPA
+website.</p>
+<p>Different datasets are built. First a dataset (data_PA_tidy) enriched
+of information on co-investors and ISO code for the country hosting the
+PA.</p>
+<p>From this dataset are extracted : (1) a dataset with only SIOP
+variables, to allow future working on PAs; (2) a dataset to perform most
+descriptive statistics, except confidential ones related to funding; (3)
+a confidential dataset with funding data.</p>
+<p>Then a dataset of PAs polygons is imported from the WDPA, and
+confidential data removed.</p>
+<p>Some statistics need size of PAs at country/region/world level
+(evolution of area covered by PAs at world level for instance). Datasets
+with total areas at country/region/world level are created. As many
+areas overlap (according to WDPA documentation), a sum of reported area
+would overestimate aggregated area. The computation method of WDPA is
+followed (<a
+href="https://www.protectedplanet.net/en/resources/calculating-protected-area-coverage"
+class="uri">https://www.protectedplanet.net/en/resources/calculating-protected-area-coverage</a>).</p>
+<div id="cleaning-the-raw-dataset" class="section level3"
+number="1.2.1">
+<h3><span class="header-section-number">1.2.1</span> Cleaning the raw
+dataset</h3>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="co">#import a dataset with country names and corresponding ISO3 code</span></span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>data_iso <span class="ot">=</span> <span class="fu">fread</span>(<span class="st">&quot;data_raw/liste-197-etats-2020.csv&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="st">&quot;iso3&quot;</span> <span class="ot">=</span> <span class="st">&quot;CODE&quot;</span>,</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>         <span class="st">&quot;nom_alpha&quot;</span> <span class="ot">=</span> <span class="st">&quot;NOM_ALPHA&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="fu">c</span>(<span class="st">&quot;nom_alpha&quot;</span>, <span class="st">&quot;iso3&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>  <span class="co">#get rid of accentuations and change name by hand to correspond with BDD_joint</span></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">nom_alpha2 =</span> <span class="fu">iconv</span>(nom_alpha, <span class="at">to =</span> <span class="st">&quot;ASCII//TRANSLIT&quot;</span>),</span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>         <span class="at">nom_alpha2 =</span> <span class="fu">case_when</span>(</span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>           nom_alpha2 <span class="sc">==</span> <span class="st">&quot;Cook (Iles)&quot;</span> <span class="sc">~</span> <span class="st">&quot;Cook&quot;</span>,</span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>           nom_alpha2 <span class="sc">==</span> <span class="st">&quot;Cote d&#39;Ivoire&quot;</span> <span class="sc">~</span> <span class="st">&quot;Cote D Ivoire&quot;</span>,</span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>           nom_alpha2 <span class="sc">==</span> <span class="st">&quot;Sao Tome-et-Principe&quot;</span> <span class="sc">~</span> <span class="st">&quot;Sao Tome&quot;</span>,</span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a>           nom_alpha2 <span class="sc">==</span> <span class="st">&quot;Palaos&quot;</span> <span class="sc">~</span> <span class="st">&quot;Palau&quot;</span>,</span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>           nom_alpha2 <span class="sc">==</span> <span class="st">&quot;Guinee-Bissao&quot;</span> <span class="sc">~</span> <span class="st">&quot;Guinee-Bissau&quot;</span>,</span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>           <span class="sc">!</span>(nom_alpha <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;Cook (Iles)&quot;</span>, <span class="st">&quot;Cote d&#39;Ivoire&quot;</span>, <span class="st">&quot;Sao Tome-et-Principe&quot;</span>,</span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a>                              <span class="st">&quot;Palaos&quot;</span>, <span class="st">&quot;Guinée-Bissao&quot;</span>)) <span class="sc">~</span> nom_alpha2</span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a>         ))</span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a></span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a><span class="co">#Import the initial BDD_joint, change the encoding to keep accentuation </span></span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a>data_PA_raw <span class="ot">=</span> <span class="fu">read_excel</span>(<span class="st">&quot;data_raw/BDD_joint.xlsx&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a>  <span class="fu">as.data.frame</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="fu">across</span>(<span class="at">.cols =</span> <span class="fu">names</span>(.), </span>
+<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a>                <span class="at">.fns =</span> <span class="sc">~</span><span class="fu">stri_enc_toutf8</span>(.x)))</span>
+<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a></span>
+<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a><span class="co">#Modify errors in the dataset</span></span>
+<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a><span class="do">##WDPAID 797 in Senegal</span></span>
+<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a>data_PA_raw[data_PA_raw<span class="sc">$</span>wdpaid <span class="sc">==</span> <span class="st">&quot;797&quot;</span> <span class="sc">&amp;</span> data_PA_raw<span class="sc">$</span>pays <span class="sc">==</span> <span class="st">&quot;Senegal&quot;</span>,]<span class="sc">$</span>nom_ap <span class="ot">=</span> <span class="st">&quot;APAC de Kawawana&quot;</span></span>
+<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a>data_PA_raw[data_PA_raw<span class="sc">$</span>wdpaid <span class="sc">==</span> <span class="st">&quot;797&quot;</span> <span class="sc">&amp;</span> data_PA_raw<span class="sc">$</span>pays <span class="sc">==</span> <span class="st">&quot;Senegal&quot;</span>,]<span class="sc">$</span>wdpaid <span class="ot">=</span> <span class="cn">NA</span></span>
+<span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a><span class="do">##4223, 4224, 4226, 4228, 4229 : all in PS-N.Caledonie</span></span>
+<span id="cb2-29"><a href="#cb2-29" tabindex="-1"></a>data_PA_raw[data_PA_raw<span class="sc">$</span>wdpaid <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;4223&quot;</span>, <span class="st">&quot;4224&quot;</span>, <span class="st">&quot;4226&quot;</span>, <span class="st">&quot;4228&quot;</span>, <span class="st">&quot;4229&quot;</span>) <span class="sc">&amp;</span> data_PA_raw<span class="sc">$</span>pays <span class="sc">==</span> <span class="st">&quot;Fidji&quot;</span>,]<span class="sc">$</span>pays <span class="ot">=</span> <span class="st">&quot;P-S N.Caléd&quot;</span></span>
+<span id="cb2-30"><a href="#cb2-30" tabindex="-1"></a><span class="do">##305082 : Vanuatu instead of Fidji</span></span>
+<span id="cb2-31"><a href="#cb2-31" tabindex="-1"></a>data_PA_raw[data_PA_raw<span class="sc">$</span>wdpaid <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;305082&quot;</span>) <span class="sc">&amp;</span> data_PA_raw<span class="sc">$</span>pays <span class="sc">==</span> <span class="st">&quot;Fidji&quot;</span>,]<span class="sc">$</span>pays <span class="ot">=</span> <span class="st">&quot;Vanuatu&quot;</span></span>
+<span id="cb2-32"><a href="#cb2-32" tabindex="-1"></a></span>
+<span id="cb2-33"><a href="#cb2-33" tabindex="-1"></a></span>
+<span id="cb2-34"><a href="#cb2-34" tabindex="-1"></a><span class="co">#Create a clean dataset with relevant variables</span></span>
+<span id="cb2-35"><a href="#cb2-35" tabindex="-1"></a>data_PA_tidy <span class="ot">=</span> data_PA_raw <span class="sc">%&gt;%</span></span>
+<span id="cb2-36"><a href="#cb2-36" tabindex="-1"></a>  <span class="co">#Get rid of the iso code in the initial dataset, to avoid confusion when merging with data_iso</span></span>
+<span id="cb2-37"><a href="#cb2-37" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="sc">-</span>iso3) <span class="sc">%&gt;%</span></span>
+<span id="cb2-38"><a href="#cb2-38" tabindex="-1"></a>  <span class="co">#Create dummy variables for main investors</span></span>
+<span id="cb2-39"><a href="#cb2-39" tabindex="-1"></a>  <span class="co">#AFD is always funder, so no need of a dummy</span></span>
+<span id="cb2-40"><a href="#cb2-40" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb2-41"><a href="#cb2-41" tabindex="-1"></a>    <span class="co"># afd_bin = case_when((cofinancier_1 == &quot;AFD&quot; | cofinancier_2 == &quot;AFD&quot; | cofinancier_3 == &quot;AFD&quot; |</span></span>
+<span id="cb2-42"><a href="#cb2-42" tabindex="-1"></a>    <span class="co">#                       cofinancier_4 == &quot;AFD&quot; | cofinancier_5 == &quot;AFD&quot; | cofinancier_6 == &quot;AFD&quot;) ~ TRUE,</span></span>
+<span id="cb2-43"><a href="#cb2-43" tabindex="-1"></a>    <span class="co">#                       (is.na(cofinancier_1) &amp; is.na(cofinancier_2) &amp; is.na(cofinancier_3) &amp; is.na(cofinancier_4) </span></span>
+<span id="cb2-44"><a href="#cb2-44" tabindex="-1"></a>    <span class="co">#                       &amp; is.na(cofinancier_5) &amp; is.na(cofinancier_6)) ~ TRUE,</span></span>
+<span id="cb2-45"><a href="#cb2-45" tabindex="-1"></a>    <span class="co">#                       TRUE ~ FALSE),</span></span>
+<span id="cb2-46"><a href="#cb2-46" tabindex="-1"></a>         <span class="at">kfw_bin =</span> <span class="fu">ifelse</span>(cofinancier_1 <span class="sc">==</span> <span class="st">&quot;KFW&quot;</span> <span class="sc">|</span> cofinancier_2 <span class="sc">==</span> <span class="st">&quot;KFW&quot;</span> <span class="sc">|</span> cofinancier_3 <span class="sc">==</span> <span class="st">&quot;KFW&quot;</span> <span class="sc">|</span></span>
+<span id="cb2-47"><a href="#cb2-47" tabindex="-1"></a>                          cofinancier_4 <span class="sc">==</span> <span class="st">&quot;KFW&quot;</span> <span class="sc">|</span> cofinancier_5 <span class="sc">==</span> <span class="st">&quot;KFW&quot;</span> <span class="sc">|</span> cofinancier_6 <span class="sc">==</span> <span class="st">&quot;KFW&quot;</span>,</span>
+<span id="cb2-48"><a href="#cb2-48" tabindex="-1"></a>                          <span class="at">yes =</span> <span class="cn">TRUE</span>, </span>
+<span id="cb2-49"><a href="#cb2-49" tabindex="-1"></a>                          <span class="at">no =</span> <span class="cn">FALSE</span>),</span>
+<span id="cb2-50"><a href="#cb2-50" tabindex="-1"></a>         <span class="at">kfw_bin =</span> <span class="fu">ifelse</span>(<span class="fu">is.na</span>(kfw_bin), <span class="at">yes =</span> <span class="cn">FALSE</span>, <span class="at">no =</span> kfw_bin),</span>
+<span id="cb2-51"><a href="#cb2-51" tabindex="-1"></a>         <span class="at">ffem_bin =</span> <span class="fu">ifelse</span>(cofinancier_1 <span class="sc">==</span> <span class="st">&quot;FFEM&quot;</span> <span class="sc">|</span> cofinancier_2 <span class="sc">==</span> <span class="st">&quot;FFEM&quot;</span> <span class="sc">|</span> cofinancier_3 <span class="sc">==</span> <span class="st">&quot;FFEM&quot;</span> <span class="sc">|</span></span>
+<span id="cb2-52"><a href="#cb2-52" tabindex="-1"></a>                          cofinancier_4 <span class="sc">==</span> <span class="st">&quot;FFEM&quot;</span> <span class="sc">|</span> cofinancier_5 <span class="sc">==</span> <span class="st">&quot;FFEM&quot;</span> <span class="sc">|</span> cofinancier_6 <span class="sc">==</span> <span class="st">&quot;FFEM&quot;</span>,</span>
+<span id="cb2-53"><a href="#cb2-53" tabindex="-1"></a>                          <span class="at">yes =</span> <span class="cn">TRUE</span>, </span>
+<span id="cb2-54"><a href="#cb2-54" tabindex="-1"></a>                          <span class="at">no =</span> <span class="cn">FALSE</span>),</span>
+<span id="cb2-55"><a href="#cb2-55" tabindex="-1"></a>         <span class="at">ffem_bin =</span> <span class="fu">ifelse</span>(<span class="fu">is.na</span>(ffem_bin), <span class="at">yes =</span> <span class="cn">FALSE</span>, <span class="at">no =</span> ffem_bin),</span>
+<span id="cb2-56"><a href="#cb2-56" tabindex="-1"></a>         <span class="at">.after =</span> <span class="st">&quot;cofinancier_6&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb2-57"><a href="#cb2-57" tabindex="-1"></a>  <span class="co">#Create a dummy for other co-investors</span></span>
+<span id="cb2-58"><a href="#cb2-58" tabindex="-1"></a>  <span class="co"># mutate(cofin_unkwn = ifelse(is.na(cofinancier_1) &amp; is.na(cofinancier_1) &amp; is.na(cofinancier_1) &amp; is.na(cofinancier_1) &amp; is.na(cofinancier_1) &amp; is.na(cofinancier_1),</span></span>
+<span id="cb2-59"><a href="#cb2-59" tabindex="-1"></a>  <span class="co">#                         yes = TRUE, </span></span>
+<span id="cb2-60"><a href="#cb2-60" tabindex="-1"></a>  <span class="co">#                         no = FALSE),</span></span>
+<span id="cb2-61"><a href="#cb2-61" tabindex="-1"></a>  <span class="co">#        cofin_unkwn = ifelse(is.na(cofin_unkwn), yes = FALSE, no = cofin_unkwn),</span></span>
+<span id="cb2-62"><a href="#cb2-62" tabindex="-1"></a>  <span class="co">#        .after = &quot;ffem_bin&quot;) %&gt;%</span></span>
+<span id="cb2-63"><a href="#cb2-63" tabindex="-1"></a>  <span class="co">#Create a dummy for investors not AFD, KFW or FFEM</span></span>
+<span id="cb2-64"><a href="#cb2-64" tabindex="-1"></a>  <span class="co"># mutate(cofin_other = afd_bin == FALSE &amp; </span></span>
+<span id="cb2-65"><a href="#cb2-65" tabindex="-1"></a>  <span class="co">#       kfw_bin == FALSE &amp; ffem_bin == FALSE &amp; cofin_unkwn == FALSE,</span></span>
+<span id="cb2-66"><a href="#cb2-66" tabindex="-1"></a>  <span class="co">#       .after = &quot;cofin_unkwn&quot;) %&gt;%</span></span>
+<span id="cb2-67"><a href="#cb2-67" tabindex="-1"></a>  <span class="co">#Add the ISO3 code corresponding to the country hosting the PA. Facilitate future mergings</span></span>
+<span id="cb2-68"><a href="#cb2-68" tabindex="-1"></a>  <span class="fu">left_join</span>(data_iso, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">&quot;pays&quot;</span> <span class="ot">=</span> <span class="st">&quot;nom_alpha2&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb2-69"><a href="#cb2-69" tabindex="-1"></a>  <span class="co">#Some entries in &quot;pays&quot; are French department, DROM-COM, &quot;Ocean Indien&quot; or &quot;Multi-Pays&quot;.</span></span>
+<span id="cb2-70"><a href="#cb2-70" tabindex="-1"></a>  <span class="co">#French related : assigned to France. Ocen Indien let NA value, Muti-pays set to ZZ as in the SIOP </span></span>
+<span id="cb2-71"><a href="#cb2-71" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">iso3 =</span> <span class="fu">case_when</span>(</span>
+<span id="cb2-72"><a href="#cb2-72" tabindex="-1"></a>    pays <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;Mayotte&quot;</span>, <span class="st">&quot;P-N N.Caléd&quot;</span>, <span class="st">&quot;P-S N.Caléd&quot;</span>, </span>
+<span id="cb2-73"><a href="#cb2-73" tabindex="-1"></a>                <span class="st">&quot;Polynesie Francaise&quot;</span>, <span class="st">&quot;Nlle Caledonie&quot;</span>) <span class="sc">~</span> <span class="st">&quot;FRA&quot;</span>,</span>
+<span id="cb2-74"><a href="#cb2-74" tabindex="-1"></a>    pays <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;Multi-Pays&quot;</span>, <span class="st">&quot;Ocean Indien&quot;</span>) <span class="sc">~</span> <span class="st">&quot;ZZ&quot;</span>,</span>
+<span id="cb2-75"><a href="#cb2-75" tabindex="-1"></a>    <span class="sc">!</span>(pays <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;Mayotte&quot;</span>, <span class="st">&quot;P-N N.Caléd&quot;</span>, <span class="st">&quot;P-S N.Caléd&quot;</span>, </span>
+<span id="cb2-76"><a href="#cb2-76" tabindex="-1"></a>                <span class="st">&quot;Polynesie Francaise&quot;</span>, <span class="st">&quot;Nlle Caledonie&quot;</span>, <span class="st">&quot;Multi-Pays&quot;</span>)) <span class="sc">~</span> iso3</span>
+<span id="cb2-77"><a href="#cb2-77" tabindex="-1"></a>  )) <span class="sc">%&gt;%</span></span>
+<span id="cb2-78"><a href="#cb2-78" tabindex="-1"></a>  <span class="co">#Add the description of IUCN from its category</span></span>
+<span id="cb2-79"><a href="#cb2-79" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">iucn_des =</span> <span class="fu">case_when</span>(</span>
+<span id="cb2-80"><a href="#cb2-80" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;Ia&quot;</span> <span class="sc">~</span> <span class="st">&quot;Réserve naturelle intégrale&quot;</span>,</span>
+<span id="cb2-81"><a href="#cb2-81" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;Ib&quot;</span> <span class="sc">~</span> <span class="st">&quot;Zone de nature sauvage&quot;</span>,</span>
+<span id="cb2-82"><a href="#cb2-82" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;II&quot;</span> <span class="sc">~</span> <span class="st">&quot;Parc national&quot;</span>,</span>
+<span id="cb2-83"><a href="#cb2-83" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;III&quot;</span> <span class="sc">~</span> <span class="st">&quot;Monument naturel&quot;</span>,</span>
+<span id="cb2-84"><a href="#cb2-84" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;IV&quot;</span> <span class="sc">~</span> <span class="st">&quot;Gest. des habitats/espèces&quot;</span>,</span>
+<span id="cb2-85"><a href="#cb2-85" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;V&quot;</span> <span class="sc">~</span> <span class="st">&quot;Paysage protégé&quot;</span>,</span>
+<span id="cb2-86"><a href="#cb2-86" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;VI&quot;</span> <span class="sc">~</span> <span class="st">&quot;Gest. de ress. protégées&quot;</span>,</span>
+<span id="cb2-87"><a href="#cb2-87" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;Not Applicable&quot;</span> <span class="sc">~</span> <span class="st">&quot;Non catégorisée&quot;</span>,</span>
+<span id="cb2-88"><a href="#cb2-88" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;Not Reported&quot;</span> <span class="sc">~</span> <span class="st">&quot;Non catégorisée&quot;</span>,</span>
+<span id="cb2-89"><a href="#cb2-89" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;Not Assigned&quot;</span> <span class="sc">~</span> <span class="st">&quot;Non catégorisée&quot;</span>,</span>
+<span id="cb2-90"><a href="#cb2-90" tabindex="-1"></a>  <span class="cn">TRUE</span> <span class="sc">~</span> <span class="st">&quot;Non référencée&quot;</span>), <span class="at">.after =</span> iucn_cat) <span class="sc">%&gt;%</span></span>
+<span id="cb2-91"><a href="#cb2-91" tabindex="-1"></a>    <span class="co">#Modify class of some variables</span></span>
+<span id="cb2-92"><a href="#cb2-92" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="fu">across</span>(<span class="at">.cols =</span> <span class="fu">c</span>(<span class="st">&quot;wdpaid&quot;</span>, <span class="st">&quot;superficie&quot;</span>,</span>
+<span id="cb2-93"><a href="#cb2-93" tabindex="-1"></a>                          <span class="st">&quot;montant_prevu_concours_euro_octroi&quot;</span>,</span>
+<span id="cb2-94"><a href="#cb2-94" tabindex="-1"></a>                          <span class="st">&quot;mt_global_projet_prevu_devise&quot;</span> ,</span>
+<span id="cb2-95"><a href="#cb2-95" tabindex="-1"></a>                          <span class="st">&quot;engagements_nets_euro_octroi&quot;</span>,</span>
+<span id="cb2-96"><a href="#cb2-96" tabindex="-1"></a>                          <span class="st">&quot;montant_total_projet&quot;</span>),</span>
+<span id="cb2-97"><a href="#cb2-97" tabindex="-1"></a>                <span class="at">.fns =</span> <span class="sc">~</span><span class="fu">as.numeric</span>(.x))) <span class="sc">%&gt;%</span></span>
+<span id="cb2-98"><a href="#cb2-98" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="fu">across</span>(<span class="at">.cols =</span> <span class="sc">-</span><span class="fu">c</span>(<span class="st">&quot;wdpaid&quot;</span>, <span class="st">&quot;superficie&quot;</span>,</span>
+<span id="cb2-99"><a href="#cb2-99" tabindex="-1"></a>                                  <span class="st">&quot;montant_prevu_concours_euro_octroi&quot;</span>,</span>
+<span id="cb2-100"><a href="#cb2-100" tabindex="-1"></a>                          <span class="st">&quot;mt_global_projet_prevu_devise&quot;</span> ,</span>
+<span id="cb2-101"><a href="#cb2-101" tabindex="-1"></a>                          <span class="st">&quot;engagements_nets_euro_octroi&quot;</span>,</span>
+<span id="cb2-102"><a href="#cb2-102" tabindex="-1"></a>                          <span class="st">&quot;montant_total_projet&quot;</span>), </span>
+<span id="cb2-103"><a href="#cb2-103" tabindex="-1"></a>                <span class="at">.fns =</span> <span class="sc">~</span><span class="fu">stri_enc_toutf8</span>(.x))) </span>
+<span id="cb2-104"><a href="#cb2-104" tabindex="-1"></a><span class="co">#fwrite(data_PA_tidy, &quot;data_tidy/BDD_joint_tidy.csv&quot;)</span></span></code></pre></div>
+</div>
+<div id="dataset-with-only-siop-variables" class="section level3"
+number="1.2.2">
+<h3><span class="header-section-number">1.2.2</span> Dataset with only
+SIOP variables</h3>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="co">#Select info corresponding to SIOP extract and AP </span></span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>list_var_siop_AP <span class="ot">=</span> <span class="fu">c</span>( <span class="st">&quot;id_projet&quot;</span>, <span class="st">&quot;nom_du_projet&quot;</span>, <span class="st">&quot;nom_de_projet_pour_les_instances&quot;</span>,</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>                      <span class="st">&quot;id_concours&quot;</span>, <span class="st">&quot;libelle_du_concours&quot;</span>, <span class="st">&quot;description_du_projet&quot;</span>,</span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>                      <span class="st">&quot;wdpaid&quot;</span>, <span class="st">&quot;wdpaid_2&quot;</span>, <span class="st">&quot;wdpaid_3&quot;</span>,</span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>                      <span class="st">&quot;montant_prevu_concours_euro_octroi&quot;</span>, <span class="st">&quot;mt_global_projet_prevu_devise&quot;</span>, </span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a>                      <span class="st">&quot;engagements_nets_euro_octroi&quot;</span>, <span class="st">&quot;montant_total_projet&quot;</span>, <span class="st">&quot;produit&quot;</span>, </span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a>                      <span class="st">&quot;libelle_produit&quot;</span>, <span class="st">&quot;division_technique&quot;</span>, <span class="st">&quot;libelle_division_technique&quot;</span>, <span class="st">&quot;agence&quot;</span>, </span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a>                      <span class="st">&quot;libelle_agence&quot;</span>, <span class="st">&quot;annee_octroi&quot;</span>, <span class="st">&quot;date_octroi&quot;</span>,</span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a>                      <span class="st">&quot;date_de_1er_versement_projet&quot;</span>, <span class="st">&quot;dernier_versement_en_date_projet&quot;</span>, </span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a>                      <span class="st">&quot;date_signature_convention_cf&quot;</span>, <span class="st">&quot;duree_du_concours_annee&quot;</span>,</span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a>                      <span class="st">&quot;duree_du_concours_annee_et_mois&quot;</span>, <span class="st">&quot;id_pays_de_realisation&quot;</span>, <span class="st">&quot;pays&quot;</span>, <span class="st">&quot;iso3&quot;</span>,</span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a>                      <span class="st">&quot;direction_regionale&quot;</span>, <span class="st">&quot;autres_pays_de_realisation&quot;</span>, </span>
+<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a>                      <span class="st">&quot;etat_du_projet&quot;</span>, <span class="st">&quot;libelle_etat_du_projet&quot;</span>, <span class="st">&quot;beneficiaire_primaire&quot;</span>,</span>
+<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a>                      <span class="st">&quot;responsable_equipe_projet&quot;</span>, <span class="st">&quot;directeur_trice_dagence&quot;</span>,</span>
+<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a>                      <span class="st">&quot;date_de_remise_du_rapport_final&quot;</span>, <span class="st">&quot;cofinancier_1&quot;</span>, <span class="st">&quot;cofinancier_2&quot;</span>, </span>
+<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a>                      <span class="st">&quot;cofinancier_3&quot;</span>,<span class="st">&quot;cofinancier_4&quot;</span>, <span class="st">&quot;cofinancier_5&quot;</span>, <span class="st">&quot;cofinancier_6&quot;</span>,</span>
+<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a>                      <span class="st">&quot;kfw_bin&quot;</span>, <span class="st">&quot;ffem_bin&quot;</span>,</span>
+<span id="cb3-18"><a href="#cb3-18" tabindex="-1"></a>                      <span class="st">&quot;maitrise_ouvrage&quot;</span>, <span class="st">&quot;superf_interne&quot;</span>, <span class="st">&quot;nb_ap_nombre_potentiel&quot;</span>, <span class="st">&quot;detail&quot;</span>, <span class="st">&quot;projet&quot;</span>, <span class="st">&quot;commentaires&quot;</span>)</span>
+<span id="cb3-19"><a href="#cb3-19" tabindex="-1"></a></span>
+<span id="cb3-20"><a href="#cb3-20" tabindex="-1"></a><span class="co">#Definining dataset for future analysis : siop and AP but not WDPA </span></span>
+<span id="cb3-21"><a href="#cb3-21" tabindex="-1"></a>data_siop_AP <span class="ot">=</span> data_PA_tidy <span class="sc">%&gt;%</span></span>
+<span id="cb3-22"><a href="#cb3-22" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="fu">all_of</span>(list_var_siop_AP), iso3)</span>
+<span id="cb3-23"><a href="#cb3-23" tabindex="-1"></a><span class="co">#write_csv(data_siop_AP, &quot;data_tidy/BDD_AP_SIOP_joint.xlsx&quot;)</span></span></code></pre></div>
+</div>
+<div id="dataset-for-non-confidential-statistics" class="section level3"
+number="1.2.3">
+<h3><span class="header-section-number">1.2.3</span> Dataset for
+non-confidential statistics</h3>
+<p>To perform descriptive statistics we want to keep one row per PA,
+characterized by WDPA ID or a name (if no ID reported). Some PAs can
+have several lines if they receive funds at different time or by
+different investors.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="co">#Listing relevant variables for descriptive statistics that are NOT confidential (i.e not concern funding)</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>list_var_PA_nofund <span class="ot">=</span> </span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;id_projet&quot;</span>, <span class="st">&quot;nom_du_projet&quot;</span>, <span class="st">&quot;nom_ap&quot;</span>, <span class="st">&quot;id_concours&quot;</span>, </span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>    <span class="st">&quot;wdpaid&quot;</span>, </span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>    <span class="st">&quot;pays&quot;</span>, <span class="st">&quot;iso3&quot;</span>, <span class="st">&quot;direction_regionale&quot;</span>,</span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>    <span class="st">&quot;annee_octroi&quot;</span>, <span class="st">&quot;nb_ap_nombre_potentiel&quot;</span>, <span class="st">&quot;detail&quot;</span>,</span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>    <span class="st">&quot;iucn_cat&quot;</span>, <span class="st">&quot;iucn_des&quot;</span>, <span class="st">&quot;marine&quot;</span>, <span class="st">&quot;superficie&quot;</span>,</span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>    <span class="st">&quot;status&quot;</span>, <span class="st">&quot;status_yr&quot;</span>, <span class="st">&quot;gov_type&quot;</span>,<span class="st">&quot;own_type&quot;</span>, <span class="st">&quot;mang_auth&quot;</span>)</span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a></span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a><span class="co">#Defining dataset for descriptive statistics</span></span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a>data_stat_nofund <span class="ot">=</span> data_PA_tidy <span class="sc">%&gt;%</span></span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a>  <span class="fu">select</span>(<span class="fu">all_of</span>(list_var_PA_nofund), iso3)</span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a></span>
+<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a><span class="co">#fwrite(data_stat_nofund, &quot;data_tidy/BDD_DesStat_nofund.csv&quot;)</span></span>
+<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a></span>
+<span id="cb4-16"><a href="#cb4-16" tabindex="-1"></a><span class="co">#Then to keep only one row per PA, we need to consider separately PAs having WDPA ID and PAs which do not.</span></span>
+<span id="cb4-17"><a href="#cb4-17" tabindex="-1"></a></span>
+<span id="cb4-18"><a href="#cb4-18" tabindex="-1"></a>data_stat_nofund_wdpa <span class="ot">=</span> data_stat_nofund <span class="sc">%&gt;%</span></span>
+<span id="cb4-19"><a href="#cb4-19" tabindex="-1"></a>  <span class="fu">subset</span>(<span class="fu">is.na</span>(wdpaid) <span class="sc">==</span> <span class="cn">FALSE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb4-20"><a href="#cb4-20" tabindex="-1"></a>  <span class="fu">group_by</span>(wdpaid) <span class="sc">%&gt;%</span> </span>
+<span id="cb4-21"><a href="#cb4-21" tabindex="-1"></a>  <span class="fu">arrange</span>(annee_octroi) <span class="sc">%&gt;%</span></span>
+<span id="cb4-22"><a href="#cb4-22" tabindex="-1"></a>  <span class="fu">slice</span>(<span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb4-23"><a href="#cb4-23" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
+<span id="cb4-24"><a href="#cb4-24" tabindex="-1"></a></span>
+<span id="cb4-25"><a href="#cb4-25" tabindex="-1"></a>data_stat_nofund_na <span class="ot">=</span> data_stat_nofund <span class="sc">%&gt;%</span></span>
+<span id="cb4-26"><a href="#cb4-26" tabindex="-1"></a>  <span class="fu">subset</span>(<span class="fu">is.na</span>(wdpaid) <span class="sc">==</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb4-27"><a href="#cb4-27" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">id1 =</span> <span class="fu">paste</span>(id_projet, iso3, nom_ap, <span class="at">sep =</span> <span class="st">&quot;_&quot;</span>),</span>
+<span id="cb4-28"><a href="#cb4-28" tabindex="-1"></a>       <span class="at">.before =</span> id_projet) <span class="sc">%&gt;%</span></span>
+<span id="cb4-29"><a href="#cb4-29" tabindex="-1"></a>  <span class="fu">group_by</span>(id1) <span class="sc">%&gt;%</span></span>
+<span id="cb4-30"><a href="#cb4-30" tabindex="-1"></a>  <span class="fu">arrange</span>(annee_octroi) <span class="sc">%&gt;%</span></span>
+<span id="cb4-31"><a href="#cb4-31" tabindex="-1"></a>  <span class="fu">slice</span>(<span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb4-32"><a href="#cb4-32" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb4-33"><a href="#cb4-33" tabindex="-1"></a>  <span class="co">#remove id1 variable, to bind data_stat_na and data_stat_wdpa by row</span></span>
+<span id="cb4-34"><a href="#cb4-34" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span>id1)</span>
+<span id="cb4-35"><a href="#cb4-35" tabindex="-1"></a></span>
+<span id="cb4-36"><a href="#cb4-36" tabindex="-1"></a>data_stat_nofund_nodupl <span class="ot">=</span> <span class="fu">rbind</span>(data_stat_nofund_wdpa, data_stat_nofund_na) </span>
+<span id="cb4-37"><a href="#cb4-37" tabindex="-1"></a></span>
+<span id="cb4-38"><a href="#cb4-38" tabindex="-1"></a><span class="co">#fwrite(data_stat_nofund_nodupl, &quot;data_tidy/BDD_DesStat_nofund_nodupl.csv&quot;)</span></span></code></pre></div>
+</div>
+<div id="dataset-for-confidential-descriptive-statistics"
+class="section level3" number="1.2.4">
+<h3><span class="header-section-number">1.2.4</span> Dataset for
+confidential descriptive statistics</h3>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="co">#Listing relevant variables for descriptive statistics</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>list_var_PA_fund <span class="ot">=</span> <span class="fu">c</span>(<span class="st">&quot;id_projet&quot;</span>, <span class="st">&quot;nom_du_projet&quot;</span>, <span class="st">&quot;nom_ap&quot;</span>, <span class="st">&quot;id_concours&quot;</span>, </span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>                <span class="st">&quot;wdpaid&quot;</span>,</span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>                <span class="st">&quot;pays&quot;</span>, <span class="st">&quot;iso3&quot;</span>, <span class="st">&quot;direction_regionale&quot;</span>,</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>                <span class="st">&quot;montant_prevu_concours_euro_octroi&quot;</span>,</span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>                <span class="st">&quot;mt_global_projet_prevu_devise&quot;</span>,</span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a>                <span class="st">&quot;engagements_nets_euro_octroi&quot;</span>,</span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a>                <span class="st">&quot;montant_total_projet&quot;</span>, <span class="st">&quot;libelle_produit&quot;</span>, <span class="st">&quot;annee_octroi&quot;</span>,</span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a>                <span class="st">&quot;cofinancier_1&quot;</span>, <span class="st">&quot;cofinancier_2&quot;</span>, <span class="st">&quot;cofinancier_3&quot;</span>, </span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a>                <span class="st">&quot;cofinancier_4&quot;</span>, <span class="st">&quot;cofinancier_5&quot;</span>, <span class="st">&quot;cofinancier_6&quot;</span>,</span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a>                 <span class="st">&quot;kfw_bin&quot;</span>, <span class="st">&quot;ffem_bin&quot;</span>)</span>
+<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a></span>
+<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a><span class="co">#Defining dataset for descriptive statistics</span></span>
+<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a><span class="co">#Duplicates are not revmoved here, as we want the information on the different concours for instance. Peculiar datasets </span></span>
+<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a>data_stat_fund <span class="ot">=</span> data_PA_tidy <span class="sc">%&gt;%</span></span>
+<span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a>  <span class="fu">select</span>(<span class="fu">all_of</span>(list_var_PA_fund), iso3)</span>
+<span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a></span>
+<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a><span class="co">#fwrite(data_stat_fund, &quot;data_tidy/BDD_DesStat_fund.csv&quot;)</span></span></code></pre></div>
+</div>
+<div id="a-polygon-dataset-without-confidential-information"
+class="section level3" number="1.2.5">
+<h3><span class="header-section-number">1.2.5</span> A polygon dataset
+without confidential information</h3>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="co">#The confidential information removed concern funding or nominative variables</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>pa_shp <span class="ot">=</span> <span class="fu">read_sf</span>(<span class="st">&quot;data_raw/WDPA_SHP/BDD_SHP_nodupl.shp&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>  <span class="fu">clean_names</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span><span class="fu">c</span>(mntnt, mtglb, e, mnt, prodt, lbllp, dt_ct, d_1, d, d_c, durdcncrs_a, drdcncrs_an, atrsp, ett, lbllt, rspns, dr, mtrs, detal, projt, cmmnt, cmmnt_1))</span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a></span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a><span class="co"># st_write(pa_shp,</span></span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a><span class="co">#          dsn = &quot;data_tidy/BDD_shp_pub.gpkg&quot;,</span></span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a><span class="co">#          delete_dsn = TRUE)</span></span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a></span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a><span class="fu">rm</span>(pa_shp)</span></code></pre></div>
+</div>
+</div>
+<div id="computing-total-areas-covered-by-pas-in-the-sample"
+class="section level2" number="1.3">
+<h2><span class="header-section-number">1.3</span> Computing total areas
+covered by PAs in the sample</h2>
+<p>Knowing the total area covered by PAs at different level of
+aggregation is interesting per se. It is also necessary to compute
+several statistics (e.g average funding by unit of area). According to
+the WDPA documentation, it is likely that some reported polygons
+overlap. Simply summing the areas would thus lead to a biased estimate
+of the total area at a given level of aggregation. We follow the
+procedure of the WDPA (<a
+href="https://www.protectedplanet.net/en/resources/calculating-protected-area-coverage"
+class="uri">https://www.protectedplanet.net/en/resources/calculating-protected-area-coverage</a>).
+Our case is simpler as all of the PAs we consider are given a
+polygon.</p>
+<ol style="list-style-type: decimal">
+<li><p>The layer is converted to Mollweide (an equal area projection)
+and the area of each polygon is calculated, in km2.</p></li>
+<li><p>Intersection of polygons and the corresponding area are
+computed.</p></li>
+<li><p>Then the intersection can be aggregated at country, region or
+world level. Then it is subtracted to the sum of areas at country,
+region or world level. Note that intersections between PAs whose polygon
+is unknown won’t be taken into account.</p></li>
+</ol>
+<p>Note that the following codes are about computing total area at
+country/region/world level, taking potential intersections into account.
+It is not about generating a new shape files for the impact analysis.
+Indeed the overlap should be taken into account in the impact evaluation
+analysis codes.</p>
+<div id="computations-of-polygons-area" class="section level3"
+number="1.3.1">
+<h3><span class="header-section-number">1.3.1</span> Computations of
+polygons’ area</h3>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="co">#Importing shapefiles</span></span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="fu">sf_use_s2</span>(<span class="cn">FALSE</span>)</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>pa_shp <span class="ot">=</span> </span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>  <span class="fu">read_sf</span>(<span class="st">&quot;data_tidy/BDD_shp_raw.gpkg&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>  <span class="co"># aws.s3::s3read_using(</span></span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>  <span class="co"># FUN = sf::read_sf,</span></span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>  <span class="co"># # Mettre les options de FUN ici</span></span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a>  <span class="co"># object = &quot;data_tidy/BDD_SHP_nodupl_pub.gpkg&quot;,</span></span>
+<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a>  <span class="co"># bucket = &quot;projet-afd-eva-ap&quot;,</span></span>
+<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a>  <span class="co"># opts = list(&quot;region&quot; = &quot;&quot;)) %&gt;%</span></span>
+<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a>  <span class="co">#Ensure all geometries are valid</span></span>
+<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a>  <span class="fu">st_make_valid</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb7-13"><a href="#cb7-13" tabindex="-1"></a>  <span class="co">#From multipolygon to polygon</span></span>
+<span id="cb7-14"><a href="#cb7-14" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_cast</span>(<span class="at">to=</span><span class="st">&quot;POLYGON&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb7-15"><a href="#cb7-15" tabindex="-1"></a>  <span class="fu">clean_names</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb7-16"><a href="#cb7-16" tabindex="-1"></a>  <span class="co">#Select relevant variables</span></span>
+<span id="cb7-17"><a href="#cb7-17" tabindex="-1"></a>  <span class="co">#Note ann_c = annee_octroi in the initial database data_PA_raw</span></span>
+<span id="cb7-18"><a href="#cb7-18" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="fu">c</span>(wdpaid, sprfc, rep_a, gis_a, geom, iso3, drct, ann_c)) <span class="sc">%&gt;%</span></span>
+<span id="cb7-19"><a href="#cb7-19" tabindex="-1"></a>  <span class="co">#Variable sprfc corresponds to AFD internal reported size</span></span>
+<span id="cb7-20"><a href="#cb7-20" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="st">&quot;sprfc_int&quot;</span> <span class="ot">=</span> <span class="st">&quot;sprfc&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb7-21"><a href="#cb7-21" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">wdpaid =</span> <span class="fu">as.numeric</span>(wdpaid),</span>
+<span id="cb7-22"><a href="#cb7-22" tabindex="-1"></a>         <span class="at">sprfc_int =</span> <span class="fu">as.numeric</span>(sprfc_int)) </span>
+<span id="cb7-23"><a href="#cb7-23" tabindex="-1"></a></span>
+<span id="cb7-24"><a href="#cb7-24" tabindex="-1"></a><span class="co">#Spatial definition of wdpaid 555547988 overlaps CMR and CAF. Wdpaid 1245 corresponds to the CMR part. The overlap is removed and iso3 redefined so that 555547988 is CAF only. </span></span>
+<span id="cb7-25"><a href="#cb7-25" tabindex="-1"></a>geom_555547988_1245 <span class="ot">=</span> <span class="fu">st_difference</span>(pa_shp[pa_shp<span class="sc">$</span>wdpaid <span class="sc">==</span> <span class="dv">555547988</span>,]<span class="sc">$</span>geom, pa_shp[pa_shp<span class="sc">$</span>wdpaid <span class="sc">==</span> <span class="dv">1245</span>,]<span class="sc">$</span>geom)</span>
+<span id="cb7-26"><a href="#cb7-26" tabindex="-1"></a>pa_shp[pa_shp<span class="sc">$</span>wdpaid <span class="sc">==</span> <span class="dv">555547988</span>,]<span class="sc">$</span>geom <span class="ot">=</span> geom_555547988_1245</span>
+<span id="cb7-27"><a href="#cb7-27" tabindex="-1"></a>pa_shp[pa_shp<span class="sc">$</span>wdpaid <span class="sc">==</span> <span class="dv">555547988</span>,]<span class="sc">$</span>iso3 <span class="ot">=</span> <span class="st">&quot;CAF&quot;</span></span>
+<span id="cb7-28"><a href="#cb7-28" tabindex="-1"></a></span>
+<span id="cb7-29"><a href="#cb7-29" tabindex="-1"></a><span class="co">#Define a tidy version of the former dataset, with modifications on wdpaid 555547988</span></span>
+<span id="cb7-30"><a href="#cb7-30" tabindex="-1"></a>pa_shp_tidy <span class="ot">=</span> pa_shp <span class="sc">%&gt;%</span></span>
+<span id="cb7-31"><a href="#cb7-31" tabindex="-1"></a>  <span class="co">#Project to Mollweide to compute relevant areas in km2</span></span>
+<span id="cb7-32"><a href="#cb7-32" tabindex="-1"></a>  <span class="fu">st_transform</span>(<span class="at">crs =</span> <span class="st">&quot;+proj=moll +datum=WGS84&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb7-33"><a href="#cb7-33" tabindex="-1"></a>  <span class="co">#Compute areas in km2 from the geometry, in km2. It must be equal to gis_a by definition </span></span>
+<span id="cb7-34"><a href="#cb7-34" tabindex="-1"></a>  <span class="co">#Then to take into account potential refinements of the geometries (as for wdpaid 55547988), a variable for relevant area is defined. It takes rep_a value except for modified geometries where area_sf_moll is taken</span></span>
+<span id="cb7-35"><a href="#cb7-35" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">area_sf_moll =</span> <span class="fu">as.numeric</span>(<span class="fu">st_area</span>(geom)<span class="sc">/</span><span class="fl">1e6</span>),</span>
+<span id="cb7-36"><a href="#cb7-36" tabindex="-1"></a>         <span class="at">sprfc_km2 =</span> <span class="fu">ifelse</span>(wdpaid <span class="sc">==</span> <span class="dv">555547988</span>, <span class="at">yes =</span> area_sf_moll, <span class="at">no =</span> rep_a))</span></code></pre></div>
+</div>
+<div id="computing-the-intersection-at-country-region-world-level"
+class="section level3" number="1.3.2">
+<h3><span class="header-section-number">1.3.2</span> Computing the
+intersection at country, region, world level</h3>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="co">#Compute intersecting areas of polygons</span></span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>pa_int <span class="ot">=</span> <span class="fu">st_intersection</span>(pa_shp_tidy, pa_shp_tidy) <span class="sc">%&gt;%</span></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a>  <span class="co">#Remove intersection of polygons with themselves</span></span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>  <span class="fu">subset</span>(wdpaid <span class="sc">!=</span> wdpaid<span class="fl">.1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a>  <span class="co">#If one of the two intersectin polygon have unknwon area, then it is not necessary to subtract the interesction area. Indeed there is no double-counting of the intersection in this case, when both polygon areas are summed.</span></span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a>  <span class="fu">subset</span>(<span class="fu">is.na</span>(sprfc_km2) <span class="sc">==</span> <span class="cn">FALSE</span> <span class="sc">&amp;</span> <span class="fu">is.na</span>(sprfc_km2<span class="fl">.1</span>) <span class="sc">==</span> <span class="cn">FALSE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a>  <span class="co">#Compute the intersecting areas (pa_shp already in Mollweide projection) in km2</span></span>
+<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">area_int =</span> <span class="fu">as.numeric</span>(<span class="fu">st_area</span>(geom)<span class="sc">/</span><span class="fl">1e6</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a>  <span class="co">#Now duplicates need to be removed : intersection of X with Y AND intersection of Y with X are reported. We need only one.</span></span>
+<span id="cb8-10"><a href="#cb8-10" tabindex="-1"></a>  <span class="co">#An id_int to identify the intersection of a given pair</span></span>
+<span id="cb8-11"><a href="#cb8-11" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">id_int =</span> <span class="fu">paste0</span>(wdpaid, <span class="st">&quot;_&quot;</span>, wdpaid<span class="fl">.1</span>), <span class="at">.before =</span> wdpaid) <span class="sc">%&gt;%</span></span>
+<span id="cb8-12"><a href="#cb8-12" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">id_int_temp =</span> <span class="fu">paste0</span>(wdpaid, <span class="st">&quot;_&quot;</span>, wdpaid<span class="fl">.1</span>), <span class="at">.before =</span> wdpaid) <span class="sc">%&gt;%</span></span>
+<span id="cb8-13"><a href="#cb8-13" tabindex="-1"></a>  <span class="co">#create a mirror idX_idY --&gt; idY_idX so that we identify the both member of a pair with the same id</span></span>
+<span id="cb8-14"><a href="#cb8-14" tabindex="-1"></a>  <span class="fu">separate</span>(id_int_temp, <span class="at">into =</span> <span class="fu">c</span>(<span class="st">&quot;id_temp1&quot;</span>, <span class="st">&quot;id_temp2&quot;</span>), <span class="at">sep =</span> <span class="st">&quot;_&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb8-15"><a href="#cb8-15" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">id_int_rev =</span> <span class="fu">case_when</span>(</span>
+<span id="cb8-16"><a href="#cb8-16" tabindex="-1"></a>    id_temp1 <span class="sc">&lt;</span> id_temp2 <span class="sc">~</span> <span class="fu">paste</span>(id_temp1, id_temp2, <span class="at">sep =</span> <span class="st">&quot;_&quot;</span>),</span>
+<span id="cb8-17"><a href="#cb8-17" tabindex="-1"></a>    id_temp1 <span class="sc">&gt;</span> id_temp2 <span class="sc">~</span> <span class="fu">paste</span>(id_temp2, id_temp1, <span class="at">sep =</span> <span class="st">&quot;_&quot;</span>),</span>
+<span id="cb8-18"><a href="#cb8-18" tabindex="-1"></a>    <span class="cn">TRUE</span> <span class="sc">~</span> <span class="fu">paste</span>(id_temp1, id_temp2, <span class="at">sep =</span> <span class="st">&quot;_&quot;</span>)),</span>
+<span id="cb8-19"><a href="#cb8-19" tabindex="-1"></a>    <span class="at">.after =</span> id_int) <span class="sc">%&gt;%</span></span>
+<span id="cb8-20"><a href="#cb8-20" tabindex="-1"></a>  <span class="co">#finally, get rid of the duplicates (have the same id_int_rev)</span></span>
+<span id="cb8-21"><a href="#cb8-21" tabindex="-1"></a>  <span class="fu">group_by</span>(id_int_rev) <span class="sc">%&gt;%</span></span>
+<span id="cb8-22"><a href="#cb8-22" tabindex="-1"></a>  <span class="fu">slice</span>(<span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb8-23"><a href="#cb8-23" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb8-24"><a href="#cb8-24" tabindex="-1"></a>  <span class="co">#select relevant variables only</span></span>
+<span id="cb8-25"><a href="#cb8-25" tabindex="-1"></a>  <span class="fu">select</span>(wdpaid, iso3, drct, ann_c, wdpaid<span class="fl">.1</span>, iso3<span class="fl">.1</span>, drct<span class="fl">.1</span>, ann_c<span class="fl">.1</span>, geom, area_int)</span>
+<span id="cb8-26"><a href="#cb8-26" tabindex="-1"></a></span>
+<span id="cb8-27"><a href="#cb8-27" tabindex="-1"></a><span class="co">#Computing the total area of intersections</span></span>
+<span id="cb8-28"><a href="#cb8-28" tabindex="-1"></a><span class="co">#At country level ...</span></span>
+<span id="cb8-29"><a href="#cb8-29" tabindex="-1"></a>pa_int_ctry <span class="ot">=</span> pa_int <span class="sc">%&gt;%</span></span>
+<span id="cb8-30"><a href="#cb8-30" tabindex="-1"></a>  <span class="co">#Only overlapping PAs in the same country are considered</span></span>
+<span id="cb8-31"><a href="#cb8-31" tabindex="-1"></a>  <span class="fu">subset</span>(iso3 <span class="sc">==</span>  iso3<span class="fl">.1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb8-32"><a href="#cb8-32" tabindex="-1"></a>  <span class="fu">group_by</span>(iso3) <span class="sc">%&gt;%</span></span>
+<span id="cb8-33"><a href="#cb8-33" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">tot_area_int =</span> <span class="fu">sum</span>(area_int)) <span class="sc">%&gt;%</span></span>
+<span id="cb8-34"><a href="#cb8-34" tabindex="-1"></a>  <span class="fu">st_drop_geometry</span>()</span>
+<span id="cb8-35"><a href="#cb8-35" tabindex="-1"></a></span>
+<span id="cb8-36"><a href="#cb8-36" tabindex="-1"></a><span class="co">#At region level</span></span>
+<span id="cb8-37"><a href="#cb8-37" tabindex="-1"></a>pa_int_dr <span class="ot">=</span> pa_int <span class="sc">%&gt;%</span></span>
+<span id="cb8-38"><a href="#cb8-38" tabindex="-1"></a>  <span class="co">#Only overlapping PAs in the same DR are considered</span></span>
+<span id="cb8-39"><a href="#cb8-39" tabindex="-1"></a>  <span class="fu">subset</span>(drct <span class="sc">==</span> drct<span class="fl">.1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb8-40"><a href="#cb8-40" tabindex="-1"></a>  <span class="fu">group_by</span>(drct) <span class="sc">%&gt;%</span></span>
+<span id="cb8-41"><a href="#cb8-41" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">tot_area_int =</span> <span class="fu">sum</span>(area_int)) <span class="sc">%&gt;%</span></span>
+<span id="cb8-42"><a href="#cb8-42" tabindex="-1"></a>  <span class="fu">st_drop_geometry</span>()</span>
+<span id="cb8-43"><a href="#cb8-43" tabindex="-1"></a></span>
+<span id="cb8-44"><a href="#cb8-44" tabindex="-1"></a><span class="do">##At world level : all overlap are considered</span></span>
+<span id="cb8-45"><a href="#cb8-45" tabindex="-1"></a>pa_int_wld <span class="ot">=</span> <span class="fu">sum</span>(pa_int<span class="sc">$</span>area_int) </span>
+<span id="cb8-46"><a href="#cb8-46" tabindex="-1"></a></span>
+<span id="cb8-47"><a href="#cb8-47" tabindex="-1"></a><span class="co">#Compute the total intersection for each year</span></span>
+<span id="cb8-48"><a href="#cb8-48" tabindex="-1"></a>pa_int_yr <span class="ot">=</span> pa_int <span class="sc">%&gt;%</span></span>
+<span id="cb8-49"><a href="#cb8-49" tabindex="-1"></a>  <span class="co">#Define intersection year : the date ann_c of the later PA in the pair</span></span>
+<span id="cb8-50"><a href="#cb8-50" tabindex="-1"></a>  <span class="fu">rowwise</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb8-51"><a href="#cb8-51" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">annee_int =</span> <span class="fu">max</span>(ann_c, ann_c<span class="fl">.1</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb8-52"><a href="#cb8-52" tabindex="-1"></a>  <span class="fu">group_by</span>(annee_int) <span class="sc">%&gt;%</span></span>
+<span id="cb8-53"><a href="#cb8-53" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">tot_int_km2 =</span> <span class="fu">sum</span>(area_int)) <span class="sc">%&gt;%</span></span>
+<span id="cb8-54"><a href="#cb8-54" tabindex="-1"></a>  <span class="fu">st_drop_geometry</span>()</span>
+<span id="cb8-55"><a href="#cb8-55" tabindex="-1"></a></span>
+<span id="cb8-56"><a href="#cb8-56" tabindex="-1"></a><span class="co"># fwrite(pa_int_yr,</span></span>
+<span id="cb8-57"><a href="#cb8-57" tabindex="-1"></a><span class="co">#        &quot;data_tidy/area/pa_int_yr.csv&quot;)</span></span></code></pre></div>
+</div>
+<div id="computing-total-areas-without-intersection"
+class="section level3" number="1.3.3">
+<h3><span class="header-section-number">1.3.3</span> Computing total
+areas without intersection</h3>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="co">#At country level ...</span></span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a>pa_area_ctry <span class="ot">=</span> data_stat_nofund_nodupl <span class="sc">%&gt;%</span></span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a>  <span class="co">#Compute total area at country level</span></span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a>  <span class="fu">group_by</span>(iso3) <span class="sc">%&gt;%</span></span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">sprfc_tot_km2 =</span> <span class="fu">sum</span>(superficie)) <span class="sc">%&gt;%</span></span>
+<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a>  <span class="co">#Add information on intersection area in each country. Modify the variable so that NA value -&gt; 0</span></span>
+<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a>  <span class="fu">left_join</span>(pa_int_ctry, <span class="at">by =</span> <span class="st">&quot;iso3&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb9-9"><a href="#cb9-9" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">tot_area_int =</span> <span class="fu">case_when</span>(<span class="fu">is.na</span>(tot_area_int) <span class="sc">==</span> <span class="cn">TRUE</span> <span class="sc">~</span> <span class="dv">0</span>, <span class="cn">TRUE</span> <span class="sc">~</span> tot_area_int)) <span class="sc">%&gt;%</span></span>
+<span id="cb9-10"><a href="#cb9-10" tabindex="-1"></a>  <span class="co">#Compute the total area at country level without intersection</span></span>
+<span id="cb9-11"><a href="#cb9-11" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">sprfc_tot_noint_km2 =</span> sprfc_tot_km2 <span class="sc">-</span> tot_area_int) </span>
+<span id="cb9-12"><a href="#cb9-12" tabindex="-1"></a></span>
+<span id="cb9-13"><a href="#cb9-13" tabindex="-1"></a><span class="co">#fwrite(pa_area_ctry, &quot;data_tidy/area/pa_area_ctry.csv&quot;)</span></span>
+<span id="cb9-14"><a href="#cb9-14" tabindex="-1"></a></span>
+<span id="cb9-15"><a href="#cb9-15" tabindex="-1"></a><span class="co">#At DR level ...</span></span>
+<span id="cb9-16"><a href="#cb9-16" tabindex="-1"></a>pa_area_dr <span class="ot">=</span> data_stat_nofund_nodupl <span class="sc">%&gt;%</span></span>
+<span id="cb9-17"><a href="#cb9-17" tabindex="-1"></a>  <span class="co">#Compute total area at dr level</span></span>
+<span id="cb9-18"><a href="#cb9-18" tabindex="-1"></a>  <span class="fu">group_by</span>(direction_regionale) <span class="sc">%&gt;%</span></span>
+<span id="cb9-19"><a href="#cb9-19" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">sprfc_tot_km2 =</span> <span class="fu">sum</span>(superficie)) <span class="sc">%&gt;%</span> </span>
+<span id="cb9-20"><a href="#cb9-20" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb9-21"><a href="#cb9-21" tabindex="-1"></a>  <span class="co">#Add information on intersection area in each DR. Modify the variable so that NA value -&gt; 0</span></span>
+<span id="cb9-22"><a href="#cb9-22" tabindex="-1"></a>  <span class="fu">left_join</span>(pa_int_dr, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">&quot;direction_regionale&quot;</span> <span class="ot">=</span> <span class="st">&quot;drct&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb9-23"><a href="#cb9-23" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">tot_area_int =</span> <span class="fu">case_when</span>(<span class="fu">is.na</span>(tot_area_int) <span class="sc">==</span> <span class="cn">TRUE</span> <span class="sc">~</span><span class="dv">0</span>, <span class="cn">TRUE</span> <span class="sc">~</span>tot_area_int)) <span class="sc">%&gt;%</span></span>
+<span id="cb9-24"><a href="#cb9-24" tabindex="-1"></a>  <span class="co">#Compute the total area at country level without intersection</span></span>
+<span id="cb9-25"><a href="#cb9-25" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">sprfc_tot_noint_km2 =</span> sprfc_tot_km2 <span class="sc">-</span> tot_area_int) <span class="sc">%&gt;%</span></span>
+<span id="cb9-26"><a href="#cb9-26" tabindex="-1"></a>  <span class="fu">st_drop_geometry</span>()</span>
+<span id="cb9-27"><a href="#cb9-27" tabindex="-1"></a></span>
+<span id="cb9-28"><a href="#cb9-28" tabindex="-1"></a><span class="co">#fwrite(pa_area_dr, &quot;data_tidy/area/pa_area_dr.csv&quot;)</span></span>
+<span id="cb9-29"><a href="#cb9-29" tabindex="-1"></a></span>
+<span id="cb9-30"><a href="#cb9-30" tabindex="-1"></a><span class="co">#At world level</span></span>
+<span id="cb9-31"><a href="#cb9-31" tabindex="-1"></a>pa_area_wld <span class="ot">=</span> <span class="fu">sum</span>(data_stat_nofund_nodupl<span class="sc">$</span>superficie) <span class="sc">-</span> pa_int_wld <span class="sc">%&gt;%</span></span>
+<span id="cb9-32"><a href="#cb9-32" tabindex="-1"></a>  <span class="fu">as.data.frame</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb9-33"><a href="#cb9-33" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="st">&quot;sprfc_tot_noint_km2&quot;</span> <span class="ot">=</span> <span class="st">&quot;.&quot;</span>)</span>
+<span id="cb9-34"><a href="#cb9-34" tabindex="-1"></a><span class="co">#fwrite(pa_area_wld, &quot;data_tidy/area/pa_area_wld.csv&quot;)</span></span></code></pre></div>
+</div>
+</div>
+<div id="old-code" class="section level2" number="1.4">
+<h2><span class="header-section-number">1.4</span> Old code</h2>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="co">#Listing variables public or confidential</span></span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a><span class="co">#Public variables in the PAs dataset</span></span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a>list_var_PA_open <span class="ot">=</span> <span class="fu">c</span>(<span class="st">&quot;id_projet&quot;</span>, <span class="st">&quot;nom_du_projet&quot;</span>, <span class="st">&quot;nom_ap&quot;</span>, <span class="st">&quot;id_concours&quot;</span>, </span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a>                <span class="st">&quot;wdpaid&quot;</span>, <span class="st">&quot;wdpaid_2&quot;</span>, <span class="st">&quot;wdpaid_3&quot;</span>, <span class="st">&quot;wdpa_pid&quot;</span>,</span>
+<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a>                <span class="st">&quot;pays&quot;</span>, <span class="st">&quot;iso3&quot;</span>, <span class="st">&quot;direction_regionale&quot;</span>, <span class="st">&quot;annee_octroi&quot;</span>,</span>
+<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a>                <span class="st">&quot;cofinancier_1&quot;</span>, <span class="st">&quot;cofinancier_2&quot;</span>, <span class="st">&quot;cofinancier_3&quot;</span>, </span>
+<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a>                <span class="st">&quot;cofinancier_4&quot;</span>, <span class="st">&quot;cofinancier_5&quot;</span>, <span class="st">&quot;cofinancier_6&quot;</span>,</span>
+<span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a>                <span class="st">&quot;kfw_bin&quot;</span>, <span class="st">&quot;ffem_bin&quot;</span>, <span class="st">&quot;nb_ap_nombre_potentiel&quot;</span>, <span class="st">&quot;detail&quot;</span>,</span>
+<span id="cb10-10"><a href="#cb10-10" tabindex="-1"></a>                <span class="st">&quot;iucn_cat&quot;</span>, <span class="st">&quot;iucn_des&quot;</span>, <span class="st">&quot;marine&quot;</span>, <span class="st">&quot;superficie&quot;</span>,</span>
+<span id="cb10-11"><a href="#cb10-11" tabindex="-1"></a>                <span class="st">&quot;status&quot;</span>, <span class="st">&quot;status_yr&quot;</span>, <span class="st">&quot;gov_type&quot;</span>,<span class="st">&quot;own_type&quot;</span>, <span class="st">&quot;mang_auth&quot;</span>)</span>
+<span id="cb10-12"><a href="#cb10-12" tabindex="-1"></a><span class="co">#Confidential variables in the PAs dataset</span></span>
+<span id="cb10-13"><a href="#cb10-13" tabindex="-1"></a>list_var_PA_conf <span class="ot">=</span> list_var_joint_conf <span class="ot">=</span> </span>
+<span id="cb10-14"><a href="#cb10-14" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;montant_prevu_concours_euro_octroi&quot;</span>, <span class="st">&quot;mt_global_projet_prevu_devise&quot;</span>,</span>
+<span id="cb10-15"><a href="#cb10-15" tabindex="-1"></a>    <span class="st">&quot;engagements_nets_euro_octroi&quot;</span> , <span class="st">&quot;montant_total_projet&quot;</span>,</span>
+<span id="cb10-16"><a href="#cb10-16" tabindex="-1"></a>    <span class="st">&quot;produit&quot;</span>, <span class="st">&quot;libelle_produit&quot;</span>,</span>
+<span id="cb10-17"><a href="#cb10-17" tabindex="-1"></a>    <span class="st">&quot;date_de_1er_versement_projet&quot;</span>, <span class="st">&quot;dernier_versement_en_date_projet&quot;</span>,</span>
+<span id="cb10-18"><a href="#cb10-18" tabindex="-1"></a>    <span class="st">&quot;date_signature_convention_cf&quot;</span>, <span class="st">&quot;duree_du_concours_annee&quot;</span>,</span>
+<span id="cb10-19"><a href="#cb10-19" tabindex="-1"></a>    <span class="st">&quot;duree_du_concours_annee_et_mois&quot;</span>, <span class="st">&quot;beneficiaire_primaire&quot;</span>,</span>
+<span id="cb10-20"><a href="#cb10-20" tabindex="-1"></a>    <span class="st">&quot;responsable_equipe_projet&quot;</span>, <span class="st">&quot;directeur_trice_dagence&quot;</span>, <span class="st">&quot;maitrise_ouvrage&quot;</span></span>
+<span id="cb10-21"><a href="#cb10-21" tabindex="-1"></a>    )</span>
+<span id="cb10-22"><a href="#cb10-22" tabindex="-1"></a><span class="co">#Confidential variables among shapefiles</span></span>
+<span id="cb10-23"><a href="#cb10-23" tabindex="-1"></a>list_var_shp_conf <span class="ot">=</span> <span class="fu">c</span>(<span class="st">&quot;mntnt&quot;</span>, <span class="st">&quot;mtglb&quot;</span>, <span class="st">&quot;e&quot;</span>, <span class="st">&quot;mnt&quot;</span>, <span class="st">&quot;prodt&quot;</span>, <span class="st">&quot;lbllp&quot;</span>,</span>
+<span id="cb10-24"><a href="#cb10-24" tabindex="-1"></a>                      <span class="st">&quot;rspns&quot;</span>, <span class="st">&quot;dr&quot;</span>, <span class="st">&quot;detal&quot;</span>, <span class="st">&quot;projt&quot;</span>, <span class="st">&quot;cmmnt&quot;</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a>base_nodupl_lea <span class="ot">=</span> </span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a>  <span class="co">#fread(&quot;data_tidy/base_nodupl_lea.xlsx&quot;)</span></span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a>  aws.s3<span class="sc">::</span><span class="fu">s3read_using</span>(</span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a>  <span class="at">FUN =</span> data.table<span class="sc">::</span>fread,</span>
+<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a>  <span class="at">encoding =</span> <span class="st">&quot;UTF-8&quot;</span>,</span>
+<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a>  <span class="co"># Mettre les options de FUN ici</span></span>
+<span id="cb11-7"><a href="#cb11-7" tabindex="-1"></a>  <span class="at">object =</span> <span class="st">&quot;data_tidy/BDD_DesStat_nodupl_lea_pub.csv&quot;</span>,</span>
+<span id="cb11-8"><a href="#cb11-8" tabindex="-1"></a>  <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb11-9"><a href="#cb11-9" tabindex="-1"></a>  <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb11-10"><a href="#cb11-10" tabindex="-1"></a>  <span class="fu">select</span>(<span class="fu">any_of</span>(<span class="fu">names</span>(data_stat_nodupl)))</span>
+<span id="cb11-11"><a href="#cb11-11" tabindex="-1"></a>  </span>
+<span id="cb11-12"><a href="#cb11-12" tabindex="-1"></a><span class="co">#import a dataset with country anmes and corresponding ISO3 code</span></span>
+<span id="cb11-13"><a href="#cb11-13" tabindex="-1"></a>data_iso <span class="ot">=</span> data_stat <span class="sc">%&gt;%</span></span>
+<span id="cb11-14"><a href="#cb11-14" tabindex="-1"></a>  <span class="fu">select</span>(<span class="fu">c</span>(pays, iso3)) <span class="sc">%&gt;%</span></span>
+<span id="cb11-15"><a href="#cb11-15" tabindex="-1"></a>  <span class="fu">group_by</span>(iso3) <span class="sc">%&gt;%</span></span>
+<span id="cb11-16"><a href="#cb11-16" tabindex="-1"></a>  <span class="fu">slice</span>(<span class="dv">1</span>)</span>
+<span id="cb11-17"><a href="#cb11-17" tabindex="-1"></a></span>
+<span id="cb11-18"><a href="#cb11-18" tabindex="-1"></a>base_nodupl_old <span class="ot">=</span> </span>
+<span id="cb11-19"><a href="#cb11-19" tabindex="-1"></a>  <span class="co">#fread(&quot;data_tidy/base_nodupl_old.csv&quot;) </span></span>
+<span id="cb11-20"><a href="#cb11-20" tabindex="-1"></a>  aws.s3<span class="sc">::</span><span class="fu">s3read_using</span>(</span>
+<span id="cb11-21"><a href="#cb11-21" tabindex="-1"></a>  <span class="at">FUN =</span> data.table<span class="sc">::</span>fread,</span>
+<span id="cb11-22"><a href="#cb11-22" tabindex="-1"></a>  <span class="at">encoding =</span> <span class="st">&quot;UTF-8&quot;</span>,</span>
+<span id="cb11-23"><a href="#cb11-23" tabindex="-1"></a>  <span class="co"># Mettre les options de FUN ici</span></span>
+<span id="cb11-24"><a href="#cb11-24" tabindex="-1"></a>  <span class="at">object =</span> <span class="st">&quot;data_tidy/BDD_DesStat_nodupl_old_pub.csv&quot;</span>,</span>
+<span id="cb11-25"><a href="#cb11-25" tabindex="-1"></a>  <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb11-26"><a href="#cb11-26" tabindex="-1"></a>  <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>))<span class="sc">%&gt;%</span></span>
+<span id="cb11-27"><a href="#cb11-27" tabindex="-1"></a>  <span class="fu">select</span>(<span class="fu">any_of</span>(<span class="fu">names</span>(data_stat_nodupl))) <span class="sc">%&gt;%</span></span>
+<span id="cb11-28"><a href="#cb11-28" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span>iso3) <span class="sc">%&gt;%</span></span>
+<span id="cb11-29"><a href="#cb11-29" tabindex="-1"></a>  <span class="fu">left_join</span>(data_iso, <span class="at">by =</span> <span class="st">&quot;pays&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb11-30"><a href="#cb11-30" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">iso3 =</span> <span class="fu">case_when</span>(</span>
+<span id="cb11-31"><a href="#cb11-31" tabindex="-1"></a>    pays <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;Mayotte&quot;</span>, <span class="st">&quot;P-N N.Caléd&quot;</span>, <span class="st">&quot;P-S N.Caléd&quot;</span>, </span>
+<span id="cb11-32"><a href="#cb11-32" tabindex="-1"></a>                <span class="st">&quot;Polynesie Francaise&quot;</span>, <span class="st">&quot;Nlle Caledonie&quot;</span>) <span class="sc">~</span> <span class="st">&quot;FRA&quot;</span>,</span>
+<span id="cb11-33"><a href="#cb11-33" tabindex="-1"></a>    pays <span class="sc">==</span> <span class="st">&quot;Multi-Pays&quot;</span> <span class="sc">~</span> <span class="st">&quot;ZZ&quot;</span>,</span>
+<span id="cb11-34"><a href="#cb11-34" tabindex="-1"></a>    <span class="sc">!</span>(pays <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;Mayotte&quot;</span>, <span class="st">&quot;P-N N.Caléd&quot;</span>, <span class="st">&quot;P-S N.Caléd&quot;</span>, </span>
+<span id="cb11-35"><a href="#cb11-35" tabindex="-1"></a>                <span class="st">&quot;Polynesie Francaise&quot;</span>, <span class="st">&quot;Nlle Caledonie&quot;</span>, <span class="st">&quot;Multi-Pays&quot;</span>)) <span class="sc">~</span> iso3</span>
+<span id="cb11-36"><a href="#cb11-36" tabindex="-1"></a>  ))</span>
+<span id="cb11-37"><a href="#cb11-37" tabindex="-1"></a></span>
+<span id="cb11-38"><a href="#cb11-38" tabindex="-1"></a><span class="co"># projet_nodupl_old = </span></span>
+<span id="cb11-39"><a href="#cb11-39" tabindex="-1"></a><span class="co">#   #readxl::read_xlsx(&quot;data_tidy/projet_nodupl_old.xlsx&quot;)</span></span>
+<span id="cb11-40"><a href="#cb11-40" tabindex="-1"></a><span class="co">#   aws.s3::s3read_using(</span></span>
+<span id="cb11-41"><a href="#cb11-41" tabindex="-1"></a><span class="co">#   FUN = readxl::read_xlsx,</span></span>
+<span id="cb11-42"><a href="#cb11-42" tabindex="-1"></a><span class="co">#   # Mettre les options de FUN ici</span></span>
+<span id="cb11-43"><a href="#cb11-43" tabindex="-1"></a><span class="co">#   object = &quot;data_tidy/projet_nodupl_old.xlsx&quot;,</span></span>
+<span id="cb11-44"><a href="#cb11-44" tabindex="-1"></a><span class="co">#   bucket = &quot;projet-afd-eva-ap&quot;,</span></span>
+<span id="cb11-45"><a href="#cb11-45" tabindex="-1"></a><span class="co">#   opts = list(&quot;region&quot; = &quot;&quot;))</span></span>
+<span id="cb11-46"><a href="#cb11-46" tabindex="-1"></a></span>
+<span id="cb11-47"><a href="#cb11-47" tabindex="-1"></a>bdd_joint <span class="ot">=</span> </span>
+<span id="cb11-48"><a href="#cb11-48" tabindex="-1"></a>  <span class="co">#fread(&quot;data_raw/BDD_joint.xlsx&quot;)</span></span>
+<span id="cb11-49"><a href="#cb11-49" tabindex="-1"></a>  aws.s3<span class="sc">::</span><span class="fu">s3read_using</span>(</span>
+<span id="cb11-50"><a href="#cb11-50" tabindex="-1"></a>  <span class="at">FUN =</span> data.table<span class="sc">::</span>fread,</span>
+<span id="cb11-51"><a href="#cb11-51" tabindex="-1"></a>  <span class="co"># Mettre les options de FUN ici</span></span>
+<span id="cb11-52"><a href="#cb11-52" tabindex="-1"></a>  <span class="at">encoding =</span> <span class="st">&quot;UTF-8&quot;</span>,</span>
+<span id="cb11-53"><a href="#cb11-53" tabindex="-1"></a>  <span class="at">object =</span> <span class="st">&quot;data_tidy/BDD_joint_tidy_pub.csv&quot;</span>,</span>
+<span id="cb11-54"><a href="#cb11-54" tabindex="-1"></a>  <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb11-55"><a href="#cb11-55" tabindex="-1"></a>  <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb11-56"><a href="#cb11-56" tabindex="-1"></a>  <span class="fu">select</span>(<span class="fu">any_of</span>(<span class="fu">names</span>(data_stat_nodupl)))</span></code></pre></div>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a><span class="co">#Test : differences between Léa&#39;s figures and my results</span></span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a></span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a><span class="co">#PA identified with unique WDPAID. If more than 1 WDPAID, take the earlier annee_octroi</span></span>
+<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a>base_id <span class="ot">=</span> data_stat <span class="sc">%&gt;%</span> </span>
+<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(wdpaid)) <span class="sc">%&gt;%</span> </span>
+<span id="cb12-6"><a href="#cb12-6" tabindex="-1"></a>  <span class="fu">group_by</span>(wdpaid) <span class="sc">%&gt;%</span> </span>
+<span id="cb12-7"><a href="#cb12-7" tabindex="-1"></a>  <span class="fu">arrange</span>(annee_octroi) <span class="sc">%&gt;%</span></span>
+<span id="cb12-8"><a href="#cb12-8" tabindex="-1"></a>  <span class="fu">slice</span>(<span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb12-9"><a href="#cb12-9" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
+<span id="cb12-10"><a href="#cb12-10" tabindex="-1"></a></span>
+<span id="cb12-11"><a href="#cb12-11" tabindex="-1"></a>test <span class="ot">=</span> base_id[<span class="fu">duplicated</span>(base_id<span class="sc">$</span>wdpaid),]</span>
+<span id="cb12-12"><a href="#cb12-12" tabindex="-1"></a></span>
+<span id="cb12-13"><a href="#cb12-13" tabindex="-1"></a>base_old_id <span class="ot">=</span> base_nodupl_old <span class="sc">%&gt;%</span> </span>
+<span id="cb12-14"><a href="#cb12-14" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">grepl</span>(<span class="st">&quot;NA&quot;</span>, wdpaid) <span class="sc">==</span> <span class="cn">FALSE</span>)  <span class="sc">%&gt;%</span></span>
+<span id="cb12-15"><a href="#cb12-15" tabindex="-1"></a>  <span class="fu">group_by</span>(wdpaid) <span class="sc">%&gt;%</span> </span>
+<span id="cb12-16"><a href="#cb12-16" tabindex="-1"></a>  <span class="fu">slice</span>(<span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb12-17"><a href="#cb12-17" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">wdpaid =</span> <span class="fu">as.numeric</span>(wdpaid)) <span class="sc">%&gt;%</span></span>
+<span id="cb12-18"><a href="#cb12-18" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
+<span id="cb12-19"><a href="#cb12-19" tabindex="-1"></a></span>
+<span id="cb12-20"><a href="#cb12-20" tabindex="-1"></a><span class="co">#Identify PA in common among them with WDPAID reported</span></span>
+<span id="cb12-21"><a href="#cb12-21" tabindex="-1"></a>test_id <span class="ot">=</span> base_old_id <span class="sc">%&gt;%</span></span>
+<span id="cb12-22"><a href="#cb12-22" tabindex="-1"></a>  <span class="fu">select</span>(<span class="fu">c</span>(id_projet, nom_du_projet, nom_ap, id_concours, wdpaid)) <span class="sc">%&gt;%</span></span>
+<span id="cb12-23"><a href="#cb12-23" tabindex="-1"></a>  <span class="fu">left_join</span>(<span class="fu">select</span>(base_id, </span>
+<span id="cb12-24"><a href="#cb12-24" tabindex="-1"></a>                   <span class="fu">c</span>(id_projet, nom_du_projet, nom_ap, id_concours, wdpaid)),</span>
+<span id="cb12-25"><a href="#cb12-25" tabindex="-1"></a>            <span class="at">by =</span> <span class="st">&quot;wdpaid&quot;</span>)</span>
+<span id="cb12-26"><a href="#cb12-26" tabindex="-1"></a></span>
+<span id="cb12-27"><a href="#cb12-27" tabindex="-1"></a><span class="co">#PA whose WDPAID is unknown, identified by id1 uniquely</span></span>
+<span id="cb12-28"><a href="#cb12-28" tabindex="-1"></a><span class="co">#The duplicates comes from different concours ID, so do not correspond to different PA</span></span>
+<span id="cb12-29"><a href="#cb12-29" tabindex="-1"></a>base_na <span class="ot">=</span> data_stat <span class="sc">%&gt;%</span> <span class="fu">filter</span>(<span class="fu">is.na</span>(wdpaid)) <span class="sc">%&gt;%</span></span>
+<span id="cb12-30"><a href="#cb12-30" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">id1 =</span> <span class="fu">paste</span>(id_projet, iso3, nom_ap, <span class="at">sep =</span> <span class="st">&quot;_&quot;</span>),</span>
+<span id="cb12-31"><a href="#cb12-31" tabindex="-1"></a>         <span class="at">.before =</span> id_projet) <span class="sc">%&gt;%</span></span>
+<span id="cb12-32"><a href="#cb12-32" tabindex="-1"></a>  <span class="fu">group_by</span>(id1) <span class="sc">%&gt;%</span></span>
+<span id="cb12-33"><a href="#cb12-33" tabindex="-1"></a>  <span class="fu">arrange</span>(annee_octroi) <span class="sc">%&gt;%</span></span>
+<span id="cb12-34"><a href="#cb12-34" tabindex="-1"></a>  <span class="fu">slice</span>(<span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb12-35"><a href="#cb12-35" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
+<span id="cb12-36"><a href="#cb12-36" tabindex="-1"></a></span>
+<span id="cb12-37"><a href="#cb12-37" tabindex="-1"></a>base_old_na <span class="ot">=</span> base_nodupl_old <span class="sc">%&gt;%</span> </span>
+<span id="cb12-38"><a href="#cb12-38" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">grepl</span>(<span class="st">&quot;NA&quot;</span>, wdpaid) <span class="sc">==</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb12-39"><a href="#cb12-39" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">id1 =</span> <span class="fu">paste</span>(id_projet, iso3, nom_ap, <span class="at">sep =</span> <span class="st">&quot;_&quot;</span>),</span>
+<span id="cb12-40"><a href="#cb12-40" tabindex="-1"></a>         <span class="at">.before =</span> id_projet) <span class="sc">%&gt;%</span></span>
+<span id="cb12-41"><a href="#cb12-41" tabindex="-1"></a>  <span class="fu">group_by</span>(id1) <span class="sc">%&gt;%</span></span>
+<span id="cb12-42"><a href="#cb12-42" tabindex="-1"></a>  <span class="fu">arrange</span>(annee_octroi) <span class="sc">%&gt;%</span></span>
+<span id="cb12-43"><a href="#cb12-43" tabindex="-1"></a>  <span class="fu">slice</span>(<span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb12-44"><a href="#cb12-44" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
+<span id="cb12-45"><a href="#cb12-45" tabindex="-1"></a></span>
+<span id="cb12-46"><a href="#cb12-46" tabindex="-1"></a>test_na <span class="ot">=</span> base_na <span class="sc">%&gt;%</span></span>
+<span id="cb12-47"><a href="#cb12-47" tabindex="-1"></a>  <span class="fu">select</span>(<span class="fu">c</span>(id1, id_projet, nom_du_projet, nom_ap, id_concours)) <span class="sc">%&gt;%</span></span>
+<span id="cb12-48"><a href="#cb12-48" tabindex="-1"></a>  <span class="fu">left_join</span>(<span class="fu">select</span>(base_old_na, </span>
+<span id="cb12-49"><a href="#cb12-49" tabindex="-1"></a>                   <span class="fu">c</span>(id1, id_projet, nom_du_projet, nom_ap, id_concours)),</span>
+<span id="cb12-50"><a href="#cb12-50" tabindex="-1"></a>            <span class="at">by =</span> <span class="st">&quot;id1&quot;</span>)</span>
+<span id="cb12-51"><a href="#cb12-51" tabindex="-1"></a></span>
+<span id="cb12-52"><a href="#cb12-52" tabindex="-1"></a><span class="fu">nrow</span>(test_na <span class="sc">%&gt;%</span> <span class="fu">subset</span>(<span class="fu">is.na</span>(id_projet.y) <span class="sc">==</span> <span class="cn">TRUE</span>))</span>
+<span id="cb12-53"><a href="#cb12-53" tabindex="-1"></a></span>
+<span id="cb12-54"><a href="#cb12-54" tabindex="-1"></a><span class="co">#base_nodupl</span></span>
+<span id="cb12-55"><a href="#cb12-55" tabindex="-1"></a></span>
+<span id="cb12-56"><a href="#cb12-56" tabindex="-1"></a>base_nodupl <span class="ot">=</span> <span class="fu">rbind</span>(<span class="fu">select</span>(base_na, <span class="sc">-</span>id1), base_id)</span></code></pre></div>
+</div>
+</div>
+
+<div id="rmd-source-code">IyBCdWlsZGluZyB0aGUgZGF0YWJhc2Ugb24gUEFzCgojIyBJbXBvcnRpbmcgcmVsZXZhbnQgcGFja2FnZXMKCgoKYGBge3Igc2V0dXAsIGluY2x1ZGUgPSBGQUxTRSwgZXZhbCA9IEZBTFNFfQprbml0cjo6b3B0c19rbml0JHNldChyb290LmRpciA9IHJwcm9qcm9vdDo6ZmluZF9yc3R1ZGlvX3Jvb3RfZmlsZSgpKQpgYGAKCmBgYHtyIG1lc3NhZ2U9VFJVRSwgd2FybmluZz1UUlVFLCBldmFsID0gRkFMU0V9CmxpYnJhcnkodGlkeXZlcnNlKQpsaWJyYXJ5KHN0YXJnYXplcikKbGlicmFyeShkcGx5cikKbGlicmFyeShkYXRhLnRhYmxlKQpsaWJyYXJ5KHJlYWR4bCkKbGlicmFyeShzcGxpdHN0YWNrc2hhcGUpIApsaWJyYXJ5KGphbml0b3IpCmxpYnJhcnkoc3RyaW5naSkKbGlicmFyeShzZikKbGlicmFyeShtYXB2aWV3KQoKCmBgYAoKIyMgRGF0YXNldHMgZm9yIGRlc2NyaXB0aXZlIHN0YXRpc3RpY3MKClRoZSByYXcgZGF0YXNldCBoYXMgYmVlbiBidWlsdCBieSBMw6lhIFBvdWxpbi4gSXQgY29tZXMgZnJvbSB0aGUgbWVyZ2luZyBvZiBTSU9QIGV4dHJhY3QsIGFuZCBQQXMgZGF0YXNldCBmcm9tIEFSQiBjb3ZlcmluZyAyMDAwLTIwMTcgcGVyaW9kLiBNYWpvcml0eSBvZiBQQXMgaGFkIG5vIGNvcnJlc3BvbmRpbmcgV0RQQSBJRCwgc28gaXQgd2FzIGZvdW5kIGFuZCByZXBvcnRlZCBtYW51YWxseSBieSBMw6lhIFBvdWxpbiBhbmQgSW5ncmlkIERhbGxtYW5uIG9uIFdEUEEgd2Vic2l0ZS4KCkRpZmZlcmVudCBkYXRhc2V0cyBhcmUgYnVpbHQuIEZpcnN0IGEgZGF0YXNldCAoZGF0YV9QQV90aWR5KSBlbnJpY2hlZCBvZiBpbmZvcm1hdGlvbiBvbiBjby1pbnZlc3RvcnMgYW5kIElTTyBjb2RlIGZvciB0aGUgY291bnRyeSBob3N0aW5nIHRoZSBQQS4KCkZyb20gdGhpcyBkYXRhc2V0IGFyZSBleHRyYWN0ZWQgOiAoMSkgYSBkYXRhc2V0IHdpdGggb25seSBTSU9QIHZhcmlhYmxlcywgdG8gYWxsb3cgZnV0dXJlIHdvcmtpbmcgb24gUEFzOyAoMikgYSBkYXRhc2V0IHRvIHBlcmZvcm0gbW9zdCBkZXNjcmlwdGl2ZSBzdGF0aXN0aWNzLCBleGNlcHQgY29uZmlkZW50aWFsIG9uZXMgcmVsYXRlZCB0byBmdW5kaW5nOyAoMykgYSBjb25maWRlbnRpYWwgZGF0YXNldCB3aXRoIGZ1bmRpbmcgZGF0YS4KClRoZW4gYSBkYXRhc2V0IG9mIFBBcyBwb2x5Z29ucyBpcyBpbXBvcnRlZCBmcm9tIHRoZSBXRFBBLCBhbmQgY29uZmlkZW50aWFsIGRhdGEgcmVtb3ZlZC4KClNvbWUgc3RhdGlzdGljcyBuZWVkIHNpemUgb2YgUEFzIGF0IGNvdW50cnkvcmVnaW9uL3dvcmxkIGxldmVsIChldm9sdXRpb24gb2YgYXJlYSBjb3ZlcmVkIGJ5IFBBcyBhdCB3b3JsZCBsZXZlbCBmb3IgaW5zdGFuY2UpLiBEYXRhc2V0cyB3aXRoIHRvdGFsIGFyZWFzIGF0IGNvdW50cnkvcmVnaW9uL3dvcmxkIGxldmVsIGFyZSBjcmVhdGVkLiBBcyBtYW55IGFyZWFzIG92ZXJsYXAgKGFjY29yZGluZyB0byBXRFBBIGRvY3VtZW50YXRpb24pLCBhIHN1bSBvZiByZXBvcnRlZCBhcmVhIHdvdWxkIG92ZXJlc3RpbWF0ZSBhZ2dyZWdhdGVkIGFyZWEuIFRoZSBjb21wdXRhdGlvbiBtZXRob2Qgb2YgV0RQQSBpcyBmb2xsb3dlZCAoPGh0dHBzOi8vd3d3LnByb3RlY3RlZHBsYW5ldC5uZXQvZW4vcmVzb3VyY2VzL2NhbGN1bGF0aW5nLXByb3RlY3RlZC1hcmVhLWNvdmVyYWdlPikuCgojIyMgQ2xlYW5pbmcgdGhlIHJhdyBkYXRhc2V0CgpgYGB7ciwgZXZhbCA9IEZBTFNFfQojaW1wb3J0IGEgZGF0YXNldCB3aXRoIGNvdW50cnkgbmFtZXMgYW5kIGNvcnJlc3BvbmRpbmcgSVNPMyBjb2RlCmRhdGFfaXNvID0gZnJlYWQoImRhdGFfcmF3L2xpc3RlLTE5Ny1ldGF0cy0yMDIwLmNzdiIpICU+JQogIHJlbmFtZSgiaXNvMyIgPSAiQ09ERSIsCiAgICAgICAgICJub21fYWxwaGEiID0gIk5PTV9BTFBIQSIpICU+JQogIGRwbHlyOjpzZWxlY3QoYygibm9tX2FscGhhIiwgImlzbzMiKSkgJT4lCiAgI2dldCByaWQgb2YgYWNjZW50dWF0aW9ucyBhbmQgY2hhbmdlIG5hbWUgYnkgaGFuZCB0byBjb3JyZXNwb25kIHdpdGggQkREX2pvaW50CiAgbXV0YXRlKG5vbV9hbHBoYTIgPSBpY29udihub21fYWxwaGEsIHRvID0gIkFTQ0lJLy9UUkFOU0xJVCIpLAogICAgICAgICBub21fYWxwaGEyID0gY2FzZV93aGVuKAogICAgICAgICAgIG5vbV9hbHBoYTIgPT0gIkNvb2sgKElsZXMpIiB+ICJDb29rIiwKICAgICAgICAgICBub21fYWxwaGEyID09ICJDb3RlIGQnSXZvaXJlIiB+ICJDb3RlIEQgSXZvaXJlIiwKICAgICAgICAgICBub21fYWxwaGEyID09ICJTYW8gVG9tZS1ldC1QcmluY2lwZSIgfiAiU2FvIFRvbWUiLAogICAgICAgICAgIG5vbV9hbHBoYTIgPT0gIlBhbGFvcyIgfiAiUGFsYXUiLAogICAgICAgICAgIG5vbV9hbHBoYTIgPT0gIkd1aW5lZS1CaXNzYW8iIH4gIkd1aW5lZS1CaXNzYXUiLAogICAgICAgICAgICEobm9tX2FscGhhICVpbiUgYygiQ29vayAoSWxlcykiLCAiQ290ZSBkJ0l2b2lyZSIsICJTYW8gVG9tZS1ldC1QcmluY2lwZSIsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICJQYWxhb3MiLCAiR3VpbsOpZS1CaXNzYW8iKSkgfiBub21fYWxwaGEyCiAgICAgICAgICkpCgojSW1wb3J0IHRoZSBpbml0aWFsIEJERF9qb2ludCwgY2hhbmdlIHRoZSBlbmNvZGluZyB0byBrZWVwIGFjY2VudHVhdGlvbiAKZGF0YV9QQV9yYXcgPSByZWFkX2V4Y2VsKCJkYXRhX3Jhdy9CRERfam9pbnQueGxzeCIpICU+JQogIGFzLmRhdGEuZnJhbWUoKSAlPiUKICBtdXRhdGUoYWNyb3NzKC5jb2xzID0gbmFtZXMoLiksIAogICAgICAgICAgICAgICAgLmZucyA9IH5zdHJpX2VuY190b3V0ZjgoLngpKSkKCiNNb2RpZnkgZXJyb3JzIGluIHRoZSBkYXRhc2V0CiMjV0RQQUlEIDc5NyBpbiBTZW5lZ2FsCmRhdGFfUEFfcmF3W2RhdGFfUEFfcmF3JHdkcGFpZCA9PSAiNzk3IiAmIGRhdGFfUEFfcmF3JHBheXMgPT0gIlNlbmVnYWwiLF0kbm9tX2FwID0gIkFQQUMgZGUgS2F3YXdhbmEiCmRhdGFfUEFfcmF3W2RhdGFfUEFfcmF3JHdkcGFpZCA9PSAiNzk3IiAmIGRhdGFfUEFfcmF3JHBheXMgPT0gIlNlbmVnYWwiLF0kd2RwYWlkID0gTkEKIyM0MjIzLCA0MjI0LCA0MjI2LCA0MjI4LCA0MjI5IDogYWxsIGluIFBTLU4uQ2FsZWRvbmllCmRhdGFfUEFfcmF3W2RhdGFfUEFfcmF3JHdkcGFpZCAlaW4lIGMoIjQyMjMiLCAiNDIyNCIsICI0MjI2IiwgIjQyMjgiLCAiNDIyOSIpICYgZGF0YV9QQV9yYXckcGF5cyA9PSAiRmlkamkiLF0kcGF5cyA9ICJQLVMgTi5DYWzDqWQiCiMjMzA1MDgyIDogVmFudWF0dSBpbnN0ZWFkIG9mIEZpZGppCmRhdGFfUEFfcmF3W2RhdGFfUEFfcmF3JHdkcGFpZCAlaW4lIGMoIjMwNTA4MiIpICYgZGF0YV9QQV9yYXckcGF5cyA9PSAiRmlkamkiLF0kcGF5cyA9ICJWYW51YXR1IgoKCiNDcmVhdGUgYSBjbGVhbiBkYXRhc2V0IHdpdGggcmVsZXZhbnQgdmFyaWFibGVzCmRhdGFfUEFfdGlkeSA9IGRhdGFfUEFfcmF3ICU+JQogICNHZXQgcmlkIG9mIHRoZSBpc28gY29kZSBpbiB0aGUgaW5pdGlhbCBkYXRhc2V0LCB0byBhdm9pZCBjb25mdXNpb24gd2hlbiBtZXJnaW5nIHdpdGggZGF0YV9pc28KICBkcGx5cjo6c2VsZWN0KC1pc28zKSAlPiUKICAjQ3JlYXRlIGR1bW15IHZhcmlhYmxlcyBmb3IgbWFpbiBpbnZlc3RvcnMKICAjQUZEIGlzIGFsd2F5cyBmdW5kZXIsIHNvIG5vIG5lZWQgb2YgYSBkdW1teQogIG11dGF0ZSgKICAgICMgYWZkX2JpbiA9IGNhc2Vfd2hlbigoY29maW5hbmNpZXJfMSA9PSAiQUZEIiB8IGNvZmluYW5jaWVyXzIgPT0gIkFGRCIgfCBjb2ZpbmFuY2llcl8zID09ICJBRkQiIHwKICAgICMgICAgICAgICAgICAgICAgICAgICAgIGNvZmluYW5jaWVyXzQgPT0gIkFGRCIgfCBjb2ZpbmFuY2llcl81ID09ICJBRkQiIHwgY29maW5hbmNpZXJfNiA9PSAiQUZEIikgfiBUUlVFLAogICAgIyAgICAgICAgICAgICAgICAgICAgICAgKGlzLm5hKGNvZmluYW5jaWVyXzEpICYgaXMubmEoY29maW5hbmNpZXJfMikgJiBpcy5uYShjb2ZpbmFuY2llcl8zKSAmIGlzLm5hKGNvZmluYW5jaWVyXzQpIAogICAgIyAgICAgICAgICAgICAgICAgICAgICAgJiBpcy5uYShjb2ZpbmFuY2llcl81KSAmIGlzLm5hKGNvZmluYW5jaWVyXzYpKSB+IFRSVUUsCiAgICAjICAgICAgICAgICAgICAgICAgICAgICBUUlVFIH4gRkFMU0UpLAogICAgICAgICBrZndfYmluID0gaWZlbHNlKGNvZmluYW5jaWVyXzEgPT0gIktGVyIgfCBjb2ZpbmFuY2llcl8yID09ICJLRlciIHwgY29maW5hbmNpZXJfMyA9PSAiS0ZXIiB8CiAgICAgICAgICAgICAgICAgICAgICAgICAgY29maW5hbmNpZXJfNCA9PSAiS0ZXIiB8IGNvZmluYW5jaWVyXzUgPT0gIktGVyIgfCBjb2ZpbmFuY2llcl82ID09ICJLRlciLAogICAgICAgICAgICAgICAgICAgICAgICAgIHllcyA9IFRSVUUsIAogICAgICAgICAgICAgICAgICAgICAgICAgIG5vID0gRkFMU0UpLAogICAgICAgICBrZndfYmluID0gaWZlbHNlKGlzLm5hKGtmd19iaW4pLCB5ZXMgPSBGQUxTRSwgbm8gPSBrZndfYmluKSwKICAgICAgICAgZmZlbV9iaW4gPSBpZmVsc2UoY29maW5hbmNpZXJfMSA9PSAiRkZFTSIgfCBjb2ZpbmFuY2llcl8yID09ICJGRkVNIiB8IGNvZmluYW5jaWVyXzMgPT0gIkZGRU0iIHwKICAgICAgICAgICAgICAgICAgICAgICAgICBjb2ZpbmFuY2llcl80ID09ICJGRkVNIiB8IGNvZmluYW5jaWVyXzUgPT0gIkZGRU0iIHwgY29maW5hbmNpZXJfNiA9PSAiRkZFTSIsCiAgICAgICAgICAgICAgICAgICAgICAgICAgeWVzID0gVFJVRSwgCiAgICAgICAgICAgICAgICAgICAgICAgICAgbm8gPSBGQUxTRSksCiAgICAgICAgIGZmZW1fYmluID0gaWZlbHNlKGlzLm5hKGZmZW1fYmluKSwgeWVzID0gRkFMU0UsIG5vID0gZmZlbV9iaW4pLAogICAgICAgICAuYWZ0ZXIgPSAiY29maW5hbmNpZXJfNiIpICU+JQogICNDcmVhdGUgYSBkdW1teSBmb3Igb3RoZXIgY28taW52ZXN0b3JzCiAgIyBtdXRhdGUoY29maW5fdW5rd24gPSBpZmVsc2UoaXMubmEoY29maW5hbmNpZXJfMSkgJiBpcy5uYShjb2ZpbmFuY2llcl8xKSAmIGlzLm5hKGNvZmluYW5jaWVyXzEpICYgaXMubmEoY29maW5hbmNpZXJfMSkgJiBpcy5uYShjb2ZpbmFuY2llcl8xKSAmIGlzLm5hKGNvZmluYW5jaWVyXzEpLAogICMgICAgICAgICAgICAgICAgICAgICAgICAgeWVzID0gVFJVRSwgCiAgIyAgICAgICAgICAgICAgICAgICAgICAgICBubyA9IEZBTFNFKSwKICAjICAgICAgICBjb2Zpbl91bmt3biA9IGlmZWxzZShpcy5uYShjb2Zpbl91bmt3biksIHllcyA9IEZBTFNFLCBubyA9IGNvZmluX3Vua3duKSwKICAjICAgICAgICAuYWZ0ZXIgPSAiZmZlbV9iaW4iKSAlPiUKICAjQ3JlYXRlIGEgZHVtbXkgZm9yIGludmVzdG9ycyBub3QgQUZELCBLRlcgb3IgRkZFTQogICMgbXV0YXRlKGNvZmluX290aGVyID0gYWZkX2JpbiA9PSBGQUxTRSAmIAogICMgICAgICAga2Z3X2JpbiA9PSBGQUxTRSAmIGZmZW1fYmluID09IEZBTFNFICYgY29maW5fdW5rd24gPT0gRkFMU0UsCiAgIyAgICAgICAuYWZ0ZXIgPSAiY29maW5fdW5rd24iKSAlPiUKICAjQWRkIHRoZSBJU08zIGNvZGUgY29ycmVzcG9uZGluZyB0byB0aGUgY291bnRyeSBob3N0aW5nIHRoZSBQQS4gRmFjaWxpdGF0ZSBmdXR1cmUgbWVyZ2luZ3MKICBsZWZ0X2pvaW4oZGF0YV9pc28sIGJ5ID0gYygicGF5cyIgPSAibm9tX2FscGhhMiIpKSAlPiUKICAjU29tZSBlbnRyaWVzIGluICJwYXlzIiBhcmUgRnJlbmNoIGRlcGFydG1lbnQsIERST00tQ09NLCAiT2NlYW4gSW5kaWVuIiBvciAiTXVsdGktUGF5cyIuCiAgI0ZyZW5jaCByZWxhdGVkIDogYXNzaWduZWQgdG8gRnJhbmNlLiBPY2VuIEluZGllbiBsZXQgTkEgdmFsdWUsIE11dGktcGF5cyBzZXQgdG8gWlogYXMgaW4gdGhlIFNJT1AgCiAgbXV0YXRlKGlzbzMgPSBjYXNlX3doZW4oCiAgICBwYXlzICVpbiUgYygiTWF5b3R0ZSIsICJQLU4gTi5DYWzDqWQiLCAiUC1TIE4uQ2Fsw6lkIiwgCiAgICAgICAgICAgICAgICAiUG9seW5lc2llIEZyYW5jYWlzZSIsICJObGxlIENhbGVkb25pZSIpIH4gIkZSQSIsCiAgICBwYXlzICVpbiUgYygiTXVsdGktUGF5cyIsICJPY2VhbiBJbmRpZW4iKSB+ICJaWiIsCiAgICAhKHBheXMgJWluJSBjKCJNYXlvdHRlIiwgIlAtTiBOLkNhbMOpZCIsICJQLVMgTi5DYWzDqWQiLCAKICAgICAgICAgICAgICAgICJQb2x5bmVzaWUgRnJhbmNhaXNlIiwgIk5sbGUgQ2FsZWRvbmllIiwgIk11bHRpLVBheXMiKSkgfiBpc28zCiAgKSkgJT4lCiAgI0FkZCB0aGUgZGVzY3JpcHRpb24gb2YgSVVDTiBmcm9tIGl0cyBjYXRlZ29yeQogICAgbXV0YXRlKGl1Y25fZGVzID0gY2FzZV93aGVuKAogICFpcy5uYSh3ZHBhaWQpICYgaXVjbl9jYXQgPT0gIklhIiB+ICJSw6lzZXJ2ZSBuYXR1cmVsbGUgaW50w6lncmFsZSIsCiAgIWlzLm5hKHdkcGFpZCkgJiBpdWNuX2NhdCA9PSAiSWIiIH4gIlpvbmUgZGUgbmF0dXJlIHNhdXZhZ2UiLAogICFpcy5uYSh3ZHBhaWQpICYgaXVjbl9jYXQgPT0gIklJIiB+ICJQYXJjIG5hdGlvbmFsIiwKICAhaXMubmEod2RwYWlkKSAmIGl1Y25fY2F0ID09ICJJSUkiIH4gIk1vbnVtZW50IG5hdHVyZWwiLAogICFpcy5uYSh3ZHBhaWQpICYgaXVjbl9jYXQgPT0gIklWIiB+ICJHZXN0LiBkZXMgaGFiaXRhdHMvZXNww6hjZXMiLAogICFpcy5uYSh3ZHBhaWQpICYgaXVjbl9jYXQgPT0gIlYiIH4gIlBheXNhZ2UgcHJvdMOpZ8OpIiwKICAhaXMubmEod2RwYWlkKSAmIGl1Y25fY2F0ID09ICJWSSIgfiAiR2VzdC4gZGUgcmVzcy4gcHJvdMOpZ8OpZXMiLAogICFpcy5uYSh3ZHBhaWQpICYgaXVjbl9jYXQgPT0gIk5vdCBBcHBsaWNhYmxlIiB+ICJOb24gY2F0w6lnb3Jpc8OpZSIsCiAgIWlzLm5hKHdkcGFpZCkgJiBpdWNuX2NhdCA9PSAiTm90IFJlcG9ydGVkIiB+ICJOb24gY2F0w6lnb3Jpc8OpZSIsCiAgIWlzLm5hKHdkcGFpZCkgJiBpdWNuX2NhdCA9PSAiTm90IEFzc2lnbmVkIiB+ICJOb24gY2F0w6lnb3Jpc8OpZSIsCiAgVFJVRSB+ICJOb24gcsOpZsOpcmVuY8OpZSIpLCAuYWZ0ZXIgPSBpdWNuX2NhdCkgJT4lCiAgICAjTW9kaWZ5IGNsYXNzIG9mIHNvbWUgdmFyaWFibGVzCiAgbXV0YXRlKGFjcm9zcyguY29scyA9IGMoIndkcGFpZCIsICJzdXBlcmZpY2llIiwKICAgICAgICAgICAgICAgICAgICAgICAgICAibW9udGFudF9wcmV2dV9jb25jb3Vyc19ldXJvX29jdHJvaSIsCiAgICAgICAgICAgICAgICAgICAgICAgICAgIm10X2dsb2JhbF9wcm9qZXRfcHJldnVfZGV2aXNlIiAsCiAgICAgICAgICAgICAgICAgICAgICAgICAgImVuZ2FnZW1lbnRzX25ldHNfZXVyb19vY3Ryb2kiLAogICAgICAgICAgICAgICAgICAgICAgICAgICJtb250YW50X3RvdGFsX3Byb2pldCIpLAogICAgICAgICAgICAgICAgLmZucyA9IH5hcy5udW1lcmljKC54KSkpICU+JQogICAgbXV0YXRlKGFjcm9zcyguY29scyA9IC1jKCJ3ZHBhaWQiLCAic3VwZXJmaWNpZSIsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAibW9udGFudF9wcmV2dV9jb25jb3Vyc19ldXJvX29jdHJvaSIsCiAgICAgICAgICAgICAgICAgICAgICAgICAgIm10X2dsb2JhbF9wcm9qZXRfcHJldnVfZGV2aXNlIiAsCiAgICAgICAgICAgICAgICAgICAgICAgICAgImVuZ2FnZW1lbnRzX25ldHNfZXVyb19vY3Ryb2kiLAogICAgICAgICAgICAgICAgICAgICAgICAgICJtb250YW50X3RvdGFsX3Byb2pldCIpLCAKICAgICAgICAgICAgICAgIC5mbnMgPSB+c3RyaV9lbmNfdG91dGY4KC54KSkpIAojZndyaXRlKGRhdGFfUEFfdGlkeSwgImRhdGFfdGlkeS9CRERfam9pbnRfdGlkeS5jc3YiKQoKYGBgCgojIyMgRGF0YXNldCB3aXRoIG9ubHkgU0lPUCB2YXJpYWJsZXMKCmBgYHtyLCBldmFsID0gRkFMU0V9CiNTZWxlY3QgaW5mbyBjb3JyZXNwb25kaW5nIHRvIFNJT1AgZXh0cmFjdCBhbmQgQVAgCmxpc3RfdmFyX3Npb3BfQVAgPSBjKCAiaWRfcHJvamV0IiwgIm5vbV9kdV9wcm9qZXQiLCAibm9tX2RlX3Byb2pldF9wb3VyX2xlc19pbnN0YW5jZXMiLAogICAgICAgICAgICAgICAgICAgICAgImlkX2NvbmNvdXJzIiwgImxpYmVsbGVfZHVfY29uY291cnMiLCAiZGVzY3JpcHRpb25fZHVfcHJvamV0IiwKICAgICAgICAgICAgICAgICAgICAgICJ3ZHBhaWQiLCAid2RwYWlkXzIiLCAid2RwYWlkXzMiLAogICAgICAgICAgICAgICAgICAgICAgIm1vbnRhbnRfcHJldnVfY29uY291cnNfZXVyb19vY3Ryb2kiLCAibXRfZ2xvYmFsX3Byb2pldF9wcmV2dV9kZXZpc2UiLCAKICAgICAgICAgICAgICAgICAgICAgICJlbmdhZ2VtZW50c19uZXRzX2V1cm9fb2N0cm9pIiwgIm1vbnRhbnRfdG90YWxfcHJvamV0IiwgInByb2R1aXQiLCAKICAgICAgICAgICAgICAgICAgICAgICJsaWJlbGxlX3Byb2R1aXQiLCAiZGl2aXNpb25fdGVjaG5pcXVlIiwgImxpYmVsbGVfZGl2aXNpb25fdGVjaG5pcXVlIiwgImFnZW5jZSIsIAogICAgICAgICAgICAgICAgICAgICAgImxpYmVsbGVfYWdlbmNlIiwgImFubmVlX29jdHJvaSIsICJkYXRlX29jdHJvaSIsCiAgICAgICAgICAgICAgICAgICAgICAiZGF0ZV9kZV8xZXJfdmVyc2VtZW50X3Byb2pldCIsICJkZXJuaWVyX3ZlcnNlbWVudF9lbl9kYXRlX3Byb2pldCIsIAogICAgICAgICAgICAgICAgICAgICAgImRhdGVfc2lnbmF0dXJlX2NvbnZlbnRpb25fY2YiLCAiZHVyZWVfZHVfY29uY291cnNfYW5uZWUiLAogICAgICAgICAgICAgICAgICAgICAgImR1cmVlX2R1X2NvbmNvdXJzX2FubmVlX2V0X21vaXMiLCAiaWRfcGF5c19kZV9yZWFsaXNhdGlvbiIsICJwYXlzIiwgImlzbzMiLAogICAgICAgICAgICAgICAgICAgICAgImRpcmVjdGlvbl9yZWdpb25hbGUiLCAiYXV0cmVzX3BheXNfZGVfcmVhbGlzYXRpb24iLCAKICAgICAgICAgICAgICAgICAgICAgICJldGF0X2R1X3Byb2pldCIsICJsaWJlbGxlX2V0YXRfZHVfcHJvamV0IiwgImJlbmVmaWNpYWlyZV9wcmltYWlyZSIsCiAgICAgICAgICAgICAgICAgICAgICAicmVzcG9uc2FibGVfZXF1aXBlX3Byb2pldCIsICJkaXJlY3RldXJfdHJpY2VfZGFnZW5jZSIsCiAgICAgICAgICAgICAgICAgICAgICAiZGF0ZV9kZV9yZW1pc2VfZHVfcmFwcG9ydF9maW5hbCIsICJjb2ZpbmFuY2llcl8xIiwgImNvZmluYW5jaWVyXzIiLCAKICAgICAgICAgICAgICAgICAgICAgICJjb2ZpbmFuY2llcl8zIiwiY29maW5hbmNpZXJfNCIsICJjb2ZpbmFuY2llcl81IiwgImNvZmluYW5jaWVyXzYiLAogICAgICAgICAgICAgICAgICAgICAgImtmd19iaW4iLCAiZmZlbV9iaW4iLAogICAgICAgICAgICAgICAgICAgICAgIm1haXRyaXNlX291dnJhZ2UiLCAic3VwZXJmX2ludGVybmUiLCAibmJfYXBfbm9tYnJlX3BvdGVudGllbCIsICJkZXRhaWwiLCAicHJvamV0IiwgImNvbW1lbnRhaXJlcyIpCgojRGVmaW5pbmluZyBkYXRhc2V0IGZvciBmdXR1cmUgYW5hbHlzaXMgOiBzaW9wIGFuZCBBUCBidXQgbm90IFdEUEEgCmRhdGFfc2lvcF9BUCA9IGRhdGFfUEFfdGlkeSAlPiUKICBkcGx5cjo6c2VsZWN0KGFsbF9vZihsaXN0X3Zhcl9zaW9wX0FQKSwgaXNvMykKI3dyaXRlX2NzdihkYXRhX3Npb3BfQVAsICJkYXRhX3RpZHkvQkREX0FQX1NJT1Bfam9pbnQueGxzeCIpCgpgYGAKCiMjIyBEYXRhc2V0IGZvciBub24tY29uZmlkZW50aWFsIHN0YXRpc3RpY3MKClRvIHBlcmZvcm0gZGVzY3JpcHRpdmUgc3RhdGlzdGljcyB3ZSB3YW50IHRvIGtlZXAgb25lIHJvdyBwZXIgUEEsIGNoYXJhY3Rlcml6ZWQgYnkgV0RQQSBJRCBvciBhIG5hbWUgKGlmIG5vIElEIHJlcG9ydGVkKS4gU29tZSBQQXMgY2FuIGhhdmUgc2V2ZXJhbCBsaW5lcyBpZiB0aGV5IHJlY2VpdmUgZnVuZHMgYXQgZGlmZmVyZW50IHRpbWUgb3IgYnkgZGlmZmVyZW50IGludmVzdG9ycy4KCmBgYHtyLCBldmFsID0gRkFMU0V9CgojTGlzdGluZyByZWxldmFudCB2YXJpYWJsZXMgZm9yIGRlc2NyaXB0aXZlIHN0YXRpc3RpY3MgdGhhdCBhcmUgTk9UIGNvbmZpZGVudGlhbCAoaS5lIG5vdCBjb25jZXJuIGZ1bmRpbmcpCmxpc3RfdmFyX1BBX25vZnVuZCA9IAogIGMoImlkX3Byb2pldCIsICJub21fZHVfcHJvamV0IiwgIm5vbV9hcCIsICJpZF9jb25jb3VycyIsIAogICAgIndkcGFpZCIsIAogICAgInBheXMiLCAiaXNvMyIsICJkaXJlY3Rpb25fcmVnaW9uYWxlIiwKICAgICJhbm5lZV9vY3Ryb2kiLCAibmJfYXBfbm9tYnJlX3BvdGVudGllbCIsICJkZXRhaWwiLAogICAgIml1Y25fY2F0IiwgIml1Y25fZGVzIiwgIm1hcmluZSIsICJzdXBlcmZpY2llIiwKICAgICJzdGF0dXMiLCAic3RhdHVzX3lyIiwgImdvdl90eXBlIiwib3duX3R5cGUiLCAibWFuZ19hdXRoIikKCiNEZWZpbmluZyBkYXRhc2V0IGZvciBkZXNjcmlwdGl2ZSBzdGF0aXN0aWNzCmRhdGFfc3RhdF9ub2Z1bmQgPSBkYXRhX1BBX3RpZHkgJT4lCiAgc2VsZWN0KGFsbF9vZihsaXN0X3Zhcl9QQV9ub2Z1bmQpLCBpc28zKQoKI2Z3cml0ZShkYXRhX3N0YXRfbm9mdW5kLCAiZGF0YV90aWR5L0JERF9EZXNTdGF0X25vZnVuZC5jc3YiKQoKI1RoZW4gdG8ga2VlcCBvbmx5IG9uZSByb3cgcGVyIFBBLCB3ZSBuZWVkIHRvIGNvbnNpZGVyIHNlcGFyYXRlbHkgUEFzIGhhdmluZyBXRFBBIElEIGFuZCBQQXMgd2hpY2ggZG8gbm90LgoKZGF0YV9zdGF0X25vZnVuZF93ZHBhID0gZGF0YV9zdGF0X25vZnVuZCAlPiUKICBzdWJzZXQoaXMubmEod2RwYWlkKSA9PSBGQUxTRSkgJT4lCiAgZ3JvdXBfYnkod2RwYWlkKSAlPiUgCiAgYXJyYW5nZShhbm5lZV9vY3Ryb2kpICU+JQogIHNsaWNlKDEpICU+JQogIHVuZ3JvdXAoKQoKZGF0YV9zdGF0X25vZnVuZF9uYSA9IGRhdGFfc3RhdF9ub2Z1bmQgJT4lCiAgc3Vic2V0KGlzLm5hKHdkcGFpZCkgPT0gVFJVRSkgJT4lCiAgbXV0YXRlKGlkMSA9IHBhc3RlKGlkX3Byb2pldCwgaXNvMywgbm9tX2FwLCBzZXAgPSAiXyIpLAogICAgICAgLmJlZm9yZSA9IGlkX3Byb2pldCkgJT4lCiAgZ3JvdXBfYnkoaWQxKSAlPiUKICBhcnJhbmdlKGFubmVlX29jdHJvaSkgJT4lCiAgc2xpY2UoMSkgJT4lCiAgdW5ncm91cCgpICU+JQogICNyZW1vdmUgaWQxIHZhcmlhYmxlLCB0byBiaW5kIGRhdGFfc3RhdF9uYSBhbmQgZGF0YV9zdGF0X3dkcGEgYnkgcm93CiAgc2VsZWN0KC1pZDEpCgpkYXRhX3N0YXRfbm9mdW5kX25vZHVwbCA9IHJiaW5kKGRhdGFfc3RhdF9ub2Z1bmRfd2RwYSwgZGF0YV9zdGF0X25vZnVuZF9uYSkgCgojZndyaXRlKGRhdGFfc3RhdF9ub2Z1bmRfbm9kdXBsLCAiZGF0YV90aWR5L0JERF9EZXNTdGF0X25vZnVuZF9ub2R1cGwuY3N2IikKYGBgCgojIyMgRGF0YXNldCBmb3IgY29uZmlkZW50aWFsIGRlc2NyaXB0aXZlIHN0YXRpc3RpY3MKCmBgYHtyLCBldmFsID0gRkFMU0V9CgojTGlzdGluZyByZWxldmFudCB2YXJpYWJsZXMgZm9yIGRlc2NyaXB0aXZlIHN0YXRpc3RpY3MKbGlzdF92YXJfUEFfZnVuZCA9IGMoImlkX3Byb2pldCIsICJub21fZHVfcHJvamV0IiwgIm5vbV9hcCIsICJpZF9jb25jb3VycyIsIAogICAgICAgICAgICAgICAgIndkcGFpZCIsCiAgICAgICAgICAgICAgICAicGF5cyIsICJpc28zIiwgImRpcmVjdGlvbl9yZWdpb25hbGUiLAogICAgICAgICAgICAgICAgIm1vbnRhbnRfcHJldnVfY29uY291cnNfZXVyb19vY3Ryb2kiLAogICAgICAgICAgICAgICAgIm10X2dsb2JhbF9wcm9qZXRfcHJldnVfZGV2aXNlIiwKICAgICAgICAgICAgICAgICJlbmdhZ2VtZW50c19uZXRzX2V1cm9fb2N0cm9pIiwKICAgICAgICAgICAgICAgICJtb250YW50X3RvdGFsX3Byb2pldCIsICJsaWJlbGxlX3Byb2R1aXQiLCAiYW5uZWVfb2N0cm9pIiwKICAgICAgICAgICAgICAgICJjb2ZpbmFuY2llcl8xIiwgImNvZmluYW5jaWVyXzIiLCAiY29maW5hbmNpZXJfMyIsIAogICAgICAgICAgICAgICAgImNvZmluYW5jaWVyXzQiLCAiY29maW5hbmNpZXJfNSIsICJjb2ZpbmFuY2llcl82IiwKICAgICAgICAgICAgICAgICAia2Z3X2JpbiIsICJmZmVtX2JpbiIpCgojRGVmaW5pbmcgZGF0YXNldCBmb3IgZGVzY3JpcHRpdmUgc3RhdGlzdGljcwojRHVwbGljYXRlcyBhcmUgbm90IHJldm1vdmVkIGhlcmUsIGFzIHdlIHdhbnQgdGhlIGluZm9ybWF0aW9uIG9uIHRoZSBkaWZmZXJlbnQgY29uY291cnMgZm9yIGluc3RhbmNlLiBQZWN1bGlhciBkYXRhc2V0cyAKZGF0YV9zdGF0X2Z1bmQgPSBkYXRhX1BBX3RpZHkgJT4lCiAgc2VsZWN0KGFsbF9vZihsaXN0X3Zhcl9QQV9mdW5kKSwgaXNvMykKCiNmd3JpdGUoZGF0YV9zdGF0X2Z1bmQsICJkYXRhX3RpZHkvQkREX0Rlc1N0YXRfZnVuZC5jc3YiKQpgYGAKCiMjIyBBIHBvbHlnb24gZGF0YXNldCB3aXRob3V0IGNvbmZpZGVudGlhbCBpbmZvcm1hdGlvbgoKYGBge3IsIGV2YWwgPSBGQUxTRX0KI1RoZSBjb25maWRlbnRpYWwgaW5mb3JtYXRpb24gcmVtb3ZlZCBjb25jZXJuIGZ1bmRpbmcgb3Igbm9taW5hdGl2ZSB2YXJpYWJsZXMKcGFfc2hwID0gcmVhZF9zZigiZGF0YV9yYXcvV0RQQV9TSFAvQkREX1NIUF9ub2R1cGwuc2hwIikgJT4lCiAgY2xlYW5fbmFtZXMoKSAlPiUKICBzZWxlY3QoLWMobW50bnQsIG10Z2xiLCBlLCBtbnQsIHByb2R0LCBsYmxscCwgZHRfY3QsIGRfMSwgZCwgZF9jLCBkdXJkY25jcnNfYSwgZHJkY25jcnNfYW4sIGF0cnNwLCBldHQsIGxibGx0LCByc3BucywgZHIsIG10cnMsIGRldGFsLCBwcm9qdCwgY21tbnQsIGNtbW50XzEpKQoKIyBzdF93cml0ZShwYV9zaHAsCiMgICAgICAgICAgZHNuID0gImRhdGFfdGlkeS9CRERfc2hwX3B1Yi5ncGtnIiwKIyAgICAgICAgICBkZWxldGVfZHNuID0gVFJVRSkKCnJtKHBhX3NocCkKYGBgCgojIyBDb21wdXRpbmcgdG90YWwgYXJlYXMgY292ZXJlZCBieSBQQXMgaW4gdGhlIHNhbXBsZQoKS25vd2luZyB0aGUgdG90YWwgYXJlYSBjb3ZlcmVkIGJ5IFBBcyBhdCBkaWZmZXJlbnQgbGV2ZWwgb2YgYWdncmVnYXRpb24gaXMgaW50ZXJlc3RpbmcgcGVyIHNlLiBJdCBpcyBhbHNvIG5lY2Vzc2FyeSB0byBjb21wdXRlIHNldmVyYWwgc3RhdGlzdGljcyAoZS5nIGF2ZXJhZ2UgZnVuZGluZyBieSB1bml0IG9mIGFyZWEpLiBBY2NvcmRpbmcgdG8gdGhlIFdEUEEgZG9jdW1lbnRhdGlvbiwgaXQgaXMgbGlrZWx5IHRoYXQgc29tZSByZXBvcnRlZCBwb2x5Z29ucyBvdmVybGFwLiBTaW1wbHkgc3VtbWluZyB0aGUgYXJlYXMgd291bGQgdGh1cyBsZWFkIHRvIGEgYmlhc2VkIGVzdGltYXRlIG9mIHRoZSB0b3RhbCBhcmVhIGF0IGEgZ2l2ZW4gbGV2ZWwgb2YgYWdncmVnYXRpb24uIFdlIGZvbGxvdyB0aGUgcHJvY2VkdXJlIG9mIHRoZSBXRFBBICg8aHR0cHM6Ly93d3cucHJvdGVjdGVkcGxhbmV0Lm5ldC9lbi9yZXNvdXJjZXMvY2FsY3VsYXRpbmctcHJvdGVjdGVkLWFyZWEtY292ZXJhZ2U+KS4gT3VyIGNhc2UgaXMgc2ltcGxlciBhcyBhbGwgb2YgdGhlIFBBcyB3ZSBjb25zaWRlciBhcmUgZ2l2ZW4gYSBwb2x5Z29uLgoKMS4gIFRoZSBsYXllciBpcyBjb252ZXJ0ZWQgdG8gTW9sbHdlaWRlIChhbiBlcXVhbCBhcmVhIHByb2plY3Rpb24pIGFuZCB0aGUgYXJlYSBvZiBlYWNoIHBvbHlnb24gaXMgY2FsY3VsYXRlZCwgaW4ga20yLgoKMi4gIEludGVyc2VjdGlvbiBvZiBwb2x5Z29ucyBhbmQgdGhlIGNvcnJlc3BvbmRpbmcgYXJlYSBhcmUgY29tcHV0ZWQuCgozLiAgVGhlbiB0aGUgaW50ZXJzZWN0aW9uIGNhbiBiZSBhZ2dyZWdhdGVkIGF0IGNvdW50cnksIHJlZ2lvbiBvciB3b3JsZCBsZXZlbC4gVGhlbiBpdCBpcyBzdWJ0cmFjdGVkIHRvIHRoZSBzdW0gb2YgYXJlYXMgYXQgY291bnRyeSwgcmVnaW9uIG9yIHdvcmxkIGxldmVsLiBOb3RlIHRoYXQgaW50ZXJzZWN0aW9ucyBiZXR3ZWVuIFBBcyB3aG9zZSBwb2x5Z29uIGlzIHVua25vd24gd29uJ3QgYmUgdGFrZW4gaW50byBhY2NvdW50LgoKTm90ZSB0aGF0IHRoZSBmb2xsb3dpbmcgY29kZXMgYXJlIGFib3V0IGNvbXB1dGluZyB0b3RhbCBhcmVhIGF0IGNvdW50cnkvcmVnaW9uL3dvcmxkIGxldmVsLCB0YWtpbmcgcG90ZW50aWFsIGludGVyc2VjdGlvbnMgaW50byBhY2NvdW50LiBJdCBpcyBub3QgYWJvdXQgZ2VuZXJhdGluZyBhIG5ldyBzaGFwZSBmaWxlcyBmb3IgdGhlIGltcGFjdCBhbmFseXNpcy4gSW5kZWVkIHRoZSBvdmVybGFwIHNob3VsZCBiZSB0YWtlbiBpbnRvIGFjY291bnQgaW4gdGhlIGltcGFjdCBldmFsdWF0aW9uIGFuYWx5c2lzIGNvZGVzLgoKIyMjIENvbXB1dGF0aW9ucyBvZiBwb2x5Z29ucycgYXJlYQoKYGBge3IsIGV2YWwgPSBGQUxTRX0KCiNJbXBvcnRpbmcgc2hhcGVmaWxlcwpzZl91c2VfczIoRkFMU0UpCnBhX3NocCA9IAogIHJlYWRfc2YoImRhdGFfdGlkeS9CRERfc2hwX3Jhdy5ncGtnIikgJT4lCiAgIyBhd3MuczM6OnMzcmVhZF91c2luZygKICAjIEZVTiA9IHNmOjpyZWFkX3NmLAogICMgIyBNZXR0cmUgbGVzIG9wdGlvbnMgZGUgRlVOIGljaQogICMgb2JqZWN0ID0gImRhdGFfdGlkeS9CRERfU0hQX25vZHVwbF9wdWIuZ3BrZyIsCiAgIyBidWNrZXQgPSAicHJvamV0LWFmZC1ldmEtYXAiLAogICMgb3B0cyA9IGxpc3QoInJlZ2lvbiIgPSAiIikpICU+JQogICNFbnN1cmUgYWxsIGdlb21ldHJpZXMgYXJlIHZhbGlkCiAgc3RfbWFrZV92YWxpZCgpICU+JQogICNGcm9tIG11bHRpcG9seWdvbiB0byBwb2x5Z29uCiAgc2Y6OnN0X2Nhc3QodG89IlBPTFlHT04iKSAlPiUKICBjbGVhbl9uYW1lcygpICU+JQogICNTZWxlY3QgcmVsZXZhbnQgdmFyaWFibGVzCiAgI05vdGUgYW5uX2MgPSBhbm5lZV9vY3Ryb2kgaW4gdGhlIGluaXRpYWwgZGF0YWJhc2UgZGF0YV9QQV9yYXcKICBkcGx5cjo6c2VsZWN0KGMod2RwYWlkLCBzcHJmYywgcmVwX2EsIGdpc19hLCBnZW9tLCBpc28zLCBkcmN0LCBhbm5fYykpICU+JQogICNWYXJpYWJsZSBzcHJmYyBjb3JyZXNwb25kcyB0byBBRkQgaW50ZXJuYWwgcmVwb3J0ZWQgc2l6ZQogIHJlbmFtZSgic3ByZmNfaW50IiA9ICJzcHJmYyIpICU+JQogIG11dGF0ZSh3ZHBhaWQgPSBhcy5udW1lcmljKHdkcGFpZCksCiAgICAgICAgIHNwcmZjX2ludCA9IGFzLm51bWVyaWMoc3ByZmNfaW50KSkgCgojU3BhdGlhbCBkZWZpbml0aW9uIG9mIHdkcGFpZCA1NTU1NDc5ODggb3ZlcmxhcHMgQ01SIGFuZCBDQUYuIFdkcGFpZCAxMjQ1IGNvcnJlc3BvbmRzIHRvIHRoZSBDTVIgcGFydC4gVGhlIG92ZXJsYXAgaXMgcmVtb3ZlZCBhbmQgaXNvMyByZWRlZmluZWQgc28gdGhhdCA1NTU1NDc5ODggaXMgQ0FGIG9ubHkuIApnZW9tXzU1NTU0Nzk4OF8xMjQ1ID0gc3RfZGlmZmVyZW5jZShwYV9zaHBbcGFfc2hwJHdkcGFpZCA9PSA1NTU1NDc5ODgsXSRnZW9tLCBwYV9zaHBbcGFfc2hwJHdkcGFpZCA9PSAxMjQ1LF0kZ2VvbSkKcGFfc2hwW3BhX3NocCR3ZHBhaWQgPT0gNTU1NTQ3OTg4LF0kZ2VvbSA9IGdlb21fNTU1NTQ3OTg4XzEyNDUKcGFfc2hwW3BhX3NocCR3ZHBhaWQgPT0gNTU1NTQ3OTg4LF0kaXNvMyA9ICJDQUYiCgojRGVmaW5lIGEgdGlkeSB2ZXJzaW9uIG9mIHRoZSBmb3JtZXIgZGF0YXNldCwgd2l0aCBtb2RpZmljYXRpb25zIG9uIHdkcGFpZCA1NTU1NDc5ODgKcGFfc2hwX3RpZHkgPSBwYV9zaHAgJT4lCiAgI1Byb2plY3QgdG8gTW9sbHdlaWRlIHRvIGNvbXB1dGUgcmVsZXZhbnQgYXJlYXMgaW4ga20yCiAgc3RfdHJhbnNmb3JtKGNycyA9ICIrcHJvaj1tb2xsICtkYXR1bT1XR1M4NCIpICU+JQogICNDb21wdXRlIGFyZWFzIGluIGttMiBmcm9tIHRoZSBnZW9tZXRyeSwgaW4ga20yLiBJdCBtdXN0IGJlIGVxdWFsIHRvIGdpc19hIGJ5IGRlZmluaXRpb24gCiAgI1RoZW4gdG8gdGFrZSBpbnRvIGFjY291bnQgcG90ZW50aWFsIHJlZmluZW1lbnRzIG9mIHRoZSBnZW9tZXRyaWVzIChhcyBmb3Igd2RwYWlkIDU1NTQ3OTg4KSwgYSB2YXJpYWJsZSBmb3IgcmVsZXZhbnQgYXJlYSBpcyBkZWZpbmVkLiBJdCB0YWtlcyByZXBfYSB2YWx1ZSBleGNlcHQgZm9yIG1vZGlmaWVkIGdlb21ldHJpZXMgd2hlcmUgYXJlYV9zZl9tb2xsIGlzIHRha2VuCiAgbXV0YXRlKGFyZWFfc2ZfbW9sbCA9IGFzLm51bWVyaWMoc3RfYXJlYShnZW9tKS8xZTYpLAogICAgICAgICBzcHJmY19rbTIgPSBpZmVsc2Uod2RwYWlkID09IDU1NTU0Nzk4OCwgeWVzID0gYXJlYV9zZl9tb2xsLCBubyA9IHJlcF9hKSkKYGBgCgojIyMgQ29tcHV0aW5nIHRoZSBpbnRlcnNlY3Rpb24gYXQgY291bnRyeSwgcmVnaW9uLCB3b3JsZCBsZXZlbAoKYGBge3IsIGV2YWwgPSBGQUxTRX0KCiNDb21wdXRlIGludGVyc2VjdGluZyBhcmVhcyBvZiBwb2x5Z29ucwpwYV9pbnQgPSBzdF9pbnRlcnNlY3Rpb24ocGFfc2hwX3RpZHksIHBhX3NocF90aWR5KSAlPiUKICAjUmVtb3ZlIGludGVyc2VjdGlvbiBvZiBwb2x5Z29ucyB3aXRoIHRoZW1zZWx2ZXMKICBzdWJzZXQod2RwYWlkICE9IHdkcGFpZC4xKSAlPiUKICAjSWYgb25lIG9mIHRoZSB0d28gaW50ZXJzZWN0aW4gcG9seWdvbiBoYXZlIHVua253b24gYXJlYSwgdGhlbiBpdCBpcyBub3QgbmVjZXNzYXJ5IHRvIHN1YnRyYWN0IHRoZSBpbnRlcmVzY3Rpb24gYXJlYS4gSW5kZWVkIHRoZXJlIGlzIG5vIGRvdWJsZS1jb3VudGluZyBvZiB0aGUgaW50ZXJzZWN0aW9uIGluIHRoaXMgY2FzZSwgd2hlbiBib3RoIHBvbHlnb24gYXJlYXMgYXJlIHN1bW1lZC4KICBzdWJzZXQoaXMubmEoc3ByZmNfa20yKSA9PSBGQUxTRSAmIGlzLm5hKHNwcmZjX2ttMi4xKSA9PSBGQUxTRSkgJT4lCiAgI0NvbXB1dGUgdGhlIGludGVyc2VjdGluZyBhcmVhcyAocGFfc2hwIGFscmVhZHkgaW4gTW9sbHdlaWRlIHByb2plY3Rpb24pIGluIGttMgogIG11dGF0ZShhcmVhX2ludCA9IGFzLm51bWVyaWMoc3RfYXJlYShnZW9tKS8xZTYpKSAlPiUKICAjTm93IGR1cGxpY2F0ZXMgbmVlZCB0byBiZSByZW1vdmVkIDogaW50ZXJzZWN0aW9uIG9mIFggd2l0aCBZIEFORCBpbnRlcnNlY3Rpb24gb2YgWSB3aXRoIFggYXJlIHJlcG9ydGVkLiBXZSBuZWVkIG9ubHkgb25lLgogICNBbiBpZF9pbnQgdG8gaWRlbnRpZnkgdGhlIGludGVyc2VjdGlvbiBvZiBhIGdpdmVuIHBhaXIKICBtdXRhdGUoaWRfaW50ID0gcGFzdGUwKHdkcGFpZCwgIl8iLCB3ZHBhaWQuMSksIC5iZWZvcmUgPSB3ZHBhaWQpICU+JQogIG11dGF0ZShpZF9pbnRfdGVtcCA9IHBhc3RlMCh3ZHBhaWQsICJfIiwgd2RwYWlkLjEpLCAuYmVmb3JlID0gd2RwYWlkKSAlPiUKICAjY3JlYXRlIGEgbWlycm9yIGlkWF9pZFkgLS0+IGlkWV9pZFggc28gdGhhdCB3ZSBpZGVudGlmeSB0aGUgYm90aCBtZW1iZXIgb2YgYSBwYWlyIHdpdGggdGhlIHNhbWUgaWQKICBzZXBhcmF0ZShpZF9pbnRfdGVtcCwgaW50byA9IGMoImlkX3RlbXAxIiwgImlkX3RlbXAyIiksIHNlcCA9ICJfIikgJT4lCiAgbXV0YXRlKGlkX2ludF9yZXYgPSBjYXNlX3doZW4oCiAgICBpZF90ZW1wMSA8IGlkX3RlbXAyIH4gcGFzdGUoaWRfdGVtcDEsIGlkX3RlbXAyLCBzZXAgPSAiXyIpLAogICAgaWRfdGVtcDEgPiBpZF90ZW1wMiB+IHBhc3RlKGlkX3RlbXAyLCBpZF90ZW1wMSwgc2VwID0gIl8iKSwKICAgIFRSVUUgfiBwYXN0ZShpZF90ZW1wMSwgaWRfdGVtcDIsIHNlcCA9ICJfIikpLAogICAgLmFmdGVyID0gaWRfaW50KSAlPiUKICAjZmluYWxseSwgZ2V0IHJpZCBvZiB0aGUgZHVwbGljYXRlcyAoaGF2ZSB0aGUgc2FtZSBpZF9pbnRfcmV2KQogIGdyb3VwX2J5KGlkX2ludF9yZXYpICU+JQogIHNsaWNlKDEpICU+JQogIHVuZ3JvdXAoKSAlPiUKICAjc2VsZWN0IHJlbGV2YW50IHZhcmlhYmxlcyBvbmx5CiAgc2VsZWN0KHdkcGFpZCwgaXNvMywgZHJjdCwgYW5uX2MsIHdkcGFpZC4xLCBpc28zLjEsIGRyY3QuMSwgYW5uX2MuMSwgZ2VvbSwgYXJlYV9pbnQpCgojQ29tcHV0aW5nIHRoZSB0b3RhbCBhcmVhIG9mIGludGVyc2VjdGlvbnMKI0F0IGNvdW50cnkgbGV2ZWwgLi4uCnBhX2ludF9jdHJ5ID0gcGFfaW50ICU+JQogICNPbmx5IG92ZXJsYXBwaW5nIFBBcyBpbiB0aGUgc2FtZSBjb3VudHJ5IGFyZSBjb25zaWRlcmVkCiAgc3Vic2V0KGlzbzMgPT0gIGlzbzMuMSkgJT4lCiAgZ3JvdXBfYnkoaXNvMykgJT4lCiAgc3VtbWFyaXplKHRvdF9hcmVhX2ludCA9IHN1bShhcmVhX2ludCkpICU+JQogIHN0X2Ryb3BfZ2VvbWV0cnkoKQoKI0F0IHJlZ2lvbiBsZXZlbApwYV9pbnRfZHIgPSBwYV9pbnQgJT4lCiAgI09ubHkgb3ZlcmxhcHBpbmcgUEFzIGluIHRoZSBzYW1lIERSIGFyZSBjb25zaWRlcmVkCiAgc3Vic2V0KGRyY3QgPT0gZHJjdC4xKSAlPiUKICBncm91cF9ieShkcmN0KSAlPiUKICBzdW1tYXJpemUodG90X2FyZWFfaW50ID0gc3VtKGFyZWFfaW50KSkgJT4lCiAgc3RfZHJvcF9nZW9tZXRyeSgpCgojI0F0IHdvcmxkIGxldmVsIDogYWxsIG92ZXJsYXAgYXJlIGNvbnNpZGVyZWQKcGFfaW50X3dsZCA9IHN1bShwYV9pbnQkYXJlYV9pbnQpIAoKI0NvbXB1dGUgdGhlIHRvdGFsIGludGVyc2VjdGlvbiBmb3IgZWFjaCB5ZWFyCnBhX2ludF95ciA9IHBhX2ludCAlPiUKICAjRGVmaW5lIGludGVyc2VjdGlvbiB5ZWFyIDogdGhlIGRhdGUgYW5uX2Mgb2YgdGhlIGxhdGVyIFBBIGluIHRoZSBwYWlyCiAgcm93d2lzZSgpICU+JQogIG11dGF0ZShhbm5lZV9pbnQgPSBtYXgoYW5uX2MsIGFubl9jLjEpKSAlPiUgCiAgZ3JvdXBfYnkoYW5uZWVfaW50KSAlPiUKICBzdW1tYXJpemUodG90X2ludF9rbTIgPSBzdW0oYXJlYV9pbnQpKSAlPiUKICBzdF9kcm9wX2dlb21ldHJ5KCkKCiMgZndyaXRlKHBhX2ludF95ciwKIyAgICAgICAgImRhdGFfdGlkeS9hcmVhL3BhX2ludF95ci5jc3YiKQpgYGAKCiMjIyBDb21wdXRpbmcgdG90YWwgYXJlYXMgd2l0aG91dCBpbnRlcnNlY3Rpb24KCmBgYHtyLCBldmFsID0gRkFMU0V9CiNBdCBjb3VudHJ5IGxldmVsIC4uLgpwYV9hcmVhX2N0cnkgPSBkYXRhX3N0YXRfbm9mdW5kX25vZHVwbCAlPiUKICAjQ29tcHV0ZSB0b3RhbCBhcmVhIGF0IGNvdW50cnkgbGV2ZWwKICBncm91cF9ieShpc28zKSAlPiUKICBzdW1tYXJpemUoc3ByZmNfdG90X2ttMiA9IHN1bShzdXBlcmZpY2llKSkgJT4lCiAgdW5ncm91cCgpICU+JQogICNBZGQgaW5mb3JtYXRpb24gb24gaW50ZXJzZWN0aW9uIGFyZWEgaW4gZWFjaCBjb3VudHJ5LiBNb2RpZnkgdGhlIHZhcmlhYmxlIHNvIHRoYXQgTkEgdmFsdWUgLT4gMAogIGxlZnRfam9pbihwYV9pbnRfY3RyeSwgYnkgPSAiaXNvMyIpICU+JQogIG11dGF0ZSh0b3RfYXJlYV9pbnQgPSBjYXNlX3doZW4oaXMubmEodG90X2FyZWFfaW50KSA9PSBUUlVFIH4gMCwgVFJVRSB+IHRvdF9hcmVhX2ludCkpICU+JQogICNDb21wdXRlIHRoZSB0b3RhbCBhcmVhIGF0IGNvdW50cnkgbGV2ZWwgd2l0aG91dCBpbnRlcnNlY3Rpb24KICBtdXRhdGUoc3ByZmNfdG90X25vaW50X2ttMiA9IHNwcmZjX3RvdF9rbTIgLSB0b3RfYXJlYV9pbnQpIAoKI2Z3cml0ZShwYV9hcmVhX2N0cnksICJkYXRhX3RpZHkvYXJlYS9wYV9hcmVhX2N0cnkuY3N2IikKCiNBdCBEUiBsZXZlbCAuLi4KcGFfYXJlYV9kciA9IGRhdGFfc3RhdF9ub2Z1bmRfbm9kdXBsICU+JQogICNDb21wdXRlIHRvdGFsIGFyZWEgYXQgZHIgbGV2ZWwKICBncm91cF9ieShkaXJlY3Rpb25fcmVnaW9uYWxlKSAlPiUKICBzdW1tYXJpemUoc3ByZmNfdG90X2ttMiA9IHN1bShzdXBlcmZpY2llKSkgJT4lIAogIHVuZ3JvdXAoKSAlPiUKICAjQWRkIGluZm9ybWF0aW9uIG9uIGludGVyc2VjdGlvbiBhcmVhIGluIGVhY2ggRFIuIE1vZGlmeSB0aGUgdmFyaWFibGUgc28gdGhhdCBOQSB2YWx1ZSAtPiAwCiAgbGVmdF9qb2luKHBhX2ludF9kciwgYnkgPSBjKCJkaXJlY3Rpb25fcmVnaW9uYWxlIiA9ICJkcmN0IikpICU+JQogIG11dGF0ZSh0b3RfYXJlYV9pbnQgPSBjYXNlX3doZW4oaXMubmEodG90X2FyZWFfaW50KSA9PSBUUlVFIH4wLCBUUlVFIH50b3RfYXJlYV9pbnQpKSAlPiUKICAjQ29tcHV0ZSB0aGUgdG90YWwgYXJlYSBhdCBjb3VudHJ5IGxldmVsIHdpdGhvdXQgaW50ZXJzZWN0aW9uCiAgbXV0YXRlKHNwcmZjX3RvdF9ub2ludF9rbTIgPSBzcHJmY190b3Rfa20yIC0gdG90X2FyZWFfaW50KSAlPiUKICBzdF9kcm9wX2dlb21ldHJ5KCkKCiNmd3JpdGUocGFfYXJlYV9kciwgImRhdGFfdGlkeS9hcmVhL3BhX2FyZWFfZHIuY3N2IikKCiNBdCB3b3JsZCBsZXZlbApwYV9hcmVhX3dsZCA9IHN1bShkYXRhX3N0YXRfbm9mdW5kX25vZHVwbCRzdXBlcmZpY2llKSAtIHBhX2ludF93bGQgJT4lCiAgYXMuZGF0YS5mcmFtZSgpICU+JQogIHJlbmFtZSgic3ByZmNfdG90X25vaW50X2ttMiIgPSAiLiIpCiNmd3JpdGUocGFfYXJlYV93bGQsICJkYXRhX3RpZHkvYXJlYS9wYV9hcmVhX3dsZC5jc3YiKQoKYGBgCgojIyBPbGQgY29kZQoKYGBge3IsIGV2YWwgPSBGQUxTRX0KI0xpc3RpbmcgdmFyaWFibGVzIHB1YmxpYyBvciBjb25maWRlbnRpYWwKCiNQdWJsaWMgdmFyaWFibGVzIGluIHRoZSBQQXMgZGF0YXNldApsaXN0X3Zhcl9QQV9vcGVuID0gYygiaWRfcHJvamV0IiwgIm5vbV9kdV9wcm9qZXQiLCAibm9tX2FwIiwgImlkX2NvbmNvdXJzIiwgCiAgICAgICAgICAgICAgICAid2RwYWlkIiwgIndkcGFpZF8yIiwgIndkcGFpZF8zIiwgIndkcGFfcGlkIiwKICAgICAgICAgICAgICAgICJwYXlzIiwgImlzbzMiLCAiZGlyZWN0aW9uX3JlZ2lvbmFsZSIsICJhbm5lZV9vY3Ryb2kiLAogICAgICAgICAgICAgICAgImNvZmluYW5jaWVyXzEiLCAiY29maW5hbmNpZXJfMiIsICJjb2ZpbmFuY2llcl8zIiwgCiAgICAgICAgICAgICAgICAiY29maW5hbmNpZXJfNCIsICJjb2ZpbmFuY2llcl81IiwgImNvZmluYW5jaWVyXzYiLAogICAgICAgICAgICAgICAgImtmd19iaW4iLCAiZmZlbV9iaW4iLCAibmJfYXBfbm9tYnJlX3BvdGVudGllbCIsICJkZXRhaWwiLAogICAgICAgICAgICAgICAgIml1Y25fY2F0IiwgIml1Y25fZGVzIiwgIm1hcmluZSIsICJzdXBlcmZpY2llIiwKICAgICAgICAgICAgICAgICJzdGF0dXMiLCAic3RhdHVzX3lyIiwgImdvdl90eXBlIiwib3duX3R5cGUiLCAibWFuZ19hdXRoIikKI0NvbmZpZGVudGlhbCB2YXJpYWJsZXMgaW4gdGhlIFBBcyBkYXRhc2V0Cmxpc3RfdmFyX1BBX2NvbmYgPSBsaXN0X3Zhcl9qb2ludF9jb25mID0gCiAgYygibW9udGFudF9wcmV2dV9jb25jb3Vyc19ldXJvX29jdHJvaSIsICJtdF9nbG9iYWxfcHJvamV0X3ByZXZ1X2RldmlzZSIsCiAgICAiZW5nYWdlbWVudHNfbmV0c19ldXJvX29jdHJvaSIgLCAibW9udGFudF90b3RhbF9wcm9qZXQiLAogICAgInByb2R1aXQiLCAibGliZWxsZV9wcm9kdWl0IiwKICAgICJkYXRlX2RlXzFlcl92ZXJzZW1lbnRfcHJvamV0IiwgImRlcm5pZXJfdmVyc2VtZW50X2VuX2RhdGVfcHJvamV0IiwKICAgICJkYXRlX3NpZ25hdHVyZV9jb252ZW50aW9uX2NmIiwgImR1cmVlX2R1X2NvbmNvdXJzX2FubmVlIiwKICAgICJkdXJlZV9kdV9jb25jb3Vyc19hbm5lZV9ldF9tb2lzIiwgImJlbmVmaWNpYWlyZV9wcmltYWlyZSIsCiAgICAicmVzcG9uc2FibGVfZXF1aXBlX3Byb2pldCIsICJkaXJlY3RldXJfdHJpY2VfZGFnZW5jZSIsICJtYWl0cmlzZV9vdXZyYWdlIgogICAgKQojQ29uZmlkZW50aWFsIHZhcmlhYmxlcyBhbW9uZyBzaGFwZWZpbGVzCmxpc3RfdmFyX3NocF9jb25mID0gYygibW50bnQiLCAibXRnbGIiLCAiZSIsICJtbnQiLCAicHJvZHQiLCAibGJsbHAiLAogICAgICAgICAgICAgICAgICAgICAgInJzcG5zIiwgImRyIiwgImRldGFsIiwgInByb2p0IiwgImNtbW50IikKYGBgCgpgYGB7ciwgZXZhbCA9IEZBTFNFfQpiYXNlX25vZHVwbF9sZWEgPSAKICAjZnJlYWQoImRhdGFfdGlkeS9iYXNlX25vZHVwbF9sZWEueGxzeCIpCiAgYXdzLnMzOjpzM3JlYWRfdXNpbmcoCiAgRlVOID0gZGF0YS50YWJsZTo6ZnJlYWQsCiAgZW5jb2RpbmcgPSAiVVRGLTgiLAogICMgTWV0dHJlIGxlcyBvcHRpb25zIGRlIEZVTiBpY2kKICBvYmplY3QgPSAiZGF0YV90aWR5L0JERF9EZXNTdGF0X25vZHVwbF9sZWFfcHViLmNzdiIsCiAgYnVja2V0ID0gInByb2pldC1hZmQtZXZhLWFwIiwKICBvcHRzID0gbGlzdCgicmVnaW9uIiA9ICIiKSkgJT4lCiAgc2VsZWN0KGFueV9vZihuYW1lcyhkYXRhX3N0YXRfbm9kdXBsKSkpCiAgCiNpbXBvcnQgYSBkYXRhc2V0IHdpdGggY291bnRyeSBhbm1lcyBhbmQgY29ycmVzcG9uZGluZyBJU08zIGNvZGUKZGF0YV9pc28gPSBkYXRhX3N0YXQgJT4lCiAgc2VsZWN0KGMocGF5cywgaXNvMykpICU+JQogIGdyb3VwX2J5KGlzbzMpICU+JQogIHNsaWNlKDEpCgpiYXNlX25vZHVwbF9vbGQgPSAKICAjZnJlYWQoImRhdGFfdGlkeS9iYXNlX25vZHVwbF9vbGQuY3N2IikgCiAgYXdzLnMzOjpzM3JlYWRfdXNpbmcoCiAgRlVOID0gZGF0YS50YWJsZTo6ZnJlYWQsCiAgZW5jb2RpbmcgPSAiVVRGLTgiLAogICMgTWV0dHJlIGxlcyBvcHRpb25zIGRlIEZVTiBpY2kKICBvYmplY3QgPSAiZGF0YV90aWR5L0JERF9EZXNTdGF0X25vZHVwbF9vbGRfcHViLmNzdiIsCiAgYnVja2V0ID0gInByb2pldC1hZmQtZXZhLWFwIiwKICBvcHRzID0gbGlzdCgicmVnaW9uIiA9ICIiKSklPiUKICBzZWxlY3QoYW55X29mKG5hbWVzKGRhdGFfc3RhdF9ub2R1cGwpKSkgJT4lCiAgc2VsZWN0KC1pc28zKSAlPiUKICBsZWZ0X2pvaW4oZGF0YV9pc28sIGJ5ID0gInBheXMiKSAlPiUKICBtdXRhdGUoaXNvMyA9IGNhc2Vfd2hlbigKICAgIHBheXMgJWluJSBjKCJNYXlvdHRlIiwgIlAtTiBOLkNhbMOpZCIsICJQLVMgTi5DYWzDqWQiLCAKICAgICAgICAgICAgICAgICJQb2x5bmVzaWUgRnJhbmNhaXNlIiwgIk5sbGUgQ2FsZWRvbmllIikgfiAiRlJBIiwKICAgIHBheXMgPT0gIk11bHRpLVBheXMiIH4gIlpaIiwKICAgICEocGF5cyAlaW4lIGMoIk1heW90dGUiLCAiUC1OIE4uQ2Fsw6lkIiwgIlAtUyBOLkNhbMOpZCIsIAogICAgICAgICAgICAgICAgIlBvbHluZXNpZSBGcmFuY2Fpc2UiLCAiTmxsZSBDYWxlZG9uaWUiLCAiTXVsdGktUGF5cyIpKSB+IGlzbzMKICApKQoKIyBwcm9qZXRfbm9kdXBsX29sZCA9IAojICAgI3JlYWR4bDo6cmVhZF94bHN4KCJkYXRhX3RpZHkvcHJvamV0X25vZHVwbF9vbGQueGxzeCIpCiMgICBhd3MuczM6OnMzcmVhZF91c2luZygKIyAgIEZVTiA9IHJlYWR4bDo6cmVhZF94bHN4LAojICAgIyBNZXR0cmUgbGVzIG9wdGlvbnMgZGUgRlVOIGljaQojICAgb2JqZWN0ID0gImRhdGFfdGlkeS9wcm9qZXRfbm9kdXBsX29sZC54bHN4IiwKIyAgIGJ1Y2tldCA9ICJwcm9qZXQtYWZkLWV2YS1hcCIsCiMgICBvcHRzID0gbGlzdCgicmVnaW9uIiA9ICIiKSkKCmJkZF9qb2ludCA9IAogICNmcmVhZCgiZGF0YV9yYXcvQkREX2pvaW50Lnhsc3giKQogIGF3cy5zMzo6czNyZWFkX3VzaW5nKAogIEZVTiA9IGRhdGEudGFibGU6OmZyZWFkLAogICMgTWV0dHJlIGxlcyBvcHRpb25zIGRlIEZVTiBpY2kKICBlbmNvZGluZyA9ICJVVEYtOCIsCiAgb2JqZWN0ID0gImRhdGFfdGlkeS9CRERfam9pbnRfdGlkeV9wdWIuY3N2IiwKICBidWNrZXQgPSAicHJvamV0LWFmZC1ldmEtYXAiLAogIG9wdHMgPSBsaXN0KCJyZWdpb24iID0gIiIpKSAlPiUKICBzZWxlY3QoYW55X29mKG5hbWVzKGRhdGFfc3RhdF9ub2R1cGwpKSkKYGBgCgpgYGB7ciwgZXZhbCA9IEZBTFNFfQojVGVzdCA6IGRpZmZlcmVuY2VzIGJldHdlZW4gTMOpYSdzIGZpZ3VyZXMgYW5kIG15IHJlc3VsdHMKCiNQQSBpZGVudGlmaWVkIHdpdGggdW5pcXVlIFdEUEFJRC4gSWYgbW9yZSB0aGFuIDEgV0RQQUlELCB0YWtlIHRoZSBlYXJsaWVyIGFubmVlX29jdHJvaQpiYXNlX2lkID0gZGF0YV9zdGF0ICU+JSAKICBmaWx0ZXIoIWlzLm5hKHdkcGFpZCkpICU+JSAKICBncm91cF9ieSh3ZHBhaWQpICU+JSAKICBhcnJhbmdlKGFubmVlX29jdHJvaSkgJT4lCiAgc2xpY2UoMSkgJT4lCiAgdW5ncm91cCgpCgp0ZXN0ID0gYmFzZV9pZFtkdXBsaWNhdGVkKGJhc2VfaWQkd2RwYWlkKSxdCgpiYXNlX29sZF9pZCA9IGJhc2Vfbm9kdXBsX29sZCAlPiUgCiAgZmlsdGVyKGdyZXBsKCJOQSIsIHdkcGFpZCkgPT0gRkFMU0UpICAlPiUKICBncm91cF9ieSh3ZHBhaWQpICU+JSAKICBzbGljZSgxKSAlPiUKICBtdXRhdGUod2RwYWlkID0gYXMubnVtZXJpYyh3ZHBhaWQpKSAlPiUKICB1bmdyb3VwKCkKCiNJZGVudGlmeSBQQSBpbiBjb21tb24gYW1vbmcgdGhlbSB3aXRoIFdEUEFJRCByZXBvcnRlZAp0ZXN0X2lkID0gYmFzZV9vbGRfaWQgJT4lCiAgc2VsZWN0KGMoaWRfcHJvamV0LCBub21fZHVfcHJvamV0LCBub21fYXAsIGlkX2NvbmNvdXJzLCB3ZHBhaWQpKSAlPiUKICBsZWZ0X2pvaW4oc2VsZWN0KGJhc2VfaWQsIAogICAgICAgICAgICAgICAgICAgYyhpZF9wcm9qZXQsIG5vbV9kdV9wcm9qZXQsIG5vbV9hcCwgaWRfY29uY291cnMsIHdkcGFpZCkpLAogICAgICAgICAgICBieSA9ICJ3ZHBhaWQiKQoKI1BBIHdob3NlIFdEUEFJRCBpcyB1bmtub3duLCBpZGVudGlmaWVkIGJ5IGlkMSB1bmlxdWVseQojVGhlIGR1cGxpY2F0ZXMgY29tZXMgZnJvbSBkaWZmZXJlbnQgY29uY291cnMgSUQsIHNvIGRvIG5vdCBjb3JyZXNwb25kIHRvIGRpZmZlcmVudCBQQQpiYXNlX25hID0gZGF0YV9zdGF0ICU+JSBmaWx0ZXIoaXMubmEod2RwYWlkKSkgJT4lCiAgbXV0YXRlKGlkMSA9IHBhc3RlKGlkX3Byb2pldCwgaXNvMywgbm9tX2FwLCBzZXAgPSAiXyIpLAogICAgICAgICAuYmVmb3JlID0gaWRfcHJvamV0KSAlPiUKICBncm91cF9ieShpZDEpICU+JQogIGFycmFuZ2UoYW5uZWVfb2N0cm9pKSAlPiUKICBzbGljZSgxKSAlPiUKICB1bmdyb3VwKCkKCmJhc2Vfb2xkX25hID0gYmFzZV9ub2R1cGxfb2xkICU+JSAKICBmaWx0ZXIoZ3JlcGwoIk5BIiwgd2RwYWlkKSA9PSBUUlVFKSAlPiUKICBtdXRhdGUoaWQxID0gcGFzdGUoaWRfcHJvamV0LCBpc28zLCBub21fYXAsIHNlcCA9ICJfIiksCiAgICAgICAgIC5iZWZvcmUgPSBpZF9wcm9qZXQpICU+JQogIGdyb3VwX2J5KGlkMSkgJT4lCiAgYXJyYW5nZShhbm5lZV9vY3Ryb2kpICU+JQogIHNsaWNlKDEpICU+JQogIHVuZ3JvdXAoKQoKdGVzdF9uYSA9IGJhc2VfbmEgJT4lCiAgc2VsZWN0KGMoaWQxLCBpZF9wcm9qZXQsIG5vbV9kdV9wcm9qZXQsIG5vbV9hcCwgaWRfY29uY291cnMpKSAlPiUKICBsZWZ0X2pvaW4oc2VsZWN0KGJhc2Vfb2xkX25hLCAKICAgICAgICAgICAgICAgICAgIGMoaWQxLCBpZF9wcm9qZXQsIG5vbV9kdV9wcm9qZXQsIG5vbV9hcCwgaWRfY29uY291cnMpKSwKICAgICAgICAgICAgYnkgPSAiaWQxIikKCm5yb3codGVzdF9uYSAlPiUgc3Vic2V0KGlzLm5hKGlkX3Byb2pldC55KSA9PSBUUlVFKSkKCiNiYXNlX25vZHVwbAoKYmFzZV9ub2R1cGwgPSByYmluZChzZWxlY3QoYmFzZV9uYSwgLWlkMSksIGJhc2VfaWQpCmBgYAo=</div>
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+<script>
+$(document).ready(function () {
+  window.initializeSourceEmbed("00_data_build.Rmd");
+  window.initializeCodeFolding("hide" === "show");
+});
+</script>
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

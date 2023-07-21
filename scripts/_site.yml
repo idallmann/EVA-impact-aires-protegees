@@ -1,0 +1,38 @@
+name: "ie-pa-doc"
+output_dir: "docs"
+navbar:
+  #title: "test"
+  #type: default
+  left:
+    - icon: fa-home
+      href: index.html
+    - text: "Building the datasets"
+      href: 00_data_build.html
+    - text: "Descriptive statistics"
+      menu :
+        - text: "Project"
+          href: 01_stat_project.html
+        - text: "Biodiversity"
+          href: 01_stat_biodiv.html
+    - text: "Impact Analysis"
+      menu:
+        - text: "Matching"
+          href: 02_matching.html
+  right:
+    - icon: fa-github fa-lg
+      href: https://github.com/vuillota/EVA-impact-aires-protegees.git
+    - icon: fa-envelope fa-lg
+      href: mailto:vuillota@afd.fr
+    - icon: fa-circle-info
+      href: about.html
+
+output :
+  html_document :
+    theme : bootstrap #spacelab/united
+    highlight : haddock #tango
+    css : style.css
+    code_folding: hide
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_download: true #A voir si on rend téléchargement possible pour tous les Rmd !

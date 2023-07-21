@@ -1,0 +1,163 @@
+---
+title: "building_projects_WDPA"
+author: "Antoine Vuillot"
+date: "06/06/2023"
+output: html  
+---
+
+OUTDATED : THE PA DATABASE NEEDED TO BE COMPLETED WITH WDPA ID. IT WAS DONE MANUALLY BY INGRID AND LEA. THE RAW DATABASE IS THEN BDD_JOINT (UP TO 2017). THE PART I OF LEA SCRIPT IS THUS UN-NECESSARY
+
+# Create a database from SIOP extraction and AP database
+
+In this script the project database extracted from the SIOP is merged with databases : on protected areas (PA hereafter) created by ARB, and on PAs around the world from WDPA. The cleaning and merging steps are described.
+
+## Charging relevant packages
+
+```{r}
+
+library(tidyverse)
+library(stargazer)
+library(dplyr)
+library(ggplot2)
+library(RColorBrewer)
+library(data.table)
+library(readxl)
+library(splitstackshape) 
+```
+
+## Importing databases
+###SIOP
+
+The extraction of the SIOP is imported, and the dataset widened from the cofunders ("cofinanciers"). Instead of having one row for a concours and a cofunder, we have one row with all cofunderS.
+
+```{r}
+
+#Importing the data extracted from SIOP
+data_siop_raw = read_excel("C:/Users/vuillota/Desktop/projet_AiresProtegees/00_data_raw/AP_BO_2000-2017_V3.xlsx",
+                           sheet = 1)
+
+#Remove variables "Id. cofinancier","Libellé cofinancier" and widen the dataframe from "cofinancier"
+data_siop_tidy = data_siop_raw %>%
+  select(!c("Id. Cofinancier","Libellé cofinancier")) %>%
+  pivot_wider(names_from = "Cofinancier", values_from ="Cofinancier") 
+
+#DB Léa
+data_siop_lea = data_siop_tidy
+
+#Shorten with a list variabe of cofinancier ??
+
+##The duplicated ID concorus : what to do with dem' ?
+base_siop_dup = data_siop_tidy[duplicated(data_siop_tidy$ID_concours),]
+  
+
+```
+
+###AP
+The dataset for PAs as reported by ARB is imported. Some PAs are associated to several 
+
+```{r}
+#Importing data
+data_AP_raw = read_excel("C:/Users/vuillota/Desktop/projet_AiresProtegees/00_data_raw/Basededonnees_AP.xlsx", 
+                          sheet = 1)
+#Keep relevant variables and create one line for each protected area
+data_AP_tidy = data_AP_raw %>%
+  #kep relevant variables and rename ID variables
+  select(c("ID_concours","maitrise_ouvrage","surface(km2)","nb_AP","détail","projet","commentaires","ID_WDPA")) %>%
+  rename("ID_WDPA_list" = "ID_WDPA") %>%
+  #In the list of ID WDPA, keep ID only
+  mutate(ID_WDPA = gsub("(\\D+)", ";", ID_WDPA_list)) %>%
+  #Remove ";" character at the end
+  mutate(ID_WDPA = gsub("[;.]$", "", ID_WDPA)) %>%
+  #lengthen the dataset : one line corresponds to one ID_concours and one WDPA ID.
+  #A ID_concours can be associated to more than one ID WDPA
+  cSplit(splitCols = c('ID_WDPA'), ";", 
+       direction = 'long',
+       drop = FALSE,
+       type.convert = FALSE) %>%
+  #Convert ID WDPA to numeric
+  mutate(ID_WDPA = as.numeric(ID_WDPA)) %>%
+  #Finally adjust the ID_WDPA to specific cases : if "non existant" specified in WDPA_list, ID_WDPA set to NA
+  mutate(ID_WDPA = ifelse(grepl("non existant", ID_WDPA_list, ignore.case = TRUE), yes = NA, no = ID_WDPA))
+
+#DB Léa
+data_AP_lea = data_AP_raw %>%
+  #kep relevant variables and rename ID variables
+  select(c("ID_concours","maitrise_ouvrage","surface(km2)","nb_AP","détail","projet","commentaires","ID_WDPA")) 
+```
+
+###WDPA
+
+```{r}
+# Import the WDPA database from IUCN
+data_wdpa_raw = fread("C:/Users/vuillota/Desktop/projet_AiresProtegees/00_data_raw/WDPA_BDD.csv")
+
+#Renaming, conversion of ID_WDPA to numeric and removing NA
+#PAs with NA as ID_WDPA have no relevant information reported
+data_wdpa_tidy = data_wdpa_raw %>%
+  rename("ID_WDPA" = "WDPAID") %>%
+  mutate(ID_WDPA = as.numeric(ID_WDPA)) %>%
+  subset(is.na(ID_WDPA) == FALSE)
+
+#DB Léa
+data_wdpa_lea = data_wdpa_raw %>%
+  rename("ID_WDPA" = "WDPAID")
+
+
+```
+
+##Merging databases
+
+```{r}
+
+#The databases are merged, and variables are modified
+data_full = data_siop_tidy %>%
+  left_join(data_AP_tidy, by = "ID_concours") %>%
+  left_join(data_wdpa_tidy, by = "ID_WDPA") %>%
+  #Change the format of numbers : get rid of XXX,00 which confuses the conversion
+  mutate(across(.cols = c("Montant prévu concours (euro octroi)", "Mt global projet prévu (devise)",
+                          "Engagements nets (euro octroi)", "montant_total_projet"),
+                .fns = ~gsub("(,00)$", "", .x))) %>%
+  #Convert from character to numeric
+  mutate(across(.cols = c("Montant prévu concours (euro octroi)", "Mt global projet prévu (devise)",
+                          "Engagements nets (euro octroi)", "montant_total_projet",  "Durée du concours (Année)",
+                          "surface(km2)", "nb_AP", "WDPA_PID", "MARINE", "REP_M_AREA", 
+                          "GIS_M_AREA", "REP_AREA", "GIS_AREA", "STATUS_YR", "METADATAID"),
+                .fns = ~as.numeric(.x))) %>%
+  #Change format of some variables (dates) from unknown to character
+  mutate(across(.cols = c("Date_octroi", "Annee_octroi", "Dernier versement en date (projet)",
+                          "Date signature convention (CF)"),
+                .fns = ~as.character(.x))) %>%
+  #Create the variable "Pays de réalisation v2" : equals "Pays de réalisation", but the rows with value "MULTIPAYS" take the value of "Autres pays de réalisation"
+  mutate(`Pays de réalisation v2` = ifelse(`Pays de réalisation` == "MULTI-PAYS",
+                                        yes = `Autres pays de réalisation`,
+                                        no = `Pays de réalisation`),
+         .after = "Pays de réalisation") %>%
+  mutate(across(.cols = c("Pays de réalisation", "Pays de réalisation v2", 
+                          "Direction_regionale", "Autres pays de réalisation"),
+                .fns = ~tolower(.x))) %>%
+  #Change IUC cat to its description
+  mutate(iucn_des = case_when(
+  !is.na(ID_WDPA) & IUCN_CAT == "Ia" ~ "Réserve naturelle intégrale",
+  !is.na(ID_WDPA) & IUCN_CAT == "Ib" ~ "Zone de nature sauvage",
+  !is.na(ID_WDPA) & IUCN_CAT == "II" ~ "Parc national",
+  !is.na(ID_WDPA) & IUCN_CAT == "III" ~ "Monument naturel",
+  !is.na(ID_WDPA) & IUCN_CAT == "IV" ~ "Gest. des habitats/espèces",
+  !is.na(ID_WDPA) & IUCN_CAT == "V" ~ "Paysage protégé",
+  !is.na(ID_WDPA) & IUCN_CAT == "VI" ~ "Gest. de ress. protégées",
+  !is.na(ID_WDPA) & IUCN_CAT == "Not Applicable" ~ "Non catégorisée",
+  !is.na(ID_WDPA) & IUCN_CAT == "Not Reported" ~ "Non catégorisée",
+  !is.na(ID_WDPA) & IUCN_CAT == "Not Assigned" ~ "Non catégorisée",
+  TRUE ~ "Non référencée"), .after = IUCN_CAT)
+
+test = select(data_full, c("ID_concours", "IDPROJET", "ID_WDPA", "surface(km2)", "MARINE":"NO_TK_AREA"))
+
+# test = data_AP_tidy %>%
+#   left_join(data_siop_tidy, by = "ID_concours")
+
+#Rep. Léa
+data.joint = data_siop_lea %>% left_join(data_AP_lea, by = "ID_concours")
+BDD_joint = left_join(data_full, data_wdpa_lea, by = "ID_WDPA")
+#write.csv(BDD_joint, "C:/Users/vuillota/Desktop/BDD_joint.csv")
+
+```
+

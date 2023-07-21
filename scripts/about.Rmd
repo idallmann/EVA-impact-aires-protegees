@@ -1,0 +1,13 @@
+---
+title: "About this website"
+---
+
+```{r echo= FALSE, message=FALSE, warning=FALSE}
+
+library(lubridate)
+
+```
+
+Site developed by [Antoine Vuillot](`mailto:rmarkdown::metadata$email_adress`) to document the impact analysis of protected areas funded by the AFD. Codes are freely accessible in the following [github repository](`rmarkdown::metadata$github_repo`).
+
+Last updated on `r today()`
