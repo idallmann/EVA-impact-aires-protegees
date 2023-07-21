@@ -5,22 +5,25 @@
   <meta charset="utf-8" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <title>Page not found | Impact analysis of protected areas funded by the AFD : an open-guide for reproductibility</title>
-  <meta name="description" content="This site presents in an open and transparent way the analysis performed by IRS/EVA team on protected areas. More precisely, an impact analysis is performed using geospatial data to assess to what extent do PAs funded by the AFD preserve biodiversity." />
+  <meta name="description" content="This is a minimal example of using the bookdown package to write a book. The output format for this example is bookdown::gitbook." />
   <meta name="generator" content="bookdown 0.34 and GitBook 2.6.7" />
 
   <meta property="og:title" content="Page not found | Impact analysis of protected areas funded by the AFD : an open-guide for reproductibility" />
   <meta property="og:type" content="book" />
   
-  <meta property="og:description" content="This site presents in an open and transparent way the analysis performed by IRS/EVA team on protected areas. More precisely, an impact analysis is performed using geospatial data to assess to what extent do PAs funded by the AFD preserve biodiversity." />
-  <meta name="github-repo" content="https://github.com/vuillota/EVA-impact-aires-protegees.git" />
+  <meta property="og:description" content="This is a minimal example of using the bookdown package to write a book. The output format for this example is bookdown::gitbook." />
+  <meta name="github-repo" content="vuillota/EVA-impact-aires-protegees.git" />
 
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="Page not found | Impact analysis of protected areas funded by the AFD : an open-guide for reproductibility" />
   
-  <meta name="twitter:description" content="This site presents in an open and transparent way the analysis performed by IRS/EVA team on protected areas. More precisely, an impact analysis is performed using geospatial data to assess to what extent do PAs funded by the AFD preserve biodiversity." />
+  <meta name="twitter:description" content="This is a minimal example of using the bookdown package to write a book. The output format for this example is bookdown::gitbook." />
   
 
 <meta name="author" content="Antoine Vuillot" />
+<meta name="author" content="Ingrid Dallmann" />
+<meta name="author" content="Léa Poulin" />
+<meta name="author" content="Pierre-Yves Durand" />
 
 
 <meta name="date" content="2023-07-21" />
@@ -119,7 +122,7 @@ code span.wa { color: #008000; font-weight: bold; } /* Warning */
   div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
 </style>
 
-<link rel="stylesheet" href="style.css" type="text/css" />
+<link rel="stylesheet" href="assets/style.css" type="text/css" />
 </head>
 
 <body>
@@ -135,73 +138,68 @@ code span.wa { color: #008000; font-weight: bold; } /* Warning */
 <li><a href="./">Impact analysis of protected areas funded by the AFD</a></li>
 
 <li class="divider"></li>
-<li class="chapter" data-level="1" data-path="index.html"><a href="index.html"><i class="fa fa-check"></i><b>1</b> About</a>
+<li class="chapter" data-level="" data-path="index.html"><a href="index.html"><i class="fa fa-check"></i>About this website</a></li>
+<li class="chapter" data-level="1" data-path="building-the-datasets.html"><a href="building-the-datasets.html"><i class="fa fa-check"></i><b>1</b> Building the datasets</a>
 <ul>
-<li class="chapter" data-level="1.1" data-path="index.html"><a href="index.html#usage"><i class="fa fa-check"></i><b>1.1</b> Usage</a></li>
-<li class="chapter" data-level="1.2" data-path="index.html"><a href="index.html#render-book"><i class="fa fa-check"></i><b>1.2</b> Render book</a></li>
-<li class="chapter" data-level="1.3" data-path="index.html"><a href="index.html#preview-book"><i class="fa fa-check"></i><b>1.3</b> Preview book</a></li>
+<li class="chapter" data-level="1.1" data-path="building-the-datasets.html"><a href="building-the-datasets.html#importing-relevant-packages"><i class="fa fa-check"></i><b>1.1</b> Importing relevant packages</a></li>
+<li class="chapter" data-level="1.2" data-path="building-the-datasets.html"><a href="building-the-datasets.html#datasets-for-descriptive-statistics"><i class="fa fa-check"></i><b>1.2</b> Datasets for descriptive statistics</a>
+<ul>
+<li class="chapter" data-level="1.2.1" data-path="building-the-datasets.html"><a href="building-the-datasets.html#cleaning-the-raw-dataset"><i class="fa fa-check"></i><b>1.2.1</b> Cleaning the raw dataset</a></li>
+<li class="chapter" data-level="1.2.2" data-path="building-the-datasets.html"><a href="building-the-datasets.html#dataset-with-only-siop-variables"><i class="fa fa-check"></i><b>1.2.2</b> Dataset with only SIOP variables</a></li>
+<li class="chapter" data-level="1.2.3" data-path="building-the-datasets.html"><a href="building-the-datasets.html#dataset-for-non-confidential-statistics"><i class="fa fa-check"></i><b>1.2.3</b> Dataset for non-confidential statistics</a></li>
+<li class="chapter" data-level="1.2.4" data-path="building-the-datasets.html"><a href="building-the-datasets.html#dataset-for-confidential-descriptive-statistics"><i class="fa fa-check"></i><b>1.2.4</b> Dataset for confidential descriptive statistics</a></li>
+<li class="chapter" data-level="1.2.5" data-path="building-the-datasets.html"><a href="building-the-datasets.html#a-polygon-dataset-without-confidential-information"><i class="fa fa-check"></i><b>1.2.5</b> A polygon dataset without confidential information</a></li>
 </ul></li>
-<li class="chapter" data-level="2" data-path="building-the-datasets.html"><a href="building-the-datasets.html"><i class="fa fa-check"></i><b>2</b> Building the datasets</a>
+<li class="chapter" data-level="1.3" data-path="building-the-datasets.html"><a href="building-the-datasets.html#computing-total-areas-covered-by-pas-in-the-sample"><i class="fa fa-check"></i><b>1.3</b> Computing total areas covered by PAs in the sample</a>
 <ul>
-<li class="chapter" data-level="2.1" data-path="building-the-datasets.html"><a href="building-the-datasets.html#importing-relevant-packages"><i class="fa fa-check"></i><b>2.1</b> Importing relevant packages</a></li>
-<li class="chapter" data-level="2.2" data-path="building-the-datasets.html"><a href="building-the-datasets.html#datasets-for-descriptive-statistics"><i class="fa fa-check"></i><b>2.2</b> Datasets for descriptive statistics</a>
-<ul>
-<li class="chapter" data-level="2.2.1" data-path="building-the-datasets.html"><a href="building-the-datasets.html#cleaning-the-raw-dataset"><i class="fa fa-check"></i><b>2.2.1</b> Cleaning the raw dataset</a></li>
-<li class="chapter" data-level="2.2.2" data-path="building-the-datasets.html"><a href="building-the-datasets.html#dataset-with-only-siop-variables"><i class="fa fa-check"></i><b>2.2.2</b> Dataset with only SIOP variables</a></li>
-<li class="chapter" data-level="2.2.3" data-path="building-the-datasets.html"><a href="building-the-datasets.html#dataset-for-non-confidential-statistics"><i class="fa fa-check"></i><b>2.2.3</b> Dataset for non-confidential statistics</a></li>
-<li class="chapter" data-level="2.2.4" data-path="building-the-datasets.html"><a href="building-the-datasets.html#dataset-for-confidential-descriptive-statistics"><i class="fa fa-check"></i><b>2.2.4</b> Dataset for confidential descriptive statistics</a></li>
-<li class="chapter" data-level="2.2.5" data-path="building-the-datasets.html"><a href="building-the-datasets.html#a-polygon-dataset-without-confidential-information"><i class="fa fa-check"></i><b>2.2.5</b> A polygon dataset without confidential information</a></li>
+<li class="chapter" data-level="1.3.1" data-path="building-the-datasets.html"><a href="building-the-datasets.html#computations-of-polygons-area"><i class="fa fa-check"></i><b>1.3.1</b> Computations of polygons’ area</a></li>
+<li class="chapter" data-level="1.3.2" data-path="building-the-datasets.html"><a href="building-the-datasets.html#computing-the-intersection-at-country-region-world-level"><i class="fa fa-check"></i><b>1.3.2</b> Computing the intersection at country, region, world level</a></li>
+<li class="chapter" data-level="1.3.3" data-path="building-the-datasets.html"><a href="building-the-datasets.html#computing-total-areas-without-intersection"><i class="fa fa-check"></i><b>1.3.3</b> Computing total areas without intersection</a></li>
 </ul></li>
-<li class="chapter" data-level="2.3" data-path="building-the-datasets.html"><a href="building-the-datasets.html#computing-total-areas-covered-by-pas-in-the-sample"><i class="fa fa-check"></i><b>2.3</b> Computing total areas covered by PAs in the sample</a>
-<ul>
-<li class="chapter" data-level="2.3.1" data-path="building-the-datasets.html"><a href="building-the-datasets.html#computations-of-polygons-area"><i class="fa fa-check"></i><b>2.3.1</b> Computations of polygons’ area</a></li>
-<li class="chapter" data-level="2.3.2" data-path="building-the-datasets.html"><a href="building-the-datasets.html#computing-the-intersection-at-country-region-world-level"><i class="fa fa-check"></i><b>2.3.2</b> Computing the intersection at country, region, world level</a></li>
-<li class="chapter" data-level="2.3.3" data-path="building-the-datasets.html"><a href="building-the-datasets.html#computing-total-areas-without-intersection"><i class="fa fa-check"></i><b>2.3.3</b> Computing total areas without intersection</a></li>
-</ul></li>
-<li class="chapter" data-level="2.4" data-path="building-the-datasets.html"><a href="building-the-datasets.html#old-code"><i class="fa fa-check"></i><b>2.4</b> Old code</a></li>
+<li class="chapter" data-level="1.4" data-path="building-the-datasets.html"><a href="building-the-datasets.html#old-code"><i class="fa fa-check"></i><b>1.4</b> Old code</a></li>
 </ul></li>
 <li class="part"><span><b>Descriptive statistics</b></span></li>
-<li class="chapter" data-level="3" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html"><i class="fa fa-check"></i><b>3</b> Projects funded by the AFD</a>
+<li class="chapter" data-level="2" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html"><i class="fa fa-check"></i><b>2</b> Projects funded by the AFD</a>
 <ul>
-<li class="chapter" data-level="3.1" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#importing-packages"><i class="fa fa-check"></i><b>3.1</b> Importing packages</a></li>
-<li class="chapter" data-level="3.2" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#importing-datasets"><i class="fa fa-check"></i><b>3.2</b> Importing datasets</a></li>
-<li class="chapter" data-level="3.3" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#performing-descriptive-statistics"><i class="fa fa-check"></i><b>3.3</b> Performing descriptive statistics</a>
+<li class="chapter" data-level="2.1" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#importing-packages"><i class="fa fa-check"></i><b>2.1</b> Importing packages</a></li>
+<li class="chapter" data-level="2.2" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#importing-datasets"><i class="fa fa-check"></i><b>2.2</b> Importing datasets</a></li>
+<li class="chapter" data-level="2.3" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#performing-descriptive-statistics"><i class="fa fa-check"></i><b>2.3</b> Performing descriptive statistics</a>
 <ul>
-<li class="chapter" data-level="3.3.1" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#iucn-categories"><i class="fa fa-check"></i><b>3.3.1</b> IUCN categories</a></li>
-<li class="chapter" data-level="3.3.2" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#ecosystems-excluding-non-referenced-pas"><i class="fa fa-check"></i><b>3.3.2</b> Ecosystems (excluding non-referenced PAs)</a></li>
-<li class="chapter" data-level="3.3.3" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#distribution-of-pas-across-countries-and-regions"><i class="fa fa-check"></i><b>3.3.3</b> Distribution of PAs across countries and regions</a></li>
-<li class="chapter" data-level="3.3.4" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#surface-of-pas"><i class="fa fa-check"></i><b>3.3.4</b> Surface of PAs</a></li>
-<li class="chapter" data-level="3.3.5" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#temporal-evolution"><i class="fa fa-check"></i><b>3.3.5</b> Temporal evolution</a></li>
-<li class="chapter" data-level="3.3.6" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#governance"><i class="fa fa-check"></i><b>3.3.6</b> Governance</a></li>
+<li class="chapter" data-level="2.3.1" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#iucn-categories"><i class="fa fa-check"></i><b>2.3.1</b> IUCN categories</a></li>
+<li class="chapter" data-level="2.3.2" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#ecosystems-excluding-non-referenced-pas"><i class="fa fa-check"></i><b>2.3.2</b> Ecosystems (excluding non-referenced PAs)</a></li>
+<li class="chapter" data-level="2.3.3" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#distribution-of-pas-across-countries-and-regions"><i class="fa fa-check"></i><b>2.3.3</b> Distribution of PAs across countries and regions</a></li>
+<li class="chapter" data-level="2.3.4" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#surface-of-pas"><i class="fa fa-check"></i><b>2.3.4</b> Surface of PAs</a></li>
+<li class="chapter" data-level="2.3.5" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#temporal-evolution"><i class="fa fa-check"></i><b>2.3.5</b> Temporal evolution</a></li>
+<li class="chapter" data-level="2.3.6" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#governance"><i class="fa fa-check"></i><b>2.3.6</b> Governance</a></li>
 </ul></li>
 </ul></li>
-<li class="chapter" data-level="4" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html"><i class="fa fa-check"></i><b>4</b> Biodiversity in the protected areas</a>
+<li class="chapter" data-level="3" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html"><i class="fa fa-check"></i><b>3</b> Biodiversity in the protected areas</a>
 <ul>
-<li class="chapter" data-level="4.1" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#importing-packages-and-functions"><i class="fa fa-check"></i><b>4.1</b> Importing packages and functions</a></li>
-<li class="chapter" data-level="4.2" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#setting-the-environment"><i class="fa fa-check"></i><b>4.2</b> Setting the environment</a></li>
-<li class="chapter" data-level="4.3" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#importing-pas-datasets"><i class="fa fa-check"></i><b>4.3</b> Importing PAs datasets</a></li>
-<li class="chapter" data-level="4.4" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#downloading-data-of-interests-and-compute-relevant-indicators"><i class="fa fa-check"></i><b>4.4</b> Downloading data of interests and compute relevant indicators</a>
+<li class="chapter" data-level="3.1" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#importing-packages-and-functions"><i class="fa fa-check"></i><b>3.1</b> Importing packages and functions</a></li>
+<li class="chapter" data-level="3.2" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#setting-the-environment"><i class="fa fa-check"></i><b>3.2</b> Setting the environment</a></li>
+<li class="chapter" data-level="3.3" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#importing-pas-datasets"><i class="fa fa-check"></i><b>3.3</b> Importing PAs datasets</a></li>
+<li class="chapter" data-level="3.4" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#downloading-data-of-interests-and-compute-relevant-indicators"><i class="fa fa-check"></i><b>3.4</b> Downloading data of interests and compute relevant indicators</a>
 <ul>
-<li class="chapter" data-level="4.4.1" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#creating-the-portfolio"><i class="fa fa-check"></i><b>4.4.1</b> Creating the portfolio</a></li>
-<li class="chapter" data-level="4.4.2" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#test-importing-data-from-sspcloud"><i class="fa fa-check"></i><b>4.4.2</b> TEST : importing data from SSPCloud</a></li>
-<li class="chapter" data-level="4.4.3" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#compute-indicators-from-geospatial-data"><i class="fa fa-check"></i><b>4.4.3</b> Compute indicators from geospatial data</a></li>
+<li class="chapter" data-level="3.4.1" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#creating-the-portfolio"><i class="fa fa-check"></i><b>3.4.1</b> Creating the portfolio</a></li>
+<li class="chapter" data-level="3.4.2" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#test-importing-data-from-sspcloud"><i class="fa fa-check"></i><b>3.4.2</b> TEST : importing data from SSPCloud</a></li>
+<li class="chapter" data-level="3.4.3" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#compute-indicators-from-geospatial-data"><i class="fa fa-check"></i><b>3.4.3</b> Compute indicators from geospatial data</a></li>
 </ul></li>
-<li class="chapter" data-level="4.5" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#computing-statistics"><i class="fa fa-check"></i><b>4.5</b> Computing statistics</a>
+<li class="chapter" data-level="3.5" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#computing-statistics"><i class="fa fa-check"></i><b>3.5</b> Computing statistics</a>
 <ul>
-<li class="chapter" data-level="4.5.1" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#forests"><i class="fa fa-check"></i><b>4.5.1</b> Forests</a></li>
-<li class="chapter" data-level="4.5.2" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#mangrove"><i class="fa fa-check"></i><b>4.5.2</b> Mangrove</a></li>
-<li class="chapter" data-level="4.5.3" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#emissions"><i class="fa fa-check"></i><b>4.5.3</b> Emissions</a></li>
-<li class="chapter" data-level="4.5.4" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#biometeow"><i class="fa fa-check"></i><b>4.5.4</b> Biome/TEOW</a></li>
+<li class="chapter" data-level="3.5.1" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#forests"><i class="fa fa-check"></i><b>3.5.1</b> Forests</a></li>
+<li class="chapter" data-level="3.5.2" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#mangrove"><i class="fa fa-check"></i><b>3.5.2</b> Mangrove</a></li>
+<li class="chapter" data-level="3.5.3" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#emissions"><i class="fa fa-check"></i><b>3.5.3</b> Emissions</a></li>
+<li class="chapter" data-level="3.5.4" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#biometeow"><i class="fa fa-check"></i><b>3.5.4</b> Biome/TEOW</a></li>
 </ul></li>
 </ul></li>
 <li class="part"><span><b>Impact analysis</b></span></li>
-<li class="chapter" data-level="5" data-path="matching.html"><a href="matching.html"><i class="fa fa-check"></i><b>5</b> Matching</a>
+<li class="chapter" data-level="4" data-path="matching.html"><a href="matching.html"><i class="fa fa-check"></i><b>4</b> Matching</a>
 <ul>
-<li class="chapter" data-level="5.1" data-path="matching.html"><a href="matching.html#initial-settings"><i class="fa fa-check"></i><b>5.1</b> Initial settings</a></li>
-<li class="chapter" data-level="5.2" data-path="matching.html"><a href="matching.html#matching-process"><i class="fa fa-check"></i><b>5.2</b> Matching process</a>
+<li class="chapter" data-level="4.1" data-path="matching.html"><a href="matching.html#initial-settings"><i class="fa fa-check"></i><b>4.1</b> Initial settings</a></li>
+<li class="chapter" data-level="4.2" data-path="matching.html"><a href="matching.html#matching-process"><i class="fa fa-check"></i><b>4.2</b> Matching process</a>
 <ul>
-<li class="chapter" data-level="5.2.1" data-path="matching.html"><a href="matching.html#pre-processing"><i class="fa fa-check"></i><b>5.2.1</b> Pre-processing</a></li>
-<li class="chapter" data-level="5.2.2" data-path="matching.html"><a href="matching.html#post-processing"><i class="fa fa-check"></i><b>5.2.2</b> Post-processing</a></li>
+<li class="chapter" data-level="4.2.1" data-path="matching.html"><a href="matching.html#pre-processing"><i class="fa fa-check"></i><b>4.2.1</b> Pre-processing</a></li>
+<li class="chapter" data-level="4.2.2" data-path="matching.html"><a href="matching.html#post-processing"><i class="fa fa-check"></i><b>4.2.2</b> Post-processing</a></li>
 </ul></li>
 </ul></li>
 <li class="chapter" data-level="" data-path="references.html"><a href="references.html"><i class="fa fa-check"></i>References</a></li>
@@ -254,15 +252,15 @@ the table of contents to find the page you are looking for.</p>
 gitbook.require(["gitbook"], function(gitbook) {
 gitbook.start({
 "sharing": {
-"github": false,
-"facebook": true,
-"twitter": true,
+"github": true,
+"facebook": false,
+"twitter": false,
 "linkedin": false,
 "weibo": false,
 "instapaper": false,
 "vk": false,
 "whatsapp": false,
-"all": ["facebook", "twitter", "linkedin", "weibo", "instapaper"]
+"all": false
 },
 "fontsettings": {
 "theme": "white",
@@ -270,7 +268,7 @@ gitbook.start({
 "size": 2
 },
 "edit": {
-"link": "https://github.com/vuillota/EVA-impact-aires-protegees/edit/master/%s",
+"link": "https://github.com/vuillota/EVA-impact-aires-protegees/edit/main/%s",
 "text": "Suggest an edit"
 },
 "history": {
@@ -281,7 +279,7 @@ gitbook.start({
 "link": null,
 "text": null
 },
-"download": ["fake-book.pdf"],
+"download": ["https://github.com/vuillota/EVA-impact-aires-protegees/raw/main/%s"],
 "search": {
 "engine": "fuse",
 "options": null
@@ -293,20 +291,6 @@ gitbook.start({
 });
 </script>
 
-<!-- dynamically load mathjax for compatibility with self-contained -->
-<script>
-  (function () {
-    var script = document.createElement("script");
-    script.type = "text/javascript";
-    var src = "true";
-    if (src === "" || src === "true") src = "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/latest.js?config=TeX-MML-AM_CHTML";
-    if (location.protocol !== "file:")
-      if (/^https?:/.test(src))
-        src = src.replace(/^https?:/, '');
-    script.src = src;
-    document.getElementsByTagName("head")[0].appendChild(script);
-  })();
-</script>
 </body>
 
 </html>

@@ -1,7 +1,3 @@
-about
-usage
-render-book
-preview-book
 building-the-datasets
 importing-relevant-packages
 datasets-for-descriptive-statistics
