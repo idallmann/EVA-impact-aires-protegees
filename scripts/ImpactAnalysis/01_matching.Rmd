@@ -182,10 +182,6 @@ for (i in list_iso)
 
 toc_pre = toc()
 
-#NOTE : 
-## the limiting step in terms of time is the final one, due to data downloading. Otherwise, a few seconds by country. Especially computing time for forest indicators
-## The gridding could depend on the country and the area of PAs. Indeed the sampling might be inappropriate if the PA area is lower the the pixel area. This cuases issue regarding significance. Or it could cause long computing time for large countries like China.
-## 
 ```
 
 ## 3.2 Post-processing
@@ -258,7 +254,7 @@ for (i in list_iso)
   
   #Plots : trend
   print("----Plots again : trend")
-  fn_post_plot_trend(matched.long = matched.long, unmatched.long = unmatched.long)
+  fn_post_plot_trend(matched.long = matched.long, unmatched.long = unmatched.long, iso = i)
   
   
 }

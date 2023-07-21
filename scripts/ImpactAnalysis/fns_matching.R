@@ -739,7 +739,7 @@ fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind)
 ## OUTPUTS : 
 ### None
 
-fn_post_plot_trend = function(matched.long, unmatched.long) 
+fn_post_plot_trend = function(matched.long, unmatched.long, iso) 
 {
   # Make dataframe for plotting Trend
   df.matched.trend = matched.long %>%
