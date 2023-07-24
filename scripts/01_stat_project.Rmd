@@ -2,11 +2,16 @@
 
 # Projects funded by the AFD
 
-In this document are performed and plotted descriptive statistics from the datasets built in buildingDB_PA_WDPA. The following statistics are derived :
+In this document are performed and plotted the following descriptive statistics on the PAs funded the AFD :
 
--   Distribution of parcels among IUCN categories, at country, region and world level.
+-   Distribution of PAs among IUCN categories, at country, region and world level.
 -   Distribution in terms of ecosystems
--   Distribution of PAs across countries and regions
+-   Distribution of PAs across countries and regions, in terms of numbers
+-   Distribution of PAs across countries and regions, in terms of areas
+-   Temporal evolution in the number and area of PAs funded by the AFD
+-   Distribution in terms of governance types
+
+The statistics are derived from datasets stored in the SSPCloud, and saved into the SSPCloud. Thus specific functions from the aws.S3 package are used (s3read_using() and s3write_using()). These can be replaced by other R functions to read/write locally (fread() typically). The ggplot2::ggsave() function cannot be used to write directly in the SSPCloud storage. Instead, plots from ggplot2 are stored in the temporary memory, then moved to the SSPCloud storage. Working locally, ggsave() can be directly used once the plots are created.
 
 ## Importing packages
 
@@ -38,7 +43,7 @@ library(aws.s3)
 ## Importing datasets
 
 ```{r, eval = FALSE}
-#Both datasets are imported also in UTF8 encoding, for some variables
+#Both datasets are imported in UTF8 encoding, for some variables
 ##A first dataset with some PA on more than one row (one line per funding for instance)
 data_stat = 
   #fread("data_tidy/BDD_DesStat_nofund.csv", encoding = "UTF-8")
@@ -61,6 +66,7 @@ data_stat_nodupl =
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
 
+##Datasets on aggregated size per country/region/year and at world level, taking into account the overlap.
 pa_area_ctry = 
   #fread("data_tidy/area/pa_area_ctry.csv", encoding = "UTF-8")
   aws.s3::s3read_using(
@@ -457,8 +463,6 @@ hist_eco_n_fr = ggplot(data_eco_hist,
 hist_eco_n_fr
 
 
-
-
 #Histogram in number (in English)
 hist_eco_n_en = ggplot(data_eco_hist, 
                      aes(x = ecosyst_en, y = n, fill = ecosyst_en)) %>%
@@ -708,7 +712,6 @@ hist_distrib_reg_top_shr_fr = ggplot(data_distrib_reg_top,
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
 hist_distrib_reg_top_shr_fr
-# 
 
 
 #Histogram in number (in French)
@@ -865,8 +868,6 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
 ### Temporal evolution
-
-In this section is plotted the evolution in the number and surafe of PAs over time (cumulated number/surface and number/surface of PAs funded by year).
 
 #### Number of PAs
 
@@ -1086,8 +1087,6 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
 ### Governance
-
-Here is plotted the distribution of PAs across governance type.
 
 ```{r, eval = FALSE}
 
