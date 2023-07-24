@@ -69,8 +69,9 @@ data_PA_raw[data_PA_raw$wdpaid %in% c("4223", "4224", "4226", "4228", "4229") & 
 data_PA_raw[data_PA_raw$wdpaid %in% c("305082") & data_PA_raw$pays == "Fidji",]$pays = "Vanuatu"
 ##31459 : Central African Republic instead of Cameroon. /!\ Vérifier le nom : anglais ou français ??
 #data_PA_raw[data_PA_raw$wdpaid %in% c("31459") & data_PA_raw$pays == "Cameroun",]$pays = "Centrafrique"
-##Rio Grande de Buba : Gambia to Guinee Bissau. Attnetion : vérifier écriture
-#data_PA_raw[data_PA_raw$nom_ap %in% c("rio grande de buba") & data_PA_raw$pays == "Gambia",]$pays = "Guinee-Bissau"
+
+##Rio Grande de Buba : Guinee Bissau instead of Gambia. /!\ Vérifier l'écriture !!
+#data_PA_raw[data_PA_rax$nom_ap == "rio grande de buba" & data_PA_raw$pays == "Gambie",]$pays = "Centrafrique"
 
 #Create a clean dataset with relevant variables
 data_PA_tidy = data_PA_raw %>%
