@@ -1,5 +1,7 @@
 # Biodiversity in the protected areas
 
+THIS SCRIPT IS UNFINISHED
+
 In this document are computed and plotted descriptive statistics for the protected areas (PAs) using the mapme biodiversity package. This package provides an easy access to biodiversity-related data and allow to compute different indicators.
 
 ## Importing packages and functions
