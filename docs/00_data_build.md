@@ -17,18 +17,19 @@ library(stringi)
 library(sf)
 library(mapview)
 ```
+This script builds the different datasets for the analysis. For descriptive statistics, data on PAs funded by the AFD are combined with the WDPA. A confidential dataset is created to perform statistics on fundings. Also, datasets on PAs aggregated size at country and regional level are created. 
+
+Note that the raw dataset is not made publicly available, as it contains confidential data. Apart from the dataset on funding, all datasets created here can be provided upon request.
 
 ## Datasets for descriptive statistics
 
-The raw dataset has been built by Léa Poulin. It comes from the merging of SIOP extract, and PAs dataset from ARB covering 2000-2017 period. Majority of PAs had no corresponding WDPA ID, so it was found and reported manually by Léa Poulin and Ingrid Dallmann on WDPA website.
+The datasets are built from the raw BDD_joint.xlsx file. The latter comes from the merging of AFD project data (SIOP), and information on PAs reported ARB and covering 2000-2017 period. Information on the PAs is also found on the WDPA database (polygon, year of implementation, IUCN category, etc.). Majority of PAs reported by ARB had no WDPA ID, so it was found and reported manually on WDPA website.
 
-Different datasets are built. First a dataset (data_PA_tidy) enriched of information on co-investors and ISO code for the country hosting the PA.
+Different datasets are built. First a dataset (data_PA_tidy) enriched of information on co-investors and ISO codes for the countries hosting the PA.
 
-From this dataset are extracted : (1) a dataset with only SIOP variables, to allow future working on PAs; (2) a dataset to perform most descriptive statistics, except confidential ones related to funding; (3) a confidential dataset with funding data.
+From this dataset are extracted : (1) a dataset with only project related variables from the AFD, to facilitate merging with datasets other than WDPA; (2) a dataset to perform most descriptive statistics, except confidential ones related to funding; (3) a confidential dataset with funding data.
 
-Then a dataset of PAs polygons is imported from the WDPA, and confidential data removed.
-
-Some statistics need size of PAs at country/region/world level (evolution of area covered by PAs at world level for instance). Datasets with total areas at country/region/world level are created. As many areas overlap (according to WDPA documentation), a sum of reported area would overestimate aggregated area. The computation method of WDPA is followed (<https://www.protectedplanet.net/en/resources/calculating-protected-area-coverage>).
+Then a dataset of PAs polygons is imported from the WDPA, and confidential data are also removed.
 
 ### Cleaning the raw dataset
 
@@ -65,14 +66,18 @@ data_PA_raw[data_PA_raw$wdpaid == "797" & data_PA_raw$pays == "Senegal",]$wdpaid
 data_PA_raw[data_PA_raw$wdpaid %in% c("4223", "4224", "4226", "4228", "4229") & data_PA_raw$pays == "Fidji",]$pays = "P-S N.Caléd"
 ##305082 : Vanuatu instead of Fidji
 data_PA_raw[data_PA_raw$wdpaid %in% c("305082") & data_PA_raw$pays == "Fidji",]$pays = "Vanuatu"
+##31459 : Central African Republic instead of Cameroon. /!\ Vérifier le nom : anglais ou français ??
+#data_PA_raw[data_PA_raw$wdpaid %in% c("31459") & data_PA_raw$pays == "Cameroun",]$pays = "Centrafrique"
 
+##Rio Grande de Buba : Guinee Bissau instead of Gambia. /!\ Vérifier l'écriture !!
+#data_PA_raw[data_PA_rax$nom_ap == "rio grande de buba" & data_PA_raw$pays == "Gambie",]$pays = "Centrafrique"
 
 #Create a clean dataset with relevant variables
 data_PA_tidy = data_PA_raw %>%
   #Get rid of the iso code in the initial dataset, to avoid confusion when merging with data_iso
   dplyr::select(-iso3) %>%
   #Create dummy variables for main investors
-  #AFD is always funder, so no need of a dummy
+  #AFD is always funder, so no need of a dummy. Kept as comment for the moment
   mutate(
     # afd_bin = case_when((cofinancier_1 == "AFD" | cofinancier_2 == "AFD" | cofinancier_3 == "AFD" |
     #                       cofinancier_4 == "AFD" | cofinancier_5 == "AFD" | cofinancier_6 == "AFD") ~ TRUE,
@@ -163,7 +168,7 @@ list_var_siop_AP = c( "id_projet", "nom_du_projet", "nom_de_projet_pour_les_inst
                       "kfw_bin", "ffem_bin",
                       "maitrise_ouvrage", "superf_interne", "nb_ap_nombre_potentiel", "detail", "projet", "commentaires")
 
-#Definining dataset for future analysis : siop and AP but not WDPA 
+#Definining dataset for future work with dataset other than WDPA 
 data_siop_AP = data_PA_tidy %>%
   dplyr::select(all_of(list_var_siop_AP), iso3)
 #write_csv(data_siop_AP, "data_tidy/BDD_AP_SIOP_joint.xlsx")
@@ -191,31 +196,39 @@ data_stat_nofund = data_PA_tidy %>%
 #fwrite(data_stat_nofund, "data_tidy/BDD_DesStat_nofund.csv")
 
 #Then to keep only one row per PA, we need to consider separately PAs having WDPA ID and PAs which do not.
-
+## Observations with WDPAID
 data_stat_nofund_wdpa = data_stat_nofund %>%
   subset(is.na(wdpaid) == FALSE) %>%
   group_by(wdpaid) %>% 
+  #Keep the earlier annee_octroi (year of the first funding)
   arrange(annee_octroi) %>%
+  #Keep only one observation for rows with same WDPAID
   slice(1) %>%
   ungroup()
 
+#Observations without WDPAID
 data_stat_nofund_na = data_stat_nofund %>%
   subset(is.na(wdpaid) == TRUE) %>%
+  #Create a unique key for a PA : project ID from AFD, country (ISO code) and PA name
   mutate(id1 = paste(id_projet, iso3, nom_ap, sep = "_"),
        .before = id_projet) %>%
   group_by(id1) %>%
+  #Keep the earlier year of funding
   arrange(annee_octroi) %>%
   slice(1) %>%
   ungroup() %>%
   #remove id1 variable, to bind data_stat_na and data_stat_wdpa by row
   select(-id1)
 
+#Finally bind both datasets
 data_stat_nofund_nodupl = rbind(data_stat_nofund_wdpa, data_stat_nofund_na) 
 
 #fwrite(data_stat_nofund_nodupl, "data_tidy/BDD_DesStat_nofund_nodupl.csv")
 ```
 
 ### Dataset for confidential descriptive statistics
+
+Variables related to the funding are removed.
 
 
 ```r
@@ -240,6 +253,8 @@ data_stat_fund = data_PA_tidy %>%
 ```
 
 ### A polygon dataset without confidential information
+
+Removing confidential variables from the polygon dataset. This is temporary code, as in the future we will download information from WDPA through the WDPA package, and extract the WDPA ID of interest. No confidential data will then be contained in the polygon datasets.
 
 
 ```r

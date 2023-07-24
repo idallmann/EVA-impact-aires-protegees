@@ -2,21 +2,21 @@
 
 # Matching
 
-In this R Markdown are performed the different steps to obtain a matched dataset, i.e a dataset with control and treated observational units to compute the Average Treatment on the Treated (ATT). The treatment here is to be under protected area status, and we look at the impact on deforestation.
+In this R Markdown are performed the different steps to obtain a matched dataset, i.e a dataset with control and treated observational units to compute the treatment effect. The treatment here is to be under protected area status, and we look at the impact on deforestation.
 
 The steps are the following
 
 1.  Pre-processing : in a loop for each country
 
-    1.  Create a grid of a given country
+    1.  Create a grid of the country
 
     2.  Import geospatial data on PAs from the WDPA dataset, and assign each observation unit/pixel to a group : PA funded by the AFD (treated), PA non-funded by the AFD, buffer (closed to but not a PA), other (so potential control).
 
-    3.  Compute the covariates and outcome of interest for all pixels thanks to the mapme.biodiversity package
+    3.  Compute the covariates and outcome of interest in all pixels thanks to the mapme.biodiversity package
 
-    4.  Build the matching data frame
+    4.  Build the matching data frame : each pixel is assigned to a group and has covariates and outcome values.
 
-2.  Post-processing
+2.  Post-processing : in a loop for each country
 
     1.  Load the matching dataframe of the given country
 
@@ -40,12 +40,12 @@ The steps are the following
 install.packages(c("tictoc", "geodata", "wdpar", "exactextractr", "MatchIt", "fixest", "cobalt"))
 remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
 
-#Install the river to download wdpa data directly
+#Install the web driver to download wdpa data directly
 webdriver::install_phantomjs()
 
 # Load Libraries
 library(dplyr)
-library(tictoc)
+library(tictoc) #For timing
 library(xtable)
 library(tidyr)
 library(stringr)
@@ -67,24 +67,22 @@ library(cobalt) #To visualize density plots and covariate balance from MatchIt o
 
 ```r
 #Import functions
-source("scripts/ImpactAnalysis/fns_matching.R")
+source("scripts/functions/02_fns_matching.R")
 ```
 
 
 ```r
-# Define the path to a working directory
-#wdir_s3 = file.path("data_tidy/mapme_bio_data/matching")
+# Define the path to a temporary, working directory for pre- and post-processing steps
 tmp_pre = paste(tempdir(), "matching_pre", sep = "/")
 tmp_post = paste(tempdir(), "matching_post", sep = "/")
 
-# Define the file name of the matching frame
+# Define the file name of the matching frame to save/import
 name_output = name_input = "matching_frame_10km"
 ext_output = ext_input = ".gpkg"
 
 #####
 ###Pre-processing
 #####
-
 
 ##Buffer and gridsize : make it depends on the country ? For instance, a typical size of grid such that the smaller PA is sampled with at least N pixels ?
 # Specify buffer width in meter
@@ -98,7 +96,6 @@ data_pa_full =
   aws.s3::s3read_using(
   FUN = data.table::fread,
   encoding = "UTF-8",
-  # Mettre les options de FUN ici
   object = "data_tidy/BDD_DesStat_nofund_nodupl.csv",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
@@ -135,22 +132,25 @@ colfl.prefix = "treeloss"
 #Prefix of columns for average forest loss pre-funding
 colname.flAvg = "avgLoss_pre_fund"
 
-# Year of Funding Start
-funding.start = 2014
+# Year of treatment
+treatment.start = 2014
 ```
 
 ## Matching process
+
+For pre- and post-processing steps, the different functions are called in a loop (one iteration per country). 
 
 ### Pre-processing
 
 
 ```r
 #For each country in the list, the different steps of the pre-processing are performed
-count = 0
-max_i = length(list_iso)
-tic_pre = tic()
+count = 0 #Initialize counter
+max_i = length(list_iso) #Max value of the counter
+tic_pre = tic() #Start timer
 for (i in list_iso)
 {
+  #Update counter and display progress
   count = count+1
   print(paste0(i, " : country ", count, "/", max_i))
   
@@ -178,7 +178,7 @@ for (i in list_iso)
   
 }
 
-toc_pre = toc()
+toc_pre = toc() #end timer
 ```
 
 ### Post-processing
@@ -186,11 +186,12 @@ toc_pre = toc()
 
 ```r
 #For each country in the list, the different steps of the post-processing are performed
-count = 0
-max_i = length(list_iso)
-tic_post = tic()
+count = 0 #Initialize counter
+max_i = length(list_iso) #Max value of the counter
+tic_post = tic() #start timer
 for (i in list_iso)
 {
+  #Update counter and show progress
   count = count+1
   print(paste0(i, " : country ", count, "/", max_i))
   
@@ -201,8 +202,8 @@ for (i in list_iso)
   
   #Add average pre-loss
   print("--Add covariate : average tree loss pre-funding")
-  mf = fn_post_avgLoss_prefund(mf = mf_ini, yr_start = funding.start - 5,
-                               yr_end = funding.start - 1, colfl.prefix = colfl.prefix)
+  mf = fn_post_avgLoss_prefund(mf = mf_ini, yr_start = treatment.start - 5,
+                               yr_end = treatment.start - 1, colfl.prefix = colfl.prefix)
   
   #Define cut-offs
   print("--Define cutoffs")
@@ -257,7 +258,7 @@ for (i in list_iso)
   
 }
 
-toc_post = toc()
+toc_post = toc() #end timer
 
 #Notes
 ## Automate the definition of cutoffs for CEM

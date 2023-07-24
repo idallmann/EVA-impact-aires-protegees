@@ -1,5 +1,5 @@
 # (APPENDIX) Appendix {-}
 
-# Appendix A
+# Functions
 
 Put here appendix stuff
