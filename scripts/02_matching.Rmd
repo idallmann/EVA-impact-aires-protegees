@@ -1,4 +1,4 @@
-# (PART\*) Impact analysis {-}
+# (PART\*) Impact analysis {.unnumbered}
 
 # Matching
 
@@ -30,9 +30,10 @@ The steps are the following
 
 ## Initial settings
 
-#```{r setup, include=FALSE, eval = FALSE}
-#knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
-# ```
+```{r setup, include=FALSE, eval = FALSE}
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file()) 
+
+```
 
 ```{r, eval = FALSE}
 #Install some libraries
@@ -85,21 +86,22 @@ ext_output = ext_input = ".gpkg"
 # Specify buffer width in meter
 buffer_m = 10000
 # Specify the grid cell size in meter
-gridSize = 10000 
+#gridSize = 10000 
 
 #Load data 
-data_pa_full = 
+data_pa = 
   #fread("data_tidy/BDD_DesStat_nofund_nodupl.csv" , encoding = "UTF-8")
   aws.s3::s3read_using(
   FUN = data.table::fread,
   encoding = "UTF-8",
   object = "data_tidy/BDD_DesStat_nofund_nodupl.csv",
   bucket = "projet-afd-eva-ap",
-  opts = list("region" = ""))
+  opts = list("region" = "")) %>%
+  filter(is.na(wdpaid) == FALSE & superficie > 0)
 
 #List of countries in the sample
 #list_iso = unique(data_pa_full$iso3)
-list_iso = c("COM", "MMR")
+list_iso = c("CMR")
 # Specify a list of WDPA IDs of funded protected areas (treated areas)
 # paid = data_stat_nodupl[data_stat_nodupl$iso3 == country,]$wdpaid
 
@@ -130,12 +132,12 @@ colfl.prefix = "treeloss"
 colname.flAvg = "avgLoss_pre_fund"
 
 # Year of treatment
-treatment.start = 2014
+#treatment.start = 2014
 ```
 
 ## Matching process
 
-For pre- and post-processing steps, the different functions are called in a loop (one iteration per country). 
+For pre- and post-processing steps, the different functions are called in a loop (one iteration per country).
 
 ### Pre-processing
 
@@ -152,12 +154,16 @@ for (i in list_iso)
   
   #Generate observation units
   print("--Generating observation units")
-  output_pre_grid = fn_pre_grid(iso = i, path_tmp = tmp_pre, gridSize = gridSize)
+  output_pre_grid = fn_pre_grid(iso = i, 
+                                path_tmp = tmp_pre, 
+                                data_pa = data_pa,
+                                sampling = 5)
   
   #Load the outputs 
   utm_code = output_pre_grid$utm_code
   gadm_prj = output_pre_grid$ctry_shp_prj
   grid = output_pre_grid$grid
+  gridSize = output_pre_grid$gridSize
   
   #Determining Group IDs and WDPA IDs for all observation units
   print("--Determining Group IDs and WDPA IDs")

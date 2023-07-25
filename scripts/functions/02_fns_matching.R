@@ -24,13 +24,15 @@ lonlat2UTM = function(lonlat)
 ##INPUTS : 
 ### iso : ISO code 
 ### path_temp : temporary path for saving figures
-### gridSize : grid resolution
+### data_pa : dataset with information on protected areas, and especially their surfaces
+### sampling : Number of pixels that subdivide the protected area with lowest area in the country considered
 ##OUTPUTS : 
 ### gadm_prj : country shapefile 
 ### grid : gridding of the country
 ### utm_code : UTM code of the country
+### gridSize : the resolution of gridding, defined from the area of the PA with the lowest area
 
-fn_pre_grid = function(iso, path_tmp, gridSize)
+fn_pre_grid = function(iso, path_tmp, data_pa, sampling)
 {
   # Download country polygon to working directory and load it into workspace
   gadm = gadm(country = iso, resolution = 1, level = 0, path = path_tmp) %>% 
@@ -42,6 +44,17 @@ fn_pre_grid = function(iso, path_tmp, gridSize)
   # Reproject GADM
   gadm_prj = gadm %>% 
     st_transform(crs = utm_code)
+  
+  #Determine relevant grid size
+  ##Select the PA in the country with minimum area
+  pa_min = data_pa %>%
+    filter(iso3 == iso) %>%
+    arrange(superficie) %>%
+    slice(1)
+  ##From this minimum area, define the grid size. 
+  ##It depends on the sampling of the minimal area, i.e how many pixels we want to subdivide the PA with lowest area
+  area_min = pa_min$superficie #in kilometer
+  gridSize = round(sqrt(area_min/sampling)*1000, 0) #Side of the pixel is expressed in meter and rounded
   
   # Make bounding box of projected country polygon
   bbox = st_bbox(gadm_prj) %>% st_as_sfc() %>% st_as_sf() 
@@ -71,7 +84,7 @@ fn_pre_grid = function(iso, path_tmp, gridSize)
                      region = "", 
                      show_progress = FALSE)
   #Return outputs
-  list_output = list("ctry_shp_prj" = gadm_prj, "grid" = grid, "utm_code" = utm_code)
+  list_output = list("ctry_shp_prj" = gadm_prj, "grid" = grid, "gridSize" = gridSize, "utm_code" = utm_code)
   return(list_output)
 }
 
