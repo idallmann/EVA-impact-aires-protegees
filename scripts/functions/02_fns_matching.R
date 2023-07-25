@@ -101,9 +101,9 @@ fn_pre_grid = function(iso, path_tmp, data_pa, sampling)
 ##OUTPUTS : 
 ### grid.param : a raster representing the gridding of the country with two layers. One for the group each pixel belongs to (funded PA, non-funded PA, potential control, buffer), the other for the WDPAID corresponding to each pixel (0 if not a PA)
 
-fn_pre_group = function(iso, path_tmp, utm_code, buffer_m, data, gadm_prj, grid, gridSize)
+fn_pre_group = function(iso, path_tmp, utm_code, buffer_m, data_pa, gadm_prj, grid, gridSize)
 {
-  wdpa = wdpa_fetch(x = iso, wait = TRUE, download_dir = path_tmp)
+  wdpa = wdpa_fetch(x = iso, wait = TRUE, download_dir = path_tmp, page_wait = 5, verbose = TRUE) #Tips : if connection low, increase page_wait argument
   # PAs are projected, and column "geometry_type" is added
   wdpa_prj = wdpa_clean(wdpa, geometry_precision = 1000) %>%
     # Remove the PAs that are only proposed, or have geometry type "point"
@@ -118,7 +118,7 @@ fn_pre_group = function(iso, path_tmp, utm_code, buffer_m, data, gadm_prj, grid,
     mutate(group=3)
   
   # Separate funded and non-funded protected areas
-  paid = data[data$iso3 == iso,]$wdpaid
+  paid = data_pa[data_pa$iso3 == iso,]$wdpaid
   wdpaID_funded = paid
   wdpa_funded = wdpa_prj %>% filter(WDPAID %in% wdpaID_funded) %>%
     mutate(group=1) # Assign an ID "1" to the funded PA group
@@ -167,7 +167,8 @@ fn_pre_group = function(iso, path_tmp, utm_code, buffer_m, data, gadm_prj, grid,
     subset(., select=-c(gridID)) %>%
     st_as_sf() %>%
     # Grid is projected to WGS84 because mapme.biodiverty package merely works with this CRS
-    st_transform(crs=4326)
+    st_transform(crs=4326) %>%
+    left_join(dplyr::select(data_pa, c(wdpaid, status_yr)), by = "wdpaid")
   
   # Visualize and save grouped grid cells
   fig_grid_group = 
@@ -205,14 +206,14 @@ fn_pre_group = function(iso, path_tmp, utm_code, buffer_m, data, gadm_prj, grid,
 ### None
 
 
-fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output) 
+fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output, yr_first, yr_last) 
 {
   print("----Initialize portfolio")
   # Get input data ready for indicator calculation
   aoi = init_portfolio(grid.param,
-                       years = y_first:y_last,
+                       years = yr_first:yr_last,
                        outdir = path_tmp,
-                       cores = 12,
+                       #cores = 12,
                        add_resources = FALSE)
   print("----Download Rasters and Calculate Covariates")
   print("------Soil")
@@ -275,12 +276,12 @@ fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output)
   # Set list of new column names for tree loss time series
   colnames_loss = dropFirst %>% str_split(., "_")
   
-  get.tree = get.tree 
   # Add new columns: treeloss_tn = treecover_tn - treecover_t(n-1)  
-  for (i in 1:length(dropFirst)) {
-    new_colname <- paste0("treeloss_", colnames_loss[[i]][2]) 
-    get.tree[[new_colname]] <- get.tree[[dropFirst[i]]] - get.tree[[dropLast[i]]]
-  }
+  for (i in 1:length(dropFirst)) 
+    {
+    new_colname = paste0("treeloss_", colnames_loss[[i]][2]) 
+    get.tree[[new_colname]] = get.tree[[dropFirst[i]]] - get.tree[[dropLast[i]]]
+    }
   
   print("----Export Matching Frame")
   # Remove "geometry" column from pivot dataframes
@@ -313,7 +314,6 @@ fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output)
   do.call(file.remove, list(list.files(tmp_pre, include.dirs = F, full.names = T, recursive = T)))
   
   
-  
 }
 
 #Load the matching dataframe obtained during pre-processing
@@ -329,7 +329,7 @@ fn_post_load_mf = function(iso)
                       object = object,
                       opts = list("region" = "")) %>%
     filter(group==0 | group==1) %>%
-    drop_na() #%>%
+    drop_na(-c(status_yr)) #%>%
   #st_drop_geometry()
   return(mf)
 }
@@ -344,15 +344,35 @@ fn_post_load_mf = function(iso)
 ## OUTPUTS :
 ### mf : matching frame with the new covariate
 
-fn_post_avgLoss_prefund = function(mf, yr_start, yr_end, colfl.prefix, colname.flAvg)
+fn_post_avgLoss_prefund = function(mf, colfl.prefix, colname.flAvg)
 {
   # Columns treeloss, without geometry
-  start = yr_start - 2000
-  end = yr_end - 2000
+  # start = yr_start - 2000
+  # end = yr_end - 2000
+  # df_fl = mf[grepl(colfl.prefix, names(mf))][start:end] %>% 
+  #   st_drop_geometry()
+  # # Add column: average treeloss before funding starts, 
+  # mf$avgLoss_pre_fund = round(rowMeans(df_fl), 2)
+  
+  ###TEST
+  #Extract treatment year
+  treatment.year = mf %>% 
+    filter(group == 1) %>% 
+    slice(1)
+  treatment.year = treatment.year$status_yr
+  #Define period to compute average loss
+  yr_start = (treatment.year-5)
+  yr_end = (treatment.year -1)
+  #Transform it in variable suffix
+  var_start = yr_start - 2000
+  var_end = yr_end - 2000
+  #Select only relevant variables
   df_fl = mf[grepl(colfl.prefix, names(mf))][start:end] %>% 
     st_drop_geometry()
-  # Add column: average treeloss before funding starts, 
+  #Compute average loss for each pixel
   mf$avgLoss_pre_fund = round(rowMeans(df_fl), 2)
+  #Remove NA values
+  mf = mf %>% drop_na(avgLoss_pre_fund)
   
   return(mf)
 }
@@ -370,18 +390,18 @@ fn_post_cutoff = function(mf, colname.travelTime, colname.clayContent, colname.e
   lst_cutoffs = c()
   
   # Quantile in 8 parts
-  lst_cutoffs[[colname.travelTime]] = as.integer(quantile(mf[[colname.travelTime]], probs = seq(0, 1, 0.125), na.rm=TRUE))
+  lst_cutoffs[[colname.travelTime]] = as.integer(quantile(mf[[colname.travelTime]], probs = seq(0, 1, 0.1), na.rm=TRUE))
   
-  #lst_cutoffs[[colname.clayContent]] = as.integer(quantile(mf[[colname.clayContent]], probs = seq(0, 1, 0.05), na.rm=TRUE))
-  lst_cutoffs[[colname.clayContent]] = as.integer(c(0,10,20,30, 32,34,36,38,40, 50,60,70,80,90,100))
+  lst_cutoffs[[colname.clayContent]] = as.integer(quantile(mf[[colname.clayContent]], probs = seq(0, 1, 0.1), na.rm=TRUE))
+  #lst_cutoffs[[colname.clayContent]] = as.integer(c(0,10,20,30, 32,34,36,38,40, 50,60,70,80,90,100))
   
   # lst_cutoffs[[colname.elevation]] = as.integer(quantile(mf[[colname.elevation]], probs = seq(0, 1, 0.125), na.rm=TRUE))
   # 
   # lst_cutoffs[[colname.tri]] = as.integer(quantile(mf[[colname.tri]], probs = seq(0, 1, 0.125), na.rm=TRUE))
   
-  lst_cutoffs[[colname.fcIni]] = as.integer(quantile(mf[[colname.fcIni]], probs = seq(0, 1, 0.025), na.rm=TRUE))
+  lst_cutoffs[[colname.fcIni]] = as.integer(quantile(mf[[colname.fcIni]], probs = seq(0, 1, 0.1), na.rm=TRUE))
   
-  lst_cutoffs[[colname.flAvg]] = as.integer(quantile(mf[[colname.flAvg]], probs = seq(0, 1, 0.025), na.rm=TRUE))
+  lst_cutoffs[[colname.flAvg]] = as.integer(quantile(mf[[colname.flAvg]], probs = seq(0, 1, 0.1), na.rm=TRUE))
   
   return(lst_cutoffs)
 }
@@ -434,7 +454,7 @@ fn_post_cem = function(mf, lst_cutoffs, iso, path_tmp,
 ## OUTPUTS :
 ### None
 
-fn_post_plot_covbal = function(out.cem, colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, iso, path_tmp)
+fn_post_plot_covbal = function(out.cem, colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, iso, path_tmp, wdpaid)
 {
   c_name = data.frame(old = c(colname.travelTime, colname.clayContent,
                               colname.fcIni, colname.flAvg),
@@ -474,13 +494,13 @@ fn_post_plot_covbal = function(out.cem, colname.travelTime, colname.clayContent,
       panel.grid.minor.x = element_line(color = 'grey', linewidth = 0.3, linetype = 2)
     ) + guides(linetype = guide_legend(override.aes = list(color = "#2ecc71"))) # Add legend for geom_vline
   
-  fig_save = paste0(path_tmp, "/fig_covbal_", iso, ".png")
+  fig_save = paste0(path_tmp, "/fig_covbal", "_", iso, "_", wdpaid, ".png")
   ggsave(fig_save,
          plot = fig_covbal,
          device = "png",
          height = 6, width = 9)
   aws.s3::put_object(file = fig_save, 
-                     bucket = paste("projet-afd-eva-ap/data_tidy/mapme_bio_data/matching", iso, sep = "/"), 
+                     bucket = paste("projet-afd-eva-ap/data_tidy/mapme_bio_data/matching", iso, wdpaid, sep = "/"), 
                      region = "", 
                      show_progress = FALSE)
 }
@@ -494,7 +514,7 @@ fn_post_plot_covbal = function(out.cem, colname.travelTime, colname.clayContent,
 ## OUTPUTS :
 ### None
 
-fn_post_plot_density = function(out.cem, colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, iso, path_tmp)
+fn_post_plot_density = function(out.cem, colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, iso, path_tmp, wdpaid = j)
 {
   # Define Facet Labels
   fnl = c(`Unadjusted Sample` = "Before Matching",
@@ -667,28 +687,28 @@ fn_post_plot_density = function(out.cem, colname.travelTime, colname.clayContent
   #Saving plots
   
   tmp = paste(tempdir(), "fig", sep = "/")
-  paste0(path_tmp, "/fig_covbal_", iso, ".png")
-  ggsave(paste(tmp, paste0("fig_travel_dplot_", iso, ".png"), sep = "/"),
+  paste0(path_tmp, "/fig_covbal", "_", iso, "_", wdpaid, ".png")
+  ggsave(paste(tmp, paste0("fig_travel_dplot_", iso, wdpaid, ".png"), sep = "/"),
          plot = fig_travel,
          device = "png",
          height = 6, width = 9)
-  ggsave(paste(tmp, paste0("fig_clay_dplot_", iso, ".png"), sep = "/"),
+  ggsave(paste(tmp, paste0("fig_clay_dplot_", iso, wdpaid, ".png"), sep = "/"),
          plot = fig_clay,
          device = "png",
          height = 6, width = 9)
-  # ggsave(paste(tmp, paste0("fig_elevation_dplot_", iso, ".png"), sep = "/"),
+  # ggsave(paste(tmp, paste0("fig_elevation_dplot_", iso, wdpaid, ".png"), sep = "/"),
   #        plot = fig_elevation,
   #        device = "png",
   #        height = 6, width = 9)
-  # ggsave(paste(tmp, paste0("fig_tri_dplot_", iso, ".png"), sep = "/"),
+  # ggsave(paste(tmp, paste0("fig_tri_dplot_", iso, wdpaid, ".png"), sep = "/"),
   #        plot = fig_tri,
   #        device = "png",
   #        height = 6, width = 9)
-  ggsave(paste(tmp, paste0("fig_fc_dplot_", iso, ".png"), sep = "/"),
+  ggsave(paste(tmp, paste0("fig_fc_dplot_", iso, wdpaid, ".png"), sep = "/"),
          plot = fig_fc,
          device = "png",
          height = 6, width = 9)
-  ggsave(paste(tmp, paste0("fig_fl_dplot_", iso, ".png"), sep = "/"),
+  ggsave(paste(tmp, paste0("fig_fl_dplot_", iso, wdpaid, ".png"), sep = "/"),
          plot = fig_fl,
          device = "png",
          height = 6, width = 9)
@@ -699,7 +719,7 @@ fn_post_plot_density = function(out.cem, colname.travelTime, colname.clayContent
   {
     cat("Uploading file", paste0("'", f, "'"), "\n")
     aws.s3::put_object(file = f, 
-                       bucket = paste("projet-afd-eva-ap/data_tidy/mapme_bio_data/matching", iso, sep = "/"), 
+                       bucket = paste("projet-afd-eva-ap/data_tidy/mapme_bio_data/matching", iso, wdpaid, sep = "/"), 
                        region = "", show_progress = TRUE)
   }
   do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
@@ -752,7 +772,7 @@ fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind)
 ## OUTPUTS : 
 ### None
 
-fn_post_plot_trend = function(matched.long, unmatched.long, iso) 
+fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid) 
 {
   # Make dataframe for plotting Trend
   df.matched.trend = matched.long %>%
@@ -765,6 +785,12 @@ fn_post_plot_trend = function(matched.long, unmatched.long, iso)
   
   df.trend = rbind(df.matched.trend, df.unmatched.trend)
   
+  #Extract treatment year
+  treatment.year = mf %>% 
+    filter(group == 1) %>% 
+    slice(1)
+  treatment.year = treatment.year$status_yr
+  
   #Plot
   ## Change Facet Labels
   fct.labs <- c("Before Matching", "After Matching")
@@ -774,7 +800,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, iso)
   fig_trend_unm = ggplot(df.trend, aes(x = year, y = avgFC)) +
     geom_line(aes(group = group, color = as.character(group))) +
     geom_point(aes(color = as.character(group))) +
-    geom_vline(aes(xintercept=as.character(funding.start), size="Funding Start"), linetype=2, linewidth=0.5, color="orange") +
+    geom_vline(aes(xintercept=as.character(treatment.year), size="Funding Start"), linetype=2, linewidth=0.5, color="orange") +
     
     scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) +
     scale_color_hue(labels = c("Control", "Treatment")) +
@@ -808,7 +834,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, iso)
   fig_trend_m = ggplot(df.matched.trend, aes(x = year, y = avgFC)) +
     geom_line(aes(group = group, color = as.character(group))) +
     geom_point(aes(color = as.character(group))) +
-    geom_vline(aes(xintercept=as.character(funding.start), size="Funding Start"), linetype=2, linewidth=0.5, color="orange") +
+    geom_vline(aes(xintercept=as.character(treatment.year), size="Funding Start"), linetype=2, linewidth=0.5, color="orange") +
     
     #scale_y_continuous(breaks=seq(0,100,10), labels=paste(seq(0,100,10)),
     #                   expand=c(0,0), limits=c(0,100)) +
@@ -839,11 +865,11 @@ fn_post_plot_trend = function(matched.long, unmatched.long, iso)
   ##Saving plots
   tmp = paste(tempdir(), "fig", sep = "/")
   
-  ggsave(paste(tmp, paste0("fig_trend_unmatched_", iso, ".png"), sep = "/"),
+  ggsave(paste(tmp, paste0("fig_trend_unmatched_", iso, "_", wdpaid, ".png"), sep = "/"),
          plot = fig_trend_unm,
          device = "png",
          height = 6, width = 9)
-  ggsave(paste(tmp, paste0("fig_trend_matched_", iso, ".png"), sep = "/"),
+  ggsave(paste(tmp, paste0("fig_trend_matched_", iso, "_", wdpaid, ".png"), sep = "/"),
          plot = fig_trend_m,
          device = "png",
          height = 6, width = 9)
@@ -854,7 +880,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, iso)
   {
     cat("Uploading file", paste0("'", f, "'"), "\n")
     aws.s3::put_object(file = f, 
-                       bucket = paste("projet-afd-eva-ap/data_tidy/mapme_bio_data/matching", iso, sep = "/"), 
+                       bucket = paste("projet-afd-eva-ap/data_tidy/mapme_bio_data/matching", iso, wdpaid, sep = "/"), 
                        region = "", show_progress = TRUE)
   }
   do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
