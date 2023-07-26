@@ -688,27 +688,27 @@ fn_post_plot_density = function(out.cem, colname.travelTime, colname.clayContent
   
   tmp = paste(tempdir(), "fig", sep = "/")
   paste0(path_tmp, "/fig_covbal", "_", iso, "_", wdpaid, ".png")
-  ggsave(paste(tmp, paste0("fig_travel_dplot_", iso, wdpaid, ".png"), sep = "/"),
+  ggsave(paste(tmp, paste0("fig_travel_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
          plot = fig_travel,
          device = "png",
          height = 6, width = 9)
-  ggsave(paste(tmp, paste0("fig_clay_dplot_", iso, wdpaid, ".png"), sep = "/"),
+  ggsave(paste(tmp, paste0("fig_clay_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
          plot = fig_clay,
          device = "png",
          height = 6, width = 9)
-  # ggsave(paste(tmp, paste0("fig_elevation_dplot_", iso, wdpaid, ".png"), sep = "/"),
+  # ggsave(paste(tmp, paste0("fig_elevation_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
   #        plot = fig_elevation,
   #        device = "png",
   #        height = 6, width = 9)
-  # ggsave(paste(tmp, paste0("fig_tri_dplot_", iso, wdpaid, ".png"), sep = "/"),
+  # ggsave(paste(tmp, paste0("fig_tri_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
   #        plot = fig_tri,
   #        device = "png",
   #        height = 6, width = 9)
-  ggsave(paste(tmp, paste0("fig_fc_dplot_", iso, wdpaid, ".png"), sep = "/"),
+  ggsave(paste(tmp, paste0("fig_fc_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
          plot = fig_fc,
          device = "png",
          height = 6, width = 9)
-  ggsave(paste(tmp, paste0("fig_fl_dplot_", iso, wdpaid, ".png"), sep = "/"),
+  ggsave(paste(tmp, paste0("fig_fl_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
          plot = fig_fl,
          device = "png",
          height = 6, width = 9)

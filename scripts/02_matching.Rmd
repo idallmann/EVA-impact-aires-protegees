@@ -201,7 +201,7 @@ for (i in list_iso)
   #Load the matching frame
   print("--Loading the matching frame")
   mf_ini = fn_post_load_mf(iso = i) %>%
-    left_join(dplyr::select(data_pa, c(wdpaid, status_yr)), by = "wdpaid") %>%
+    #left_join(dplyr::select(data_pa, c(wdpaid, status_yr)), by = "wdpaid") %>%
     filter(status_yr > 2000 | is.na(status_yr))
   list_pa = unique(mf_ini[mf_ini$wdpaid != 0, ]$wdpaid)
   
