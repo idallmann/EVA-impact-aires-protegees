@@ -62,6 +62,8 @@ library(aws.s3)
 library(MatchIt) #For matching
 library(fixest) #For estimating the models
 library(cobalt) #To visualize density plots and covariate balance from MatchIt outcomes
+library(future) #For parallel computing in mapme.biodiversity
+library(progressr) # To display progress bar
 ```
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
@@ -74,15 +76,14 @@ source("scripts/functions/02_fns_matching.R")
 tmp_pre = paste(tempdir(), "matching_pre", sep = "/")
 tmp_post = paste(tempdir(), "matching_post", sep = "/")
 
-# Define the file name of the matching frame to save/import
-name_output = name_input = "matching_frame_10km"
-ext_output = ext_input = ".gpkg"
 
 #####
 ###Pre-processing
 #####
 
-##Buffer and gridsize : make it depends on the country ? For instance, a typical size of grid such that the smaller PA is sampled with at least N pixels ?
+# set up parallel plan with 6 concurrent threads
+plan(multisession, workers = 6) 
+
 # Specify buffer width in meter
 buffer_m = 10000
 # Specify the grid cell size in meter
@@ -171,12 +172,22 @@ for (i in list_iso)
                             buffer_m = buffer_m, data_pa = data_pa,
                             gadm_prj = gadm_prj, grid = grid, 
                             gridSize = gridSize)
-  
+
   #Calculating outcome and other covariates for all observation units
   print("--#Calculating outcome and other covariates")
+  ##Parallel computing
+  tic_parallel = tic()
+  fn_pre_mf_parallel(grid.param = grid_param, path_tmp = tmp_pre, iso = i,
+          name_output = "matching_frame_10km", ext_output = ".gpkg",
+          yr_first = yr_first, yr_last = yr_last)
+  toc_parallel = toc()
+  ##Without parallel computing
+  tic = tic()
   fn_pre_mf(grid.param = grid_param, path_tmp = tmp_pre, iso = i,
-            name_output = name_output, ext_output = ext_output,
+            name_output = "matching_frame_10km", ext_output = ".gpkg",
             yr_first = yr_first, yr_last = yr_last)
+  toc = toc()
+
   
   
 }
@@ -189,25 +200,34 @@ toc_pre = toc() #end timer
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
 #For each country in the list, the different steps of the post-processing are performed
-count = 0 #Initialize counter
+count_i = 0 #Initialize counter
 max_i = length(list_iso) #Max value of the counter
 tic_post = tic() #start timer
 for (i in list_iso)
 {
   #Update counter and show progress
-  count = count+1
-  print(paste0(i, " : country ", count, "/", max_i))
+  count_i = count_i+1
+  print(paste0(i, " : country ", count_i, "/", max_i))
   
   #Load the matching frame
   print("--Loading the matching frame")
-  mf_ini = fn_post_load_mf(iso = i) %>%
+  mf_ini = fn_post_load_mf(iso = i, 
+                           name_input = "matching_frame_10km",
+                           ext_input = ".gpkg") %>%
     #left_join(dplyr::select(data_pa, c(wdpaid, status_yr)), by = "wdpaid") %>%
     filter(status_yr > 2000 | is.na(status_yr))
   list_pa = unique(mf_ini[mf_ini$wdpaid != 0, ]$wdpaid)
   
+  count_j = 0
+  max_j = length(list_pa)
+  
   #Loop over the different PAs
   for (j in list_pa)
   {
+      #Update counter and show progress
+  count_j = count_j+1
+  print(paste0("WDPA ID ", j, " : ", count_j, "/", max_j))
+  
     mf_ini_j = mf_ini %>%
       filter(group == 0 | (group == 1 & wdpaid == j))
     
@@ -259,8 +279,10 @@ for (i in list_iso)
     print("----Panelize (Un-)Matched Dataframe")
     output_post_panel_j = fn_post_panel(out.cem = out.cem_j, 
                                         mf = mf_j, 
-                                      colfc.prefix = colfc.prefix, 
-                                      colfc.bind = colfc.bind)
+                                        colfc.prefix = colfc.prefix, 
+                                        colfc.bind = colfc.bind,
+                                        ext_output = ".csv", 
+                                        wdpaid = j)
     matched.wide.j = output_post_panel_j$matched.wide
     unmatched.wide.j = output_post_panel_j$unmatched.wide
     matched.long.j = output_post_panel_j$matched.long

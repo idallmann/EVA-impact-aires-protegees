@@ -103,7 +103,7 @@ fn_pre_grid = function(iso, path_tmp, data_pa, sampling)
 
 fn_pre_group = function(iso, path_tmp, utm_code, buffer_m, data_pa, gadm_prj, grid, gridSize)
 {
-  wdpa = wdpa_fetch(x = iso, wait = TRUE, download_dir = path_tmp, page_wait = 5, verbose = TRUE) #Tips : if connection low, increase page_wait argument
+  wdpa = wdpa_fetch(x = iso, wait = TRUE, download_dir = path_tmp, page_wait = 5, verbose = TRUE) #Tips : if connection low, increase page_wait argument (2 is default)
   # PAs are projected, and column "geometry_type" is added
   wdpa_prj = wdpa_clean(wdpa, geometry_precision = 1000) %>%
     # Remove the PAs that are only proposed, or have geometry type "point"
@@ -219,13 +219,13 @@ fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output, yr_firs
   print("------Soil")
   # Covariate: Soil
   # Download Data
-  get.soil = get_resources(aoi, 
-                           resources = c("soilgrids"), 
+  get.soil = get_resources(aoi,
+                           resources = c("soilgrids"),
                            layers = c("clay"), # resource specific argument
                            depths = c("0-5cm"), # resource specific argument
                            stats = c("mean")) %>%
     # Calculate Indicator
-    calc_indicators(., 
+    calc_indicators(.,
                     indicators = "soilproperties",
                     stats_soil = c("mean"),
                     engine = "zonal") %>%
@@ -233,7 +233,8 @@ fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output, yr_firs
     unnest(soilproperties) %>%
     mutate(across(mean, round, 3)) %>% # Round numeric columns
     pivot_wider(names_from = c("layer", "depth", "stat"), values_from = "mean")
-  print("------Elevation")
+
+  # print("------Elevation")
   # Covariate: Elevation
   # get.elevation = get_resources(aoi, "nasa_srtm") %>%
   #   calc_indicators(.,
@@ -316,12 +317,148 @@ fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output, yr_firs
   
 }
 
+fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output, yr_first, yr_last) 
+{
+  print("----Initialize portfolio")
+  # Get input data ready for indicator calculation
+  aoi = init_portfolio(grid.param,
+                       years = yr_first:yr_last,
+                       outdir = path_tmp,
+                       #cores = 12,
+                       add_resources = FALSE)
+  print("----Download Rasters and Calculate Covariates")
+  print("------Soil")
+  # Covariate: Soil
+  # Download Data
+  # get.soil = get_resources(aoi, 
+  #                          resources = c("soilgrids"), 
+  #                          layers = c("clay"), # resource specific argument
+  #                          depths = c("0-5cm"), # resource specific argument
+  #                          stats = c("mean")) %>%
+  #   # Calculate Indicator
+  #   calc_indicators(., 
+  #                   indicators = "soilproperties",
+  #                   stats_soil = c("mean"),
+  #                   engine = "zonal") %>%
+  #   # Transform the output dataframe into a pivot dataframe
+  #   unnest(soilproperties) %>%
+  #   mutate(across(mean, round, 3)) %>% # Round numeric columns
+  #   pivot_wider(names_from = c("layer", "depth", "stat"), values_from = "mean")
+  
+  get.soil1 = get_resources(aoi, 
+                           resources = c("soilgrids"), 
+                           layers = c("clay"), # resource specific argument
+                           depths = c("0-5cm"), # resource specific argument
+                           stats = c("mean"))
+  # Calculate Indicator
+  
+  with_progress({
+    get.soil2 = calc_indicators(
+      get.soil1,
+      indicators = "soilproperties",
+      stats_soil = c("mean"),
+      engine = "zonal",
+      scales_spi = 3,
+      spi_prev_years = 8
+    )
+  })
+  plan(sequential)
+  
+  # Transform the output dataframe into a pivot dataframe
+  get.soil3  = unnest(get.soil2, soilproperties) %>%
+    mutate(across(mean, round, 3)) %>% # Round numeric columns
+    pivot_wider(names_from = c("layer", "depth", "stat"), values_from = "mean")
+  
+  
+  # print("------Elevation")
+  # Covariate: Elevation
+  # get.elevation = get_resources(aoi, "nasa_srtm") %>%
+  #   calc_indicators(.,
+  #                   indicators = "elevation",
+  #                   stats_elevation = c("mean")) %>%
+  #   unnest(elevation)
+  print("------TRI")
+  # Covariate: TRI
+  # get.tri = get_resources(aoi, "nasa_srtm") %>%
+  #   calc_indicators(., indicators = "tri") %>%
+  #   unnest(tri)
+  print("------Travel time")
+  # Covariate: Travel Time
+  get.travelT = get_resources(aoi, resources = "nelson_et_al",
+                              range_traveltime = c("5k_110mio")) %>% # resource specific argument
+    calc_indicators(., 
+                    indicators = "traveltime",
+                    stats_accessibility = c("median")) %>%
+    unnest(traveltime) %>%
+    pivot_wider(names_from = "distance", values_from = "minutes_median", names_prefix = "minutes_median_")
+  
+  print("----Calculate Deforestation")
+  # Time Series of Tree Cover Area
+  get.tree = get_resources(aoi, resources = c("gfw_treecover", "gfw_lossyear")) %>%
+    calc_indicators(.,
+                    indicators = "treecover_area", 
+                    min_size=1, # indicator-specific argument
+                    min_cover=10) %>% # indicator-specific argument
+    unnest(treecover_area) %>%
+    mutate(across(treecover, round, 3)) %>% # Round numeric columns
+    pivot_wider(names_from = "years", values_from = "treecover", names_prefix = "treecover_")
+  
+  # The calculation of tree loss area is performed at dataframe base
+  # Get the column names of tree cover time series
+  colnames_tree = names(get.tree)[startsWith(names(get.tree), "treecover")]
+  # Drop the first year
+  dropFirst = tail(colnames_tree, -1)
+  # Drop the last year
+  dropLast = head(colnames_tree, -1)
+  # Set list of new column names for tree loss time series
+  colnames_loss = dropFirst %>% str_split(., "_")
+  
+  # Add new columns: treeloss_tn = treecover_tn - treecover_t(n-1)  
+  for (i in 1:length(dropFirst)) 
+  {
+    new_colname = paste0("treeloss_", colnames_loss[[i]][2]) 
+    get.tree[[new_colname]] = get.tree[[dropFirst[i]]] - get.tree[[dropLast[i]]]
+  }
+  
+  print("----Export Matching Frame")
+  # Remove "geometry" column from pivot dataframes
+  df.tree = get.tree %>% mutate(x = NULL) %>% as.data.frame()
+  df.travelT = get.travelT %>% mutate(x = NULL) %>% as.data.frame()
+  df.soil = get.soil %>% mutate(x = NULL) %>% as.data.frame()
+  # df.elevation = get.elevation %>% mutate(x = NULL) %>% as.data.frame()
+  # df.tri = get.tri %>% mutate(x=NULL) %>% as.data.frame()
+  
+  # Make a dataframe containing only "assetid" and geometry
+  df.geom = get.tree[, c("assetid", "x")] %>% as.data.frame()
+  
+  # Merge all output dataframes 
+  # pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.elevation, df.tri, df.geom)) %>%
+  #   st_as_sf()
+  pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.geom)) %>%
+    st_as_sf()
+  # Make column Group ID and WDPA ID have data type "integer"
+  pivot.all$group = as.integer(pivot.all$group)
+  pivot.all$wdpaid = as.integer(pivot.all$wdpaid)
+  
+  name_save = paste0(name_output, "_", iso, ext_output)
+  s3write_using(pivot.all,
+                sf::st_write,
+                object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", name_save),
+                bucket = "projet-afd-eva-ap",
+                opts = list("region" = ""))
+  
+  #Removing files in the temporary folder
+  do.call(file.remove, list(list.files(tmp_pre, include.dirs = F, full.names = T, recursive = T)))
+  
+  
+}
+
 #Load the matching dataframe obtained during pre-processing
 ##INPUTS :
 ### iso : the ISO code of the country considered
 ##OUTPUTS :
 ### mf : matching dataframe. More precisely, it gives for each observation units in a country values of different covariates to perform matching.
-fn_post_load_mf = function(iso)
+fn_post_load_mf = function(iso, name_input, ext_input)
 {
   object = paste("data_tidy/mapme_bio_data/matching", iso, paste0(name_input, "_", iso, ext_input), sep = "/")
   mf = s3read_using(sf::st_read,
@@ -367,7 +504,7 @@ fn_post_avgLoss_prefund = function(mf, colfl.prefix, colname.flAvg)
   var_start = yr_start - 2000
   var_end = yr_end - 2000
   #Select only relevant variables
-  df_fl = mf[grepl(colfl.prefix, names(mf))][start:end] %>% 
+  df_fl = mf[grepl(colfl.prefix, names(mf))][var_start:var_end] %>% 
     st_drop_geometry()
   #Compute average loss for each pixel
   mf$avgLoss_pre_fund = round(rowMeans(df_fl), 2)
@@ -735,7 +872,7 @@ fn_post_plot_density = function(out.cem, colname.travelTime, colname.clayContent
 ## OUTPUTS :
 ### list_output : a list of dataframes : (un)matched.wide/long. They contain covariates and outcomes for treatment and control units, before and after matching, in a wide or long format
 
-fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind)
+fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpaid)
 {
   # Convert dataframe of matched objects to pivot wide form
   matched.wide = match.data(object=out.cem, data=mf)
@@ -758,6 +895,28 @@ fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind)
                  names_to = c("var", "year"),
                  names_sep = colfc.bind,
                  values_to = "fc_pct")
+  
+  #Save the dataframes
+  s3write_using(matched.wide,
+                sf::st_write,
+                object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", wdpaid, "/", paste0("matched_wide", "_", iso, "_", wdpaid, ext_output)),
+                bucket = "projet-afd-eva-ap",
+                opts = list("region" = ""))
+  s3write_using(unmatched.wide,
+                sf::st_write,
+                object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", wdpaid, "/", paste0("unmatched_wide", "_", iso, "_", wdpaid, ext_output)),
+                bucket = "projet-afd-eva-ap",
+                opts = list("region" = ""))
+  s3write_using(matched.long,
+                sf::st_write,
+                object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", wdpaid, "/", paste0("matched_long", "_", iso, "_", wdpaid, ext_output)),
+                bucket = "projet-afd-eva-ap",
+                opts = list("region" = ""))
+  s3write_using(unmatched.long,
+                sf::st_write,
+                object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", wdpaid, "/", paste0("unmatched_long", "_", iso, "_", wdpaid, ext_output)),
+                bucket = "projet-afd-eva-ap",
+                opts = list("region" = ""))
   
   #Return outputs
   list_output = list("matched.wide" = matched.wide, "matched.long" = matched.long,
