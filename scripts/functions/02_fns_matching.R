@@ -88,7 +88,7 @@ fn_pre_grid = function(iso, path_tmp, data_pa, sampling)
   return(list_output)
 }
 
-#Assing each pixel (observation unit) to a group
+#Assign each pixel (observation unit) to a group : PA non-funded, funded and analyzed, funded and not analyzed, buffer, potential control
 ##INPUTS :
 ### iso : country ISO code
 ### path_tmp : temporary path to save figures
@@ -101,11 +101,12 @@ fn_pre_grid = function(iso, path_tmp, data_pa, sampling)
 ##OUTPUTS : 
 ### grid.param : a raster representing the gridding of the country with two layers. One for the group each pixel belongs to (funded PA, non-funded PA, potential control, buffer), the other for the WDPAID corresponding to each pixel (0 if not a PA)
 
-fn_pre_group = function(iso, path_tmp, utm_code, buffer_m, data_pa, gadm_prj, grid, gridSize)
+fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, data_pa, gadm_prj, grid, gridSize)
 {
-  wdpa = wdpa_fetch(x = iso, wait = TRUE, download_dir = path_tmp, page_wait = 5, verbose = TRUE) #Tips : if connection low, increase page_wait argument (2 is default)
   # PAs are projected, and column "geometry_type" is added
-  wdpa_prj = wdpa_clean(wdpa, geometry_precision = 1000) %>%
+  wdpa_prj = wdpa_raw %>%
+    filter(ISO3 == iso) %>%
+    wdpa_clean(geometry_precision = 1000) %>%
     # Remove the PAs that are only proposed, or have geometry type "point"
     filter(STATUS != "Proposed") %>%
     filter(GEOMETRY_TYPE != "POINT") %>%
@@ -113,19 +114,34 @@ fn_pre_group = function(iso, path_tmp, utm_code, buffer_m, data_pa, gadm_prj, gr
     st_transform(crs = utm_code) 
   
   # Make Buffers around all protected areas
-  buffer <- st_buffer(wdpa_prj, dist = buffer_m) %>% 
+  buffer = st_buffer(wdpa_prj, dist = buffer_m) %>% 
     # Assign an ID "3" to the buffer group
-    mutate(group=3)
+    mutate(group=4,
+           group_name = "Buffer")
   
   # Separate funded and non-funded protected areas
-  paid = data_pa[data_pa$iso3 == iso,]$wdpaid
-  wdpaID_funded = paid
-  wdpa_funded = wdpa_prj %>% filter(WDPAID %in% wdpaID_funded) %>%
-    mutate(group=1) # Assign an ID "1" to the funded PA group
-  wdpa_nofund = wdpa_prj %>% filter(!WDPAID %in% wdpaID_funded) %>% 
-    mutate(group=2) # Assign an ID "2" to the non-funded PA group
+  ##PAs funded by AFD 
+  ###... which can bu used in impact evaluation
+  pa_afd_ie = data_pa %>%
+    filter(iso3 == iso & is.na(wdpaid) == FALSE & superficie > 0 & status_yr >= yr_min)
+  wdpaID_afd_ie = pa_afd_ie[pa_afd_ie$iso3 == iso,]$wdpaid
+  wdpa_afd_ie = wdpa_prj %>% filter(WDPAID %in% wdpaID_afd_ie) %>%
+    mutate(group=1,
+           group_name = "Funded PA, analyzed") # Assign an ID "1" to the funded PA group
+  ###...which cannot
+  pa_afd_no_ie = data_pa %>%
+    filter(iso3 == iso & (is.na(wdpaid) == TRUE | superficie == 0 | is.na(superficie) | status_yr < yr_min))
+  wdpaID_afd_no_ie = pa_afd_no_ie[pa_afd_no_ie$iso3 == iso,]$wdpaid 
+  wdpa_afd_no_ie = wdpa_prj %>% filter(WDPAID %in% wdpaID_afd_no_ie) %>%
+    mutate(group=2,
+           group_name = "Funded PA, not analyzed") # Assign an ID "2" to the funded PA group which cannot be stuided in the impact evaluation
+  ##PAs not funded by AFD
+  wdpa_no_afd = wdpa_prj %>% filter(!WDPAID %in% c(wdpaID_afd_ie, wdpaID_afd_no_ie)) %>% 
+    mutate(group=3,
+           group_name = "Non-funded PA") # Assign an ID "3" to the non-funded PA group
+  
   # Merge the dataframes of funded PAs, non-funded PAs and buffers
-  wdpa_groups = rbind(wdpa_funded, wdpa_nofund, buffer)
+  wdpa_groups = rbind(wdpa_afd_ie, wdpa_afd_no_ie, wdpa_no_afd, buffer)
   # Subset to polygons that intersect with country boundary
   wdpa.sub = wdpa_groups %>% 
     st_intersects(gadm_prj, .) %>% 
@@ -140,7 +156,7 @@ fn_pre_group = function(iso, path_tmp, utm_code, buffer_m, data_pa, gadm_prj, gr
   # Specify the raster resolution as same as the pre-defined 'gridSize'
   res(r.ini) = gridSize
   # Assign the raster pixels with "Group" values, 
-  # Take the minial value if a pixel is covered by overlapped polygons, so that PA Group ID has higher priority than Buffer ID.
+  # Take the minimal value if a pixel is covered by overlapped polygons, so that PA Group ID has higher priority than Buffer ID.
   # Assign value "0" to the background pixels (control candidates group)
   r.group = rasterize(wdpa_groups, r.ini, field="group", fun="min", background=0) %>%
     mask(., gadm_prj)
@@ -168,17 +184,26 @@ fn_pre_group = function(iso, path_tmp, utm_code, buffer_m, data_pa, gadm_prj, gr
     st_as_sf() %>%
     # Grid is projected to WGS84 because mapme.biodiverty package merely works with this CRS
     st_transform(crs=4326) %>%
-    left_join(dplyr::select(data_pa, c(wdpaid, status_yr)), by = "wdpaid")
+    #Add treatment year variable
+    left_join(dplyr::select(data_pa, c(wdpaid, status_yr)), by = "wdpaid") %>%
+    #Add name for the group
+    mutate(group_name = case_when(group == 0 ~ "Potential control",
+                                  group == 1 ~ "Funded PA, analyzed (potential treatment)",
+                                  group == 2 ~ "Funded PA, not analyzed",
+                                  group == 3 ~ "Non-funded PA",
+                                  group == 4 ~ "Buffer"))
+  
   
   # Visualize and save grouped grid cells
   fig_grid_group = 
     ggplot(grid.param) +
-    geom_sf(aes(color=as.factor(group))) +
-    scale_color_viridis_d(
-      # legend title
-      name="Group", 
-      # legend label
-      labels=c("control candidate", "treatment candidate", "non-funded PA", "buffer zone")) +
+    geom_sf(aes(fill = as.factor(group_name))) +
+    scale_fill_brewer(name = "Group", type = "qual", palette = "YlGnBu", direction = -1) +
+    # scale_color_viridis_d(
+    #   # legend title
+    #   name="Group", 
+    #   # legend label
+    #   labels=c("control candidate", "treatment candidate", "non-funded PA", "buffer zone")) +
     theme_bw()
   fig_save = paste0(path_tmp, "/fig_grid_group_", iso, ".png")
   ggsave(fig_save,
@@ -189,6 +214,91 @@ fn_pre_group = function(iso, path_tmp, utm_code, buffer_m, data_pa, gadm_prj, gr
                      bucket = paste("projet-afd-eva-ap/data_tidy/mapme_bio_data/matching", iso, sep = "/"), 
                      region = "", 
                      show_progress = FALSE)
+  
+  
+  # Pie plots
+  df_pie_wdpa = data_pa %>%
+    filter(iso3 == iso) %>%
+    dplyr::select(c(iso3, wdpaid, nom_ap, status_yr, superficie)) %>%
+    mutate(group_wdpa = case_when(is.na(wdpaid) == FALSE ~ "WDPA",
+                             is.na(wdpaid) == TRUE ~ "Not WDPA")) %>%
+    group_by(iso3, group_wdpa) %>%
+    summarise(n = n()) %>%
+    ungroup() %>%
+    mutate(n_tot = sum(n),
+           freq = round(n/n_tot*100, 1))
+  
+  df_pie_ie = wdpa_prj %>%
+    st_drop_geometry() %>%
+    dplyr::select(c(ISO3, WDPAID)) %>%
+    mutate(group_ie = case_when(!WDPAID %in% c(wdpaID_afd_ie, wdpaID_afd_no_ie) ~ "Non-funded",
+                                WDPAID %in% wdpaID_afd_ie ~ "Funded, analyzed",
+                                WDPAID %in% wdpaID_afd_no_ie ~ "Funded, not analyzed")) %>%
+    group_by(ISO3, group_ie) %>%
+    summarise(n = n()) %>%
+    ungroup() %>%
+    mutate(n_tot = sum(n),
+           freq = round(n/n_tot*100, 1))
+  
+  ## PAs funded : reported in the WDPAID or not
+  pie_wdpa = ggplot(df_pie_wdpa, 
+                        aes(x="", y= freq, fill = group_wdpa)) %>%
+    + geom_bar(width = 0.5, stat = "identity", color="white") %>%
+    + coord_polar("y", start=0) %>%
+    + geom_label_repel(aes(x=1.1, label = paste0(round(freq, 1), "% (", n, ")")), 
+                       color = "black", 
+                       position = position_stack(vjust = 0.55), 
+                       size=4, show.legend = FALSE) %>%
+    # + geom_label(aes(x=1.4, label = paste0(freq_iucn, "%")), 
+    #              color = "white", 
+    #              position = position_stack(vjust = 0.7), size=2.5, 
+    #              show.legend = FALSE) %>%
+    + labs(x = "", y = "",
+           title = "Share of PAs funded and reported in the WDPA",
+           subtitle = paste("Sample :", sum(df_pie_wdpa$n), "funded protected areas in", unique(df_pie_wdpa$iso3))) %>%
+    + scale_fill_brewer(name = "", palette = "Greens") %>%
+    + theme_void()
+  
+  ## PAs in the WDPA : analyzed or not
+  pie_ie = ggplot(df_pie_ie, 
+                    aes(x="", y= freq, fill = group_ie)) %>%
+    + geom_bar(width = 0.5, stat = "identity", color="white") %>%
+    + coord_polar("y", start=0) %>%
+    + geom_label_repel(aes(x=1.1, label = paste0(round(freq, 1), "% (", n, ")")), 
+                       color = "black", 
+                       position = position_stack(vjust = 0.55), 
+                       size=4, show.legend = FALSE) %>%
+    # + geom_label(aes(x=1.4, label = paste0(freq_iucn, "%")), 
+    #              color = "white", 
+    #              position = position_stack(vjust = 0.7), size=2.5, 
+    #              show.legend = FALSE) %>%
+    + labs(x = "", y = "",
+           title = "Share of PAs reported in the WDPA and analyzed",
+           subtitle = paste("Sample :", sum(df_pie_ie$n), "funded protected areas in", unique(df_pie_ie$ISO3))) %>%
+    + scale_fill_brewer(name = "", palette = "Greens") %>%
+    + theme_void()
+  
+  ##Saving plots
+  tmp = paste(tempdir(), "fig", sep = "/")
+  ggsave(paste(tmp, paste0("pie_funded_wdpa_", iso, ".png"), sep = "/"),
+         plot = pie_wdpa,
+         device = "png",
+         height = 6, width = 9)
+  ggsave(paste(tmp, paste0("pie_wdpa_ie", iso, ".png"), sep = "/"),
+         plot = pie_ie,
+         device = "png",
+         height = 6, width = 9)
+  
+  files <- list.files(tmp, full.names = TRUE)
+  ##Add each file in the bucket (same foler for every file in the temp)
+  for(f in files) 
+  {
+    cat("Uploading file", paste0("'", f, "'"), "\n")
+    aws.s3::put_object(file = f, 
+                       bucket = paste("projet-afd-eva-ap/data_tidy/mapme_bio_data/matching", iso, sep = "/"), 
+                       region = "", show_progress = TRUE)
+  }
+  do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
   
   #Return outputs
   return(grid.param)
@@ -453,23 +563,48 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   
 }
 
+
+#####
+###Post-processing
+#####
+
+
 #Load the matching dataframe obtained during pre-processing
 ##INPUTS :
 ### iso : the ISO code of the country considered
+### name_input : name of the file to import
+### ext_output : extension fo the file to import
+### yr_min : the minimum for treatment year
 ##OUTPUTS :
 ### mf : matching dataframe. More precisely, it gives for each observation units in a country values of different covariates to perform matching.
-fn_post_load_mf = function(iso, name_input, ext_input)
+fn_post_load_mf = function(iso, yr_min, name_input, ext_input)
 {
+  #Load the matching dataframe
   object = paste("data_tidy/mapme_bio_data/matching", iso, paste0(name_input, "_", iso, ext_input), sep = "/")
-  mf = s3read_using(sf::st_read,
+  mf_ini = s3read_using(sf::st_read,
                       bucket = "projet-afd-eva-ap",
                       object = object,
-                      opts = list("region" = "")) %>%
+                      opts = list("region" = "")) 
+  
+  #Subset to control and treatment units with year of treaament >= yr_min
+  mf = mf_ini %>%
+    #Remove PAs non-funded by AFD and buffers
     filter(group==0 | group==1) %>%
-    drop_na(-c(status_yr)) #%>%
-  #st_drop_geometry()
+    #Remove observations with NA values only (except for status_yr, which is NA for control units)
+    drop_na(-c(status_yr)) %>%
+    filter(status_yr >= yr_min | is.na(status_yr))
+  
+  #Pie plot : distribution of PAs and their status
+  ##List of the different categories
+  # list_pa = unique(mf_ini[mf_ini$wdpaid > 0,]$wdpaid) #WDPAID
+  # list_pa_afd = unique(mf_ini[mf_ini$wdpaid > 0 & mf_ini$group == 1,]$wdpaid)
+  # list_pa_no_afd = unique(mf_ini[mf_ini$wdpaid > 0 & mf_ini$group == 2,]$wdpaid)
+  # list_pa_analysis = unique(mf[mf$wdpaid > 0,]$wdpaid)
+  
+  
   return(mf)
 }
+
 
 #Compute average forest loss before funding, and add it to the matching frame as a covariate
 ##INPUTS : 
@@ -579,10 +714,12 @@ fn_post_cem = function(mf, lst_cutoffs, iso, path_tmp,
   #                    region = "", 
   #                    show_progress = FALSE)
   
+  
+  
   return(out.cem)
 }
 
-#Plot covariates balance
+#Plot covariates balance (plots and summary table)
 ## INPUTS :
 ### out.cem : list of results from the CEM matching
 ### iso : ISO code of the country considered
@@ -591,8 +728,16 @@ fn_post_cem = function(mf, lst_cutoffs, iso, path_tmp,
 ## OUTPUTS :
 ### None
 
-fn_post_plot_covbal = function(out.cem, colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, iso, path_tmp, wdpaid)
+fn_post_covbal = function(out.cem, colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, iso, path_tmp, wdpaid)
 {
+  
+  #Save summary table from matching
+  smry_cem = summary(out.cem)
+  tbl_cem_nn = smry_cem$nn
+  tbl_cem_m = smry_cem$sum.matched
+  tbl_cem_all = smry_cem$sum.all
+  
+  #Plot covariate balance
   c_name = data.frame(old = c(colname.travelTime, colname.clayContent,
                               colname.fcIni, colname.flAvg),
                       new = c("Accessibility", "Clay Content", "Forest Cover in 2000",
@@ -606,6 +751,7 @@ fn_post_plot_covbal = function(out.cem, colname.travelTime, colname.clayContent,
                        #thresholds = c(m = .1),
                        var.order = "unadjusted",
                        var.names = c_name,
+                       title = paste0("Covariate balance for WDPA ID ", wdpaid, " in ", iso),
                        sample.names = c("Discarded", "Selected"),
                        wrap = 25 # at how many characters does axis label break to new line
   )
@@ -631,15 +777,33 @@ fn_post_plot_covbal = function(out.cem, colname.travelTime, colname.clayContent,
       panel.grid.minor.x = element_line(color = 'grey', linewidth = 0.3, linetype = 2)
     ) + guides(linetype = guide_legend(override.aes = list(color = "#2ecc71"))) # Add legend for geom_vline
   
-  fig_save = paste0(path_tmp, "/fig_covbal", "_", iso, "_", wdpaid, ".png")
-  ggsave(fig_save,
+
+  #Saving files
+  
+  ggsave(paste0(path_tmp, "/CovBal/fig_covbal", "_", iso, "_", wdpaid, ".png"),
          plot = fig_covbal,
          device = "png",
          height = 6, width = 9)
-  aws.s3::put_object(file = fig_save, 
-                     bucket = paste("projet-afd-eva-ap/data_tidy/mapme_bio_data/matching", iso, wdpaid, sep = "/"), 
-                     region = "", 
-                     show_progress = FALSE)
+  print(xtable(tbl_cem_nn, type = "latex"),
+        file = paste0(path_tmp, "/CovBal/tbl_cem_nn", "_", iso, "_", wdpaid, ".tex"))
+  print(xtable(tbl_cem_m, type = "latex"),
+        file = paste0(path_tmp, "/CovBal/tbl_cem_m", "_", iso, "_", wdpaid, ".tex"))
+  print(xtable(tbl_cem_all, type = "latex"),
+        file = paste0(path_tmp, "/CovBal/tbl_cem_all", "_", iso, "_", wdpaid, ".tex"))
+  
+  #Export to S3 storage
+  ##List of files to save in the temp folder
+  files <- list.files(paste(path_tmp, "CovBal", sep = "/"), full.names = TRUE)
+  ##Add each file in the bucket (same foler for every file in the temp)
+  for(f in files) 
+  {
+    cat("Uploading file", paste0("'", f, "'"), "\n")
+    aws.s3::put_object(file = f, 
+                       bucket = paste("projet-afd-eva-ap/data_tidy/mapme_bio_data/matching", iso, wdpaid, sep = "/"), 
+                       region = "", show_progress = TRUE)
+  }
+  do.call(file.remove, list(list.files(paste(path_tmp, "CovBal", sep = "/"), full.names = TRUE)))
+
 }
 
 #Plot the distribution of covariates for control and treatment units, before and after matching
@@ -666,7 +830,8 @@ fn_post_plot_density = function(out.cem, colname.travelTime, colname.clayContent
     facet_wrap(.~which, labeller = as_labeller(fnl)) +
     #scale_fill_viridis(discrete = T) +
     scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
-    labs(title = "Distributional Balance for Accessibility",
+    labs(title = "Distributional balance for accessibility",
+         subtitle = paste0("Protected area in ", iso, ", WDPAID ", wdpaid),
          x = "Accessibility (min)",
          fill = "Group") +
     theme_bw() +
@@ -693,7 +858,8 @@ fn_post_plot_density = function(out.cem, colname.travelTime, colname.clayContent
     facet_wrap(.~which, labeller = as_labeller(fnl)) +
     #scale_fill_viridis(discrete = T) +
     scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
-    labs(title = "Distributional Balance for Clay Content",
+    labs(title = "Distributional balance for clay content",
+         subtitle = paste0("Protected area in ", iso, ", WDPAID ", wdpaid),
          x = "Clay Content at 0~20cm soil depth (%)",
          fill = "Group") +
     theme_bw() +
@@ -720,13 +886,13 @@ fn_post_plot_density = function(out.cem, colname.travelTime, colname.clayContent
   #     facet_wrap(.~which, labeller = as_labeller(fnl)) +
   #     #scale_fill_viridis(discrete = T) +
   #     scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
-  #     labs(title = "Distributional Balance for Elevation",
+  #     labs(title = "Distributional balance for elevation",
+  #          subtitle = paste0("Protected area in ", iso, ", WDPAID ", wdpaid),
   #          x = "Elevation (m)",
   #          fill = "Group") +
   #     theme_bw() +
   #     theme(
   #         plot.title = element_text(family="Arial Black", size=16, hjust=0.5),
-  #         
   #         legend.title = element_blank(),
   #         legend.text=element_text(size=14),
   #         legend.spacing.x = unit(0.5, 'cm'),
@@ -747,7 +913,8 @@ fn_post_plot_density = function(out.cem, colname.travelTime, colname.clayContent
   #     facet_wrap(.~which, labeller = as_labeller(fnl)) +
   #     #scale_fill_viridis(discrete = T) +
   #     scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
-  #     labs(title = "Distributional Balance for Terrain Ruggedness Index (TRI)",
+  #     labs(title = "Distributional balance for Terrain Ruggedness Index (TRI)",
+  #          subtitle = paste0("Protected area in ", iso, ", WDPAID ", wdpaid),
   #          x = "TRI",
   #          fill = "Group") +
   #     theme_bw() +
@@ -774,7 +941,9 @@ fn_post_plot_density = function(out.cem, colname.travelTime, colname.clayContent
     facet_wrap(.~which, labeller = as_labeller(fnl)) +
     #scale_fill_viridis(discrete = T) +
     scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
-    labs(title = "Distributional Balance for Forest Cover in 2000",
+    labs(title = "Distributional balance for forest cover in 2000",
+         subtitle = paste0("Protected area in ", iso, ", WDPAID ", wdpaid),
+         title = "Distributional Balance for Forest Cover in 2000",
          x = "Forest Cover (%)",
          fill = "Group") +
     theme_bw() +
@@ -801,7 +970,8 @@ fn_post_plot_density = function(out.cem, colname.travelTime, colname.clayContent
     facet_wrap(.~which, labeller = as_labeller(fnl)) +
     #scale_fill_viridis(discrete = T) +
     scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
-    labs(title = "Distributional Balance for avgerage Forest Loss 2001~2006",
+    labs(title = "Distributional balance for former average forest loss",
+         subtitle = paste0("Protected area in ", iso, ", WDPAID ", wdpaid),
          x = "Forest Loss (%)",
          fill = "Group") +
     theme_bw() +
@@ -824,7 +994,6 @@ fn_post_plot_density = function(out.cem, colname.travelTime, colname.clayContent
   #Saving plots
   
   tmp = paste(tempdir(), "fig", sep = "/")
-  paste0(path_tmp, "/fig_covbal", "_", iso, "_", wdpaid, ".png")
   ggsave(paste(tmp, paste0("fig_travel_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
          plot = fig_travel,
          device = "png",
@@ -883,7 +1052,7 @@ fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpa
     pivot_longer(cols = c(starts_with(colfc.prefix)),
                  names_to = c("var", "year"),
                  names_sep = colfc.bind,
-                 values_to = "fc_pct")
+                 values_to = "fc_ha")
   
   # Pivot wide Dataframe of un-matched objects
   unmatched.wide = mf
@@ -894,7 +1063,7 @@ fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpa
     pivot_longer(cols = c(starts_with(colfc.prefix)),
                  names_to = c("var", "year"),
                  names_sep = colfc.bind,
-                 values_to = "fc_pct")
+                 values_to = "fc_ha")
   
   #Save the dataframes
   s3write_using(matched.wide,
@@ -936,11 +1105,11 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid)
   # Make dataframe for plotting Trend
   df.matched.trend = matched.long %>%
     group_by(group, year) %>%
-    summarise(avgFC = mean(fc_pct, na.rm=TRUE), n = n(), matched = TRUE)
+    summarise(avgFC = mean(fc_ha, na.rm=TRUE), n = n(), matched = TRUE)
   
   df.unmatched.trend = unmatched.long %>%
     group_by(group, year) %>%
-    summarise(avgFC = mean(fc_pct, na.rm=TRUE), n = n(), matched = FALSE)
+    summarise(avgFC = mean(fc_ha, na.rm=TRUE), n = n(), matched = FALSE)
   
   df.trend = rbind(df.matched.trend, df.unmatched.trend)
   
@@ -967,7 +1136,9 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid)
     facet_wrap(matched~., ncol = 2, #scales = 'free_x',
                labeller = labeller(matched = fct.labs)) +
     
-    labs(x = "Year", y = "Average Tree Cover (%) per KM2", color = "Group") +
+    labs(title = "Evolution of forest cover",
+         subtitle = paste0("Protected area in ", iso, ", WDPAID ", wdpaid),
+         x = "Year", y = "Average forest cover (ha)", color = "Group") +
     theme_bw() +
     theme(
       axis.text.x = element_text(angle = -20, hjust = 0.5, vjust = 0.5),
@@ -1000,7 +1171,9 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid)
     scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) +
     scale_color_hue(labels = c("Control", "Treatment")) +
     
-    labs(x = "Year", y = "Average Tree Cover (%) per KM2", color = "Group") +
+    labs(title = "Evolution of forest cover",
+         subtitle = paste0("Protected area in ", iso, ", WDPA ID ", wdpaid),
+         x = "Year", y = "Average forest cover (ha)", color = "Group") +
     theme_bw() +
     theme(
       axis.text.x = element_text(angle = -20, hjust = 0.5, vjust = 0.5),
