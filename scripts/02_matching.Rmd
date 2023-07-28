@@ -116,7 +116,7 @@ data_pa =
 
 #List of countries in the sample
 #list_iso = unique(data_pa_full$iso3)
-list_iso = c("CMR")
+list_iso = c("MOZ", "MMR", "MRT")
 # Specify a list of WDPA IDs of funded protected areas (treated areas)
 # paid = data_stat_nodupl[data_stat_nodupl$iso3 == country,]$wdpaid
 
@@ -150,8 +150,6 @@ colfl.prefix = "treeloss"
 #Prefix of columns for average forest loss pre-funding
 colname.flAvg = "avgLoss_pre_fund"
 
-# Year of treatment
-#treatment.start = 2014
 ```
 
 ## Matching process
@@ -307,6 +305,7 @@ for (i in list_iso)
                                         colfc.prefix = colfc.prefix, 
                                         colfc.bind = colfc.bind,
                                         ext_output = ".csv", 
+                                        iso = i,
                                         wdpaid = j)
     matched.wide.j = output_post_panel_j$matched.wide
     unmatched.wide.j = output_post_panel_j$unmatched.wide
@@ -326,7 +325,7 @@ for (i in list_iso)
     fn_post_plot_grid(iso = i, wdpaid = j,
                       is_pa = TRUE,
                       df_pix_matched = df_pix_matched_j,
-                      df_gridID_assetID = df_gridID_assetID)
+                      path_tmp = tmp_post)
   
     
   
@@ -343,7 +342,7 @@ for (i in list_iso)
   fn_post_plot_grid(iso = i, wdpaid = j,
                     is_pa = FALSE,
                     df_pix_matched = df_pix_matched,
-                    df_gridID_assetID = df_gridID_assetID)
+                    path_tmp = tmp_post)
   
   # #Add average pre-loss
   # print("--Add covariate : average tree loss pre-funding")

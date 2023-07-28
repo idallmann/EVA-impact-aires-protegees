@@ -338,7 +338,7 @@ fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output, yr_firs
     dplyr::select(c(gridID, assetid))
   s3write_using(df_gridID_assetID,
                 data.table::fwrite,
-                object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", "df_gridID_assetID_", iso, "_", ".csv"),
+                object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", "df_gridID_assetID_", iso, ".csv"),
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
   
@@ -1060,7 +1060,7 @@ fn_post_plot_density = function(out.cem, colname.travelTime, colname.clayContent
 ## OUTPUTS :
 ### list_output : a list of dataframes : (un)matched.wide/long. They contain covariates and outcomes for treatment and control units, before and after matching, in a wide or long format
 
-fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpaid)
+fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpaid, iso)
 {
   # Convert dataframe of matched objects to pivot wide form
   matched.wide = match.data(object=out.cem, data=mf)
@@ -1244,12 +1244,16 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid)
 ### wdpaid : the WDPA ID of the PA considered
 ### is_pa : logical, whether the plotted grid is for a unique PA or all the PAs in the country considered
 ### df_pix_matched : dataframe with ID of matched pixels (ID from mapme.biodiversity portfolio)
-### df_gridID_assetID : dataframe to match asset ID and grid ID
 ##OUTPUTS
 ### None (plots)
 
-fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, df_gridID_assetID)
+fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp)
 {
+  #Import dataframe where each pixel in the grid has both its grid ID and asset ID from the portfolio creation
+  df_gridID_assetID = s3read_using(data.table::fread,
+                                   object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", paste0("df_gridID_assetID_", iso, ".csv")),
+                                   bucket = "projet-afd-eva-ap",
+                                   opts = list("region" = ""))
   
   #Importing the gridding of the country (funded and analyzed PAs, funded not analyzed PAs, non-funded PAs, buffer, control)
   #Merge with a dataframe so that each pixel in the grid has both its grid ID and asset ID from the portfolio creation
