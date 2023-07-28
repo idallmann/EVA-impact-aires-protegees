@@ -470,79 +470,94 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   print("----Download Rasters and Calculate Covariates")
   print("------Soil")
   # Covariate: Soil
-  ## set up parallel plan with n_workers concurrent threads
-  plan(multisession, workers = n_workers)
-  with_progress({
-    # Download Data
+  # Download Data
   get.soil = get_resources(aoi, 
                            resources = c("soilgrids"), 
                            layers = c("clay"), # resource specific argument
                            depths = c("0-5cm"), # resource specific argument
-                           stats = c("mean")) %>%
-    calc_indicators(
-      .,
-      indicators = "soilproperties",
-      stats_soil = c("mean"),
-      engine = "zonal"
-    ) %>%
-    # Transform the output dataframe into a pivot dataframe
-   unnest(., soilproperties) %>%
-    mutate(across(mean, round, 3)) %>% # Round numeric columns
-    pivot_wider(names_from = c("layer", "depth", "stat"), values_from = "mean")
+                           stats = c("mean"))
+  
+  ## set up parallel plan with n_workers concurrent threads
+  plan(multisession, workers = n_workers)
+  with_progress({
+  get.soil =  calc_indicators(get.soil,
+                              indicators = "soilproperties",
+                              stats_soil = c("mean"),
+                              engine = "zonal"
+                              )
+  
   })
   ## End parallel plan
   plan(sequential)
   
+    # Transform the output dataframe into a pivot dataframe
+   get.soil = unnest(get.soil, soilproperties) %>%
+     mutate(across(mean, round, 3)) %>% # Round numeric columns
+     pivot_wider(names_from = c("layer", "depth", "stat"), values_from = "mean")
+
+  
   # print("------Elevation")
-  # Covariate: Elevation
-  # plan(mulitsession, workers = n_workers)
+  # #Covariate: Elevation
+  # get.elevation = get_resources(aoi, "nasa_srtm")
+  # 
+  # plan(multisession, workers = n_workers)
   # with_progress({
-  # get.elevation = get_resources(aoi, "nasa_srtm") %>%
-  #   calc_indicators(.,
+  # get.elevation = calc_indicators(get.elevation,
   #                   indicators = "elevation",
-  #                   stats_elevation = c("mean")) %>%
-  #   unnest(elevation)
+  #                   stats_elevation = c("mean"))
   # })
   # plan(sequential)
-  
+  # 
+  # get.elevation = unnest(get.elevation, elevation)
+
   print("------TRI")
   # Covariate: TRI
-  # plan(mulitsession, workers = n_workers)
+  # get.tri = get_resources(aoi, "nasa_srtm")
+  # 
+  # plan(multisession, workers = n_workers)
   # with_progress({
-  # get.tri = get_resources(aoi, "nasa_srtm") %>%
-  #   calc_indicators(., indicators = "tri") %>%
-  #   unnest(tri)
+  # get.tri = calc_indicators(get.tri,
+  #                   indicators = "tri")
   # })
   # plan(sequential)
+  # 
+  # get.tri = unnest(get.tri, elevation)
   
   print("------Travel time")
   # Covariate: Travel Time
-  plan(mulitsession, workers = n_workers)
-  with_progress({
+
   get.travelT = get_resources(aoi, resources = "nelson_et_al",
-                              range_traveltime = c("5k_110mio")) %>% # resource specific argument
-    calc_indicators(., 
+                              range_traveltime = c("5k_110mio"))
+  
+  plan(multisession, workers = n_workers)
+  with_progress({
+  get.travelT = calc_indicators(get.travelT, 
                     indicators = "traveltime",
-                    stats_accessibility = c("median")) %>%
-    unnest(traveltime) %>%
-    pivot_wider(names_from = "distance", values_from = "minutes_median", names_prefix = "minutes_median_")
+                    stats_accessibility = c("median")) 
   })
   plan(sequential)
   
+  get.travelT = unnest(traveltime) %>%
+    pivot_wider(names_from = "distance", values_from = "minutes_median", names_prefix = "minutes_median_")
+
+  
   print("----Calculate Deforestation")
   # Time Series of Tree Cover Area
-  plan(mulitsession, workers = n_workers)
+  get.tree = get_resources(aoi, resources = c("gfw_treecover", "gfw_lossyear"))
+  
+  plan(multisession, workers = n_workers)
   with_progress({
-  get.tree = get_resources(aoi, resources = c("gfw_treecover", "gfw_lossyear")) %>%
-    calc_indicators(.,
+  get.tree = calc_indicators(get.tree,
                     indicators = "treecover_area", 
                     min_size=1, # indicator-specific argument
-                    min_cover=10) %>% # indicator-specific argument
-    unnest(treecover_area) %>%
-    mutate(across(treecover, round, 3)) %>% # Round numeric columns
-    pivot_wider(names_from = "years", values_from = "treecover", names_prefix = "treecover_")
+                    min_cover=10)
   })
   plan(sequential)
+  
+  get.tree = unnest(get.tree, treecover_area) %>%
+    mutate(across(treecover, round, 3)) %>% # Round numeric columns
+    pivot_wider(names_from = "years", values_from = "treecover", names_prefix = "treecover_")
+
   
   # The calculation of tree loss area is performed at dataframe base
   # Get the column names of tree cover time series
