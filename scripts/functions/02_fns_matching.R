@@ -46,9 +46,9 @@ fn_pre_grid = function(iso, path_tmp, data_pa, sampling)
     st_transform(crs = utm_code)
   
   #Determine relevant grid size
-  ##Select the PA in the country with minimum area
+  ##Select the PA in the country with minimum area. PAs with null areas are discarded (not analyzed anymwa)
   pa_min = data_pa %>%
-    filter(iso3 == iso) %>%
+    filter(iso3 == iso & superficie > 0) %>%
     arrange(superficie) %>%
     slice(1)
   ##From this minimum area, define the grid size. 
@@ -472,8 +472,8 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   # Covariate: Soil
   ## set up parallel plan with n_workers concurrent threads
   plan(multisession, workers = n_workers)
-  # Download Data
   with_progress({
+    # Download Data
   get.soil = get_resources(aoi, 
                            resources = c("soilgrids"), 
                            layers = c("clay"), # resource specific argument
@@ -493,49 +493,56 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   ## End parallel plan
   plan(sequential)
   
-    print("------Elevation")
+  # print("------Elevation")
   # Covariate: Elevation
-  # get.elevation = get_resources(aoi, "nasa_srtm")
-  # plan(multisession, workers = n_workers)
-  # get.elevation = calc_indicators(get.elevation,
+  # plan(mulitsession, workers = n_workers)
+  # with_progress({
+  # get.elevation = get_resources(aoi, "nasa_srtm") %>%
+  #   calc_indicators(.,
   #                   indicators = "elevation",
-  #                   stats_elevation = c("mean"))
+  #                   stats_elevation = c("mean")) %>%
+  #   unnest(elevation)
+  # })
   # plan(sequential)
-  # get.elevation = unnest(get.elevation, elevation)
   
   print("------TRI")
   # Covariate: TRI
-  # get.tri = get_resources(aoi, "nasa_srtm")
-  # plan(multisession, workers = n_workers)
-  # get.tri = calc_indicators(get.tri,
-  #                                 indicators = "tri")
+  # plan(mulitsession, workers = n_workers)
+  # with_progress({
+  # get.tri = get_resources(aoi, "nasa_srtm") %>%
+  #   calc_indicators(., indicators = "tri") %>%
+  #   unnest(tri)
+  # })
   # plan(sequential)
-  # get.tri = unnest(get.tri, tri)
   
   print("------Travel time")
   # Covariate: Travel Time
+  plan(mulitsession, workers = n_workers)
+  with_progress({
   get.travelT = get_resources(aoi, resources = "nelson_et_al",
-                              range_traveltime = c("5k_110mio"))
-  plan(multisession, workers = n_workers)
-  get.travelT = calc_indicators(get.travelT, 
+                              range_traveltime = c("5k_110mio")) %>% # resource specific argument
+    calc_indicators(., 
                     indicators = "traveltime",
-                    stats_accessibility = c("median"))
-  get.travelT = unnest(get.travelT, traveltime) %>%
+                    stats_accessibility = c("median")) %>%
+    unnest(traveltime) %>%
     pivot_wider(names_from = "distance", values_from = "minutes_median", names_prefix = "minutes_median_")
+  })
   plan(sequential)
   
   print("----Calculate Deforestation")
   # Time Series of Tree Cover Area
-  get.tree = get_resources(aoi, resources = c("gfw_treecover", "gfw_lossyear"))
-  plan(multisession, workers = n_workers)
-  get.tree = calc_indicators(get.tree,
+  plan(mulitsession, workers = n_workers)
+  with_progress({
+  get.tree = get_resources(aoi, resources = c("gfw_treecover", "gfw_lossyear")) %>%
+    calc_indicators(.,
                     indicators = "treecover_area", 
                     min_size=1, # indicator-specific argument
-                    min_cover=10)
-  plan(sequential)
-  get.tree = unnest(get.tree, treecover_area) %>%
+                    min_cover=10) %>% # indicator-specific argument
+    unnest(treecover_area) %>%
     mutate(across(treecover, round, 3)) %>% # Round numeric columns
     pivot_wider(names_from = "years", values_from = "treecover", names_prefix = "treecover_")
+  })
+  plan(sequential)
   
   # The calculation of tree loss area is performed at dataframe base
   # Get the column names of tree cover time series
