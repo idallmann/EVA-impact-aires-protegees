@@ -99,9 +99,6 @@ tmp_post = paste(tempdir(), "matching_post", sep = "/")
 #               bucket = "projet-afd-eva-ap",
 #               opts = list("region" = ""))
 
-# set up parallel plan with 6 concurrent threads
-plan(multisession, workers = 6) 
-
 # Specify buffer width in meter
 buffer_m = 10000
 # Specify the grid cell size in meter
@@ -197,12 +194,13 @@ for (i in list_iso)
                             gridSize = gridSize)
 
   #Calculating outcome and other covariates for all observation units
-  print("--#Calculating outcome and other covariates")
+  print("--Calculating outcome and other covariates")
   ##Parallel computing
   tic_parallel = tic()
   fn_pre_mf_parallel(grid.param = grid_param, path_tmp = tmp_pre, iso = i,
           name_output = "matching_frame_10km", ext_output = ".gpkg",
-          yr_first = yr_first, yr_last = yr_last)
+          yr_first = yr_first, yr_last = yr_last,
+          n_workers = 10)
   toc_parallel = toc()
   ##Without parallel computing
   # tic = tic()
@@ -315,13 +313,22 @@ for (i in list_iso)
     matched.long.j = output_post_panel_j$matched.long
     unmatched.long.j = output_post_panel_j$unmatched.long 
     
-    #Extract ID of treated and control pixels
-    df_j = matched.wide.j %>%
+    #Extract matched units and plot them on a grid
+    print("----Extract matched units and plot them on a grid")
+    ##Extract ID of treated and control pixels
+    df_pix_matched_j = matched.wide.j %>%
       st_drop_geometry() %>%
       as.data.frame() %>%
       dplyr::select(c(group, assetid)) %>%
       rename("group_matched" = "group") 
-    df_pix_matched = rbind(df_pix_matched, df_j)
+    df_pix_matched = rbind(df_pix_matched, df_pix_matched_j)
+    ##Plot the grid with matched control and treated for the PA
+    fn_post_plot_grid(iso = i, wdpaid = j,
+                      is_pa = TRUE,
+                      df_pix_matched = df_pix_matched_j,
+                      df_gridID_assetID = df_gridID_assetID)
+  
+    
   
     #Plots : trend
     print("----Plots again : trend")
@@ -332,8 +339,9 @@ for (i in list_iso)
                        wdpaid = j)
   }
   
-  # Plot the grid with matched control and treated
-  fn_post_plot_grid(iso = i, 
+  # Plot the grid with matched control and treated for the country 
+  fn_post_plot_grid(iso = i, wdpaid = j,
+                    is_pa = FALSE,
                     df_pix_matched = df_pix_matched,
                     df_gridID_assetID = df_gridID_assetID)
   

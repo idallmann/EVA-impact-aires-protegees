@@ -445,8 +445,9 @@ fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output, yr_firs
   
 }
 
-fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output, yr_first, yr_last) 
+fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output, yr_first, yr_last, n_workers) 
 {
+
   print("----Initialize portfolio")
   # Get input data ready for indicator calculation
   aoi = init_portfolio(grid.param,
@@ -469,77 +470,70 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   print("----Download Rasters and Calculate Covariates")
   print("------Soil")
   # Covariate: Soil
+  ## set up parallel plan with n_workers concurrent threads
+  plan(multisession, workers = n_workers)
   # Download Data
-  # get.soil = get_resources(aoi, 
-  #                          resources = c("soilgrids"), 
-  #                          layers = c("clay"), # resource specific argument
-  #                          depths = c("0-5cm"), # resource specific argument
-  #                          stats = c("mean")) %>%
-  #   # Calculate Indicator
-  #   calc_indicators(., 
-  #                   indicators = "soilproperties",
-  #                   stats_soil = c("mean"),
-  #                   engine = "zonal") %>%
-  #   # Transform the output dataframe into a pivot dataframe
-  #   unnest(soilproperties) %>%
-  #   mutate(across(mean, round, 3)) %>% # Round numeric columns
-  #   pivot_wider(names_from = c("layer", "depth", "stat"), values_from = "mean")
-  
-  get.soil1 = get_resources(aoi, 
+  with_progress({
+  get.soil = get_resources(aoi, 
                            resources = c("soilgrids"), 
                            layers = c("clay"), # resource specific argument
                            depths = c("0-5cm"), # resource specific argument
-                           stats = c("mean"))
-  # Calculate Indicator
-  
-  with_progress({
-    get.soil2 = calc_indicators(
-      get.soil1,
+                           stats = c("mean")) %>%
+    calc_indicators(
+      .,
       indicators = "soilproperties",
       stats_soil = c("mean"),
-      engine = "zonal",
-      scales_spi = 3,
-      spi_prev_years = 8
-    )
-  })
-  plan(sequential)
-  
-  # Transform the output dataframe into a pivot dataframe
-  get.soil3  = unnest(get.soil2, soilproperties) %>%
+      engine = "zonal"
+    ) %>%
+    # Transform the output dataframe into a pivot dataframe
+   unnest(., soilproperties) %>%
     mutate(across(mean, round, 3)) %>% # Round numeric columns
     pivot_wider(names_from = c("layer", "depth", "stat"), values_from = "mean")
+  })
+  ## End parallel plan
+  plan(sequential)
   
-  
-  # print("------Elevation")
+    print("------Elevation")
   # Covariate: Elevation
-  # get.elevation = get_resources(aoi, "nasa_srtm") %>%
-  #   calc_indicators(.,
+  # get.elevation = get_resources(aoi, "nasa_srtm")
+  # plan(multisession, workers = n_workers)
+  # get.elevation = calc_indicators(get.elevation,
   #                   indicators = "elevation",
-  #                   stats_elevation = c("mean")) %>%
-  #   unnest(elevation)
+  #                   stats_elevation = c("mean"))
+  # plan(sequential)
+  # get.elevation = unnest(get.elevation, elevation)
+  
   print("------TRI")
   # Covariate: TRI
-  # get.tri = get_resources(aoi, "nasa_srtm") %>%
-  #   calc_indicators(., indicators = "tri") %>%
-  #   unnest(tri)
+  # get.tri = get_resources(aoi, "nasa_srtm")
+  # plan(multisession, workers = n_workers)
+  # get.tri = calc_indicators(get.tri,
+  #                                 indicators = "tri")
+  # plan(sequential)
+  # get.tri = unnest(get.tri, tri)
+  
   print("------Travel time")
   # Covariate: Travel Time
   get.travelT = get_resources(aoi, resources = "nelson_et_al",
-                              range_traveltime = c("5k_110mio")) %>% # resource specific argument
-    calc_indicators(., 
+                              range_traveltime = c("5k_110mio"))
+  plan(multisession, workers = n_workers)
+  get.travelT = calc_indicators(get.travelT, 
                     indicators = "traveltime",
-                    stats_accessibility = c("median")) %>%
-    unnest(traveltime) %>%
+                    stats_accessibility = c("median"))
+  get.travelT = unnest(get.travelT, traveltime) %>%
     pivot_wider(names_from = "distance", values_from = "minutes_median", names_prefix = "minutes_median_")
+  plan(sequential)
   
   print("----Calculate Deforestation")
   # Time Series of Tree Cover Area
-  get.tree = get_resources(aoi, resources = c("gfw_treecover", "gfw_lossyear")) %>%
-    calc_indicators(.,
+  get.tree = get_resources(aoi, resources = c("gfw_treecover", "gfw_lossyear"))
+  plan(multisession, workers = n_workers)
+  get.tree = calc_indicators(get.tree,
                     indicators = "treecover_area", 
                     min_size=1, # indicator-specific argument
-                    min_cover=10) %>% # indicator-specific argument
-    unnest(treecover_area) %>%
+                    min_cover=10)
+  plan(sequential)
+  get.tree = unnest(get.tree, treecover_area) %>%
     mutate(across(treecover, round, 3)) %>% # Round numeric columns
     pivot_wider(names_from = "years", values_from = "treecover", names_prefix = "treecover_")
   
@@ -1246,11 +1240,15 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid)
 
 # Plot the country grid with matched control and treated
 ##INPUTS
-###
+### iso : the ISO3 code of the country considered
+### wdpaid : the WDPA ID of the PA considered
+### is_pa : logical, whether the plotted grid is for a unique PA or all the PAs in the country considered
+### df_pix_matched : dataframe with ID of matched pixels (ID from mapme.biodiversity portfolio)
+### df_gridID_assetID : dataframe to match asset ID and grid ID
 ##OUTPUTS
-###
+### None (plots)
 
-fn_post_plot_grid = function(iso, df_pix_matched, df_gridID_assetID)
+fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, df_gridID_assetID)
 {
   
   #Importing the gridding of the country (funded and analyzed PAs, funded not analyzed PAs, non-funded PAs, buffer, control)
@@ -1281,13 +1279,18 @@ fn_post_plot_grid = function(iso, df_pix_matched, df_gridID_assetID)
     #   # legend label
     #   labels=c("control candidate", "treatment candidate", "non-funded PA", "buffer zone")) +
     theme_bw()
-  fig_save = paste0(path_tmp, "/fig_grid_group_", iso, "_matched", ".png")
+  
+  fig_save = ifelse(is_pa == TRUE,
+                    yes = paste0(path_tmp, "/fig_grid_group_", iso, "_matched_", wdpaid, ".png"),
+                    no = paste0(path_tmp, "/fig_grid_group_", iso, "_matched_all", ".png"))
   ggsave(fig_save,
          plot = fig_grid,
          device = "png",
          height = 6, width = 9)
   aws.s3::put_object(file = fig_save, 
-                     bucket = paste("projet-afd-eva-ap/data_tidy/mapme_bio_data/matching", iso, sep = "/"), 
+                     bucket = ifelse(is_pa == TRUE,
+                                     yes = paste("projet-afd-eva-ap/data_tidy/mapme_bio_data/matching", iso, wdpaid, sep = "/"),
+                                     no = paste("projet-afd-eva-ap/data_tidy/mapme_bio_data/matching", iso, sep = "/")),
                      region = "", 
                      show_progress = FALSE)
   
