@@ -93,11 +93,11 @@ tmp_post = paste(tempdir(), "matching_post", sep = "/")
 #               opts = list("region" = ""))
 
 ##Load
-wdpa_wld_raw = s3write_using(
-              sf::st_read,
-              object = paste0("data_raw/wdpa/wdpa_shp_global.gpkg"),
-              bucket = "projet-afd-eva-ap",
-              opts = list("region" = ""))
+# wdpa_wld_raw = s3read_using(
+#               sf::st_read,
+#               object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
 
 # set up parallel plan with 6 concurrent threads
 plan(multisession, workers = 6) 
@@ -123,13 +123,13 @@ list_iso = c("CMR")
 # Specify a list of WDPA IDs of funded protected areas (treated areas)
 # paid = data_stat_nodupl[data_stat_nodupl$iso3 == country,]$wdpaid
 
-# Start year
+#Specify the period of study to create the mapme.bidiversity portfolio
+## Start year
 yr_first = 2000
-# End year
+## End year
 yr_last = 2021
 
 #Minimum treatment year
-
 yr_min = yr_first
 
 #####
@@ -190,6 +190,7 @@ for (i in list_iso)
   #Determining Group IDs and WDPA IDs for all observation units
   print("--Determining Group IDs and WDPA IDs")
   grid_param = fn_pre_group(iso = i, wdpa_raw = wdpa_wld_raw,
+                            yr_min = yr_min,
                             path_tmp = tmp_pre, utm_code = utm_code,
                             buffer_m = buffer_m, data_pa = data_pa,
                             gadm_prj = gadm_prj, grid = grid, 
@@ -240,12 +241,12 @@ for (i in list_iso)
   
   list_pa = unique(mf_ini[mf_ini$wdpaid != 0, ]$wdpaid)
   
-  #Generate a README.txt file to sum up the PAs considered in the the country
-  print("--Genereate README file")
-  
-  
+  #Initialization
+  ##Counter
   count_j = 0
   max_j = length(list_pa)
+  ##List of control and treatment pixels matched
+  df_pix_matched = data.frame()
   
   #Loop over the different PAs
   for (j in list_pa)
@@ -312,7 +313,15 @@ for (i in list_iso)
     matched.wide.j = output_post_panel_j$matched.wide
     unmatched.wide.j = output_post_panel_j$unmatched.wide
     matched.long.j = output_post_panel_j$matched.long
-    unmatched.long.j = output_post_panel_j$unmatched.long  
+    unmatched.long.j = output_post_panel_j$unmatched.long 
+    
+    #Extract ID of treated and control pixels
+    df_j = matched.wide.j %>%
+      st_drop_geometry() %>%
+      as.data.frame() %>%
+      dplyr::select(c(group, assetid)) %>%
+      rename("group_matched" = "group") 
+    df_pix_matched = rbind(df_pix_matched, df_j)
   
     #Plots : trend
     print("----Plots again : trend")
@@ -322,6 +331,11 @@ for (i in list_iso)
                        iso = i,
                        wdpaid = j)
   }
+  
+  # Plot the grid with matched control and treated
+  fn_post_plot_grid(iso = i, 
+                    df_pix_matched = df_pix_matched,
+                    df_gridID_assetID = df_gridID_assetID)
   
   # #Add average pre-loss
   # print("--Add covariate : average tree loss pre-funding")

@@ -179,8 +179,6 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
     merge(., grid, by="gridID") %>%
     # drop rows having "NA" in column "group"
     drop_na(group) %>%
-    # drop the column of "gridID"
-    subset(., select=-c(gridID)) %>%
     st_as_sf() %>%
     # Grid is projected to WGS84 because mapme.biodiverty package merely works with this CRS
     st_transform(crs=4326) %>%
@@ -193,6 +191,13 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
                                   group == 3 ~ "Non-funded PA",
                                   group == 4 ~ "Buffer"))
   
+  #Save the grid
+  s3write_using(grid.param,
+                sf::write_sf,
+                overwrite = TRUE,
+                object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", paste0("grid_param_", iso, ".gpkg")),
+                bucket = "projet-afd-eva-ap",
+                opts = list("region" = ""))
   
   # Visualize and save grouped grid cells
   fig_grid_group = 
@@ -284,7 +289,7 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
          plot = pie_wdpa,
          device = "png",
          height = 6, width = 9)
-  ggsave(paste(tmp, paste0("pie_wdpa_ie", iso, ".png"), sep = "/"),
+  ggsave(paste(tmp, paste0("pie_wdpa_ie_", iso, ".png"), sep = "/"),
          plot = pie_ie,
          device = "png",
          height = 6, width = 9)
@@ -325,6 +330,18 @@ fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output, yr_firs
                        outdir = path_tmp,
                        #cores = 12,
                        add_resources = FALSE)
+  
+  #Extract a dataframe with pixels ID of grid and portfolio : useful for latter plotting of matched control and treated units
+  df_gridID_assetID = aoi %>%
+    st_drop_geometry() %>%
+    as.data.frame() %>%
+    dplyr::select(c(gridID, assetid))
+  s3write_using(df_gridID_assetID,
+                data.table::fwrite,
+                object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", "df_gridID_assetID_", iso, "_", ".csv"),
+                bucket = "projet-afd-eva-ap",
+                opts = list("region" = ""))
+  
   print("----Download Rasters and Calculate Covariates")
   print("------Soil")
   # Covariate: Soil
@@ -414,6 +431,7 @@ fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output, yr_firs
   pivot.all$group = as.integer(pivot.all$group)
   pivot.all$wdpaid = as.integer(pivot.all$wdpaid)
   
+  ## Save files
   name_save = paste0(name_output, "_", iso, ext_output)
   s3write_using(pivot.all,
                 sf::st_write,
@@ -436,6 +454,18 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
                        outdir = path_tmp,
                        #cores = 12,
                        add_resources = FALSE)
+  
+  #Extract a dataframe with pixels ID of grid and portfolio : useful for latter plotting of matched control and treated units
+  df_gridID_assetID = aoi %>%
+    st_drop_geometry() %>%
+    as.data.frame() %>%
+    dplyr::select(c(gridID, assetid))
+  s3write_using(df_gridID_assetID,
+                data.table::fwrite,
+                object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", "df_gridID_assetID_", iso, "_", ".csv"),
+                bucket = "projet-afd-eva-ap",
+                opts = list("region" = ""))
+  
   print("----Download Rasters and Calculate Covariates")
   print("------Soil")
   # Covariate: Soil
@@ -714,8 +744,6 @@ fn_post_cem = function(mf, lst_cutoffs, iso, path_tmp,
   #                    region = "", 
   #                    show_progress = FALSE)
   
-  
-  
   return(out.cem)
 }
 
@@ -834,9 +862,8 @@ fn_post_plot_density = function(out.cem, colname.travelTime, colname.clayContent
          subtitle = paste0("Protected area in ", iso, ", WDPAID ", wdpaid),
          x = "Accessibility (min)",
          fill = "Group") +
-    theme_bw() +
     theme(
-      plot.title = element_text(family="Arial Black", size=16, hjust=0.5),
+      plot.title = element_text(family="Arial Black", size=16, hjust = 0),
       
       legend.title = element_blank(),
       legend.text=element_text(size=14),
@@ -860,11 +887,11 @@ fn_post_plot_density = function(out.cem, colname.travelTime, colname.clayContent
     scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
     labs(title = "Distributional balance for clay content",
          subtitle = paste0("Protected area in ", iso, ", WDPAID ", wdpaid),
-         x = "Clay Content at 0~20cm soil depth (%)",
+         x = "Clay content at 0~20cm soil depth (%)",
          fill = "Group") +
     theme_bw() +
     theme(
-      plot.title = element_text(family="Arial Black", size=16, hjust=0.5),
+      plot.title = element_text(family="Arial Black", size=16, hjust=0),
       
       legend.title = element_blank(),
       legend.text=element_text(size=14),
@@ -892,7 +919,7 @@ fn_post_plot_density = function(out.cem, colname.travelTime, colname.clayContent
   #          fill = "Group") +
   #     theme_bw() +
   #     theme(
-  #         plot.title = element_text(family="Arial Black", size=16, hjust=0.5),
+  #         plot.title = element_text(family="Arial Black", size=16, hjust=0),
   #         legend.title = element_blank(),
   #         legend.text=element_text(size=14),
   #         legend.spacing.x = unit(0.5, 'cm'),
@@ -919,7 +946,7 @@ fn_post_plot_density = function(out.cem, colname.travelTime, colname.clayContent
   #          fill = "Group") +
   #     theme_bw() +
   #     theme(
-  #         plot.title = element_text(family="Arial Black", size=16, hjust=0.5),
+  #         plot.title = element_text(family="Arial Black", size=16, hjust=0),
   #         
   #         legend.title = element_blank(),
   #         legend.text=element_text(size=14),
@@ -939,16 +966,15 @@ fn_post_plot_density = function(out.cem, colname.travelTime, colname.clayContent
                   var.name = colname.fcIni,
                   which = "both") +
     facet_wrap(.~which, labeller = as_labeller(fnl)) +
-    #scale_fill_viridis(discrete = T) +
     scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+    # scale_x_continuous(trans = "log10") +
     labs(title = "Distributional balance for forest cover in 2000",
          subtitle = paste0("Protected area in ", iso, ", WDPAID ", wdpaid),
-         title = "Distributional Balance for Forest Cover in 2000",
-         x = "Forest Cover (%)",
+         x = "Forest cover (ha)",
          fill = "Group") +
     theme_bw() +
     theme(
-      plot.title = element_text(family="Arial Black", size=16, hjust=0.5),
+      plot.title = element_text(family="Arial Black", size=16, hjust=0),
       
       legend.title = element_blank(),
       legend.text=element_text(size=14),
@@ -972,12 +998,11 @@ fn_post_plot_density = function(out.cem, colname.travelTime, colname.clayContent
     scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
     labs(title = "Distributional balance for former average forest loss",
          subtitle = paste0("Protected area in ", iso, ", WDPAID ", wdpaid),
-         x = "Forest Loss (%)",
+         x = "Forest loss (%)",
          fill = "Group") +
     theme_bw() +
     theme(
       plot.title = element_text(family="Arial Black", size=16, hjust=0.5),
-      
       legend.title = element_blank(),
       legend.text=element_text(size=14),
       legend.spacing.x = unit(0.5, 'cm'),
@@ -1216,5 +1241,54 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid)
                        region = "", show_progress = TRUE)
   }
   do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+  
+}
+
+# Plot the country grid with matched control and treated
+##INPUTS
+###
+##OUTPUTS
+###
+
+fn_post_plot_grid = function(iso, df_pix_matched, df_gridID_assetID)
+{
+  
+  #Importing the gridding of the country (funded and analyzed PAs, funded not analyzed PAs, non-funded PAs, buffer, control)
+  #Merge with a dataframe so that each pixel in the grid has both its grid ID and asset ID from the portfolio creation
+  #Merge with matched pixels dataframe
+  grid =  s3read_using(sf::read_sf,
+                       object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", paste0("grid_param_", iso, ".gpkg")),
+                       bucket = "projet-afd-eva-ap",
+                       opts = list("region" = "")) %>%
+    left_join(df_gridID_assetID, by = "gridID") %>%
+    left_join(df_pix_matched, by = "assetid") %>%
+    mutate(group_plot = case_when(group_matched == 0 ~ "Control (matched)",
+                                  group_matched == 1 ~ "Treatment (matched)",
+                                  TRUE ~ group_name))
+  
+  # Visualize and save grouped grid cells
+  fig_grid = 
+    ggplot(grid) +
+    #The original gridding as a first layer
+    geom_sf(aes(fill = as.factor(group_plot))) +
+    scale_fill_brewer(name = "Group", type = "qual", palette = "BrBG", direction = 1) +
+    #Display matched pixels
+    # geom_sf(aes(color = as.factor(group_matched))) +
+    # scale_color_brewer(name = "Matched units", type = "qual", palette = "Reds", direction = 1) +
+    # scale_color_viridis_d(
+    #   # legend title
+    #   name="Group", 
+    #   # legend label
+    #   labels=c("control candidate", "treatment candidate", "non-funded PA", "buffer zone")) +
+    theme_bw()
+  fig_save = paste0(path_tmp, "/fig_grid_group_", iso, "_matched", ".png")
+  ggsave(fig_save,
+         plot = fig_grid,
+         device = "png",
+         height = 6, width = 9)
+  aws.s3::put_object(file = fig_save, 
+                     bucket = paste("projet-afd-eva-ap/data_tidy/mapme_bio_data/matching", iso, sep = "/"), 
+                     region = "", 
+                     show_progress = FALSE)
   
 }
