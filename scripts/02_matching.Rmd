@@ -37,8 +37,8 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 
 ```{r, eval = FALSE}
 #Install some libraries
-install.packages(c("tictoc", "geodata", "wdpar", "exactextractr", "MatchIt", "fixest", "cobalt"))
-remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
+install.packages(c("tictoc", "geodata", "wdpar", "exactextractr", "MatchIt", "fixest", "cobalt", "future", "progressr", "mapme.biodiversity"))
+#remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
 
 #Install the web driver to download wdpa data directly
 webdriver::install_phantomjs()
@@ -93,11 +93,11 @@ tmp_post = paste(tempdir(), "matching_post", sep = "/")
 #               opts = list("region" = ""))
 
 ##Load
-# wdpa_wld_raw = s3read_using(
-#               sf::st_read,
-#               object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
-#               bucket = "projet-afd-eva-ap",
-#               opts = list("region" = ""))
+wdpa_wld_raw = s3read_using(
+              sf::st_read,
+              object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
 
 # Specify buffer width in meter
 buffer_m = 10000

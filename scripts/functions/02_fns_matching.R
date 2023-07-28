@@ -537,7 +537,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   })
   plan(sequential)
   
-  get.travelT = unnest(traveltime) %>%
+  get.travelT = unnest(get.travelT, traveltime) %>%
     pivot_wider(names_from = "distance", values_from = "minutes_median", names_prefix = "minutes_median_")
 
   
