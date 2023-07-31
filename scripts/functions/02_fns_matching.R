@@ -445,7 +445,7 @@ fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output, yr_firs
   
 }
 
-fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output, yr_first, yr_last, n_workers) 
+fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output, yr_first, yr_last) 
 {
 
   print("----Initialize portfolio")
@@ -471,16 +471,16 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   print("------Soil")
   # Covariate: Soil
   # Download Data
-  get.soil = get_resources(aoi, 
+  dl.soil = get_resources(aoi, 
                            resources = c("soilgrids"), 
                            layers = c("clay"), # resource specific argument
                            depths = c("0-5cm"), # resource specific argument
                            stats = c("mean"))
   
-  ## set up parallel plan with n_workers concurrent threads
-  plan(multisession, workers = n_workers)
+  ## set up parallel plan with availableCores() concurrent threads
+  #plan(multisession, workers = availableCores())
   with_progress({
-  get.soil =  calc_indicators(get.soil,
+  get.soil =  calc_indicators(dl.soil,
                               indicators = "soilproperties",
                               stats_soil = c("mean"),
                               engine = "zonal"
@@ -488,10 +488,10 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   
   })
   ## End parallel plan
-  plan(sequential)
+  # plan(sequential)
   
     # Transform the output dataframe into a pivot dataframe
-   get.soil = unnest(get.soil, soilproperties) %>%
+   data.soil = unnest(get.soil, soilproperties) %>%
      mutate(across(mean, round, 3)) %>% # Round numeric columns
      pivot_wider(names_from = c("layer", "depth", "stat"), values_from = "mean")
 
@@ -500,7 +500,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   # #Covariate: Elevation
   # get.elevation = get_resources(aoi, "nasa_srtm")
   # 
-  # plan(multisession, workers = n_workers)
+  # plan(multisession, workers = availableCores())
   # with_progress({
   # get.elevation = calc_indicators(get.elevation,
   #                   indicators = "elevation",
@@ -514,7 +514,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   # Covariate: TRI
   # get.tri = get_resources(aoi, "nasa_srtm")
   # 
-  # plan(multisession, workers = n_workers)
+  # plan(multisession, workers = availableCores())
   # with_progress({
   # get.tri = calc_indicators(get.tri,
   #                   indicators = "tri")
@@ -526,42 +526,42 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   print("------Travel time")
   # Covariate: Travel Time
 
-  get.travelT = get_resources(aoi, resources = "nelson_et_al",
+  dl.travelT = get_resources(aoi, resources = "nelson_et_al",
                               range_traveltime = c("5k_110mio"))
   
-  plan(multisession, workers = n_workers)
+  # plan(multisession, workers = availableCores())
   with_progress({
-  get.travelT = calc_indicators(get.travelT, 
+  get.travelT = calc_indicators(dl.travelT, 
                     indicators = "traveltime",
                     stats_accessibility = c("median")) 
   })
-  plan(sequential)
+  # plan(sequential)
   
-  get.travelT = unnest(get.travelT, traveltime) %>%
+  data.travelT = unnest(get.travelT, traveltime) %>%
     pivot_wider(names_from = "distance", values_from = "minutes_median", names_prefix = "minutes_median_")
 
   
   print("----Calculate Deforestation")
   # Time Series of Tree Cover Area
-  get.tree = get_resources(aoi, resources = c("gfw_treecover", "gfw_lossyear"))
+  dl.tree = get_resources(aoi, resources = c("gfw_treecover", "gfw_lossyear"))
   
-  plan(multisession, workers = n_workers)
+  # plan(multisession, workers = availableCores())
   with_progress({
-  get.tree = calc_indicators(get.tree,
+  get.tree = calc_indicators(dl.tree,
                     indicators = "treecover_area", 
                     min_size=1, # indicator-specific argument
                     min_cover=10)
   })
-  plan(sequential)
+  # plan(sequential)
   
-  get.tree = unnest(get.tree, treecover_area) %>%
+  data.tree = unnest(get.tree, treecover_area) %>%
     mutate(across(treecover, round, 3)) %>% # Round numeric columns
     pivot_wider(names_from = "years", values_from = "treecover", names_prefix = "treecover_")
 
   
   # The calculation of tree loss area is performed at dataframe base
   # Get the column names of tree cover time series
-  colnames_tree = names(get.tree)[startsWith(names(get.tree), "treecover")]
+  colnames_tree = names(data.tree)[startsWith(names(data.tree), "treecover")]
   # Drop the first year
   dropFirst = tail(colnames_tree, -1)
   # Drop the last year
@@ -573,19 +573,162 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   for (i in 1:length(dropFirst)) 
   {
     new_colname = paste0("treeloss_", colnames_loss[[i]][2]) 
-    get.tree[[new_colname]] = get.tree[[dropFirst[i]]] - get.tree[[dropLast[i]]]
+    data.tree[[new_colname]] = data.tree[[dropFirst[i]]] - data.tree[[dropLast[i]]]
   }
   
   print("----Export Matching Frame")
   # Remove "geometry" column from pivot dataframes
-  df.tree = get.tree %>% mutate(x = NULL) %>% as.data.frame()
-  df.travelT = get.travelT %>% mutate(x = NULL) %>% as.data.frame()
-  df.soil = get.soil %>% mutate(x = NULL) %>% as.data.frame()
+  df.tree = data.tree %>% mutate(x = NULL) %>% as.data.frame()
+  df.travelT = data.travelT %>% mutate(x = NULL) %>% as.data.frame()
+  df.soil = data.soil %>% mutate(x = NULL) %>% as.data.frame()
   # df.elevation = get.elevation %>% mutate(x = NULL) %>% as.data.frame()
   # df.tri = get.tri %>% mutate(x=NULL) %>% as.data.frame()
   
   # Make a dataframe containing only "assetid" and geometry
-  df.geom = get.tree[, c("assetid", "x")] %>% as.data.frame()
+  df.geom = data.tree[, c("assetid", "x")] %>% as.data.frame()
+  
+  # Merge all output dataframes 
+  # pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.elevation, df.tri, df.geom)) %>%
+  #   st_as_sf()
+  pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.geom)) %>%
+    st_as_sf()
+  # Make column Group ID and WDPA ID have data type "integer"
+  pivot.all$group = as.integer(pivot.all$group)
+  pivot.all$wdpaid = as.integer(pivot.all$wdpaid)
+  
+  name_save = paste0(name_output, "_", iso, ext_output)
+  s3write_using(pivot.all,
+                sf::st_write,
+                object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", name_save),
+                bucket = "projet-afd-eva-ap",
+                opts = list("region" = ""))
+  
+  #Removing files in the temporary folder
+  do.call(file.remove, list(list.files(tmp_pre, include.dirs = F, full.names = T, recursive = T)))
+
+  
+}
+
+fn_pre_mf_parallel_test = function(grid.param, path_tmp, iso, name_output, ext_output, yr_first, yr_last) 
+{
+  
+  print("----Initialize portfolio")
+  # Get input data ready for indicator calculation
+  aoi = init_portfolio(grid.param,
+                       years = yr_first:yr_last,
+                       outdir = path_tmp,
+                       #cores = 12,
+                       add_resources = FALSE)
+  
+  #Extract a dataframe with pixels ID of grid and portfolio : useful for latter plotting of matched control and treated units
+  df_gridID_assetID = aoi %>%
+    st_drop_geometry() %>%
+    as.data.frame() %>%
+    dplyr::select(c(gridID, assetid))
+  s3write_using(df_gridID_assetID,
+                data.table::fwrite,
+                object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", "df_gridID_assetID_", iso, "_", ".csv"),
+                bucket = "projet-afd-eva-ap",
+                opts = list("region" = ""))
+  
+  print("----Download Rasters")
+  # Download Data
+  dl.soil = get_resources(aoi, 
+                          resources = c("soilgrids"), 
+                          layers = c("clay"), # resource specific argument
+                          depths = c("0-5cm"), # resource specific argument
+                          stats = c("mean"))
+  dl.travelT = get_resources(aoi, resources = "nelson_et_al",
+                             range_traveltime = c("5k_110mio"))
+  dl.tree = get_resources(aoi, resources = c("gfw_treecover", "gfw_lossyear"))
+  
+  # dl.elevation = get_resources(aoi, "nasa_srtm")
+  
+  # dl.tri = get_resources(aoi, "nasa_srtm")
+  
+  print("----Compute indicators")
+  #Compute indicators
+  
+  ## set up parallel plan with availableCores() concurrent threads
+  plan(multisession, workers = availableCores())
+  
+  with_progress({
+    get.soil %<-% calc_indicators(dl.soil,
+                                indicators = "soilproperties",
+                                stats_soil = c("mean"),
+                                engine = "zonal"
+    )
+    
+  })
+  
+  with_progress({
+    get.travelT %<-% calc_indicators(dl.travelT, 
+                                  indicators = "traveltime",
+                                  stats_accessibility = c("median")) 
+  })
+  
+  with_progress({
+    get.tree %<-% calc_indicators(dl.tree,
+                               indicators = "treecover_area", 
+                               min_size=1, # indicator-specific argument
+                               min_cover=10)
+  })
+  
+  # with_progress({
+  # get.elevation %<-% calc_indicators(dl.elevation,
+  #                   indicators = "elevation",
+  #                   stats_elevation = c("mean"))
+  # })
+  
+  # with_progress({
+  # get.tri %<-% calc_indicators(dl.tri,
+  #                   indicators = "tri")
+  # })
+  
+  ## End parallel plan
+  plan(sequential)
+  
+  #Get dataframes
+  
+  ## Transform the output dataframe into a pivot dataframe
+  data.soil = unnest(get.soil, soilproperties) %>%
+    mutate(across(mean, round, 3)) %>% # Round numeric columns
+    pivot_wider(names_from = c("layer", "depth", "stat"), values_from = "mean")
+  
+  data.travelT = unnest(get.travelT, traveltime) %>%
+    pivot_wider(names_from = "distance", values_from = "minutes_median", names_prefix = "minutes_median_")
+  
+  data.tree = unnest(get.tree, treecover_area) %>%
+    mutate(across(treecover, round, 3)) %>% # Round numeric columns
+    pivot_wider(names_from = "years", values_from = "treecover", names_prefix = "treecover_")
+  
+  # The calculation of tree loss area is performed at dataframe base
+  # Get the column names of tree cover time series
+  colnames_tree = names(data.tree)[startsWith(names(data.tree), "treecover")]
+  # Drop the first year
+  dropFirst = tail(colnames_tree, -1)
+  # Drop the last year
+  dropLast = head(colnames_tree, -1)
+  # Set list of new column names for tree loss time series
+  colnames_loss = dropFirst %>% str_split(., "_")
+  
+  # Add new columns: treeloss_tn = treecover_tn - treecover_t(n-1)  
+  for (i in 1:length(dropFirst)) 
+  {
+    new_colname = paste0("treeloss_", colnames_loss[[i]][2]) 
+    data.tree[[new_colname]] = data.tree[[dropFirst[i]]] - data.tree[[dropLast[i]]]
+  }
+  
+  print("----Export Matching Frame")
+  # Remove "geometry" column from pivot dataframes
+  df.tree = data.tree %>% mutate(x = NULL) %>% as.data.frame()
+  df.travelT = data.travelT %>% mutate(x = NULL) %>% as.data.frame()
+  df.soil = data.soil %>% mutate(x = NULL) %>% as.data.frame()
+  # df.elevation = get.elevation %>% mutate(x = NULL) %>% as.data.frame()
+  # df.tri = get.tri %>% mutate(x=NULL) %>% as.data.frame()
+  
+  # Make a dataframe containing only "assetid" and geometry
+  df.geom = data.tree[, c("assetid", "x")] %>% as.data.frame()
   
   # Merge all output dataframes 
   # pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.elevation, df.tri, df.geom)) %>%
@@ -608,8 +751,6 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   
   
 }
-
-
 #####
 ###Post-processing
 #####

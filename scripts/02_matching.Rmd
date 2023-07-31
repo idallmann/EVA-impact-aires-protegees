@@ -115,8 +115,9 @@ data_pa =
   opts = list("region" = "")) 
 
 #List of countries in the sample
-#list_iso = unique(data_pa_full$iso3)
-list_iso = c("MOZ", "MMR", "MRT")
+#list_iso = unique(data_pa$iso3)
+#list_iso = c("MOZ", "MMR", "MRT")
+list_iso = "COM"
 # Specify a list of WDPA IDs of funded protected areas (treated areas)
 # paid = data_stat_nodupl[data_stat_nodupl$iso3 == country,]$wdpaid
 
@@ -193,19 +194,19 @@ for (i in list_iso)
 
   #Calculating outcome and other covariates for all observation units
   print("--Calculating outcome and other covariates")
-  ##Parallel computing
+  ##Parallel computing : must be activated here and not in a function
   tic_parallel = tic()
-  fn_pre_mf_parallel(grid.param = grid_param, path_tmp = tmp_pre, iso = i,
+  fn_pre_mf_parallel_test(grid.param = grid_param, path_tmp = tmp_pre, iso = i,
           name_output = "matching_frame_10km", ext_output = ".gpkg",
-          yr_first = yr_first, yr_last = yr_last,
-          n_workers = 10)
+          yr_first = yr_first, yr_last = yr_last)
+  plan(sequential)
   toc_parallel = toc()
   ##Without parallel computing
-  # tic = tic()
-  # fn_pre_mf(grid.param = grid_param, path_tmp = tmp_pre, iso = i,
-  #           name_output = "matching_frame_10km", ext_output = ".gpkg",
-  #           yr_first = yr_first, yr_last = yr_last)
-  # toc = toc()
+  tic = tic()
+  fn_pre_mf(grid.param = grid_param, path_tmp = tmp_pre, iso = i,
+            name_output = "matching_frame_10km", ext_output = ".gpkg",
+            yr_first = yr_first, yr_last = yr_last)
+  toc = toc()
 
   
   
