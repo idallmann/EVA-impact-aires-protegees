@@ -116,8 +116,7 @@ data_pa =
 
 #List of countries in the sample
 #list_iso = unique(data_pa$iso3)
-#list_iso = c("MOZ", "MMR", "MRT")
-list_iso = "COM"
+list_iso = c("COM", "MDG")
 # Specify a list of WDPA IDs of funded protected areas (treated areas)
 # paid = data_stat_nodupl[data_stat_nodupl$iso3 == country,]$wdpaid
 
@@ -195,18 +194,18 @@ for (i in list_iso)
   #Calculating outcome and other covariates for all observation units
   print("--Calculating outcome and other covariates")
   ##Parallel computing : must be activated here and not in a function
-  tic_parallel = tic()
-  fn_pre_mf_parallel_test(grid.param = grid_param, path_tmp = tmp_pre, iso = i,
-          name_output = "matching_frame_10km", ext_output = ".gpkg",
-          yr_first = yr_first, yr_last = yr_last)
-  plan(sequential)
-  toc_parallel = toc()
-  ##Without parallel computing
-  tic = tic()
-  fn_pre_mf(grid.param = grid_param, path_tmp = tmp_pre, iso = i,
-            name_output = "matching_frame_10km", ext_output = ".gpkg",
-            yr_first = yr_first, yr_last = yr_last)
-  toc = toc()
+  # tic_parallel = tic()
+  # fn_pre_mf_parallel_test(grid.param = grid_param, path_tmp = tmp_pre, iso = i,
+  #         name_output = "matching_frame_10km", ext_output = ".gpkg",
+  #         yr_first = yr_first, yr_last = yr_last)
+  # plan(sequential)
+  # toc_parallel = toc()
+  # ##Without parallel computing
+  # tic = tic()
+  # fn_pre_mf(grid.param = grid_param, path_tmp = tmp_pre, iso = i,
+  #           name_output = "matching_frame_10km", ext_output = ".gpkg",
+  #           yr_first = yr_first, yr_last = yr_last)
+  # toc = toc()
 
   
   
@@ -214,6 +213,52 @@ for (i in list_iso)
 
 toc_pre = toc() #end timer
 
+
+#TEST FOR PARALLEL COMPUTING 
+
+  # Get input data ready for indicator calculation
+  aoi = init_portfolio(grid.param,
+                       years = yr_first:yr_last,
+                       outdir = path_tmp,
+                       #cores = 12,
+                       add_resources = FALSE)
+  
+  #Non-parallel
+  
+    get.soil = get_resources(aoi,
+                           resources = c("soilgrids"),
+                           layers = c("clay"), # resource specific argument
+                           depths = c("0-5cm"), # resource specific argument
+                           stats = c("mean")) %>%
+    # Calculate Indicator
+    calc_indicators(.,
+                    indicators = "soilproperties",
+                    stats_soil = c("mean"),
+                    engine = "zonal") %>%
+    # Transform the output dataframe into a pivot dataframe
+    unnest(soilproperties) %>%
+    mutate(across(mean, round, 3)) %>% # Round numeric columns
+    pivot_wider(names_from = c("layer", "depth", "stat"), values_from = "mean")
+    
+  #Parallel
+    
+    plan(multisession, workers = 6) # set up parallel plan with 6 concurrent threads
+    sample_portfolio_par = get_resources(aoi,
+                           resources = c("soilgrids"),
+                           layers = c("clay"), # resource specific argument
+                           depths = c("0-5cm"), # resource specific argument
+                           stats = c("mean"))
+with_progress({
+  portfolio_par <- calc_indicators(
+    sample_portfolio_par,
+    indicators = "precipitation_chirps",
+    scales_spi = 3,
+    spi_prev_years = 8,
+    engine = "extract"
+  )
+})
+
+plan(sequential) # close child processes
 ```
 
 ### Post-processing
