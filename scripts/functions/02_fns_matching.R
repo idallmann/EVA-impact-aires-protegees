@@ -445,7 +445,7 @@ fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output, yr_firs
   
 }
 
-fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output, yr_first, yr_last) 
+fn_pre_mf_parallel_old = function(grid.param, path_tmp, iso, name_output, ext_output, yr_first, yr_last) 
 {
 
   print("----Initialize portfolio")
@@ -609,7 +609,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   
 }
 
-fn_pre_mf_parallel_test = function(grid.param, path_tmp, iso, name_output, ext_output, yr_first, yr_last) 
+fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output, yr_first, yr_last) 
 {
   
   print("----Initialize portfolio")
@@ -649,47 +649,35 @@ fn_pre_mf_parallel_test = function(grid.param, path_tmp, iso, name_output, ext_o
   print("----Compute indicators")
   #Compute indicators
   
-  ## set up parallel plan with availableCores() concurrent threads
-  plan(multisession, workers = availableCores())
+  #Begin multisession
+  plan(multisession, workers = availableCores()) 
   
   with_progress({
     get.soil %<-% calc_indicators(dl.soil,
                                 indicators = "soilproperties",
                                 stats_soil = c("mean"),
-                                engine = "zonal"
-    )
-    
-  })
-  
-  with_progress({
+                                engine = "zonal")
+
     get.travelT %<-% calc_indicators(dl.travelT, 
                                   indicators = "traveltime",
                                   stats_accessibility = c("median")) 
-  })
   
-  with_progress({
     get.tree %<-% calc_indicators(dl.tree,
                                indicators = "treecover_area", 
                                min_size=1, # indicator-specific argument
                                min_cover=10)
-  })
   
-  # with_progress({
-  # get.elevation %<-% calc_indicators(dl.elevation,
-  #                   indicators = "elevation",
-  #                   stats_elevation = c("mean"))
-  # })
+    # get.elevation %<-% calc_indicators(dl.elevation,
+    #                   indicators = "elevation",
+    #                   stats_elevation = c("mean"))
+    
+    # get.tri %<-% calc_indicators(dl.tri,
+    #                   indicators = "tri")
+    
+    })
   
-  # with_progress({
-  # get.tri %<-% calc_indicators(dl.tri,
-  #                   indicators = "tri")
-  # })
-  
-  ## End parallel plan
-  plan(sequential)
-  
-  #Get dataframes
-  
+  print("----Build indicators' datasets")
+  #Build indicators' datasets
   ## Transform the output dataframe into a pivot dataframe
   data.soil = unnest(get.soil, soilproperties) %>%
     mutate(across(mean, round, 3)) %>% # Round numeric columns
@@ -701,6 +689,9 @@ fn_pre_mf_parallel_test = function(grid.param, path_tmp, iso, name_output, ext_o
   data.tree = unnest(get.tree, treecover_area) %>%
     mutate(across(treecover, round, 3)) %>% # Round numeric columns
     pivot_wider(names_from = "years", values_from = "treecover", names_prefix = "treecover_")
+  
+  ## End parallel plan : close parralel sessions, so must be done once indicators' datasets are built
+  plan(sequential)
   
   # The calculation of tree loss area is performed at dataframe base
   # Get the column names of tree cover time series
@@ -751,6 +742,8 @@ fn_pre_mf_parallel_test = function(grid.param, path_tmp, iso, name_output, ext_o
   
   
 }
+
+
 #####
 ###Post-processing
 #####
@@ -768,25 +761,35 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input)
 {
   #Load the matching dataframe
   object = paste("data_tidy/mapme_bio_data/matching", iso, paste0(name_input, "_", iso, ext_input), sep = "/")
-  mf_ini = s3read_using(sf::st_read,
+  mf = s3read_using(sf::st_read,
                       bucket = "projet-afd-eva-ap",
                       object = object,
                       opts = list("region" = "")) 
   
   #Subset to control and treatment units with year of treaament >= yr_min
-  mf = mf_ini %>%
+  mf = mf %>%
     #Remove PAs non-funded by AFD and buffers
     filter(group==0 | group==1) %>%
     #Remove observations with NA values only (except for status_yr, which is NA for control units)
     drop_na(-c(status_yr)) %>%
     filter(status_yr >= yr_min | is.na(status_yr))
   
-  #Pie plot : distribution of PAs and their status
-  ##List of the different categories
-  # list_pa = unique(mf_ini[mf_ini$wdpaid > 0,]$wdpaid) #WDPAID
-  # list_pa_afd = unique(mf_ini[mf_ini$wdpaid > 0 & mf_ini$group == 1,]$wdpaid)
-  # list_pa_no_afd = unique(mf_ini[mf_ini$wdpaid > 0 & mf_ini$group == 2,]$wdpaid)
-  # list_pa_analysis = unique(mf[mf$wdpaid > 0,]$wdpaid)
+  #Write the list of PAs matched
+  list_pa = mf %>%
+    st_drop_geometry() %>%
+    as.data.frame() %>%
+    dplyr::select(c(wdpaid, status_yr)) %>%
+    mutate(iso3 = iso, .before = "wdpaid") %>%
+    filter(wdpaid != 0) %>%
+    group_by(wdpaid) %>%
+    slice(1) %>%
+    ungroup()
+  
+  s3write_using(list_pa,
+                data.table::fwrite,
+                bucket = "projet-afd-eva-ap",
+                object = paste("data_tidy/mapme_bio_data/matching", iso, paste0("list_pa_matched_", iso, ".csv"), sep = "/"),
+                opts = list("region" = ""))
   
   
   return(mf)
