@@ -1,0 +1,93 @@
+# (PART\*) Impact analysis {.unnumbered}
+
+# Difference-in-difference
+
+In this script, the treatment effect are computed from the control and treated units defined from the matching process. The treatment effect are first computed at PA level, then aggregated at country, region and world level to obtain average treatement effects.
+
+DESCRIPTION
+
+## Initial settings
+
+```{r setup, include=FALSE, eval = FALSE}
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+
+```
+
+```{r, eval = FALSE}
+#Install some libraries
+install.packages(c("tictoc", "fixest", "cobalt", "future", "progressr"))
+
+# Load Libraries
+library(dplyr)
+library(tictoc) #For timing
+library(xtable)
+library(tidyr)
+library(stringr)
+library(ggplot2) # For plotting
+library(RColorBrewer)
+library(ggrepel)
+library(aws.s3)
+library(fixest) #For estimating the models
+```
+
+```{r message=FALSE, warning=FALSE, eval = FALSE}
+#Import functions
+source("scripts/functions/02_fns_did.R")
+```
+
+```{r}
+
+tmp_did = paste(tempdir(), "did", sep = "/")
+
+#Load data 
+data_pa = 
+  #fread("data_tidy/BDD_DesStat_nofund_nodupl.csv" , encoding = "UTF-8")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  object = "data_tidy/BDD_DesStat_nofund_nodupl.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = "")) 
+
+list_iso = c("CMR")
+
+
+```
+
+## Computing treatment effects at PA level
+
+```{r}
+#For each country in the list, the different steps of the pre-processing are performed
+count_i = 0 #Initialize counter
+max_i = length(list_iso) #Max value of the counter
+tic = tic() #Start timer
+
+for (i in list_iso)
+{
+  #Update counter and show progress
+  count_i = count_i+1
+  print(paste0(i, " : country ", count_i, "/", max_i))
+  
+  #Load the matching frame
+  print("--Loading the matching frame")
+  df_pa_i = fn_did_list_pa(iso = i)
+  list_pa_i = df_pa_i$wdpaid
+  
+  for(j in list_pa_i)
+  {
+    matched_wide_j = fn_did_load_df_matched_wide(iso = i, wdpaid = j, ext_output = ".csv")
+    
+    #Ensuite :
+    ## Mettre sous une forme pre/post traitement
+    ## Calculer did pour pre/post -> voir ce que j'ai fait pour MT
+    ## Bootstrap à mettre en place(+ tard)
+    ## Faire graphe pre/post
+    ## Le df avec TE doit être retourné pour chaque AP, pour ensuite être aggrégée au niveau pays
+  }
+
+    # A faire
+  ## Agréger au niveau pays les TE, avec CI à calculer 
+  ## Ensuite, agréger niveau DR/monde
+  
+}
+```
