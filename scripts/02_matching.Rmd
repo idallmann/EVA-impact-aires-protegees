@@ -116,7 +116,7 @@ data_pa =
 
 #List of countries in the sample
 #list_iso = unique(data_pa$iso3)
-list_iso = c("COM", "MDG")
+list_iso = c("COM")
 # Specify a list of WDPA IDs of funded protected areas (treated areas)
 # paid = data_stat_nodupl[data_stat_nodupl$iso3 == country,]$wdpaid
 
@@ -174,7 +174,7 @@ for (i in list_iso)
   output_pre_grid = fn_pre_grid(iso = i, 
                                 path_tmp = tmp_pre, 
                                 data_pa = data_pa,
-                                sampling = 5)
+                                sampling = 10)
   
   #Load the outputs 
   utm_code = output_pre_grid$utm_code
@@ -213,52 +213,387 @@ for (i in list_iso)
 
 toc_pre = toc() #end timer
 
+```
 
-#TEST FOR PARALLEL COMPUTING 
+### TEST FOR PARALLEL COMPUTING 
 
-  # Get input data ready for indicator calculation
-  aoi = init_portfolio(grid.param,
-                       years = yr_first:yr_last,
-                       outdir = path_tmp,
-                       #cores = 12,
-                       add_resources = FALSE)
+#### One indicator
+
+```{r}
+aoi = init_portfolio(grid_param,
+
+                     years = yr_first:yr_last,
+
+                     outdir = path_tmp,
+
+                     #cores = 12,
+
+                     add_resources = FALSE)
+
   
-  #Non-parallel
-  
-    get.soil = get_resources(aoi,
-                           resources = c("soilgrids"),
-                           layers = c("clay"), # resource specific argument
-                           depths = c("0-5cm"), # resource specific argument
-                           stats = c("mean")) %>%
-    # Calculate Indicator
-    calc_indicators(.,
-                    indicators = "soilproperties",
-                    stats_soil = c("mean"),
-                    engine = "zonal") %>%
-    # Transform the output dataframe into a pivot dataframe
-    unnest(soilproperties) %>%
-    mutate(across(mean, round, 3)) %>% # Round numeric columns
-    pivot_wider(names_from = c("layer", "depth", "stat"), values_from = "mean")
-    
-  #Parallel
-    
-    plan(multisession, workers = 6) # set up parallel plan with 6 concurrent threads
-    sample_portfolio_par = get_resources(aoi,
-                           resources = c("soilgrids"),
-                           layers = c("clay"), # resource specific argument
-                           depths = c("0-5cm"), # resource specific argument
-                           stats = c("mean"))
+
+##Non-parallel
+
+tic_np1 = tic()
+
+get.soil_np1 = get_resources(aoi,
+
+                       resources = c("soilgrids"),
+
+                       layers = c("clay"), # resource specific argument
+
+                       depths = c("0-5cm"), # resource specific argument
+
+                       stats = c("mean")) %>%
+
+calc_indicators(.,
+
+                indicators = "soilproperties",
+
+                stats_soil = c("mean"),
+
+                engine = "zonal") %>%
+
+unnest(soilproperties) %>%
+
+mutate(across(mean, round, 3)) %>% # Round numeric columns
+
+pivot_wider(names_from = c("layer", "depth", "stat"), values_from = "mean")
+
+toc_np1 = toc()
+
+#Parallel
+
+  plan(multisession, workers = availableCores()) # set up parallel plan with 6 concurrent threads
+
+  tic_p1 = tic()
+
+  dl.soil_p1 = get_resources(aoi,
+
+                         resources = c("soilgrids"),
+
+                         layers = c("clay"), # resource specific argument
+
+                         depths = c("0-5cm"), # resource specific argument
+
+                         stats = c("mean"))
+
 with_progress({
-  portfolio_par <- calc_indicators(
-    sample_portfolio_par,
-    indicators = "precipitation_chirps",
-    scales_spi = 3,
-    spi_prev_years = 8,
-    engine = "extract"
-  )
+
+calc.soil_p1 %<-% calc_indicators(dl.soil_p1,
+
+                                  indicators = "soilproperties",
+
+                                  stats_soil = c("mean"),
+
+                                  engine = "zonal"
+
+)
+
 })
 
+get.soil_p1 = unnest(calc.soil_p1, soilproperties) %>%
+
+  mutate(across(mean, round, 3)) %>% # Round numeric columns
+
+  pivot_wider(names_from = c("layer", "depth", "stat"), values_from = "mean")
+
+toc_p1 = toc()
+
 plan(sequential) # close child processes
+```
+
+#### Two indicators
+
+```{r}
+aoi = init_portfolio(grid_param,
+
+                     years = yr_first:yr_last,
+
+                     outdir = path_tmp,
+
+                     #cores = 12,
+
+                     add_resources = FALSE)
+
+  
+
+##Non-parallel
+
+tic_np2 = tic()
+
+get.soil_np2 = get_resources(aoi,
+
+                       resources = c("soilgrids"),
+
+                       layers = c("clay"), # resource specific argument
+
+                       depths = c("0-5cm"), # resource specific argument
+
+                       stats = c("mean")) %>%
+
+calc_indicators(.,
+
+                indicators = "soilproperties",
+
+                stats_soil = c("mean"),
+
+                engine = "zonal") %>%
+
+unnest(soilproperties) %>%
+
+mutate(across(mean, round, 3)) %>% # Round numeric columns
+
+pivot_wider(names_from = c("layer", "depth", "stat"), values_from = "mean")
+
+get.travelT_np2 = get_resources(aoi, resources = "nelson_et_al",
+
+                            range_traveltime = c("5k_110mio")) %>% # resource specific argument
+
+  calc_indicators(., 
+
+                  indicators = "traveltime",
+
+                  stats_accessibility = c("median")) %>%
+
+  unnest(traveltime) %>%
+
+  pivot_wider(names_from = "distance", values_from = "minutes_median", names_prefix = "minutes_median_")
+
+toc_np2 = toc()
+
+#Parallel
+
+  plan(multisession, workers = availableCores()) # set up parallel plan with 6 concurrent threads
+
+  tic_p2 = tic()
+
+  #Download
+
+  dl.soil_p2 = get_resources(aoi,
+
+                         resources = c("soilgrids"),
+
+                         layers = c("clay"), # resource specific argument
+
+                         depths = c("0-5cm"), # resource specific argument
+
+                         stats = c("mean"))
+
+  dl.travelT_p2 = get_resources(aoi, resources = "nelson_et_al",
+
+                            range_traveltime = c("5k_110mio"))
+
+  
+
+  #Compute indicators
+
+with_progress({
+
+calc.soil_p2 %<-% calc_indicators(dl.soil_p2,
+
+                                  indicators = "soilproperties",
+
+                                  stats_soil = c("mean"),
+
+                                  engine = "zonal"
+
+                                  )
+
+  
+
+calc.travelT_p2 %<-% calc_indicators(dl.travelT_p2, 
+
+              indicators = "traveltime",
+
+              stats_accessibility = c("median")
+
+              )
+
+  
+
+})
+
+  #Compute dataframe
+
+get.soil_p2 = unnest(calc.soil_p2, soilproperties) %>%
+
+  mutate(across(mean, round, 3)) %>% # Round numeric columns
+
+  pivot_wider(names_from = c("layer", "depth", "stat"), values_from = "mean")
+
+get.travelT_p2 = unnest(calc.travelT_p2, traveltime) %>%
+
+  pivot_wider(names_from = "distance", values_from = "minutes_median", names_prefix = "minutes_median_")
+
+toc_p2 = toc()
+
+plan(sequential) # close child processes
+```
+
+#### Three indicators
+
+```{r}
+
+aoi = init_portfolio(grid_param,
+
+                     years = yr_first:yr_last,
+
+                     outdir = path_tmp,
+
+                     #cores = 12,
+
+                     add_resources = FALSE)
+
+  
+
+##Non-parallel
+
+tic_np3 = tic()
+
+get.soil_np3 = get_resources(aoi,
+
+                       resources = c("soilgrids"),
+
+                       layers = c("clay"), # resource specific argument
+
+                       depths = c("0-5cm"), # resource specific argument
+
+                       stats = c("mean")) %>%
+
+calc_indicators(.,
+
+                indicators = "soilproperties",
+
+                stats_soil = c("mean"),
+
+                engine = "zonal") %>%
+
+unnest(soilproperties) %>%
+
+mutate(across(mean, round, 3)) %>% # Round numeric columns
+
+pivot_wider(names_from = c("layer", "depth", "stat"), values_from = "mean")
+
+get.travelT_np3 = get_resources(aoi, resources = "nelson_et_al",
+
+                            range_traveltime = c("5k_110mio")) %>% # resource specific argument
+
+  calc_indicators(., 
+
+                  indicators = "traveltime",
+
+                  stats_accessibility = c("median")) %>%
+
+  unnest(traveltime) %>%
+
+  pivot_wider(names_from = "distance", values_from = "minutes_median", names_prefix = "minutes_median_")
+
+get.tree_np3 = get_resources(aoi, resources = c("gfw_treecover", "gfw_lossyear")) %>%
+
+  calc_indicators(.,
+
+                  indicators = "treecover_area", 
+
+                  min_size=1, # indicator-specific argument
+
+                  min_cover=10) %>% # indicator-specific argument
+
+  unnest(treecover_area) %>%
+
+  mutate(across(treecover, round, 3)) %>% # Round numeric columns
+
+  pivot_wider(names_from = "years", values_from = "treecover", names_prefix = "treecover_")
+
+toc_np3 = toc()
+
+#Parallel
+
+  plan(multisession, workers = availableCores()) # set up parallel plan with 6 concurrent threads
+
+  tic_p3 = tic()
+
+  #Download
+
+  dl.soil_p3 = get_resources(aoi,
+
+                         resources = c("soilgrids"),
+
+                         layers = c("clay"), # resource specific argument
+
+                         depths = c("0-5cm"), # resource specific argument
+
+                         stats = c("mean"))
+
+  dl.travelT_p3 = get_resources(aoi, resources = "nelson_et_al",
+
+                            range_traveltime = c("5k_110mio"))
+
+  
+
+  dl.tree_p3 = get_resources(aoi, resources = c("gfw_treecover", "gfw_lossyear"))
+
+  
+
+  #Compute indicators
+
+with_progress({
+
+calc.soil_p3 %<-% calc_indicators(dl.soil_p3,
+
+                                  indicators = "soilproperties",
+
+                                  stats_soil = c("mean"),
+
+                                  engine = "zonal"
+
+                                  )
+
+  
+
+calc.travelT_p3 %<-% calc_indicators(dl.travelT_p3, 
+
+              indicators = "traveltime",
+
+              stats_accessibility = c("median")
+
+              )
+
+  
+
+})
+
+calc.tree_p3 %<-% calc_indicators(dl.tree_p3,
+
+                  indicators = "treecover_area", 
+
+                  min_size=1, # indicator-specific argument
+
+                  min_cover=10)
+
+  #Compute dataframe
+
+get.soil_p3 = unnest(calc.soil_p3, soilproperties) %>%
+
+  mutate(across(mean, round, 3)) %>% # Round numeric columns
+
+  pivot_wider(names_from = c("layer", "depth", "stat"), values_from = "mean")
+
+get.travelT_p3 = unnest(calc.travelT_p3, traveltime) %>%
+
+  pivot_wider(names_from = "distance", values_from = "minutes_median", names_prefix = "minutes_median_")
+
+get.tree_p3 = unnest(calc.tree_p3, treecover_area) %>%
+
+  mutate(across(treecover, round, 3)) %>% # Round numeric columns
+
+  pivot_wider(names_from = "years", values_from = "treecover", names_prefix = "treecover_")
+
+toc_p3 = toc()
+
+plan(sequential) # close child processes
+
+
 ```
 
 ### Post-processing
