@@ -673,7 +673,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   print("----Compute indicators")
   #Compute indicators
   
-  #Begin multisession
+  #Begin callr
   plan(callr) 
   
   with_progress({

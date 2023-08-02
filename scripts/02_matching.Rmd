@@ -116,7 +116,7 @@ data_pa =
 
 #List of countries in the sample
 #list_iso = unique(data_pa$iso3)
-list_iso = c("LAO", "CMR")
+list_iso = c("MDG")
 # Specify a list of WDPA IDs of funded protected areas (treated areas)
 # paid = data_stat_nodupl[data_stat_nodupl$iso3 == country,]$wdpaid
 
@@ -215,6 +215,15 @@ for (i in list_iso)
 }
 
 toc_pre = toc() #end timer
+
+```
+
+```{r}
+library("future.callr")
+tic()
+plan(callr)
+demo("mandelbrot", package = "future", ask = FALSE)
+toc()
 
 ```
 
