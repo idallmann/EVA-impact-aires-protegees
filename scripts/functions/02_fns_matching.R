@@ -499,7 +499,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
     dplyr::select(c(gridID, assetid))
   s3write_using(df_gridID_assetID,
                 data.table::fwrite,
-                object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", "df_gridID_assetID_", iso, "_", ".csv"),
+                object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", "df_gridID_assetID_", iso, ".csv"),
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
   
