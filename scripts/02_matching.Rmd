@@ -257,7 +257,7 @@ for (i in list_iso)
     print(paste0("WDPA ID ", j, " : ", count_j, "/", max_j))
   
     mf_ini_j = mf_ini %>%
-      filter(group == 0 | (group == 1 & wdpaid == j))
+      filter(group == 1 | (group == 2 & wdpaid == j))
     
     #Add average pre-loss
     print("--Add covariate : average tree loss pre-funding")
