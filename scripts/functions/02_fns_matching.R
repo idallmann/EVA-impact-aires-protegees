@@ -53,8 +53,9 @@ fn_pre_grid = function(iso, path_tmp, data_pa, sampling)
     slice(1)
   ##From this minimum area, define the grid size. 
   ##It depends on the sampling of the minimal area, i.e how many pixels we want to subdivide the PA with lowest area
+  ## To avoid a resolution higher than the one of our data, grid size is set to be 30m at least (resolution of tree cover data, Hansen et al. 2013)
   area_min = pa_min$superficie #in kilometer
-  gridSize = round(sqrt(area_min/sampling)*1000, 0) #Side of the pixel is expressed in meter and rounded
+  gridSize = max(30, round(sqrt(area_min/sampling)*1000, 0)) #Side of the pixel is expressed in meter and rounded, if above 30m. 
   
   # Make bounding box of projected country polygon
   bbox = st_bbox(gadm_prj) %>% st_as_sfc() %>% st_as_sf() 
@@ -116,7 +117,7 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
   # Make Buffers around all protected areas
   buffer = st_buffer(wdpa_prj, dist = buffer_m) %>% 
     # Assign an ID "3" to the buffer group
-    mutate(group=4,
+    mutate(group=5,
            group_name = "Buffer")
   
   # Separate funded and non-funded protected areas
@@ -126,18 +127,18 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
     filter(iso3 == iso & is.na(wdpaid) == FALSE & superficie > 0 & status_yr >= yr_min)
   wdpaID_afd_ie = pa_afd_ie[pa_afd_ie$iso3 == iso,]$wdpaid
   wdpa_afd_ie = wdpa_prj %>% filter(WDPAID %in% wdpaID_afd_ie) %>%
-    mutate(group=1,
+    mutate(group=2,
            group_name = "Funded PA, analyzed") # Assign an ID "1" to the funded PA group
   ###...which cannot
   pa_afd_no_ie = data_pa %>%
     filter(iso3 == iso & (is.na(wdpaid) == TRUE | superficie == 0 | is.na(superficie) | status_yr < yr_min))
   wdpaID_afd_no_ie = pa_afd_no_ie[pa_afd_no_ie$iso3 == iso,]$wdpaid 
   wdpa_afd_no_ie = wdpa_prj %>% filter(WDPAID %in% wdpaID_afd_no_ie) %>%
-    mutate(group=2,
+    mutate(group=3,
            group_name = "Funded PA, not analyzed") # Assign an ID "2" to the funded PA group which cannot be stuided in the impact evaluation
   ##PAs not funded by AFD
   wdpa_no_afd = wdpa_prj %>% filter(!WDPAID %in% c(wdpaID_afd_ie, wdpaID_afd_no_ie)) %>% 
-    mutate(group=3,
+    mutate(group=4,
            group_name = "Non-funded PA") # Assign an ID "3" to the non-funded PA group
   
   # Merge the dataframes of funded PAs, non-funded PAs and buffers
@@ -169,10 +170,27 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
   names(r.wdpaid) = "wdpaid"
   
   # Aggregate pixel values by taking the majority
-  grid.group = exact_extract(x=r.group, y=grid, fun='mode', append_cols="gridID") %>%
+  grid.group.ini = exact_extract(x=r.group, y=grid, fun='mode', append_cols="gridID") %>%
     rename(group = mode)
   grid.wdpaid = exact_extract(x=r.wdpaid, y=grid, fun="mode", append_cols="gridID") %>%
     rename(wdpaid = mode)
+  
+  # Randomly select background pixels as potential control pixels
+  ##Take the list of background pixels, the  number of background and treatment pixels
+  list_back_ID = grid.group.ini[grid.group.ini$group == 0 & is.na(grid.group.ini$group) == FALSE,]$gridID
+  n_back_ID = length(list_back_ID)
+  n_treat = length(grid.group.ini[grid.group.ini$group == 2 & is.na(grid.group.ini$group) == FALSE,]$gridID)
+  ##The number of potential control units is five times the number of treatment units
+  n_control = min(n_back_ID, n_treat*5)
+  ##Select randomly the list of background pixels selected as controls
+  ### Note that we control for the case n_back_ID = 1, which causes weird behavior using sample()
+  if(n_back_ID <= 1) list_control_ID = list_back_ID else list_control_ID = sample(x = list_back_ID, size = n_control, replace = FALSE)
+  ## Finally, assign the background pixel chosen to the control group, characterized by group = 1
+  grid.group = grid.group.ini %>%
+    mutate(group = case_when(gridID %in% list_control_ID ~ 1,
+                             TRUE ~ group))
+  
+
   # Merge data frames
   grid.param = grid.group %>%
     merge(., grid.wdpaid, by="gridID") %>%
@@ -185,11 +203,12 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
     #Add treatment year variable
     left_join(dplyr::select(data_pa, c(wdpaid, status_yr)), by = "wdpaid") %>%
     #Add name for the group
-    mutate(group_name = case_when(group == 0 ~ "Potential control",
-                                  group == 1 ~ "Funded PA, analyzed (potential treatment)",
-                                  group == 2 ~ "Funded PA, not analyzed",
-                                  group == 3 ~ "Non-funded PA",
-                                  group == 4 ~ "Buffer"))
+    mutate(group_name = case_when(group == 0 ~ "Background",
+                                  group == 1 ~ "Potential control",
+                                  group == 2 ~ "Funded PA, analyzed (potential treatment)",
+                                  group == 3 ~ "Funded PA, not analyzed",
+                                  group == 4 ~ "Non-funded PA",
+                                  group == 5 ~ "Buffer"))
   
   #Save the grid
   s3write_using(grid.param,
@@ -449,8 +468,11 @@ fn_pre_mf_parallel_old = function(grid.param, path_tmp, iso, name_output, ext_ou
 {
 
   print("----Initialize portfolio")
+  #Take only potential control (group = 1) and treatment (group = 2) in the country gridding
+  grid.aoi = grid.param %>%
+    filter(group %in% c(1,2))
   # Get input data ready for indicator calculation
-  aoi = init_portfolio(grid.param,
+  aoi = init_portfolio(grid.aoi,
                        years = yr_first:yr_last,
                        outdir = path_tmp,
                        #cores = 12,
@@ -613,11 +635,13 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
 {
   
   print("----Initialize portfolio")
+  #Take only potential control (group = 1) and treatment (group = 2) in the country gridding
+  grid.aoi = grid.param %>%
+    filter(group %in% c(1,2))
   # Get input data ready for indicator calculation
-  aoi = init_portfolio(grid.param,
+  aoi = init_portfolio(grid.aoi,
                        years = yr_first:yr_last,
                        outdir = path_tmp,
-                       #cores = 12,
                        add_resources = FALSE)
   
   #Extract a dataframe with pixels ID of grid and portfolio : useful for latter plotting of matched control and treated units
@@ -650,22 +674,22 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   #Compute indicators
   
   #Begin multisession
-  plan(multisession, workers = availableCores()) 
+  plan(callr) 
   
   with_progress({
-    get.soil %<-% calc_indicators(dl.soil,
+    get.soil %<-% {calc_indicators(dl.soil,
                                 indicators = "soilproperties",
                                 stats_soil = c("mean"),
-                                engine = "zonal")
+                                engine = "zonal")}
 
-    get.travelT %<-% calc_indicators(dl.travelT, 
+    get.travelT  %<-% {calc_indicators(dl.travelT, 
                                   indicators = "traveltime",
-                                  stats_accessibility = c("median")) 
+                                  stats_accessibility = c("median"))} 
   
-    get.tree %<-% calc_indicators(dl.tree,
-                               indicators = "treecover_area", 
+    get.tree  %<-% { calc_indicators(dl.tree,
+                               indicators = "treecover_area",
                                min_size=1, # indicator-specific argument
-                               min_cover=10)
+                               min_cover=10)}
   
     # get.elevation %<-% calc_indicators(dl.elevation,
     #                   indicators = "elevation",
@@ -680,18 +704,18 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   #Build indicators' datasets
   ## Transform the output dataframe into a pivot dataframe
   data.soil = unnest(get.soil, soilproperties) %>%
-    mutate(across(mean, round, 3)) %>% # Round numeric columns
+    mutate(across(c("mean"), \(x) round(x, 3))) %>% # Round numeric columns
     pivot_wider(names_from = c("layer", "depth", "stat"), values_from = "mean")
   
   data.travelT = unnest(get.travelT, traveltime) %>%
     pivot_wider(names_from = "distance", values_from = "minutes_median", names_prefix = "minutes_median_")
   
   data.tree = unnest(get.tree, treecover_area) %>%
-    mutate(across(treecover, round, 3)) %>% # Round numeric columns
+    mutate(across(c("treecover"), \(x) round(x, 3))) %>% # Round numeric columns
     pivot_wider(names_from = "years", values_from = "treecover", names_prefix = "treecover_")
   
   ## End parallel plan : close parralel sessions, so must be done once indicators' datasets are built
-  plan(sequential)
+  #plan(sequential)
   
   # The calculation of tree loss area is performed at dataframe base
   # Get the column names of tree cover time series
