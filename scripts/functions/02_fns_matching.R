@@ -211,7 +211,8 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
   # Finally, each group is given a name for later plotting
   grid.param = grid.param.ini %>%
     mutate(group = case_when(wdpaid %in% wdpaID_no_afd & group == 2 ~ 4,
-                             wdpaid %in% wdpaID_afd_no_ie & group == 2 ~3)) %>%
+                             wdpaid %in% wdpaID_afd_no_ie & group == 2 ~3,
+                             TRUE ~ group)) %>%
     #Add name for the group
     mutate(group_name = case_when(group == 0 ~ "Background",
                                   group == 1 ~ "Potential control",

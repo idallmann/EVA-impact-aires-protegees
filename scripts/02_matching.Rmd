@@ -211,20 +211,12 @@ for (i in list_iso)
   #           yr_first = yr_first, yr_last = yr_last)
   # toc = toc()
 
-  
+  tmp_files = list.files(tmp_pre, include.dirs = T, full.names = T, recursive = T)
+  file.remove(tmp_files)
   
 }
 
 toc_pre = toc() #end timer
-
-```
-
-```{r}
-library("future.callr")
-tic()
-plan(callr)
-demo("mandelbrot", package = "future", ask = FALSE)
-toc()
 
 ```
 
