@@ -71,10 +71,18 @@ fn_pre_grid = function(iso, path_tmp, data_pa, sampling)
     st_as_sf() %>%
     mutate(gridID = seq(1:nrow(.))) # Add id for grid cells
   #Visualize and save the grid
+  
+  #Extract country name
+  country.name = data_pa %>% 
+    filter(iso3 == iso) %>% 
+    slice(1)
+  country.name = country.name$pays
+  
   fig_grid = ggplot() +
     geom_sf(data = st_geometry(bbox)) +
     geom_sf(data = st_geometry(gadm_prj)) +
-    geom_sf(data = st_geometry(grid), alpha = 0)
+    geom_sf(data = st_geometry(grid), alpha = 0) +
+    labs(title = paste("Gridding of", country.name))
   fig_save = paste0(path_tmp, "/fig_grid_", iso, ".png")
   ggsave(fig_save,
          plot = fig_grid,
@@ -186,6 +194,7 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
   n_control = min(n_back_ID, n_treat*5)
   ##Select randomly the list of background pixels selected as controls
   ### Note that we control for the case n_back_ID = 1, which causes weird behavior using sample()
+  set.seed(0) #To ensure reproductibility of the random sampling
   if(n_back_ID <= 1) list_control_ID = list_back_ID else list_control_ID = sample(x = list_back_ID, size = n_control, replace = FALSE)
   ## Finally, assign the background pixel chosen to the control group, characterized by group = 1
   grid.group = grid.group.ini %>%
@@ -203,7 +212,7 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
     # Grid is projected to WGS84 because mapme.biodiverty package merely works with this CRS
     st_transform(crs=4326) %>%
     #Add treatment year variable
-    left_join(dplyr::select(data_pa, c(wdpaid, status_yr)), by = "wdpaid")
+    left_join(dplyr::select(data_pa, c(direction_regionale, pays, iso3, wdpaid, status_yr, annee_octroi)), by = "wdpaid")
   
   # If two PAs in different groups overlap, then the rasterization with fun = "min" (as in r.group definition) can lead to bad assgnment of pixels.
   # For instance, if a PA non-funded (group = 4) overlaps with a funded, analyzed one (group = 2), then the pixel will be assigned to the group 2
@@ -232,9 +241,17 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
                 opts = list("region" = ""))
   
   # Visualize and save grouped grid cells
+  
+  ## Extract country name
+  country.name = grid.param %>% 
+    filter(group == 2) %>% 
+    slice(1)
+  country.name = country.name$pays
+  
   fig_grid_group = 
     ggplot(grid.param) +
     geom_sf(aes(fill = as.factor(group_name))) +
+    labs(title = paste("Gridding of", country.name)) +
     scale_fill_brewer(name = "Group", type = "qual", palette = "YlGnBu", direction = -1) +
     # scale_color_viridis_d(
     #   # legend title
@@ -292,7 +309,7 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
     #              show.legend = FALSE) %>%
     + labs(x = "", y = "",
            title = "Share of PAs funded and reported in the WDPA",
-           subtitle = paste("Sample :", sum(df_pie_wdpa$n), "funded protected areas in", unique(df_pie_wdpa$iso3))) %>%
+           subtitle = paste("Sample :", sum(df_pie_wdpa$n), "funded protected areas in", country.name)) %>%
     + scale_fill_brewer(name = "", palette = "Greens") %>%
     + theme_void()
   
@@ -311,7 +328,7 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
     #              show.legend = FALSE) %>%
     + labs(x = "", y = "",
            title = "Share of PAs reported in the WDPA and analyzed",
-           subtitle = paste("Sample :", sum(df_pie_ie$n), "funded protected areas in", unique(df_pie_ie$ISO3))) %>%
+           subtitle = paste("Sample :", sum(df_pie_ie$n), "funded protected areas in", country.name)) %>%
     + scale_fill_brewer(name = "", palette = "Greens") %>%
     + theme_void()
   
@@ -353,16 +370,18 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
 ### None
 
 
-fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output, yr_first, yr_last) 
+fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output, yr_first, yr_last)
 {
   print("----Initialize portfolio")
+  #Take only potential control (group = 1) and treatment (group = 2) in the country gridding
+  grid.aoi = grid.param %>%
+    filter(group %in% c(1,2))
   # Get input data ready for indicator calculation
-  aoi = init_portfolio(grid.param,
+  aoi = init_portfolio(grid.aoi,
                        years = yr_first:yr_last,
                        outdir = path_tmp,
-                       #cores = 12,
                        add_resources = FALSE)
-  
+
   #Extract a dataframe with pixels ID of grid and portfolio : useful for latter plotting of matched control and treated units
   df_gridID_assetID = aoi %>%
     st_drop_geometry() %>%
@@ -373,7 +392,7 @@ fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output, yr_firs
                 object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", "df_gridID_assetID_", iso, ".csv"),
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
-  
+
   print("----Download Rasters and Calculate Covariates")
   print("------Soil")
   # Covariate: Soil
@@ -409,23 +428,23 @@ fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output, yr_firs
   # Covariate: Travel Time
   get.travelT = get_resources(aoi, resources = "nelson_et_al",
                               range_traveltime = c("5k_110mio")) %>% # resource specific argument
-    calc_indicators(., 
+    calc_indicators(.,
                     indicators = "traveltime",
                     stats_accessibility = c("median")) %>%
     unnest(traveltime) %>%
     pivot_wider(names_from = "distance", values_from = "minutes_median", names_prefix = "minutes_median_")
-  
+
   print("----Calculate Deforestation")
   # Time Series of Tree Cover Area
   get.tree = get_resources(aoi, resources = c("gfw_treecover", "gfw_lossyear")) %>%
     calc_indicators(.,
-                    indicators = "treecover_area", 
+                    indicators = "treecover_area",
                     min_size=1, # indicator-specific argument
                     min_cover=10) %>% # indicator-specific argument
     unnest(treecover_area) %>%
     mutate(across(treecover, round, 3)) %>% # Round numeric columns
     pivot_wider(names_from = "years", values_from = "treecover", names_prefix = "treecover_")
-  
+
   # The calculation of tree loss area is performed at dataframe base
   # Get the column names of tree cover time series
   colnames_tree = names(get.tree)[startsWith(names(get.tree), "treecover")]
@@ -435,14 +454,14 @@ fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output, yr_firs
   dropLast = head(colnames_tree, -1)
   # Set list of new column names for tree loss time series
   colnames_loss = dropFirst %>% str_split(., "_")
-  
-  # Add new columns: treeloss_tn = treecover_tn - treecover_t(n-1)  
-  for (i in 1:length(dropFirst)) 
+
+  # Add new columns: treeloss_tn = treecover_tn - treecover_t(n-1)
+  for (i in 1:length(dropFirst))
     {
-    new_colname = paste0("treeloss_", colnames_loss[[i]][2]) 
+    new_colname = paste0("treeloss_", colnames_loss[[i]][2])
     get.tree[[new_colname]] = get.tree[[dropFirst[i]]] - get.tree[[dropLast[i]]]
     }
-  
+
   print("----Export Matching Frame")
   # Remove "geometry" column from pivot dataframes
   df.tree = get.tree %>% mutate(x = NULL) %>% as.data.frame()
@@ -450,11 +469,11 @@ fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output, yr_firs
   df.soil = get.soil %>% mutate(x = NULL) %>% as.data.frame()
   # df.elevation = get.elevation %>% mutate(x = NULL) %>% as.data.frame()
   # df.tri = get.tri %>% mutate(x=NULL) %>% as.data.frame()
-  
+
   # Make a dataframe containing only "assetid" and geometry
   df.geom = get.tree[, c("assetid", "x")] %>% as.data.frame()
-  
-  # Merge all output dataframes 
+
+  # Merge all output dataframes
   # pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.elevation, df.tri, df.geom)) %>%
   #   st_as_sf()
   pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.geom)) %>%
@@ -462,7 +481,7 @@ fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output, yr_firs
   # Make column Group ID and WDPA ID have data type "integer"
   pivot.all$group = as.integer(pivot.all$group)
   pivot.all$wdpaid = as.integer(pivot.all$wdpaid)
-  
+
   ## Save files
   name_save = paste0(name_output, "_", iso, ext_output)
   s3write_using(pivot.all,
@@ -470,11 +489,11 @@ fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output, yr_firs
                 object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", name_save),
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
-                
+
   #Removing files in the temporary folder
   do.call(file.remove, list(list.files(tmp_pre, include.dirs = F, full.names = T, recursive = T)))
-  
-  
+
+
 }
 
 
@@ -638,19 +657,19 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input)
                       object = object,
                       opts = list("region" = "")) 
   
-  #Subset to control and treatment units with year of treaament >= yr_min
+  #Subset to control and treatment units with year of treatment >= yr_min
   mf = mf %>%
     #Remove PAs non-funded by AFD and buffers
     filter(group==1 | group==2) %>%
-    #Remove observations with NA values only (except for status_yr, which is NA for control units)
-    drop_na(-c(status_yr)) %>%
+    #Remove observations with NA values only for covariates (except for status_yr, direction_regionale, annee_octroi which are NA for control units)
+    drop_na(-c(status_yr, annee_octroi, direction_regionale, iso3, pays)) %>%
     filter(status_yr >= yr_min | is.na(status_yr))
   
   #Write the list of PAs matched
   list_pa = mf %>%
     st_drop_geometry() %>%
     as.data.frame() %>%
-    dplyr::select(c(wdpaid, status_yr)) %>%
+    dplyr::select(c(direction_regionale, pays, iso3, wdpaid, status_yr, annee_octroi)) %>%
     mutate(iso3 = iso, .before = "wdpaid") %>%
     filter(wdpaid != 0) %>%
     group_by(wdpaid) %>%
@@ -788,7 +807,7 @@ fn_post_cem = function(mf, lst_cutoffs, iso, path_tmp,
 ## OUTPUTS :
 ### None
 
-fn_post_covbal = function(out.cem, colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, iso, path_tmp, wdpaid)
+fn_post_covbal = function(out.cem, mf, colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, iso, path_tmp, wdpaid)
 {
   
   #Save summary table from matching
@@ -796,6 +815,12 @@ fn_post_covbal = function(out.cem, colname.travelTime, colname.clayContent, coln
   tbl_cem_nn = smry_cem$nn
   tbl_cem_m = smry_cem$sum.matched
   tbl_cem_all = smry_cem$sum.all
+  
+  #Extract country name
+  country.name = mf %>% 
+    filter(group == 2) %>% 
+    slice(1)
+  country.name = country.name$pays
   
   #Plot covariate balance
   c_name = data.frame(old = c(colname.travelTime, colname.clayContent,
@@ -811,7 +836,7 @@ fn_post_covbal = function(out.cem, colname.travelTime, colname.clayContent, coln
                        #thresholds = c(m = .1),
                        var.order = "unadjusted",
                        var.names = c_name,
-                       title = paste0("Covariate balance for WDPA ID ", wdpaid, " in ", iso),
+                       title = paste0("Covariate balance for WDPA ID ", wdpaid, " in ", country.name),
                        sample.names = c("Discarded", "Selected"),
                        wrap = 25 # at how many characters does axis label break to new line
   )
@@ -875,11 +900,17 @@ fn_post_covbal = function(out.cem, colname.travelTime, colname.clayContent, coln
 ## OUTPUTS :
 ### None
 
-fn_post_plot_density = function(out.cem, colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, iso, path_tmp, wdpaid = j)
+fn_post_plot_density = function(out.cem, mf, colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, iso, path_tmp, wdpaid = j)
 {
   # Define Facet Labels
   fnl = c(`Unadjusted Sample` = "Before Matching",
           `Adjusted Sample` = "After Matching")
+  
+  #Extract country name
+  country.name = mf %>% 
+    filter(group == 2) %>% 
+    slice(1)
+  country.name = country.name$pays
   
   #Define plots
   ## Density plot for Travel Time
@@ -891,7 +922,7 @@ fn_post_plot_density = function(out.cem, colname.travelTime, colname.clayContent
     #scale_fill_viridis(discrete = T) +
     scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
     labs(title = "Distributional balance for accessibility",
-         subtitle = paste0("Protected area in ", iso, ", WDPAID ", wdpaid),
+         subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
          x = "Accessibility (min)",
          fill = "Group") +
     theme(
@@ -918,7 +949,7 @@ fn_post_plot_density = function(out.cem, colname.travelTime, colname.clayContent
     #scale_fill_viridis(discrete = T) +
     scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
     labs(title = "Distributional balance for clay content",
-         subtitle = paste0("Protected area in ", iso, ", WDPAID ", wdpaid),
+         subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
          x = "Clay content at 0~20cm soil depth (%)",
          fill = "Group") +
     theme_bw() +
@@ -946,7 +977,7 @@ fn_post_plot_density = function(out.cem, colname.travelTime, colname.clayContent
   #     #scale_fill_viridis(discrete = T) +
   #     scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
   #     labs(title = "Distributional balance for elevation",
-  #          subtitle = paste0("Protected area in ", iso, ", WDPAID ", wdpaid),
+  #          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
   #          x = "Elevation (m)",
   #          fill = "Group") +
   #     theme_bw() +
@@ -973,7 +1004,7 @@ fn_post_plot_density = function(out.cem, colname.travelTime, colname.clayContent
   #     #scale_fill_viridis(discrete = T) +
   #     scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
   #     labs(title = "Distributional balance for Terrain Ruggedness Index (TRI)",
-  #          subtitle = paste0("Protected area in ", iso, ", WDPAID ", wdpaid),
+  #         subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
   #          x = "TRI",
   #          fill = "Group") +
   #     theme_bw() +
@@ -1001,7 +1032,7 @@ fn_post_plot_density = function(out.cem, colname.travelTime, colname.clayContent
     scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
     # scale_x_continuous(trans = "log10") +
     labs(title = "Distributional balance for forest cover in 2000",
-         subtitle = paste0("Protected area in ", iso, ", WDPAID ", wdpaid),
+         subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
          x = "Forest cover (ha)",
          fill = "Group") +
     theme_bw() +
@@ -1029,7 +1060,7 @@ fn_post_plot_density = function(out.cem, colname.travelTime, colname.clayContent
     #scale_fill_viridis(discrete = T) +
     scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
     labs(title = "Distributional balance for former average forest loss",
-         subtitle = paste0("Protected area in ", iso, ", WDPAID ", wdpaid),
+         subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
          x = "Forest loss (%)",
          fill = "Group") +
     theme_bw() +
@@ -1105,7 +1136,7 @@ fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpa
   
   # Pivot Wide ==> Pivot Long
   matched.long = matched.wide %>%
-    dplyr::select(c(group, wdpaid, assetid, weights, starts_with(colfc.prefix))) %>%
+    dplyr::select(c(direction_regionale, iso3, group, wdpaid, status_yr, annee_octroi,assetid, weights, starts_with(colfc.prefix))) %>%
     pivot_longer(cols = c(starts_with(colfc.prefix)),
                  names_to = c("var", "year"),
                  names_sep = colfc.bind,
@@ -1116,7 +1147,7 @@ fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpa
   
   # Pivot Wide ==> Pivot Long
   unmatched.long = unmatched.wide %>%
-    dplyr::select(c(group, wdpaid, assetid, starts_with(colfc.prefix))) %>%
+    dplyr::select(c(direction_regionale, iso3, group, wdpaid, status_yr, annee_octroi, assetid, starts_with(colfc.prefix))) %>%
     pivot_longer(cols = c(starts_with(colfc.prefix)),
                  names_to = c("var", "year"),
                  names_sep = colfc.bind,
@@ -1176,6 +1207,18 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid)
     slice(1)
   treatment.year = treatment.year$status_yr
   
+  #Extract funding year
+  funding.year = mf %>% 
+    filter(group == 2) %>% 
+    slice(1)
+  funding.year = funding.year$annee_octroi
+  
+  #Extract country name
+  country.name = mf %>% 
+    filter(group == 2) %>% 
+    slice(1)
+  country.name = country.name$pays
+  
   #Plot
   ## Change Facet Labels
   fct.labs <- c("Before Matching", "After Matching")
@@ -1185,8 +1228,8 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid)
   fig_trend_unm = ggplot(df.trend, aes(x = year, y = avgFC)) +
     geom_line(aes(group = group, color = as.character(group))) +
     geom_point(aes(color = as.character(group))) +
-    geom_vline(aes(xintercept=as.character(treatment.year), size="Funding Start"), linetype=2, linewidth=0.5, color="orange") +
-    
+    geom_vline(aes(xintercept=as.character(treatment.year), size="Treatment year"), linetype=1, linewidth=0.5, color="orange") +
+    geom_vline(aes(xintercept=as.character(funding.year), size="Funding year"), linetype=2, linewidth=0.5, color="grey30") +
     scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) +
     scale_color_hue(labels = c("Control", "Treatment")) +
     
@@ -1194,7 +1237,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid)
                labeller = labeller(matched = fct.labs)) +
     
     labs(title = "Evolution of forest cover",
-         subtitle = paste0("Protected area in ", iso, ", WDPAID ", wdpaid),
+         subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
          x = "Year", y = "Average forest cover (ha)", color = "Group") +
     theme_bw() +
     theme(
@@ -1214,22 +1257,23 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid)
       panel.grid.major.y = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
       panel.grid.minor.y = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
       
-      strip.text.x = element_text(size = 12) # Facet Label 
-    ) + guides(size = guide_legend(override.aes = list(color = "orange"))) # Add legend for geom_vline
-  
+      strip.text.x = element_text(size = 12) # Facet Label
+      ) +
+    guides(size = guide_legend(override.aes = list(color = c("grey30", "orange")))) # Add legend for geom_vline
+
   # Trend Plot for matched data
   fig_trend_m = ggplot(df.matched.trend, aes(x = year, y = avgFC)) +
     geom_line(aes(group = group, color = as.character(group))) +
     geom_point(aes(color = as.character(group))) +
-    geom_vline(aes(xintercept=as.character(treatment.year), size="Funding Start"), linetype=2, linewidth=0.5, color="orange") +
-    
+    geom_vline(aes(xintercept=as.character(treatment.year), size="Treatment year"), linetype=1, linewidth=0.5, color="orange") +
+    geom_vline(aes(xintercept=as.character(funding.year), size="Funding year"), linetype=2, linewidth=0.5, color="grey30") +
     #scale_y_continuous(breaks=seq(0,100,10), labels=paste(seq(0,100,10)),
     #                   expand=c(0,0), limits=c(0,100)) +
     scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) +
     scale_color_hue(labels = c("Control", "Treatment")) +
     
     labs(title = "Evolution of forest cover",
-         subtitle = paste0("Protected area in ", iso, ", WDPA ID ", wdpaid),
+         subtitle = paste0("Protected area in ", country.name, ", WDPA ID ", wdpaid),
          x = "Year", y = "Average forest cover (ha)", color = "Group") +
     theme_bw() +
     theme(
@@ -1249,7 +1293,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid)
       panel.grid.major.y = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
       panel.grid.minor.y = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
       
-    ) + guides(size = guide_legend(override.aes = list(color = "orange"))) # Add legend for geom_vline
+    ) + guides(size = guide_legend(override.aes = list(color = c("grey30", "orange")))) # Add legend for geom_vline
   
   ##Saving plots
   tmp = paste(tempdir(), "fig", sep = "/")
@@ -1306,20 +1350,22 @@ fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp)
                                   group_matched == 2 ~ "Treatment (matched)",
                                   TRUE ~ group_name))
   
+  #Extract country name
+  country.name = grid %>% 
+    filter(group == 2) %>% 
+    slice(1)
+  country.name = country.name$pays
+  
   # Visualize and save grouped grid cells
   fig_grid = 
     ggplot(grid) +
     #The original gridding as a first layer
     geom_sf(aes(fill = as.factor(group_plot))) +
     scale_fill_brewer(name = "Group", type = "qual", palette = "BrBG", direction = 1) +
-    #Display matched pixels
-    # geom_sf(aes(color = as.factor(group_matched))) +
-    # scale_color_brewer(name = "Matched units", type = "qual", palette = "Reds", direction = 1) +
-    # scale_color_viridis_d(
-    #   # legend title
-    #   name="Group", 
-    #   # legend label
-    #   labels=c("control candidate", "treatment candidate", "non-funded PA", "buffer zone")) +
+    labs(title = paste("Gridding of", country.name, ": matched units"),
+         subtitle = ifelse(is_pa == TRUE,
+                            yes = paste("Focus on WDPAID", wdpaid),
+                            no = "All protected areas analyzed")) +
     theme_bw()
   
   fig_save = ifelse(is_pa == TRUE,

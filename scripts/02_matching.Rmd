@@ -104,6 +104,7 @@ wdpa_wld_raw = s3read_using(
 buffer_m = 10000
 # Specify the grid cell size in meter
 #gridSize = 10000 
+n_sampling = 50
 
 #Load data 
 data_pa = 
@@ -117,7 +118,7 @@ data_pa =
 
 #List of countries in the sample
 #list_iso = unique(data_pa$iso3)
-list_iso = c("LAO", "CMR")
+list_iso = c("LAO")
 # Specify a list of WDPA IDs of funded protected areas (treated areas)
 # paid = data_stat_nodupl[data_stat_nodupl$iso3 == country,]$wdpaid
 
@@ -175,7 +176,7 @@ for (i in list_iso)
   output_pre_grid = fn_pre_grid(iso = i, 
                                 path_tmp = tmp_pre, 
                                 data_pa = data_pa,
-                                sampling = 50)
+                                sampling = n_sampling)
   
   #Load the outputs 
   utm_code = output_pre_grid$utm_code
@@ -194,20 +195,18 @@ for (i in list_iso)
 
   #Calculating outcome and other covariates for all observation units
   print("--Calculating outcome and other covariates")
-  ##Parallel computing : must be activated here and not in a function
-  #plan(multisession, workers = availableCores())
   tic_parallel = tic()
-  ###ATTENTION : J4AI REMPLACE %<-% par = DANS calc_indicators : a modifier
   fn_pre_mf_parallel(grid.param = grid_param, path_tmp = tmp_pre, iso = i,
-          name_output = "matching_frame_10km", ext_output = ".gpkg",
+          name_output = paste0("matching_frame_spling", n_sampling),
+          ext_output = ".gpkg",
           yr_first = yr_first, yr_last = yr_last)
   toc_parallel = toc()
-  #plan(sequential)
   
   # ##Without parallel computing
   # tic = tic()
   # fn_pre_mf(grid.param = grid_param, path_tmp = tmp_pre, iso = i,
-  #           name_output = "matching_frame_10km", ext_output = ".gpkg",
+  #           name_output = paste0("matching_frame_spling", n_sampling),
+  #           ext_output = ".gpkg",
   #           yr_first = yr_first, yr_last = yr_last)
   # toc = toc()
 
@@ -237,7 +236,7 @@ for (i in list_iso)
   print("--Loading the matching frame")
   mf_ini = fn_post_load_mf(iso = i, 
                            yr_min = yr_min,
-                           name_input = "matching_frame_10km",
+                           name_input = paste0("matching_frame_spling", n_sampling),
                            ext_input = ".gpkg")
   
   list_pa = unique(mf_ini[mf_ini$wdpaid != 0, ]$wdpaid)
@@ -285,7 +284,8 @@ for (i in list_iso)
     #Plots : covariates
     print("--Some plots : covariates")
     print("----Covariate balance")
-    fn_post_covbal(out.cem = out.cem_j, 
+    fn_post_covbal(out.cem = out.cem_j,
+                   mf = mf_j,
                       colname.travelTime = colname.travelTime, 
                        colname.clayContent = colname.clayContent,
                        colname.fcIni = colname.fcIni, 
@@ -295,6 +295,7 @@ for (i in list_iso)
                       wdpaid = j)
     print("----Density plots")
     fn_post_plot_density(out.cem = out.cem_j, 
+                         mf = mf_j,
                       colname.travelTime = colname.travelTime, 
                        colname.clayContent = colname.clayContent,
                        colname.fcIni = colname.fcIni, 
