@@ -743,18 +743,18 @@ fn_post_cutoff = function(mf, colname.travelTime, colname.clayContent, colname.e
   lst_cutoffs = c()
   
   # Quantile in 8 parts
-  lst_cutoffs[[colname.travelTime]] = as.integer(quantile(mf[[colname.travelTime]], probs = seq(0, 1, 0.2), na.rm=TRUE))
+  lst_cutoffs[[colname.travelTime]] = as.integer(quantile(mf[[colname.travelTime]], probs = seq(0, 1, 0.1), na.rm=TRUE))
   
-  lst_cutoffs[[colname.clayContent]] = as.integer(quantile(mf[[colname.clayContent]], probs = seq(0, 1, 0.2), na.rm=TRUE))
+  lst_cutoffs[[colname.clayContent]] = as.integer(quantile(mf[[colname.clayContent]], probs = seq(0, 1, 0.1), na.rm=TRUE))
   #lst_cutoffs[[colname.clayContent]] = as.integer(c(0,10,20,30, 32,34,36,38,40, 50,60,70,80,90,100))
   
   # lst_cutoffs[[colname.elevation]] = as.integer(quantile(mf[[colname.elevation]], probs = seq(0, 1, 0.125), na.rm=TRUE))
   # 
   # lst_cutoffs[[colname.tri]] = as.integer(quantile(mf[[colname.tri]], probs = seq(0, 1, 0.125), na.rm=TRUE))
   
-  lst_cutoffs[[colname.fcIni]] = as.integer(quantile(mf[[colname.fcIni]], probs = seq(0, 1, 0.2), na.rm=TRUE))
+  lst_cutoffs[[colname.fcIni]] = as.integer(quantile(mf[[colname.fcIni]], probs = seq(0, 1, 0.1), na.rm=TRUE))
   
-  lst_cutoffs[[colname.flAvg]] = as.integer(quantile(mf[[colname.flAvg]], probs = seq(0, 1, 0.2), na.rm=TRUE))
+  lst_cutoffs[[colname.flAvg]] = as.integer(quantile(mf[[colname.flAvg]], probs = seq(0, 1, 0.1), na.rm=TRUE))
   
   return(lst_cutoffs)
 }
@@ -785,6 +785,19 @@ fn_post_cem = function(mf, lst_cutoffs, iso, path_tmp,
                     data = mf, 
                     method = "cem", 
                     cutpoints = lst_cutoffs)
+  
+  ###TEST : skip to the next iteration if no matched units, and record the error
+  # skip_to_next <- FALSE
+  # tryCatch(
+  #   out.cem = matchit(formula,
+  #                     data = mf, 
+  #                     method = "cem", 
+  #                     cutpoints = lst_cutoffs),
+  #   error = function(e) {skip_to_next <<- TRUE}
+  # )
+  # 
+  # if(skip_to_next) { next }
+
   
   # fig_save = paste0(path_tmp, "/fig_cov_imb_", iso, ".png")
   # png(filename = fig_save,  width = 480, height = 480, units = "px", pointsize = 12)
