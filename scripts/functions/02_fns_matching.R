@@ -781,24 +781,31 @@ fn_post_cem = function(mf, lst_cutoffs, iso, path_tmp,
   ))
   
   # CEM Match
-  out.cem = matchit(formula,
-                    data = mf, 
-                    method = "cem", 
-                    cutpoints = lst_cutoffs)
+  # out.cem = matchit(formula,
+  #                   data = mf, 
+  #                   method = "cem", 
+  #                   cutpoints = lst_cutoffs)
   
   ###TEST : skip to the next iteration if no matched units, and record the error
-  # skip_to_next <- FALSE
-  # tryCatch(
-  #   out.cem = matchit(formula,
-  #                     data = mf, 
-  #                     method = "cem", 
-  #                     cutpoints = lst_cutoffs),
-  #   error = function(e) {skip_to_next <<- TRUE}
-  # )
-  # 
-  # if(skip_to_next) { next }
-
+  tryCatch(
+    {
+      
+    out.cem = matchit(formula,
+                      data = mf,
+                      method = "cem",
+                      cutpoints = lst_cutoffs)
+    return(out.cem)
+    
+    },
+    error=function(e) 
+    {
+      message('An Error Occurred')
+      #print(e)
+      return("skip_to_next")
+    }
+  )
   
+
   # fig_save = paste0(path_tmp, "/fig_cov_imb_", iso, ".png")
   # png(filename = fig_save,  width = 480, height = 480, units = "px", pointsize = 12)
   # plot(summary(out.cem))
@@ -808,9 +815,82 @@ fn_post_cem = function(mf, lst_cutoffs, iso, path_tmp,
   #                    region = "", 
   #                    show_progress = FALSE)
   
-  return(out.cem)
 }
 
+fn_post_match = function(mf, lst_cutoffs, iso, path_tmp,
+                         colname.travelTime, colname.clayContent, 
+                         colname.elevation, colname.tri, 
+                         colname.fcIni, colname.flAvg)
+{
+  # Define cutoffs for CEM matching
+  
+  ## Make cut-off list
+  lst_cutoffs = c()
+  
+  ## Quantile in 8 parts
+  lst_cutoffs[[colname.travelTime]] = as.integer(quantile(mf[[colname.travelTime]], probs = seq(0, 1, 0.5), na.rm=TRUE))
+  
+  lst_cutoffs[[colname.clayContent]] = as.integer(quantile(mf[[colname.clayContent]], probs = seq(0, 1, 0.5), na.rm=TRUE))
+  #lst_cutoffs[[colname.clayContent]] = as.integer(c(0,10,20,30, 32,34,36,38,40, 50,60,70,80,90,100))
+  
+  # lst_cutoffs[[colname.elevation]] = as.integer(quantile(mf[[colname.elevation]], probs = seq(0, 1, 0.125), na.rm=TRUE))
+  # 
+  # lst_cutoffs[[colname.tri]] = as.integer(quantile(mf[[colname.tri]], probs = seq(0, 1, 0.125), na.rm=TRUE))
+  
+  lst_cutoffs[[colname.fcIni]] = as.integer(quantile(mf[[colname.fcIni]], probs = seq(0, 1, 0.5), na.rm=TRUE))
+  
+  lst_cutoffs[[colname.flAvg]] = as.integer(quantile(mf[[colname.flAvg]], probs = seq(0, 1, 0.5), na.rm=TRUE))
+  
+  # Perform CEM matching
+  ## Formula
+  formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
+                        + .(as.name(colname.clayContent))  
+                        +  .(as.name(colname.fcIni)) 
+                        + .(as.name(colname.flAvg))))
+  
+  ## Matching handling errors due to absence of matching
+  tryCatch(
+    {
+      
+      out.cem = matchit(formula,
+                        data = mf,
+                        method = "cem",
+                        cutpoints = lst_cutoffs)
+      return(out.cem)
+      
+    },
+    
+    error=function(e) 
+    {
+      message('An Error Occurred')
+      #print(e)
+      return("skip_to_next")
+    }
+  )
+  
+  ## Extract covariate balance after matching
+  smry.out.cem = summary(out.cem)
+  df.cov.m = smry.out.cem$sum.matched %>%
+    as.data.frame() %>%
+    clean_names() %>%
+    mutate(abs_std_mean_diff = abs(std_mean_diff),
+           sum_abs_std_mean_diff = sum(abs_std_mean_diff),
+           is_bal_ok = abs_std_mean_diff < 0.25,
+           .after = "std_mean_diff")
+  
+  ## If all covariates have an absolute standardized mean difference below 0.25 standard deviation, then the matching is considered good
+  is_match_ok = sum(df.cov.m$is_bal_ok) == nrow(df.cov.m)
+  
+  ###TO DO
+  #Implement a while loop so that cutoffs are modified if : no matching OR matching balance is not satisfying.
+  # First idea : 
+  ## No matching : coarsen each covariates
+  ## Matching not satisfactory : get the covariates, coarsen them. Appropriate to do this ? Or risk than changing the cutoffs for a variable induce problem for an other
+  
+}
+  
+  
+  
 #Plot covariates balance (plots and summary table)
 ## INPUTS :
 ### out.cem : list of results from the CEM matching

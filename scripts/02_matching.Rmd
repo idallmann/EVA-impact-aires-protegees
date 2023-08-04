@@ -37,7 +37,7 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 
 ```{r, eval = FALSE}
 #Install some libraries
-install.packages(c("tictoc", "geodata", "wdpar", "exactextractr", "MatchIt", "fixest", "cobalt", "future", "progressr", "mapme.biodiversity", "future.callr"))
+install.packages(c("tictoc", "geodata", "wdpar", "exactextractr", "MatchIt", "fixest", "cobalt", "future", "progressr", "mapme.biodiversity", "future.callr", "janitor"))
 #remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
 
 #Install the web driver to download wdpa data directly
@@ -45,6 +45,7 @@ webdriver::install_phantomjs()
 
 # Load Libraries
 library(dplyr)
+library(janitor)
 library(tictoc) #For timing
 library(xtable)
 library(tidyr)
@@ -118,7 +119,7 @@ data_pa =
 
 #List of countries in the sample
 #list_iso = unique(data_pa$iso3)
-list_iso = c("LAO")
+list_iso = c("COM")
 # Specify a list of WDPA IDs of funded protected areas (treated areas)
 # paid = data_stat_nodupl[data_stat_nodupl$iso3 == country,]$wdpaid
 
@@ -280,6 +281,7 @@ for (i in list_iso)
                        colname.clayContent = colname.clayContent,
                        colname.fcIni = colname.fcIni, 
                        colname.flAvg = colname.flAvg)
+    if(out.cem_j == "skip_to_next") {next}
     
     #Plots : covariates
     print("--Some plots : covariates")
