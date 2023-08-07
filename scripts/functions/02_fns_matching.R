@@ -46,9 +46,9 @@ fn_pre_grid = function(iso, path_tmp, data_pa, sampling)
     st_transform(crs = utm_code)
   
   #Determine relevant grid size
-  ##Select the PA in the country with minimum area. PAs with null areas are discarded (not analyzed anymwa)
+  ##Select the PA in the country with minimum area. PAs with null areas or treatment year before 2000 are discarded (not analyzed anyway)
   pa_min = data_pa %>%
-    filter(iso3 == iso & superficie > 0) %>%
+    filter(iso3 == iso & status_yr >= 2000 & superficie > 0) %>%
     arrange(superficie) %>%
     slice(1)
   ##From this minimum area, define the grid size. 
@@ -112,6 +112,11 @@ fn_pre_grid = function(iso, path_tmp, data_pa, sampling)
 
 fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, data_pa, gadm_prj, grid, gridSize)
 {
+  
+  # wdpa_prj = wdpa_raw %>%
+  #   filter(ISO3 == iso) %>%
+  #   dplyr::select(c("WDPAID", "MARINE", "PA_DEF", "STATUS_YR", "NO_TK_AREA"))
+  # mapview(wdpa_prj)
   # PAs are projected, and column "geometry_type" is added
   wdpa_prj = wdpa_raw %>%
     filter(ISO3 == iso) %>%
@@ -817,69 +822,113 @@ fn_post_cem = function(mf, lst_cutoffs, iso, path_tmp,
   
 }
 
-fn_post_match = function(mf, lst_cutoffs, iso, path_tmp,
+fn_post_match = function(mf, iso, path_tmp,
                          colname.travelTime, colname.clayContent, 
                          colname.elevation, colname.tri, 
                          colname.fcIni, colname.flAvg)
 {
-  # Define cutoffs for CEM matching
-  
-  ## Make cut-off list
-  lst_cutoffs = c()
-  
-  ## Quantile in 8 parts
-  lst_cutoffs[[colname.travelTime]] = as.integer(quantile(mf[[colname.travelTime]], probs = seq(0, 1, 0.5), na.rm=TRUE))
-  
-  lst_cutoffs[[colname.clayContent]] = as.integer(quantile(mf[[colname.clayContent]], probs = seq(0, 1, 0.5), na.rm=TRUE))
-  #lst_cutoffs[[colname.clayContent]] = as.integer(c(0,10,20,30, 32,34,36,38,40, 50,60,70,80,90,100))
-  
-  # lst_cutoffs[[colname.elevation]] = as.integer(quantile(mf[[colname.elevation]], probs = seq(0, 1, 0.125), na.rm=TRUE))
-  # 
-  # lst_cutoffs[[colname.tri]] = as.integer(quantile(mf[[colname.tri]], probs = seq(0, 1, 0.125), na.rm=TRUE))
-  
-  lst_cutoffs[[colname.fcIni]] = as.integer(quantile(mf[[colname.fcIni]], probs = seq(0, 1, 0.5), na.rm=TRUE))
-  
-  lst_cutoffs[[colname.flAvg]] = as.integer(quantile(mf[[colname.flAvg]], probs = seq(0, 1, 0.5), na.rm=TRUE))
-  
-  # Perform CEM matching
   ## Formula
   formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
                         + .(as.name(colname.clayContent))  
                         +  .(as.name(colname.fcIni)) 
                         + .(as.name(colname.flAvg))))
+
   
-  ## Matching handling errors due to absence of matching
-  tryCatch(
-    {
-      
-      out.cem = matchit(formula,
-                        data = mf,
-                        method = "cem",
-                        cutpoints = lst_cutoffs)
-      return(out.cem)
-      
-    },
+  is_match_ok = FALSE
+  #step_ini = 0.1
+  count = 1
+  list_sep = c(1, 5, 10, 15, 20, 25, 40, 50) #The thresholds to try, in percentage points  
+  while (is_match_ok == FALSE)
+  {
+    # Define cutoffs for CEM matching
     
-    error=function(e) 
-    {
-      message('An Error Occurred')
-      #print(e)
-      return("skip_to_next")
-    }
-  )
+    ## Make cut-off list
+    lst_cutoffs = c()
+    sep = list_sep[count] #step is increased by 10% each iteration
+    
+    
+    ## Quantile in 8 parts
+    lst_cutoffs[[colname.travelTime]] = as.integer(quantile(mf[[colname.travelTime]], probs = seq(0, 1, length.out = (1/sep)*100+1), na.rm=TRUE))
+    
+    lst_cutoffs[[colname.clayContent]] = as.integer(quantile(mf[[colname.clayContent]], probs = seq(0, 1, length.out = (1/sep)*100+1), na.rm=TRUE))
+    #lst_cutoffs[[colname.clayContent]] = as.integer(c(0,10,20,30, 32,34,36,38,40, 50,60,70,80,90,100))
+    
+    # lst_cutoffs[[colname.elevation]] = as.integer(quantile(mf[[colname.elevation]], probs = seq(0, 1, 0.125), na.rm=TRUE))
+    # 
+    # lst_cutoffs[[colname.tri]] = as.integer(quantile(mf[[colname.tri]], probs = seq(0, 1, 0.125), na.rm=TRUE))
+    
+    lst_cutoffs[[colname.fcIni]] = as.integer(quantile(mf[[colname.fcIni]], probs = seq(0, 1, length.out = (1/sep)*100+1), na.rm=TRUE))
+    
+    lst_cutoffs[[colname.flAvg]] = as.integer(quantile(mf[[colname.flAvg]], probs = seq(0, 1, length.out = (1/sep)*100+1), na.rm=TRUE))
+
+
+    ## Matching handling errors due to absence of matching
+    tryCatch(
+      {
+        #Try to perform matching
+        out.cem = matchit(formula,
+                          data = mf,
+                          method = "cem",
+                          cutpoints = lst_cutoffs)
+        
+        #Compute matching feature FI the matching has been performed, otherwise it runs the error function
+        # df_nn = summary(out.cem)$nn %>% as.data.frame()
+        # n_matched = df_nn["Matched", "Treated"]
+        # n_all = df_nn["All", "Treated"]
+        # per_matched = n_matched/n_all*100
+        
+        df_cov_m = summary(out.cem, interactions = TRUE)$sum.matched %>%
+          as.data.frame() %>%
+          clean_names() %>%
+          mutate(sum_abs_std_mean_diff = sum(abs(std_mean_diff)),
+                 is_var_ok = var.ratio < 2 & var.ratio > 0.5, #Check variance ratio between treated and controls
+                 is_mean_ok = abs(std_mean_diff) < 0.1, #Check absolute standardized mean difference
+                 is_bal_ok = is_var_ok*is_mean_ok, #Binary : TRUE if both variance and mean difference check pass, 0 if at least one does not
+                 .after = "std_mean_diff")
+        
+        
+        
+        if(per_matched >= 25)
+        {
+          print(paste("It's a good match !", round(per_matched, 1), "% of treated units matched"))
+          is_match_ok <<- TRUE
+          return(out.cem)
+        } else 
+          {
+            print(paste("Matching was done successfuly but only", per_matched, "% of treated units matched. Next iteration"))
+            count = count+1
+          }
+        
+      },
+
+      error=function(e)
+      {
+        if(is_match_ok == FALSE) 
+          {
+          message(paste('Error : cutoffs of', sep, 'pp not enough.'))
+          count <<- count + 1
+        }
+      }
+    )
+    
+    
+  }
+
   
-  ## Extract covariate balance after matching
-  smry.out.cem = summary(out.cem)
-  df.cov.m = smry.out.cem$sum.matched %>%
-    as.data.frame() %>%
-    clean_names() %>%
-    mutate(abs_std_mean_diff = abs(std_mean_diff),
-           sum_abs_std_mean_diff = sum(abs_std_mean_diff),
-           is_bal_ok = abs_std_mean_diff < 0.25,
-           .after = "std_mean_diff")
+
   
-  ## If all covariates have an absolute standardized mean difference below 0.25 standard deviation, then the matching is considered good
-  is_match_ok = sum(df.cov.m$is_bal_ok) == nrow(df.cov.m)
+  # ## Extract covariate balance after matching
+  # smry.out.cem = summary(out.cem)
+  # df.cov.m = smry.out.cem$sum.matched %>%
+  #   as.data.frame() %>%
+  #   clean_names() %>%
+  #   mutate(abs_std_mean_diff = abs(std_mean_diff),
+  #          sum_abs_std_mean_diff = sum(abs_std_mean_diff),
+  #          is_bal_ok = abs_std_mean_diff < 0.25,
+  #          .after = "std_mean_diff")
+  # 
+  # ## If all covariates have an absolute standardized mean difference below 0.25 standard deviation, then the matching is considered good
+  # is_match_ok = sum(df.cov.m$is_bal_ok) == nrow(df.cov.m)
   
   ###TO DO
   #Implement a while loop so that cutoffs are modified if : no matching OR matching balance is not satisfying.
@@ -1045,7 +1094,6 @@ fn_post_plot_density = function(out.cem, mf, colname.travelTime, colname.clayCon
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
          x = "Clay content at 0~20cm soil depth (%)",
          fill = "Group") +
-    theme_bw() +
     theme(
       plot.title = element_text(family="Arial Black", size=16, hjust=0),
       
@@ -1128,7 +1176,6 @@ fn_post_plot_density = function(out.cem, mf, colname.travelTime, colname.clayCon
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
          x = "Forest cover (ha)",
          fill = "Group") +
-    theme_bw() +
     theme(
       plot.title = element_text(family="Arial Black", size=16, hjust=0),
       
@@ -1156,7 +1203,6 @@ fn_post_plot_density = function(out.cem, mf, colname.travelTime, colname.clayCon
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
          x = "Forest loss (%)",
          fill = "Group") +
-    theme_bw() +
     theme(
       plot.title = element_text(family="Arial Black", size=16, hjust=0.5),
       legend.title = element_blank(),

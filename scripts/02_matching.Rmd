@@ -35,7 +35,7 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 
 ```
 
-```{r, eval = FALSE}
+```{r eval=, message=FALSE, warning=FALSE}
 #Install some libraries
 install.packages(c("tictoc", "geodata", "wdpar", "exactextractr", "MatchIt", "fixest", "cobalt", "future", "progressr", "mapme.biodiversity", "future.callr", "janitor"))
 #remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
@@ -87,9 +87,10 @@ tmp_post = paste(tempdir(), "matching_post", sep = "/")
 
 #(Down)load WDPA database
 ##Download
-#wdpa_wld_raw = wdpa_fetch(x = "global", wait = TRUE, download_dir = tmp_pre, page_wait = 2, verbose = TRUE)
+# wdpa_wld_raw = wdpa_fetch(x = "global", wait = TRUE, download_dir = tmp_pre, page_wait = 2, verbose = TRUE)
 # s3write_using(wdpa_wld_raw,
 #               sf::st_write,
+#               delete_dsn = TRUE,
 #               object = paste0("data_raw/wdpa/wdpa_shp_global_raw.gpkg"),
 #               bucket = "projet-afd-eva-ap",
 #               opts = list("region" = ""))
@@ -109,11 +110,11 @@ n_sampling = 50
 
 #Load data 
 data_pa = 
-  #fread("data_tidy/BDD_DesStat_nofund_nodupl.csv" , encoding = "UTF-8")
+  #fread("data_tidy/BDD_nofund_nodupl.csv" , encoding = "UTF-8")
   aws.s3::s3read_using(
   FUN = data.table::fread,
   encoding = "UTF-8",
-  object = "data_tidy/BDD_DesStat_nofund_nodupl.csv",
+  object = "data_tidy/BDD_nofund_nodupl.csv",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = "")) 
 
@@ -266,32 +267,45 @@ for (i in list_iso)
     #Define cut-offs
     print("--Define cutoffs")
     ##CAREFUL : ADD elevation and TRI when available
-    lst_cutoffs_j = fn_post_cutoff(mf = mf_j, 
-                               colname.travelTime = colname.travelTime, 
-                               colname.clayContent = colname.clayContent,
-                               colname.fcIni = colname.fcIni, 
-                               colname.flAvg = colname.flAvg
-                               )
+    # lst_cutoffs_j = fn_post_cutoff(mf = mf_j, 
+    #                            colname.travelTime = colname.travelTime, 
+    #                            colname.clayContent = colname.clayContent,
+    #                            colname.fcIni = colname.fcIni, 
+    #                            colname.flAvg = colname.flAvg
+    #                            )
     
     #Run Coarsened Exact Matching
     print("--Run CEM")
-    out.cem_j = fn_post_cem(mf = mf_j, iso = i, path_tmp = tmp_post,
-                        lst_cutoffs = lst_cutoffs_j,
+    # out.cem_j = fn_post_cem(mf = mf_j, iso = i, path_tmp = tmp_post,
+    #                     lst_cutoffs = lst_cutoffs_j,
+    #                    colname.travelTime = colname.travelTime, 
+    #                    colname.clayContent = colname.clayContent,
+    #                    colname.fcIni = colname.fcIni, 
+    #                    colname.flAvg = colname.flAvg)
+    # if(out.cem_j == "skip_to_next") {next}
+    
+    out.cem_j = fn_post_match(mf = mf_j, iso = i, path_tmp = tmp_post,
                        colname.travelTime = colname.travelTime, 
                        colname.clayContent = colname.clayContent,
                        colname.fcIni = colname.fcIni, 
                        colname.flAvg = colname.flAvg)
-    if(out.cem_j == "skip_to_next") {next}
     
+    test = summary(out.cem_j, interactions = TRUE)
+    nn = test$nn %>% as.data.frame()
+    sum.all = test$sum.all %>% as.data.frame()
+    sum.matched = test$sum.matched %>% as.data.frame()
+    test = out.cem_j$info
+    plot.matchit(out.cem_j)
+    plot.summary.matchit(out.cem_j)
     #Plots : covariates
     print("--Some plots : covariates")
     print("----Covariate balance")
     fn_post_covbal(out.cem = out.cem_j,
                    mf = mf_j,
                       colname.travelTime = colname.travelTime, 
-                       colname.clayContent = colname.clayContent,
-                       colname.fcIni = colname.fcIni, 
-                       colname.flAvg = colname.flAvg,
+                      colname.clayContent = colname.clayContent,
+                      colname.fcIni = colname.fcIni, 
+                      colname.flAvg = colname.flAvg,
                       iso = i,
                       path_tmp = tmp_post,
                       wdpaid = j)

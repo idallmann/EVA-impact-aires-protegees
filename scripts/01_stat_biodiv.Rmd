@@ -87,11 +87,11 @@ pa_shp =
 
 #From BDD_joint, that is the combination of the SIOP dataset and the AP dataset from ARB team in AFD. Imported to have the information on the PA area (combination of areas reported by WDPA and ARB)
 pa_nodupl = 
-  fread("data_tidy/BDD_DesStat_nofund_nodupl.csv") %>%
+  fread("data_tidy/BDD_nofund_nodupl.csv") %>%
   # aws.s3::s3read_using(
   # FUN = data.table::fread,
   # encoding = "UTF-8",
-  # object = "data_tidy/BDD_DesStat_nofund_nodupl.csv",
+  # object = "data_tidy/BDD_nofund_nodupl.csv",
   # bucket = "projet-afd-eva-ap",
   # opts = list("region" = "")) %>%
   dplyr::select(c(wdpaid, superficie))
