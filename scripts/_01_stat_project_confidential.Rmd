@@ -39,12 +39,12 @@ library(questionr)
 #Both datasets are imported also in UTF8 encoding, for some variables
 ##A first dataset with some PA on more than one row (one line per funding for instance)
 data_stat_fund = 
-  fread("data_tidy/BDD_DesStat_fund.csv", encoding = "UTF-8")
+  fread("data_tidy/BDD_fund.csv", encoding = "UTF-8")
   # aws.s3::s3read_using(
   # FUN = data.table::fread,
   # encoding = "UTF-8",
   # # Mettre les options de FUN ici
-  # object = "data_tidy/BDD_DesStat_nopub.csv",
+  # object = "data_tidy/BDD_nopub.csv",
   # bucket = "projet-afd-eva-ap",
   # opts = list("region" = ""))
 

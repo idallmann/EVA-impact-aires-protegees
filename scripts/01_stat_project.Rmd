@@ -1,4 +1,4 @@
-# (PART\*) Descriptive statistics {-}
+# (PART\*) Descriptive statistics {.unnumbered}
 
 # Projects funded by the AFD
 
@@ -15,9 +15,7 @@ The statistics are derived from datasets stored in the SSPCloud, and saved into 
 
 ## Importing packages
 
-#```{r setup, include=FALSE, eval = FALSE}
-#knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
-#```
+\#`{r setup, include=FALSE, eval = FALSE} #knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file()) #`
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
 
@@ -46,23 +44,23 @@ library(aws.s3)
 #Both datasets are imported in UTF8 encoding, for some variables
 ##A first dataset with some PA on more than one row (one line per funding for instance)
 data_stat = 
-  #fread("data_tidy/BDD_DesStat_nofund.csv", encoding = "UTF-8")
+  #fread("data_tidy/BDD_nofund.csv", encoding = "UTF-8")
   aws.s3::s3read_using(
   FUN = data.table::fread,
   encoding = "UTF-8",
   # Mettre les options de FUN ici
-  object = "data_tidy/BDD_DesStat_nofund.csv",
+  object = "data_tidy/BDD_nofund.csv",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
 
 ##A second dataset with one line per PA, more suited for some statistics
 data_stat_nodupl = 
-  #fread("data_tidy/BDD_DesStat_nofund_nodupl.csv" , encoding = "UTF-8")
+  #fread("data_tidy/BDD_nofund_nodupl.csv" , encoding = "UTF-8")
   aws.s3::s3read_using(
   FUN = data.table::fread,
   encoding = "UTF-8",
   # Mettre les options de FUN ici
-  object = "data_tidy/BDD_DesStat_nofund_nodupl.csv",
+  object = "data_tidy/BDD_nofund_nodupl.csv",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
 

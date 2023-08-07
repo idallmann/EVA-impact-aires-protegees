@@ -19,17 +19,18 @@ library(sf)
 library(mapview)
 
 ```
-This script builds the different datasets for the analysis. For descriptive statistics, data on PAs funded by the AFD are combined with the WDPA. A confidential dataset is created to perform statistics on fundings. Also, datasets on PAs aggregated size at country and regional level are created. 
+
+This script builds the different datasets for the analysis. Data on PAs funded by the AFD are combined with the WDPA. A confidential dataset is created to perform descriptive statistics on fundings. Also, datasets on PAs aggregated size at country and regional level are created.
 
 Note that the raw dataset is not made publicly available, as it contains confidential data. Apart from the dataset on funding, all datasets created here can be provided upon request.
 
-## Datasets for descriptive statistics
+## Datasets for analysis
 
 The datasets are built from the raw BDD_joint.xlsx file. The latter comes from the merging of AFD project data (SIOP), and information on PAs reported ARB and covering 2000-2017 period. Information on the PAs is also found on the WDPA database (polygon, year of implementation, IUCN category, etc.). Majority of PAs reported by ARB had no WDPA ID, so it was found and reported manually on WDPA website.
 
 Different datasets are built. First a dataset (data_PA_tidy) enriched of information on co-investors and ISO codes for the countries hosting the PA.
 
-From this dataset are extracted : (1) a dataset with only project related variables from the AFD, to facilitate merging with datasets other than WDPA; (2) a dataset to perform most descriptive statistics, except confidential ones related to funding; (3) a confidential dataset with funding data.
+From this dataset are extracted : (1) a dataset with only project related variables from the AFD, to facilitate merging with datasets other than WDPA; (2) a dataset to perform most analysis, except confidential statistics related to funding; (3) a confidential dataset with funding data.
 
 Then a dataset of PAs polygons is imported from the WDPA, and confidential data are also removed.
 
@@ -68,24 +69,17 @@ data_PA_raw[data_PA_raw$wdpaid %in% c("4223", "4224", "4226", "4228", "4229") & 
 ##305082 : Vanuatu instead of Fidji
 data_PA_raw[data_PA_raw$wdpaid %in% c("305082") & data_PA_raw$pays == "Fidji",]$pays = "Vanuatu"
 ##31459 : Central African Republic instead of Cameroon. /!\ Vérifier le nom : anglais ou français ??
-#data_PA_raw[data_PA_raw$wdpaid %in% c("31459") & data_PA_raw$pays == "Cameroun",]$pays = "Centrafrique"
-
-##Rio Grande de Buba : Guinee Bissau instead of Gambia. /!\ Vérifier l'écriture !!
-#data_PA_raw[data_PA_rax$nom_ap == "rio grande de buba" & data_PA_raw$pays == "Gambie",]$pays = "Centrafrique"
+data_PA_raw[data_PA_raw$wdpaid %in% c("31459") & data_PA_raw$pays == "Cameroun",]$pays = "Centrafrique"
+##Rio Grande de Buba : Guinee Bissau instead of Gambia
+data_PA_raw[data_PA_raw$wdpaid %in% c("317051") & data_PA_raw$pays == "Gambie",]$pays = "Guinee-Bissau"
 
 #Create a clean dataset with relevant variables
 data_PA_tidy = data_PA_raw %>%
   #Get rid of the iso code in the initial dataset, to avoid confusion when merging with data_iso
   dplyr::select(-iso3) %>%
   #Create dummy variables for main investors
-  #AFD is always funder, so no need of a dummy. Kept as comment for the moment
-  mutate(
-    # afd_bin = case_when((cofinancier_1 == "AFD" | cofinancier_2 == "AFD" | cofinancier_3 == "AFD" |
-    #                       cofinancier_4 == "AFD" | cofinancier_5 == "AFD" | cofinancier_6 == "AFD") ~ TRUE,
-    #                       (is.na(cofinancier_1) & is.na(cofinancier_2) & is.na(cofinancier_3) & is.na(cofinancier_4) 
-    #                       & is.na(cofinancier_5) & is.na(cofinancier_6)) ~ TRUE,
-    #                       TRUE ~ FALSE),
-         kfw_bin = ifelse(cofinancier_1 == "KFW" | cofinancier_2 == "KFW" | cofinancier_3 == "KFW" |
+  #AFD is always funder, so no need of a dummy. 
+  mutate(kfw_bin = ifelse(cofinancier_1 == "KFW" | cofinancier_2 == "KFW" | cofinancier_3 == "KFW" |
                           cofinancier_4 == "KFW" | cofinancier_5 == "KFW" | cofinancier_6 == "KFW",
                           yes = TRUE, 
                           no = FALSE),
@@ -96,23 +90,20 @@ data_PA_tidy = data_PA_raw %>%
                           no = FALSE),
          ffem_bin = ifelse(is.na(ffem_bin), yes = FALSE, no = ffem_bin),
          .after = "cofinancier_6") %>%
-  #Create a dummy for other co-investors
-  # mutate(cofin_unkwn = ifelse(is.na(cofinancier_1) & is.na(cofinancier_1) & is.na(cofinancier_1) & is.na(cofinancier_1) & is.na(cofinancier_1) & is.na(cofinancier_1),
-  #                         yes = TRUE, 
-  #                         no = FALSE),
-  #        cofin_unkwn = ifelse(is.na(cofin_unkwn), yes = FALSE, no = cofin_unkwn),
-  #        .after = "ffem_bin") %>%
-  #Create a dummy for investors not AFD, KFW or FFEM
-  # mutate(cofin_other = afd_bin == FALSE & 
-  #       kfw_bin == FALSE & ffem_bin == FALSE & cofin_unkwn == FALSE,
-  #       .after = "cofin_unkwn") %>%
   #Add the ISO3 code corresponding to the country hosting the PA. Facilitate future mergings
   left_join(data_iso, by = c("pays" = "nom_alpha2")) %>%
+  # Nouvelle-Calédonie is divided in two provinces : north and south. This subdivision is irrelevant in our analysis so we keep only "Nouvelle Caledonie"
+  mutate(pays = case_when(pays %in% c("P-N N.Caléd", "P-S N.Caléd", "Nlle Caledonie") ~ "Nouvelle-Caledonie",
+         TRUE ~ pays)) %>%
   #Some entries in "pays" are French department, DROM-COM, "Ocean Indien" or "Multi-Pays".
-  #French related : assigned to France. Ocen Indien let NA value, Muti-pays set to ZZ as in the SIOP 
+  #French related : a particular iso is created : "FRA_XXX" with XXX assignment to the territory it corresponds. 
+  #Ocen Indien let NA value, Muti-pays set to ZZ as in the SIOP dataset
   mutate(iso3 = case_when(
-    pays %in% c("Mayotte", "P-N N.Caléd", "P-S N.Caléd", 
-                "Polynesie Francaise", "Nlle Caledonie") ~ "FRA",
+    pays == "Mayotte" ~ "FRA_MAY",
+    pays == "Nouvelle-Caledonie" ~ "FRA_NLC",
+    pays == "Polynesie Francaise" ~ "FRA_PNF",
+    # pays %in% c("Mayotte", "P-N N.Caléd", "P-S N.Caléd", 
+    #             "Polynesie Francaise", "Nlle Caledonie") ~ "FRA",
     pays %in% c("Multi-Pays", "Ocean Indien") ~ "ZZ",
     !(pays %in% c("Mayotte", "P-N N.Caléd", "P-S N.Caléd", 
                 "Polynesie Francaise", "Nlle Caledonie", "Multi-Pays")) ~ iso3
@@ -176,13 +167,13 @@ data_siop_AP = data_PA_tidy %>%
 
 ```
 
-### Dataset for non-confidential statistics
+### Dataset for non-confidential analysis
 
-To perform descriptive statistics we want to keep one row per PA, characterized by WDPA ID or a name (if no ID reported). Some PAs can have several lines if they receive funds at different time or by different investors.
+To perform analysis we want to keep one row per PA, characterized by WDPA ID or a name (if no ID reported). Some PAs can have several lines if they receive funds at different time or by different investors.
 
 ```{r, eval = FALSE}
 
-#Listing relevant variables for descriptive statistics that are NOT confidential (i.e not concern funding)
+#Listing relevant variables for analysis that are NOT confidential (i.e not concern funding)
 list_var_PA_nofund = 
   c("id_projet", "nom_du_projet", "nom_ap", "id_concours", 
     "wdpaid", 
@@ -192,14 +183,14 @@ list_var_PA_nofund =
     "status", "status_yr", "gov_type","own_type", "mang_auth")
 
 #Defining dataset for descriptive statistics
-data_stat_nofund = data_PA_tidy %>%
+data_nofund = data_PA_tidy %>%
   select(all_of(list_var_PA_nofund), iso3)
 
-#fwrite(data_stat_nofund, "data_tidy/BDD_DesStat_nofund.csv")
+#fwrite(data_nofund, "data_tidy/BDD_nofund.csv")
 
 #Then to keep only one row per PA, we need to consider separately PAs having WDPA ID and PAs which do not.
 ## Observations with WDPAID
-data_stat_nofund_wdpa = data_stat_nofund %>%
+data_nofund_wdpa = data_nofund %>%
   subset(is.na(wdpaid) == FALSE) %>%
   group_by(wdpaid) %>% 
   #Keep the earlier annee_octroi (year of the first funding)
@@ -209,7 +200,7 @@ data_stat_nofund_wdpa = data_stat_nofund %>%
   ungroup()
 
 #Observations without WDPAID
-data_stat_nofund_na = data_stat_nofund %>%
+data_nofund_na = data_nofund %>%
   subset(is.na(wdpaid) == TRUE) %>%
   #Create a unique key for a PA : project ID from AFD, country (ISO code) and PA name
   mutate(id1 = paste(id_projet, iso3, nom_ap, sep = "_"),
@@ -223,12 +214,12 @@ data_stat_nofund_na = data_stat_nofund %>%
   select(-id1)
 
 #Finally bind both datasets
-data_stat_nofund_nodupl = rbind(data_stat_nofund_wdpa, data_stat_nofund_na) 
+data_nofund_nodupl = rbind(data_nofund_wdpa, data_nofund_na) 
 
-#fwrite(data_stat_nofund_nodupl, "data_tidy/BDD_DesStat_nofund_nodupl.csv")
+#fwrite(data_nofund_nodupl, "data_tidy/BDD_nofund_nodupl.csv")
 ```
 
-### Dataset for confidential descriptive statistics
+### Dataset for confidential analysis
 
 Variables related to the funding are removed.
 
@@ -248,10 +239,10 @@ list_var_PA_fund = c("id_projet", "nom_du_projet", "nom_ap", "id_concours",
 
 #Defining dataset for descriptive statistics
 #Duplicates are not revmoved here, as we want the information on the different concours for instance. Peculiar datasets 
-data_stat_fund = data_PA_tidy %>%
+data_fund = data_PA_tidy %>%
   select(all_of(list_var_PA_fund), iso3)
 
-#fwrite(data_stat_fund, "data_tidy/BDD_DesStat_fund.csv")
+#fwrite(data_fund, "data_tidy/BDD_fund.csv")
 ```
 
 ### A polygon dataset without confidential information
@@ -392,7 +383,7 @@ pa_int_yr = pa_int %>%
 
 ```{r, eval = FALSE}
 #At country level ...
-pa_area_ctry = data_stat_nofund_nodupl %>%
+pa_area_ctry = data_nofund_nodupl %>%
   #Compute total area at country level
   group_by(iso3) %>%
   summarize(sprfc_tot_km2 = sum(superficie)) %>%
@@ -406,7 +397,7 @@ pa_area_ctry = data_stat_nofund_nodupl %>%
 #fwrite(pa_area_ctry, "data_tidy/area/pa_area_ctry.csv")
 
 #At DR level ...
-pa_area_dr = data_stat_nofund_nodupl %>%
+pa_area_dr = data_nofund_nodupl %>%
   #Compute total area at dr level
   group_by(direction_regionale) %>%
   summarize(sprfc_tot_km2 = sum(superficie)) %>% 
@@ -421,7 +412,7 @@ pa_area_dr = data_stat_nofund_nodupl %>%
 #fwrite(pa_area_dr, "data_tidy/area/pa_area_dr.csv")
 
 #At world level
-pa_area_wld = sum(data_stat_nofund_nodupl$superficie) - pa_int_wld %>%
+pa_area_wld = sum(data_nofund_nodupl$superficie) - pa_int_wld %>%
   as.data.frame() %>%
   rename("sprfc_tot_noint_km2" = ".")
 #fwrite(pa_area_wld, "data_tidy/area/pa_area_wld.csv")
