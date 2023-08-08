@@ -804,12 +804,13 @@ fn_post_cem = function(mf, lst_cutoffs, iso, path_tmp,
   
 }
 
-fn_post_match = function(mf, iso, path_tmp,
+fn_post_match_manual = function(mf, iso, wdpaid, path_tmp,
+                         th_mean, th_var_min, th_var_max,
                          colname.travelTime, colname.clayContent, 
                          colname.elevation, colname.tri, 
                          colname.fcIni, colname.flAvg)
 {
-  ## Formula
+  # Formula
   formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
                         + .(as.name(colname.clayContent))  
                         +  .(as.name(colname.fcIni)) 
@@ -817,14 +818,12 @@ fn_post_match = function(mf, iso, path_tmp,
 
   
   is_match_ok = FALSE
-  #step_ini = 0.1
   count = 1
-  list_sep = c(1, 5, 10, 15, 20, 25, 40, 50) #The thresholds to try, in percentage points  
-  while (is_match_ok == FALSE)
+  list_sep = c(1, 5, 10, 15, 20, 25, 40, 50, 100) #The quantile thresholds to try, in percentage points
+  
+  while (is_match_ok == FALSE & count <= length(list_sep))
   {
     # Define cutoffs for CEM matching
-    
-    ## Make cut-off list
     lst_cutoffs = c()
     sep = list_sep[count] #step is increased by 10% each iteration
     
@@ -853,31 +852,32 @@ fn_post_match = function(mf, iso, path_tmp,
                           method = "cem",
                           cutpoints = lst_cutoffs)
         
-        #Compute matching feature FI the matching has been performed, otherwise it runs the error function
-        # df_nn = summary(out.cem)$nn %>% as.data.frame()
-        # n_matched = df_nn["Matched", "Treated"]
-        # n_all = df_nn["All", "Treated"]
-        # per_matched = n_matched/n_all*100
-        
-        df_cov_m = summary(out.cem, interactions = TRUE)$sum.matched %>%
+        #Compute matching feature IF the matching has been performed, otherwise it runs the error function
+        ##Percentage of units matched
+        df.nn = summary(out.cem)$nn %>% as.data.frame()
+        n.matched = df.nn["Matched", "Treated"]
+        n.all = df.nn["All", "Treated"]
+        per.matched = n.matched/n.all*100
+        ## Covariate balance : standardized mean difference and variance ratio
+        df.cov.m = summary(out.cem, interactions = FALSE)$sum.matched %>%
           as.data.frame() %>%
           clean_names() %>%
-          mutate(sum_abs_std_mean_diff = sum(abs(std_mean_diff)),
-                 is_var_ok = var.ratio < 2 & var.ratio > 0.5, #Check variance ratio between treated and controls
-                 is_mean_ok = abs(std_mean_diff) < 0.1, #Check absolute standardized mean difference
-                 is_bal_ok = is_var_ok*is_mean_ok, #Binary : TRUE if both variance and mean difference check pass, 0 if at least one does not
+          mutate(is_var_ok = var_ratio < th_var_max & var_ratio > th_var_min, #Check variance ratio between treated and controls
+                 is_mean_ok = abs(std_mean_diff) < th_mean, #Check absolute standardized mean difference
+                 is_bal_ok = as.logical(is_var_ok*is_mean_ok), #Binary : TRUE if both variance and mean difference check pass, 0 if at least one does not
                  .after = "std_mean_diff")
         
-        
-        
-        if(per_matched >= 25)
+        # Depending on covariate balance, different possibilities
+        ## If all covariates are balanced, then the matching with the cutoffs in this iteration is kept
+        if(sum(df.cov.m$is_bal_ok) == nrow(df.cov.m) & is.na(sum(df.cov.m$is_bal_ok)) == FALSE) 
         {
-          print(paste("It's a good match !", round(per_matched, 1), "% of treated units matched"))
+          print(paste("It's a good match ! Variance ratio is between", th_var_min, "and", th_var_max, ", absolute standardized mean difference is below", th_mean, ".", round(per.matched, 1), "% of treated units matched."))
           is_match_ok <<- TRUE
-          return(out.cem)
-        } else 
+          return(list("out.cem" = out.cem, "df.cov.m" = df.cov.m))
+        } else if (sum(df.cov.m$is_bal_ok) > 0 & sum(df.cov.m$is_bal_ok) < nrow(df.cov.m) & is.na(sum(df.cov.m$is_bal_ok)) == FALSE)
+          ## If at least one covariate is not balanced
           {
-            print(paste("Matching was done successfuly but only", per_matched, "% of treated units matched. Next iteration"))
+            print(paste("Matching not satisfactory regarding variance ratio or standardized mean difference."))
             count = count+1
           }
         
@@ -920,8 +920,131 @@ fn_post_match = function(mf, iso, path_tmp,
   
 }
   
+fn_post_match_auto = function(mf, iso,
+                                  dummy_int,
+                                  th_mean, 
+                                  th_var_min, th_var_max)
+{
+  # Formula
+  formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
+                        + .(as.name(colname.clayContent))  
+                        +  .(as.name(colname.fcIni)) 
+                        + .(as.name(colname.flAvg))))
+
+  ## Matching handling errors due to absence of matching
+  tryCatch(
+    {
+      #Try to perform matching
+      out.cem = matchit(formula,
+                        data = mf,
+                        method = "cem",
+                        cutpoints = "fd",
+                        k2k = TRUE,
+                        k2k.method = "mahalanobis")
+      
+      ## Covariate balance : standardized mean difference and variance ratio
+      ## For both tests and the joint one, a dummy variable is defined, with value TRUE is the test is passed
+      df.cov.m = summary(out.cem, interactions = dummy_int)$sum.matched %>%
+        as.data.frame() %>%
+        clean_names() %>%
+        mutate(is_var_ok = var_ratio < th_var_max & var_ratio > th_var_min, #Check variance ratio between treated and controls
+               is_mean_ok = abs(std_mean_diff) < th_mean, #Check absolute standardized mean difference
+               is_bal_ok = as.logical(is_var_ok*is_mean_ok), #Binary : TRUE if both variance and mean difference check pass, 0 if at least one does not
+               .after = "std_mean_diff")
+      
+      return(list("out.cem" = out.cem, "df.cov.m" = df.cov.m))
+      
+    },
+    
+    error=function(e)
+    {
+      message(paste("Error : the method for cutpoints is not able to match units. Increase the sampling or try an other method."))
+      next
+    }
+    
+  )
   
+}
+    
+
+fn_post_match_auto_old = function(mf, iso,
+                              dummy_int,
+                              th_mean, 
+                              th_var_min, th_var_max)
+{
+  # Formula
+  formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
+                        + .(as.name(colname.clayContent))  
+                        +  .(as.name(colname.fcIni)) 
+                        + .(as.name(colname.flAvg))))
   
+  list_cut = c("sturges", "scott", "fd") #Three methods to define bins size of a distribution automatically (Iacus et al. 2011)
+  list_results = c()
+  
+  # For the three methods offered by matchit, perform matching and run some tests on covariate balance
+  for (cut_method in list_cut)
+  {
+    
+    ## Matching handling errors due to absence of matching
+    tryCatch(
+      {
+        #Try to perform matching
+        out.cem = matchit(formula,
+                          data = mf,
+                          method = "cem",
+                          cutpoints = "fd",
+                          k2k = TRUE,
+                          k2k.method = "mahalanobis")
+        
+        #Compute matching feature IF the matching has been performed, otherwise it runs the error function
+        ##Percentage of units matched
+        # df.nn = summary(out.cem)$nn %>% as.data.frame()
+        # n.matched = df.nn["Matched", "Treated"]
+        # n.all = df.nn["All", "Treated"]
+        # per.matched = n.matched/n.all*100
+        ## Covariate balance : standardized mean difference and variance ratio
+        ## For both tests and the joint one, a dummy variable is defined, with value TRUE is the test is passed
+        df.cov.m = summary(out.cem, interactions = dummy_int)$sum.matched %>%
+          as.data.frame() %>%
+          clean_names() %>%
+          mutate(is_var_ok = var_ratio < th_var_max & var_ratio > th_var_min, #Check variance ratio between treated and controls
+                 is_mean_ok = abs(std_mean_diff) < th_mean, #Check absolute standardized mean difference
+                 is_bal_ok = as.logical(is_var_ok*is_mean_ok), #Binary : TRUE if both variance and mean difference check pass, 0 if at least one does not
+                 .after = "std_mean_diff")
+        
+        list_results[[cut_method]] = list("out.cem" = out.cem, "df.cov.m" = df.cov.m)
+        
+      },
+        
+      error=function(e)
+      {
+        message(paste('Error : the method', cut_method, "for cutpoints is not able to match units. Increase the sampling or try an other method."))
+        list_results[[cut_method]] = list("df.nn" = paste('Error : the method', cut_method, "for cutpoints is not able to match units. Increase the sampling or try an other method."), 
+                                         "df.cov.m" = paste('Error : the method', cut_method, "for cutpoints is not able to match units. Increase the sampling or try an other method."))
+      }
+      
+    )
+    
+  }
+  
+  # From the covariate balance check, choosing which method whose results are returned : arbitrarily, we prefer sturges over scott, and scott over fd.
+  is_sturges_ok = sum(list_results[["sturges"]]$df.cov.m$is_bal_ok) == nrow(list_results[["sturges"]]$df.cov.m)
+  is_scott_ok = sum(list_results[["scott"]]$df.cov.m$is_bal_ok) == nrow(list_results[["scott"]]$df.cov.m)
+  is_fd_ok = sum(list_results[["fd"]]$df.cov.m$is_bal_ok) == nrow(list_results[["fd"]]$df.cov.m)
+  if(is_sturges_ok == TRUE)
+  {
+    return(list_results[["sturges"]])
+  } else if (is_scott_ok == TRUE) 
+  {
+    return(list_results[["scott"]])
+  } else if (is_fd_ok == TRUE)
+  {
+    return(list_results[["fd"]])
+  } else next 
+
+}
+
+
 #Plot covariates balance (plots and summary table)
 ## INPUTS :
 ### out.cem : list of results from the CEM matching

@@ -106,7 +106,7 @@ wdpa_wld_raw = s3read_using(
 buffer_m = 10000
 # Specify the grid cell size in meter
 #gridSize = 10000 
-n_sampling = 50
+n_sampling = 1000
 
 #Load data 
 data_pa = 
@@ -119,8 +119,8 @@ data_pa =
   opts = list("region" = "")) 
 
 #List of countries in the sample
-#list_iso = unique(data_pa$iso3)
-list_iso = c("COM")
+list_iso = "VNM"
+#list_iso = unique(data_pa[data_pa$direction_regionale == "Dr Asie Du Sud-Est", ]$iso3)
 # Specify a list of WDPA IDs of funded protected areas (treated areas)
 # paid = data_stat_nodupl[data_stat_nodupl$iso3 == country,]$wdpaid
 
@@ -266,42 +266,28 @@ for (i in list_iso)
     
     #Define cut-offs
     print("--Define cutoffs")
-    ##CAREFUL : ADD elevation and TRI when available
-    lst_cutoffs_j = fn_post_cutoff(mf = mf_j,
-                               colname.travelTime = colname.travelTime,
-                               colname.clayContent = colname.clayContent,
-                               colname.fcIni = colname.fcIni,
-                               colname.flAvg = colname.flAvg
-                               )
     
     #Run Coarsened Exact Matching
     print("--Run CEM")
-    out.cem_j = fn_post_cem(mf = mf_j, iso = i, path_tmp = tmp_post,
-                        lst_cutoffs = lst_cutoffs_j,
-                       colname.travelTime = colname.travelTime,
-                       colname.clayContent = colname.clayContent,
-                       colname.fcIni = colname.fcIni,
-                       colname.flAvg = colname.flAvg)
-    # if(out.cem_j == "skip_to_next") {next}
-    
-    # out.cem_j = fn_post_match(mf = mf_j, iso = i, path_tmp = tmp_post,
-    #                    colname.travelTime = colname.travelTime, 
-    #                    colname.clayContent = colname.clayContent,
-    #                    colname.fcIni = colname.fcIni, 
-    #                    colname.flAvg = colname.flAvg)
+    lst_cem_res_j = fn_post_match_auto(mf = mf_j, iso = i, 
+                                   dummy_int = TRUE,
+                                     th_mean = 0.1, 
+                                     th_var_min = 0.5, th_var_max = 2)
+
+    out.cem_j = lst_cem_res_j$out.cem
     
     #Plots : covariates
     print("--Some plots : covariates")
     print("----Covariate balance")
     fn_post_covbal(out.cem = out.cem_j,
                    mf = mf_j,
-                      colname.travelTime = colname.travelTime, 
-                      colname.clayContent = colname.clayContent,
-                      colname.fcIni = colname.fcIni, 
-                      colname.flAvg = colname.flAvg,
-                      iso = i,
-                      path_tmp = tmp_post,
-                      wdpaid = j)
+                   colname.travelTime = colname.travelTime, 
+                   colname.clayContent = colname.clayContent,
+                   colname.fcIni = colname.fcIni, 
+                   colname.flAvg = colname.flAvg,
+                   iso = i,
+                   path_tmp = tmp_post,
+                   wdpaid = j)
     print("----Density plots")
     fn_post_plot_density(out.cem = out.cem_j, 
                          mf = mf_j,
