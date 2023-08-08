@@ -786,31 +786,11 @@ fn_post_cem = function(mf, lst_cutoffs, iso, path_tmp,
   ))
   
   # CEM Match
-  # out.cem = matchit(formula,
-  #                   data = mf, 
-  #                   method = "cem", 
-  #                   cutpoints = lst_cutoffs)
+  out.cem = matchit(formula,
+                    data = mf,
+                    method = "cem",
+                    cutpoints = lst_cutoffs)
   
-  ###TEST : skip to the next iteration if no matched units, and record the error
-  tryCatch(
-    {
-      
-    out.cem = matchit(formula,
-                      data = mf,
-                      method = "cem",
-                      cutpoints = lst_cutoffs)
-    return(out.cem)
-    
-    },
-    error=function(e) 
-    {
-      message('An Error Occurred')
-      #print(e)
-      return("skip_to_next")
-    }
-  )
-  
-
   # fig_save = paste0(path_tmp, "/fig_cov_imb_", iso, ".png")
   # png(filename = fig_save,  width = 480, height = 480, units = "px", pointsize = 12)
   # plot(summary(out.cem))
@@ -819,6 +799,8 @@ fn_post_cem = function(mf, lst_cutoffs, iso, path_tmp,
   #                    bucket = paste("projet-afd-eva-ap/data_tidy/mapme_bio_data/matching", iso, sep = "/"), 
   #                    region = "", 
   #                    show_progress = FALSE)
+  
+  return(out.cem)
   
 }
 
