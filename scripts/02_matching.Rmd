@@ -119,8 +119,8 @@ data_pa =
   opts = list("region" = "")) 
 
 #List of countries in the sample
-list_iso = "VNM"
-#list_iso = unique(data_pa[data_pa$direction_regionale == "Dr Asie Du Sud-Est", ]$iso3)
+#list_iso = "VNM"
+list_iso = unique(data_pa[data_pa$direction_regionale == "Dr Asie Du Sud-Est", ]$iso3)
 # Specify a list of WDPA IDs of funded protected areas (treated areas)
 # paid = data_stat_nodupl[data_stat_nodupl$iso3 == country,]$wdpaid
 
@@ -176,6 +176,7 @@ for (i in list_iso)
   #Generate observation units
   print("--Generating observation units")
   output_pre_grid = fn_pre_grid(iso = i, 
+                                yr_min,
                                 path_tmp = tmp_pre, 
                                 data_pa = data_pa,
                                 sampling = n_sampling)

@@ -32,7 +32,7 @@ lonlat2UTM = function(lonlat)
 ### utm_code : UTM code of the country
 ### gridSize : the resolution of gridding, defined from the area of the PA with the lowest area
 
-fn_pre_grid = function(iso, path_tmp, data_pa, sampling)
+fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling)
 {
   # Download country polygon to working directory and load it into workspace
   gadm = gadm(country = iso, resolution = 1, level = 0, path = path_tmp) %>% 
@@ -48,14 +48,14 @@ fn_pre_grid = function(iso, path_tmp, data_pa, sampling)
   #Determine relevant grid size
   ##Select the PA in the country with minimum area. PAs with null areas or treatment year before 2000 are discarded (not analyzed anyway)
   pa_min = data_pa %>%
-    filter(iso3 == iso & status_yr >= 2000 & superficie > 0) %>%
+    filter(iso3 == iso & is.na(wdpaid) == FALSE & status_yr >= yr_min) %>%
     arrange(superficie) %>%
     slice(1)
   ##From this minimum area, define the grid size. 
   ##It depends on the sampling of the minimal area, i.e how many pixels we want to subdivide the PA with lowest area
   ## To avoid a resolution higher than the one of our data, grid size is set to be 30m at least (resolution of tree cover data, Hansen et al. 2013)
   area_min = pa_min$superficie #in kilometer
-  gridSize = max(30, round(sqrt(area_min/sampling)*1000, 0)) #Side of the pixel is expressed in meter and rounded, if above 30m. 
+  gridSize = max(1e3, round(sqrt(area_min/sampling)*1000, 0)) #Side of the pixel is expressed in meter and rounded, if 1km. 
   
   # Make bounding box of projected country polygon
   bbox = st_bbox(gadm_prj) %>% st_as_sfc() %>% st_as_sf() 
@@ -255,7 +255,7 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
   
   fig_grid_group = 
     ggplot(grid.param) +
-    geom_sf(aes(fill = as.factor(group_name))) +
+    geom_sf(aes(fill = as.factor(group_name)), color = NA) +
     labs(title = paste("Gridding of", country.name)) +
     scale_fill_brewer(name = "Group", type = "qual", palette = "YlGnBu", direction = -1) +
     # scale_color_viridis_d(
@@ -1604,7 +1604,7 @@ fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp)
   fig_grid = 
     ggplot(grid) +
     #The original gridding as a first layer
-    geom_sf(aes(fill = as.factor(group_plot))) +
+    geom_sf(aes(fill = as.factor(group_plot)), , color = NA) +
     scale_fill_brewer(name = "Group", type = "qual", palette = "BrBG", direction = 1) +
     labs(title = paste("Gridding of", country.name, ": matched units"),
          subtitle = ifelse(is_pa == TRUE,
