@@ -545,8 +545,8 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   print("----Compute indicators")
   #Compute indicators
   
-  #Begin callr
-  plan(callr) 
+  #Begin multisession
+  plan(multisession, workers = 6, gc = TRUE) 
   
   with_progress({
     get.soil %<-% {calc_indicators(dl.soil,
@@ -586,8 +586,8 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
     mutate(across(c("treecover"), \(x) round(x, 3))) %>% # Round numeric columns
     pivot_wider(names_from = "years", values_from = "treecover", names_prefix = "treecover_")
   
-  ## End parallel plan : close parralel sessions, so must be done once indicators' datasets are built
-  #plan(sequential)
+  ## End parallel plan : close parallel sessions, so must be done once indicators' datasets are built
+  plan(sequential)
   
   # The calculation of tree loss area is performed at dataframe base
   # Get the column names of tree cover time series
