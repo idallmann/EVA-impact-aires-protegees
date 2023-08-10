@@ -6,6 +6,15 @@
 #Pre-processing
 ###
 
+fn_pre_log = function(iso)
+{
+  log = paste(tempdir(), paste0("log-", iso, "-", Sys.Date(), ".txt"), sep = "/")
+  #Do not foregt to end the writing with a \n to avoid warnings
+  cat(paste("#####\nCOUNTRY :", iso, "\nTIME :", print(Sys.time(), tz = "UTC-2"), "\n#####\n\n###\nPRE-PROCESSING\n###\n"), file = log, append = TRUE)
+  
+  return(log)
+}
+
 #Find UTM code for a given set of coordinates
 ##INPUTS : coordinates (lonlat)
 ##OUTPUTS : UTM code
@@ -137,14 +146,14 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
   ##PAs funded by AFD 
   ###... which can bu used in impact evaluation
   pa_afd_ie = data_pa %>%
-    filter(iso3 == iso & is.na(wdpaid) == FALSE & superficie > 0 & status_yr >= yr_min)
+    filter(iso3 == iso & is.na(wdpaid) == FALSE & superficie > 1 & status_yr >= yr_min & marine %in% c(0,1))
   wdpaID_afd_ie = pa_afd_ie[pa_afd_ie$iso3 == iso,]$wdpaid
   wdpa_afd_ie = wdpa_prj %>% filter(WDPAID %in% wdpaID_afd_ie) %>%
     mutate(group=2,
            group_name = "Funded PA, analyzed") # Assign an ID "1" to the funded PA group
   ###...which cannot
   pa_afd_no_ie = data_pa %>%
-    filter(iso3 == iso & (is.na(wdpaid) == TRUE | superficie == 0 | is.na(superficie) | status_yr < yr_min))
+    filter(iso3 == iso & (is.na(wdpaid) == TRUE | superficie <= 1 | is.na(superficie) | status_yr < yr_min | marine == 2)) #PAs not in WDPA, of area less than 1km2 (Wolf et al 2020), not terrestrial/coastal or implemented after yr_min are not analyzed
   wdpaID_afd_no_ie = pa_afd_no_ie[pa_afd_no_ie$iso3 == iso,]$wdpaid 
   wdpa_afd_no_ie = wdpa_prj %>% filter(WDPAID %in% wdpaID_afd_no_ie) %>%
     mutate(group=3,
@@ -538,16 +547,18 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
                              range_traveltime = c("5k_110mio"))
   dl.tree = get_resources(aoi, resources = c("gfw_treecover", "gfw_lossyear"))
   
-  # dl.elevation = get_resources(aoi, "nasa_srtm")
+  dl.elevation = get_resources(aoi, "nasa_srtm")
   
-  # dl.tri = get_resources(aoi, "nasa_srtm")
+  dl.tri = get_resources(aoi, "nasa_srtm")
   
   print("----Compute indicators")
   #Compute indicators
   
   #Begin multisession
-  plan(multisession, workers = 6, gc = TRUE) 
+  # gc : optimize memory management for the background sessions.
+  # Multisession with workers = 6 as in mapme.biodiversity tutorial : https://mapme-initiative.github.io/mapme.biodiversity/articles/quickstart.html?q=parall#enabling-parallel-computing
   
+  plan(multisession, workers = 6, gc = TRUE) 
   with_progress({
     get.soil %<-% {calc_indicators(dl.soil,
                                 indicators = "soilproperties",
@@ -563,12 +574,12 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
                                min_size=1, # indicator-specific argument
                                min_cover=10)}
   
-    # get.elevation %<-% calc_indicators(dl.elevation,
-    #                   indicators = "elevation",
-    #                   stats_elevation = c("mean"))
+    get.elevation %<-% calc_indicators(dl.elevation,
+                      indicators = "elevation",
+                      stats_elevation = c("mean"))
     
-    # get.tri %<-% calc_indicators(dl.tri,
-    #                   indicators = "tri")
+    get.tri %<-% calc_indicators(dl.tri,
+                      indicators = "tri")
     
     })
   
@@ -583,8 +594,13 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
     pivot_wider(names_from = "distance", values_from = "minutes_median", names_prefix = "minutes_median_")
   
   data.tree = unnest(get.tree, treecover_area) %>%
+    drop_na(treecover_area) #get rid of units with NA values 
     mutate(across(c("treecover"), \(x) round(x, 3))) %>% # Round numeric columns
     pivot_wider(names_from = "years", values_from = "treecover", names_prefix = "treecover_")
+  
+  data.tri = unnest(get.tri, tri)
+  
+  data.elevation = unnest(get.elevation, elevation)
   
   ## End parallel plan : close parallel sessions, so must be done once indicators' datasets are built
   plan(sequential)
@@ -611,17 +627,17 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   df.tree = data.tree %>% mutate(x = NULL) %>% as.data.frame()
   df.travelT = data.travelT %>% mutate(x = NULL) %>% as.data.frame()
   df.soil = data.soil %>% mutate(x = NULL) %>% as.data.frame()
-  # df.elevation = get.elevation %>% mutate(x = NULL) %>% as.data.frame()
-  # df.tri = get.tri %>% mutate(x=NULL) %>% as.data.frame()
+  df.elevation = data.elevation %>% mutate(x = NULL) %>% as.data.frame()
+  df.tri = data.tri %>% mutate(x=NULL) %>% as.data.frame()
   
   # Make a dataframe containing only "assetid" and geometry
   df.geom = data.tree[, c("assetid", "x")] %>% as.data.frame()
   
   # Merge all output dataframes 
-  # pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.elevation, df.tri, df.geom)) %>%
-  #   st_as_sf()
-  pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.geom)) %>%
+  pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.elevation, df.tri, df.geom)) %>%
     st_as_sf()
+  # pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.geom)) %>%
+  #   st_as_sf()
   # Make column Group ID and WDPA ID have data type "integer"
   pivot.all$group = as.integer(pivot.all$group)
   pivot.all$wdpaid = as.integer(pivot.all$wdpaid)

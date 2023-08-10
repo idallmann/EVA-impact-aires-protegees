@@ -173,6 +173,10 @@ for (i in list_iso)
   count = count+1
   print(paste0(i, " : country ", count, "/", max_i))
   
+  #Create a log to track progress of the process
+  # log_i = fn_pre_log(iso = i)
+  # cat("\nrout", file = log_i, append = TRUE)
+  
   #Generate observation units
   print("--Generating observation units")
   output_pre_grid = fn_pre_grid(iso = i, 
