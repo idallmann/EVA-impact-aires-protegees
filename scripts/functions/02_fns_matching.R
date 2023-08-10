@@ -594,7 +594,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
     pivot_wider(names_from = "distance", values_from = "minutes_median", names_prefix = "minutes_median_")
   
   data.tree = unnest(get.tree, treecover_area) %>%
-    drop_na(treecover_area) %>% #get rid of units with NA values 
+    drop_na(treecover) %>% #get rid of units with NA values 
     mutate(across(c("treecover"), \(x) round(x, 3))) %>% # Round numeric columns
     pivot_wider(names_from = "years", values_from = "treecover", names_prefix = "treecover_")
   
