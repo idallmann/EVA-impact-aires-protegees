@@ -594,7 +594,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
     pivot_wider(names_from = "distance", values_from = "minutes_median", names_prefix = "minutes_median_")
   
   data.tree = unnest(get.tree, treecover_area) %>%
-    drop_na(treecover_area) #get rid of units with NA values 
+    drop_na(treecover_area) %>% #get rid of units with NA values 
     mutate(across(c("treecover"), \(x) round(x, 3))) %>% # Round numeric columns
     pivot_wider(names_from = "years", values_from = "treecover", names_prefix = "treecover_")
   
@@ -683,8 +683,8 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input)
     #Remove PAs non-funded by AFD and buffers
     filter(group==1 | group==2) %>%
     #Remove observations with NA values only for covariates (except for status_yr, direction_regionale, annee_octroi which are NA for control units)
-    drop_na(-c(status_yr, annee_octroi, direction_regionale, iso3, pays)) %>%
-    filter(status_yr >= yr_min | is.na(status_yr))
+    drop_na(-c(status_yr, annee_octroi, direction_regionale, iso3, pays)) #%>%
+     #filter(status_yr >= yr_min | is.na(status_yr))
   
   #Write the list of PAs matched
   list_pa = mf %>%
@@ -936,25 +936,30 @@ fn_post_match_manual = function(mf, iso, wdpaid, path_tmp,
   
 }
   
-fn_post_match_auto = function(mf, iso,
-                                  dummy_int,
-                                  th_mean, 
-                                  th_var_min, th_var_max)
+fn_post_match_auto = function(mf,
+                              iso,
+                              dummy_int,
+                              th_mean, 
+                              th_var_min, th_var_max,
+                              colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcIni, colname.flAvg)
 {
   # Formula
   formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
                         + .(as.name(colname.clayContent))  
                         +  .(as.name(colname.fcIni)) 
-                        + .(as.name(colname.flAvg))))
+                        + .(as.name(colname.flAvg))
+                        + .(as.name(colname.tri))
+                        + .(as.name(colname.elevation))))
 
   ## Matching handling errors due to absence of matching
-  tryCatch(
+  output = 
+    tryCatch(
     {
       #Try to perform matching
       out.cem = matchit(formula,
                         data = mf,
                         method = "cem",
-                        cutpoints = "fd",
+                        cutpoints = "sturges",
                         k2k = TRUE,
                         k2k.method = "mahalanobis")
       
@@ -975,10 +980,12 @@ fn_post_match_auto = function(mf, iso,
     error=function(e)
     {
       message(paste("Error : the method for cutpoints is not able to match units. Increase the sampling or try an other method."))
-      next
+      return("skip_country")
     }
     
   )
+  
+  
   
 }
     
@@ -1070,7 +1077,7 @@ fn_post_match_auto_old = function(mf, iso,
 ## OUTPUTS :
 ### None
 
-fn_post_covbal = function(out.cem, mf, colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, iso, path_tmp, wdpaid)
+fn_post_covbal = function(out.cem, mf, colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, colname.tri, colname.elevation, iso, path_tmp, wdpaid)
 {
   
   #Save summary table from matching
@@ -1086,9 +1093,9 @@ fn_post_covbal = function(out.cem, mf, colname.travelTime, colname.clayContent, 
   country.name = country.name$pays
   
   #Plot covariate balance
-  c_name = data.frame(old = c(colname.travelTime, colname.clayContent,
+  c_name = data.frame(old = c(colname.travelTime, colname.clayContent, colname.tri, colname.elevation,
                               colname.fcIni, colname.flAvg),
-                      new = c("Accessibility", "Clay Content", "Forest Cover in 2000",
+                      new = c("Accessibility", "Clay Content", "Terrain Ruggedness Index (TRI)", "Elevation (m)", "Forest Cover in 2000",
                               "Avg. Annual Forest \n Loss 2001 ~ 2006"))
   
   # Refer to cobalt::love.plot()
@@ -1163,7 +1170,9 @@ fn_post_covbal = function(out.cem, mf, colname.travelTime, colname.clayContent, 
 ## OUTPUTS :
 ### None
 
-fn_post_plot_density = function(out.cem, mf, colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, iso, path_tmp, wdpaid = j)
+fn_post_plot_density = function(out.cem, mf, 
+                                colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, colname.tri, colname.elevation, 
+                                iso, path_tmp, wdpaid = j)
 {
   # Define Facet Labels
   fnl = c(`Unadjusted Sample` = "Before Matching",
@@ -1188,6 +1197,7 @@ fn_post_plot_density = function(out.cem, mf, colname.travelTime, colname.clayCon
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
          x = "Accessibility (min)",
          fill = "Group") +
+    theme_bw() +
     theme(
       plot.title = element_text(family="Arial Black", size=16, hjust = 0),
       
@@ -1215,6 +1225,7 @@ fn_post_plot_density = function(out.cem, mf, colname.travelTime, colname.clayCon
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
          x = "Clay content at 0~20cm soil depth (%)",
          fill = "Group") +
+    theme_bw() +
     theme(
       plot.title = element_text(family="Arial Black", size=16, hjust=0),
       
@@ -1232,59 +1243,59 @@ fn_post_plot_density = function(out.cem, mf, colname.travelTime, colname.clayCon
     )
   
   ## Density plot for Elevation
-  # fig_elevation = bal.plot(out.cem, 
-  #                     var.name = colname.elevation,
-  #                     which = "both") +
-  #     facet_wrap(.~which, labeller = as_labeller(fnl)) +
-  #     #scale_fill_viridis(discrete = T) +
-  #     scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
-  #     labs(title = "Distributional balance for elevation",
-  #          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-  #          x = "Elevation (m)",
-  #          fill = "Group") +
-  #     theme_bw() +
-  #     theme(
-  #         plot.title = element_text(family="Arial Black", size=16, hjust=0),
-  #         legend.title = element_blank(),
-  #         legend.text=element_text(size=14),
-  #         legend.spacing.x = unit(0.5, 'cm'),
-  #         legend.spacing.y = unit(0.75, 'cm'),
-  #         
-  #         axis.text=element_text(size=12),
-  #         axis.title=element_text(size=14),
-  #         axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
-  #         axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
-  #         
-  #         strip.text.x = element_text(size = 12) # Facet Label
-  #     )
+  fig_elevation = bal.plot(out.cem,
+                      var.name = colname.elevation,
+                      which = "both") +
+      facet_wrap(.~which, labeller = as_labeller(fnl)) +
+      #scale_fill_viridis(discrete = T) +
+      scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+      labs(title = "Distributional balance for elevation",
+           subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+           x = "Elevation (m)",
+           fill = "Group") +
+      theme_bw() +
+      theme(
+          plot.title = element_text(family="Arial Black", size=16, hjust=0),
+          legend.title = element_blank(),
+          legend.text=element_text(size=14),
+          legend.spacing.x = unit(0.5, 'cm'),
+          legend.spacing.y = unit(0.75, 'cm'),
+
+          axis.text=element_text(size=12),
+          axis.title=element_text(size=14),
+          axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+          axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+
+          strip.text.x = element_text(size = 12) # Facet Label
+      )
   
   ## Density plot for TRI
-  # fig_tri = bal.plot(out.cem, 
-  #                     var.name = colname.tri,
-  #                     which = "both") +
-  #     facet_wrap(.~which, labeller = as_labeller(fnl)) +
-  #     #scale_fill_viridis(discrete = T) +
-  #     scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
-  #     labs(title = "Distributional balance for Terrain Ruggedness Index (TRI)",
-  #         subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-  #          x = "TRI",
-  #          fill = "Group") +
-  #     theme_bw() +
-  #     theme(
-  #         plot.title = element_text(family="Arial Black", size=16, hjust=0),
-  #         
-  #         legend.title = element_blank(),
-  #         legend.text=element_text(size=14),
-  #         legend.spacing.x = unit(0.5, 'cm'),
-  #         legend.spacing.y = unit(0.75, 'cm'),
-  #         
-  #         axis.text=element_text(size=12),
-  #         axis.title=element_text(size=14),
-  #         axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
-  #         axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
-  #         
-  #         strip.text.x = element_text(size = 12) # Facet Label
-  #     )
+  fig_tri = bal.plot(out.cem,
+                      var.name = colname.tri,
+                      which = "both") +
+      facet_wrap(.~which, labeller = as_labeller(fnl)) +
+      #scale_fill_viridis(discrete = T) +
+      scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+      labs(title = "Distributional balance for Terrain Ruggedness Index (TRI)",
+          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+           x = "TRI",
+           fill = "Group") +
+      theme_bw() +
+      theme(
+          plot.title = element_text(family="Arial Black", size=16, hjust=0),
+
+          legend.title = element_blank(),
+          legend.text=element_text(size=14),
+          legend.spacing.x = unit(0.5, 'cm'),
+          legend.spacing.y = unit(0.75, 'cm'),
+
+          axis.text=element_text(size=12),
+          axis.title=element_text(size=14),
+          axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+          axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+
+          strip.text.x = element_text(size = 12) # Facet Label
+      )
   
   ## Density plot for covariate "forest cover 2000"
   fig_fc = bal.plot(out.cem, 
@@ -1297,6 +1308,7 @@ fn_post_plot_density = function(out.cem, mf, colname.travelTime, colname.clayCon
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
          x = "Forest cover (ha)",
          fill = "Group") +
+    theme_bw() +
     theme(
       plot.title = element_text(family="Arial Black", size=16, hjust=0),
       
@@ -1324,6 +1336,7 @@ fn_post_plot_density = function(out.cem, mf, colname.travelTime, colname.clayCon
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
          x = "Forest loss (%)",
          fill = "Group") +
+    theme_bw() +
     theme(
       plot.title = element_text(family="Arial Black", size=16, hjust=0.5),
       legend.title = element_blank(),
@@ -1350,14 +1363,14 @@ fn_post_plot_density = function(out.cem, mf, colname.travelTime, colname.clayCon
          plot = fig_clay,
          device = "png",
          height = 6, width = 9)
-  # ggsave(paste(tmp, paste0("fig_elevation_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
-  #        plot = fig_elevation,
-  #        device = "png",
-  #        height = 6, width = 9)
-  # ggsave(paste(tmp, paste0("fig_tri_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
-  #        plot = fig_tri,
-  #        device = "png",
-  #        height = 6, width = 9)
+  ggsave(paste(tmp, paste0("fig_elevation_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
+         plot = fig_elevation,
+         device = "png",
+         height = 6, width = 9)
+  ggsave(paste(tmp, paste0("fig_tri_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
+         plot = fig_tri,
+         device = "png",
+         height = 6, width = 9)
   ggsave(paste(tmp, paste0("fig_fc_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
          plot = fig_fc,
          device = "png",
