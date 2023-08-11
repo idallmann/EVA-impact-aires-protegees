@@ -119,8 +119,7 @@ data_pa =
   opts = list("region" = "")) 
 
 #List of countries in the sample
-#list_iso = "VNM"
-list_iso = unique(data_pa[data_pa$direction_regionale == "Dr Asie Du Sud-Est", ]$iso3)
+list_iso = unique(data_pa[data_pa$direction_regionale == "Dr Afrique Centrale", ]$iso3)
 # Specify a list of WDPA IDs of funded protected areas (treated areas)
 # paid = data_stat_nodupl[data_stat_nodupl$iso3 == country,]$wdpaid
 
@@ -169,7 +168,9 @@ max_i = length(list_iso) #Max value of the counter
 tic_pre = tic() #Start timer
 
 #Create a log to track progress
-log = fn_pre_log(list_iso)
+log = fn_pre_log(list_iso,
+                 name = paste0("log-", Sys.Date(), "-test-LAO+GIN.txt"),
+                 notes = "All country in Dr Ocean Indien")
 
 for (i in list_iso)
 {
@@ -261,13 +262,14 @@ for (i in list_iso)
   output_load = fn_post_load_mf(iso = i, 
                            yr_min = yr_min,
                            name_input = paste0("matching_frame_spling", n_sampling),
-                           ext_input = ".gpkg")
+                           ext_input = ".gpkg",
+                           log = log)
   if(output_load$is_ok == FALSE) {next} else mf_ini = output_load$mf
   
   list_pa = unique(mf_ini[mf_ini$wdpaid != 0, ]$wdpaid)
   
-    #Append the log : list of PAs in the matching frame
-  cat(paste("WDPAIDs :", paste(list_pa, collapse = ", "), "\n#####\n\n"), 
+    #Append the log : list of PAs analyzed in the matching frame
+  cat(paste("LIST OF WDPAIDs :", paste(list_pa, collapse = ", "), "\n#####\n\n"), 
       file = log, append = TRUE)
   
   #Initialization
@@ -282,7 +284,7 @@ for (i in list_iso)
   {
     #Update counter and show progress
     count_j = count_j+1
-    print(paste0("WDPA ID ", j, " : ", count_j, "/", max_j))
+    print(paste0("WDPAID : ", j, " : ", count_j, "/", max_j))
     
     #Append the log to track progress of the process on PA j
     cat(paste("###\nWDPAID :", j, "\n###\n\n"), file = log, append = TRUE)
@@ -292,12 +294,15 @@ for (i in list_iso)
     
     #Add average pre-loss
     print("--Add covariate : average tree loss pre-funding")
-    mf_j = fn_post_avgLoss_prefund(mf = mf_ini_j, colfl.prefix = colfl.prefix)
+    output_avgLoss = fn_post_avgLoss_prefund(mf = mf_ini_j, 
+                                             colfl.prefix = colfl.prefix,
+                                             log = log)
+    if(output_avgLoss$is_ok == FALSE) {next} else mf_j = output_avgLoss$mf
     
     #Run Coarsened Exact Matching
     print("--Run CEM")
-    lst_cem_res_j = fn_post_match_auto(mf = mf_j, iso = i, 
-                                   dummy_int = TRUE,
+    output_cem = fn_post_match_auto(mf = mf_j, iso = i, 
+                                   dummy_int = FALSE,
                                      th_mean = 0.1, 
                                      th_var_min = 0.5, th_var_max = 2,
                                    colname.travelTime = colname.travelTime, 
@@ -305,14 +310,14 @@ for (i in list_iso)
                                    colname.elevation = colname.elevation,
                                    colname.tri = colname.tri, 
                                    colname.fcIni = colname.fcIni, 
-                                   colname.flAvg = colname.flAvg)
-
-    out.cem_j = lst_cem_res_j$out.cem
+                                   colname.flAvg = colname.flAvg,
+                                   log = log)
+    if(output_cem$is_ok == FALSE) {next} else out_cem_j = output_cem$out.cem
     
     #Plots : covariates
     print("--Some plots : covariates")
     print("----Covariate balance")
-    fn_post_covbal(out.cem = out.cem_j,
+    output_covbal = fn_post_covbal(out.cem = out_cem_j,
                    mf = mf_j,
                    colname.travelTime = colname.travelTime, 
                    colname.clayContent = colname.clayContent,
@@ -322,33 +327,41 @@ for (i in list_iso)
                    colname.elevation = colname.elevation,
                    iso = i,
                    path_tmp = tmp_post,
-                   wdpaid = j)
+                   wdpaid = j,
+                   log)
+  if(output_covbal$is_ok == FALSE) {next}
+    
     print("----Density plots")
-    fn_post_plot_density(out.cem = out.cem_j, 
-                         mf = mf_j,
-                      colname.travelTime = colname.travelTime, 
-                       colname.clayContent = colname.clayContent,
-                       colname.fcIni = colname.fcIni, 
-                       colname.flAvg = colname.flAvg,
-                    colname.tri = colname.tri,
-                   colname.elevation = colname.elevation,
-                      iso = i,
-                      path_tmp = tmp_post,
-                      wdpaid = j)
+    output_density = fn_post_plot_density(out.cem = out_cem_j, 
+                                         mf = mf_j,
+                                      colname.travelTime = colname.travelTime, 
+                                       colname.clayContent = colname.clayContent,
+                                       colname.fcIni = colname.fcIni, 
+                                       colname.flAvg = colname.flAvg,
+                                    colname.tri = colname.tri,
+                                   colname.elevation = colname.elevation,
+                                      iso = i,
+                                      path_tmp = tmp_post,
+                                      wdpaid = j,
+                                   log)
+     if(output_density$is_ok == FALSE) {next}
     
     #Panelize dataframes
     print("----Panelize (Un-)Matched Dataframe")
-    output_post_panel_j = fn_post_panel(out.cem = out.cem_j, 
-                                        mf = mf_j, 
-                                        colfc.prefix = colfc.prefix, 
-                                        colfc.bind = colfc.bind,
-                                        ext_output = ".csv", 
-                                        iso = i,
-                                        wdpaid = j)
-    matched.wide.j = output_post_panel_j$matched.wide
-    unmatched.wide.j = output_post_panel_j$unmatched.wide
-    matched.long.j = output_post_panel_j$matched.long
-    unmatched.long.j = output_post_panel_j$unmatched.long 
+    output_panel = fn_post_panel(out.cem = out_cem_j, 
+                                  mf = mf_j, 
+                                  colfc.prefix = colfc.prefix, 
+                                  colfc.bind = colfc.bind,
+                                  ext_output = ".csv", 
+                                  iso = i,
+                                  wdpaid = j,
+                                  log = log)
+     if(output_panel$is_ok == FALSE) {next}
+    
+    matched.wide.j = output_panel$matched.wide
+    unmatched.wide.j = output_panel$unmatched.wide
+    matched.long.j = output_panel$matched.long
+    unmatched.long.j = output_panel$unmatched.long 
     
     #Extract matched units and plot them on a grid
     print("----Extract matched units and plot them on a grid")
@@ -360,27 +373,33 @@ for (i in list_iso)
       rename("group_matched" = "group") 
     df_pix_matched = rbind(df_pix_matched, df_pix_matched_j)
     ##Plot the grid with matched control and treated for the PA
-    fn_post_plot_grid(iso = i, wdpaid = j,
+    output_grid = fn_post_plot_grid(iso = i, wdpaid = j,
                       is_pa = TRUE,
                       df_pix_matched = df_pix_matched_j,
-                      path_tmp = tmp_post)
+                      path_tmp = tmp_post,
+                      log)
+     if(output_grid$is_ok == FALSE) {next}
   
     
   
     #Plots : trend
     print("----Plots again : trend")
-    fn_post_plot_trend(matched.long = matched.long.j, 
+    output_trend = fn_post_plot_trend(matched.long = matched.long.j, 
                        unmatched.long = unmatched.long.j, 
                        mf = mf_j,
                        iso = i,
-                       wdpaid = j)
+                       wdpaid = j,
+                       log)
+    if(output_trend$is_ok == FALSE) {next}
   }
   
   # Plot the grid with matched control and treated for the country 
-  fn_post_plot_grid(iso = i, wdpaid = j,
+  output_grid = fn_post_plot_grid(iso = i, wdpaid = j,
                     is_pa = FALSE,
                     df_pix_matched = df_pix_matched,
-                    path_tmp = tmp_post)
+                    path_tmp = tmp_post,
+                    log)
+   if(output_grid$is_ok == FALSE) {next}
   
 }
 
@@ -402,4 +421,6 @@ aws.s3::put_object(file = log,
 ## Allow to enter a list of any covariates to perform the matching
 ## Function to plot Fig. 3 in Iacus et al. 2012
 ## On veut ATE ou ATT ?? Je dirai ATT car on ne veut pas estimer l'effet de mettre une AP, mais l'effet des AP financés par l'AFD 
+
+
 ```

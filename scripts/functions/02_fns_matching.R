@@ -6,14 +6,14 @@
 #Pre-processing
 ###
 
-fn_pre_log = function(list_iso)
+fn_pre_log = function(list_iso, name, notes)
 {
   str_iso = paste(list_iso, collapse = ", ")
-  log = paste(tempdir(), paste0("log-", Sys.Date(), ".txt"), sep = "/")
+  log = paste(tempdir(), name, sep = "/")
   file.create(log)
   #Do not forget to end the writing with a \n to avoid warnings
   #cat(paste("#####\nCOUNTRY :", iso, "\nTIME :", print(Sys.time(), tz = "UTC-2"), "\n#####\n\n###\nPRE-PROCESSING\n###\n\n"), file = log, append = TRUE)
-  cat(paste("STARTING TIME :", print(Sys.time(), tz = "UTC-2"), "\nCOUNTRIES :", str_iso, "\n\n##########\nPRE-PROCESSING\n##########\n\n"), file = log, append = TRUE)
+  cat(paste("STARTING TIME :", print(Sys.time(), tz = "UTC-2"), "\nCOUNTRIES :", str_iso, "\nNOTES :", notes, "\n\n##########\nPRE-PROCESSING\n##########\n\n"), file = log, append = TRUE)
   
   return(log)
 }
@@ -47,7 +47,7 @@ lonlat2UTM = function(lonlat)
 fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log)
 {
   
-  output = tryCatch(
+  output = withCallingHandlers(
     
     {
       
@@ -131,6 +131,16 @@ fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log)
     cat(paste("#Generating observation units\n-> Error :\n", e, "\n"), file = log, append = TRUE)
     #Return string to inform user to skip
     return(list("is_ok" = FALSE))
+  },
+  
+  warning = function(w)
+  {
+    #Print the warning and append the log
+    print(w)
+    #Append the log 
+    cat(paste("#Generating observation units\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+    #Return string to inform user to skip
+    return(list("is_ok" = TRUE))
   }
   
   )
@@ -154,7 +164,7 @@ fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log)
 fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, data_pa, gadm_prj, grid, gridSize, log)
 {
   
-  output = tryCatch(
+  output = withCallingHandlers(
     
     {
   # wdpa_prj = wdpa_raw %>%
@@ -419,6 +429,16 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
     cat(paste("#Determining Group IDs and WDPA IDs\n-> Error :\n", e, "\n"), file = log, append = TRUE)
     #Return string to inform user to skip
     return(list("is_ok" = FALSE))
+  },
+  
+  warning = function(w)
+  {
+    #Print the warning and append the log
+    print(w)
+    #Append the log 
+    cat(paste("#Determining Group IDs and WDPA IDs\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+    #Return string to inform user to skip
+    return(list("is_ok" = TRUE))
   }
   
   )
@@ -742,6 +762,16 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
     return(list("is_ok" = FALSE))
   }
   
+  # warning = function(w)
+  # {
+  #   #Print the warning and append the log
+  #   print(w)
+  #   #Append the log 
+  #   cat(paste("#Calculating outcome and other covariates\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+  #   #Return string to inform user to skip
+  #   return(list("is_ok" = TRUE))
+  # }
+  
   )
   
   return(output)
@@ -761,7 +791,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
 ### yr_min : the minimum for treatment year
 ##OUTPUTS :
 ### mf : matching dataframe. More precisely, it gives for each observation units in a country values of different covariates to perform matching.
-fn_post_load_mf = function(iso, yr_min, name_input, ext_input)
+fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log)
 {
   output = tryCatch(
     
@@ -800,7 +830,7 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input)
                 opts = list("region" = ""))
   
   #Append the log
-  cat("#Loading the matching frame\n-> OK\n", file = log, append = TRUE)
+  cat("Loading the matching frame -> OK\n", file = log, append = TRUE)
   
   #Return output
   return(list("mf" = mf, "is_ok" = TRUE))
@@ -810,9 +840,20 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input)
   error = function(e)
   {
     print(e)
-    cat(paste("#Loading the matching frame\n-> Error :\n", e, "\n"), file = log, append = TRUE)
+    cat(paste("Error in loading the matching frame :\n", e, "\n"), file = log, append = TRUE)
     return(list("is_ok" = FALSE))
   }
+  
+  # warning = function(w)
+  # {
+  #   #Print the warning and append the log
+  #   print(w)
+  #   #Append the log 
+  #   cat(paste("Warining while loading the matching frame :\n", w, "\n"), file = log, append = TRUE)
+  #   #Return string to inform user to skip
+  #   return(list("is_ok" = TRUE))
+  # }
+  
   
   )
   
@@ -830,8 +871,14 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input)
 ## OUTPUTS :
 ### mf : matching frame with the new covariate
 
-fn_post_avgLoss_prefund = function(mf, colfl.prefix, colname.flAvg)
+fn_post_avgLoss_prefund = function(mf, colfl.prefix, colname.flAvg, log)
 {
+  
+  output = tryCatch(
+    
+    {
+      
+  #OLD
   # Columns treeloss, without geometry
   # start = yr_start - 2000
   # end = yr_end - 2000
@@ -839,8 +886,7 @@ fn_post_avgLoss_prefund = function(mf, colfl.prefix, colname.flAvg)
   #   st_drop_geometry()
   # # Add column: average treeloss before funding starts, 
   # mf$avgLoss_pre_fund = round(rowMeans(df_fl), 2)
-  
-  ###TEST
+
   #Extract treatment year
   treatment.year = mf %>% 
     filter(group == 2) %>% 
@@ -860,7 +906,34 @@ fn_post_avgLoss_prefund = function(mf, colfl.prefix, colname.flAvg)
   #Remove NA values
   mf = mf %>% drop_na(avgLoss_pre_fund)
   
-  return(mf)
+  #Append the log
+  cat("#Add average pre-treatment treecover loss\n-> OK\n", file = log, append = TRUE)
+  
+  #Return output
+  return(list("mf" = mf, "is_ok" = TRUE))
+  
+    },
+  
+  error = function(e)
+  {
+    print(e)
+    cat(paste("#Add average pre-treatment treecover loss\n-> Error :\n", e, "\n"), file = log, append = TRUE)
+    return(list("is_ok" = FALSE))
+  }
+  
+  # warning = function(w)
+  # {
+  #   #Print the warning and append the log
+  #   print(w)
+  #   #Append the log 
+  #   cat(paste("#Add average pre-treatment treecover loss\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+  #   #Return string to inform user to skip
+  #   return(list("is_ok" = TRUE))
+  # }
+  
+  )
+  
+  return(output)
 }
 
 #Define the cutoffs of the covariates histogram, to perform Coarsened Exact Matching (CEM)
@@ -972,7 +1045,7 @@ fn_post_match_manual = function(mf, iso, wdpaid, path_tmp,
 
 
     ## Matching handling errors due to absence of matching
-    tryCatch(
+    withCallingHandlers(
       {
         #Try to perform matching
         out.cem = matchit(formula,
@@ -1053,20 +1126,23 @@ fn_post_match_auto = function(mf,
                               dummy_int,
                               th_mean, 
                               th_var_min, th_var_max,
-                              colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcIni, colname.flAvg)
+                              colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcIni, colname.flAvg,
+                              log)
 {
-  # Formula
-  formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
-                        + .(as.name(colname.clayContent))  
-                        +  .(as.name(colname.fcIni)) 
-                        + .(as.name(colname.flAvg))
-                        + .(as.name(colname.tri))
-                        + .(as.name(colname.elevation))))
+
 
   ## Matching handling errors due to absence of matching
   output = 
     tryCatch(
     {
+      # Formula
+      formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
+                            + .(as.name(colname.clayContent))  
+                            +  .(as.name(colname.fcIni)) 
+                            + .(as.name(colname.flAvg))
+                            + .(as.name(colname.tri))
+                            + .(as.name(colname.elevation))))
+      
       #Try to perform matching
       out.cem = matchit(formula,
                         data = mf,
@@ -1085,19 +1161,40 @@ fn_post_match_auto = function(mf,
                is_bal_ok = as.logical(is_var_ok*is_mean_ok), #Binary : TRUE if both variance and mean difference check pass, 0 if at least one does not
                .after = "std_mean_diff")
       
-      return(list("out.cem" = out.cem, "df.cov.m" = df.cov.m))
+      #Add a warning if covariate balance tests are not passed
+      if(sum(df.cov.m$is_bal_ok) < nrow(df.cov.m) | is.na(sum(df.cov.m$is_bal_ok)) == TRUE)
+      {
+        message("Matched control and treated units are not balanced enough. Increase sample size, turn to less restrictive tests or visually check balance.")
+        cat("#Run Coarsened Exact Matching\n-> Careful : matched control and treated units are not balanced enough. Increase sample size, turn to less restrictive tests or visually check balance.", 
+            file = log, append = TRUE)
+      }
+      
+      #Append the log
+      cat("#Run Coarsened Exact Matching\n-> OK\n", file = log, append = TRUE)
+      
+      return(list("out.cem" = out.cem, "df.cov.m" = df.cov.m, "is_ok" = TRUE))
       
     },
     
     error=function(e)
     {
-      message(paste("Error : the method for cutpoints is not able to match units. Increase the sampling or try an other method."))
-      return("skip_country")
+      print(e)
+      cat(paste("#Run Coarsened Exact Matching\n-> Error :\n", e, "\n"), file = log, append = TRUE)
+      return(list("is_ok" = FALSE))
+    },
+    
+    warning = function(w)
+    {
+      #Print the warning and append the log
+      #Append the log 
+      cat(paste("#Run Coarsened Exact Matching\n-> Warning :\n", w, "\n"),
+          file = log, append = TRUE)
+      return(list("is_ok" = FALSE)) #Here warning comes from an absence of matching : thus must skip to next country
     }
     
   )
   
-  
+  return(output)
   
 }
     
@@ -1121,7 +1218,7 @@ fn_post_match_auto_old = function(mf, iso,
   {
     
     ## Matching handling errors due to absence of matching
-    tryCatch(
+    withCallingHandlers(
       {
         #Try to perform matching
         out.cem = matchit(formula,
@@ -1189,9 +1286,13 @@ fn_post_match_auto_old = function(mf, iso,
 ## OUTPUTS :
 ### None
 
-fn_post_covbal = function(out.cem, mf, colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, colname.tri, colname.elevation, iso, path_tmp, wdpaid)
+fn_post_covbal = function(out.cem, mf, colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, colname.tri, colname.elevation, iso, path_tmp, wdpaid, log)
 {
   
+  output = tryCatch(
+    
+    {
+      
   #Save summary table from matching
   smry_cem = summary(out.cem)
   tbl_cem_nn = smry_cem$nn
@@ -1270,6 +1371,34 @@ fn_post_covbal = function(out.cem, mf, colname.travelTime, colname.clayContent, 
                        region = "", show_progress = TRUE)
   }
   do.call(file.remove, list(list.files(paste(path_tmp, "CovBal", sep = "/"), full.names = TRUE)))
+  
+  #Append the log
+  cat("#Plot covariates balance\n->OK\n", file = log, append = TRUE)
+  
+  return(list("is_ok" = TRUE))
+  
+    },
+  
+  error=function(e)
+  {
+    print(e)
+    cat(paste("#Plot covariates balance\n-> Error :\n", e, "\n"), file = log, append = TRUE)
+    return(list("is_ok" = FALSE))
+  }
+  
+  # warning = function(w)
+  # {
+  #   #Print the warning and append the log
+  #   print(w)
+  #   #Append the log 
+  #   cat(paste("#Plot covariates balance\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+  #   #Return string to inform user to skip
+  #   return(list("is_ok" = TRUE))
+  # }
+  
+  )
+  
+  return(output)
 
 }
 
@@ -1284,8 +1413,12 @@ fn_post_covbal = function(out.cem, mf, colname.travelTime, colname.clayContent, 
 
 fn_post_plot_density = function(out.cem, mf, 
                                 colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, colname.tri, colname.elevation, 
-                                iso, path_tmp, wdpaid = j)
+                                iso, path_tmp, wdpaid = j, log)
 {
+  output = tryCatch(
+    
+    {
+      
   # Define Facet Labels
   fnl = c(`Unadjusted Sample` = "Before Matching",
           `Adjusted Sample` = "After Matching")
@@ -1503,6 +1636,34 @@ fn_post_plot_density = function(out.cem, mf,
   }
   do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
   
+  #Append the log
+  cat("#Plot covariates density\n->OK\n", file = log, append = TRUE)
+  
+  return(list("is_ok" = TRUE))
+  
+    },
+  
+  error=function(e)
+  {
+    print(e)
+    cat(paste("#Plot covariates density\n-> Error :\n", e, "\n"), file = log, append = TRUE)
+    return(list("is_ok" = FALSE))
+  }
+  
+  # warning = function(w)
+  # {
+  #   #Print the warning and append the log
+  #   print(w)
+  #   #Append the log 
+  #   cat(paste("#Plot covariates density\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+  #   #Return string to inform user to skip
+  #   return(list("is_ok" = TRUE))
+  # }
+  
+  )
+  
+  return(output)
+  
 }
 
 #Define panel datasets (long, wide) for control and treatment observation units, before and after matching.
@@ -1514,8 +1675,13 @@ fn_post_plot_density = function(out.cem, mf,
 ## OUTPUTS :
 ### list_output : a list of dataframes : (un)matched.wide/long. They contain covariates and outcomes for treatment and control units, before and after matching, in a wide or long format
 
-fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpaid, iso)
+fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpaid, iso, log)
 {
+  
+  output = tryCatch(
+    
+    {
+      
   # Convert dataframe of matched objects to pivot wide form
   matched.wide = match.data(object=out.cem, data=mf)
   
@@ -1560,10 +1726,37 @@ fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpa
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
   
+  #Append the log
+  cat("#Panelize dataframe\n-> OK\n", file = log, append = TRUE)
+  
   #Return outputs
   list_output = list("matched.wide" = matched.wide, "matched.long" = matched.long,
-                     "unmatched.wide" = unmatched.wide, "unmatched.long" = unmatched.long)
+                     "unmatched.wide" = unmatched.wide, "unmatched.long" = unmatched.long,
+                     "is_ok" = TRUE)
   return(list_output)
+  
+    },
+  
+  error=function(e)
+{
+  print(e)
+  cat(paste("#Panelize dataframe\n-> Error :\n", e, "\n"), file = log, append = TRUE)
+  return(list("is_ok" = FALSE))
+}
+
+# warning = function(w)
+# {
+#   #Print the warning and append the log
+#   print(w)
+#   #Append the log 
+#   cat(paste("#Panelize dataframe\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+#   #Return string to inform user to skip
+#   return(list("is_ok" = TRUE))
+# }
+
+  )
+  
+  return(output)
   
 }
 
@@ -1573,8 +1766,12 @@ fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpa
 ## OUTPUTS : 
 ### None
 
-fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid) 
+fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log) 
 {
+  
+  output = tryCatch(
+    
+    {
   # Make dataframe for plotting Trend
   df.matched.trend = matched.long %>%
     group_by(group, year) %>%
@@ -1703,6 +1900,33 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid)
   }
   do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
   
+  #Append the log
+  cat("#Plot matched and unmatched trends\n-> OK\n", file = log, append = TRUE)
+  
+  return(list("is_ok" = TRUE))
+  
+    },
+  
+  error=function(e)
+  {
+    print(e)
+    cat(paste("#Plot matched and unmatched trends\n-> Error :\n", e, "\n"), file = log, append = TRUE)
+    return(list("is_ok" = FALSE))
+  }
+  
+  # warning = function(w)
+  # {
+  #   #Print the warning and append the log
+  #   print(w)
+  #   #Append the log 
+  #   cat(paste("#Plot matched and unmatched trends\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+  #   #Return string to inform user to skip
+  #   return(list("is_ok" = TRUE))
+  # }
+  
+  )
+  return(output)
+  
 }
 
 # Plot the country grid with matched control and treated
@@ -1714,8 +1938,13 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid)
 ##OUTPUTS
 ### None (plots)
 
-fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp)
+fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp, log)
 {
+  
+  output = tryCatch(
+    
+    {
+      
   #Import dataframe where each pixel in the grid has both its grid ID and asset ID from the portfolio creation
   df_gridID_assetID = s3read_using(data.table::fread,
                                    object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", paste0("df_gridID_assetID_", iso, ".csv")),
@@ -1767,4 +1996,39 @@ fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp)
                      region = "", 
                      show_progress = FALSE)
   
+  #Append the log
+  if(is_pa == TRUE)
+  {
+    cat("#Plot the grid with matched control and treated for the PA \n-> OK\n", file = log, append = TRUE)
+  } else cat("#Plot the grid with matched control and treated for all PAs in the country \n-> OK\n", file = log, append = TRUE)
+
+  
+  return(list("is_ok" = TRUE))
+  
+    },
+  
+  error = function(e)
+  {
+    print(e)
+    if(is_pa == TRUE)
+    {
+      cat(paste("#Plot the grid with matched control and treated for the PA \n-> Error :\n", e, "\n"), file = log, append = TRUE)
+    } else cat(paste("#Plot the grid with matched control and treated for all the PAs in the country \n-> Error :\n", e, "\n"), file = log, append = TRUE)
+    return(list("is_ok" = FALSE))
+  }
+  
+  # warning = function(w)
+  # {
+  #   #Print the warning and append the log
+  #   print(w)
+  #   if(is_pa == TRUE)
+  #   {
+  #     cat(paste("#Plot the grid with matched control and treated for the PA \n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+  #   } else cat(paste("#Plot the grid with matched control and treated for all the PAs in the country \n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+  #   return(list("is_ok" = TRUE))
+  # }
+  
+  )
+  
+  return(output)
 }
