@@ -6,11 +6,14 @@
 #Pre-processing
 ###
 
-fn_pre_log = function(iso)
+fn_pre_log = function(list_iso)
 {
-  log = paste(tempdir(), paste0("log-", iso, "-", Sys.Date(), ".txt"), sep = "/")
-  #Do not foregt to end the writing with a \n to avoid warnings
-  cat(paste("#####\nCOUNTRY :", iso, "\nTIME :", print(Sys.time(), tz = "UTC-2"), "\n#####\n\n###\nPRE-PROCESSING\n###\n"), file = log, append = TRUE)
+  str_iso = paste(list_iso, collapse = ", ")
+  log = paste(tempdir(), paste0("log-", Sys.Date(), ".txt"), sep = "/")
+  file.create(log)
+  #Do not forget to end the writing with a \n to avoid warnings
+  #cat(paste("#####\nCOUNTRY :", iso, "\nTIME :", print(Sys.time(), tz = "UTC-2"), "\n#####\n\n###\nPRE-PROCESSING\n###\n\n"), file = log, append = TRUE)
+  cat(paste("STARTING TIME :", print(Sys.time(), tz = "UTC-2"), "\nCOUNTRIES :", str_iso, "\n\n##########\nPRE-PROCESSING\n##########\n\n"), file = log, append = TRUE)
   
   return(log)
 }
@@ -41,8 +44,13 @@ lonlat2UTM = function(lonlat)
 ### utm_code : UTM code of the country
 ### gridSize : the resolution of gridding, defined from the area of the PA with the lowest area
 
-fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling)
+fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log)
 {
+  
+  output = tryCatch(
+    
+    {
+      
   # Download country polygon to working directory and load it into workspace
   gadm = gadm(country = iso, resolution = 1, level = 0, path = path_tmp) %>% 
     st_as_sf() 
@@ -101,9 +109,33 @@ fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling)
                      bucket = paste("projet-afd-eva-ap/data_tidy/mapme_bio_data/matching", iso, sep = "/"), 
                      region = "", 
                      show_progress = FALSE)
+  
+  #Append the log 
+  cat("#Generating observation units\n-> OK\n", file = log, append = TRUE)
+  
   #Return outputs
-  list_output = list("ctry_shp_prj" = gadm_prj, "grid" = grid, "gridSize" = gridSize, "utm_code" = utm_code)
+  list_output = list("ctry_shp_prj" = gadm_prj, 
+                     "grid" = grid, 
+                     "gridSize" = gridSize, 
+                     "utm_code" = utm_code,
+                     "is_ok" = TRUE)
   return(list_output)
+  
+    },
+  
+  error = function(e)
+  {
+    #Print the error and append the log
+    print(e)
+    #Append the log 
+    cat(paste("#Generating observation units\n-> Error :\n", e, "\n"), file = log, append = TRUE)
+    #Return string to inform user to skip
+    return(list("is_ok" = FALSE))
+  }
+  
+  )
+  
+  return(output)
 }
 
 #Assign each pixel (observation unit) to a group : PA non-funded, funded and analyzed, funded and not analyzed, buffer, potential control
@@ -119,9 +151,12 @@ fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling)
 ##OUTPUTS : 
 ### grid.param : a raster representing the gridding of the country with two layers. One for the group each pixel belongs to (funded PA, non-funded PA, potential control, buffer), the other for the WDPAID corresponding to each pixel (0 if not a PA)
 
-fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, data_pa, gadm_prj, grid, gridSize)
+fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, data_pa, gadm_prj, grid, gridSize, log)
 {
   
+  output = tryCatch(
+    
+    {
   # wdpa_prj = wdpa_raw %>%
   #   filter(ISO3 == iso) %>%
   #   dplyr::select(c("WDPAID", "MARINE", "PA_DEF", "STATUS_YR", "NO_TK_AREA"))
@@ -243,7 +278,6 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
                                   group == 3 ~ "Funded PA, not analyzed",
                                   group == 4 ~ "Non-funded PA",
                                   group == 5 ~ "Buffer"))
-  
   
   
   #Save the grid
@@ -368,8 +402,29 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
   }
   do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
   
+  #Append the log 
+  cat("#Determining Group IDs and WDPA IDs\n-> OK\n", file = log, append = TRUE)
+  
+  #Return the output
+  list_output = list("grid.param" = grid.param, "is_ok" = TRUE)
+  return(list_output)
+  
+    },
+  
+  error = function(e)
+  {
+    #Print the error and append the log
+    print(e)
+    #Append the log 
+    cat(paste("#Determining Group IDs and WDPA IDs\n-> Error :\n", e, "\n"), file = log, append = TRUE)
+    #Return string to inform user to skip
+    return(list("is_ok" = FALSE))
+  }
+  
+  )
+  
   #Return outputs
-  return(grid.param)
+  return(output)
   
 }
 
@@ -512,8 +567,12 @@ fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output, yr_firs
 
 
 
-fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output, yr_first, yr_last) 
+fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output, yr_first, yr_last, log) 
 {
+  output = tryCatch(
+    
+    {
+  tic = tic()
   
   print("----Initialize portfolio")
   #Take only potential control (group = 1) and treatment (group = 2) in the country gridding
@@ -662,7 +721,30 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   #Removing files in the temporary folder
   do.call(file.remove, list(list.files(tmp_pre, include.dirs = F, full.names = T, recursive = T)))
   
+  #End timer
+  toc = toc()
   
+  #Append the log
+  cat(paste("#Calculating outcome and other covariates\n-> OK :", toc$callback_msg, "\n\n"), file = log, append = TRUE)
+
+  #Return the output
+  return(list("is_ok" = TRUE))
+  
+    },
+  
+  error = function(e)
+  {
+    #Print the error and append the log
+    print(e)
+    #Append the log 
+    cat(paste("#Calculating outcome and other covariates\n-> Error :\n", e, "\n\n"), file = log, append = TRUE)
+    #Return string to inform user to skip
+    return(list("is_ok" = FALSE))
+  }
+  
+  )
+  
+  return(output)
 }
 
 
@@ -681,6 +763,10 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
 ### mf : matching dataframe. More precisely, it gives for each observation units in a country values of different covariates to perform matching.
 fn_post_load_mf = function(iso, yr_min, name_input, ext_input)
 {
+  output = tryCatch(
+    
+    {
+      
   #Load the matching dataframe
   object = paste("data_tidy/mapme_bio_data/matching", iso, paste0(name_input, "_", iso, ext_input), sep = "/")
   mf = s3read_using(sf::st_read,
@@ -713,8 +799,24 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input)
                 object = paste("data_tidy/mapme_bio_data/matching", iso, paste0("list_pa_matched_", iso, ".csv"), sep = "/"),
                 opts = list("region" = ""))
   
+  #Append the log
+  cat("#Loading the matching frame\n-> OK\n", file = log, append = TRUE)
   
-  return(mf)
+  #Return output
+  return(list("mf" = mf, "is_ok" = TRUE))
+  
+    },
+  
+  error = function(e)
+  {
+    print(e)
+    cat(paste("#Loading the matching frame\n-> Error :\n", e, "\n"), file = log, append = TRUE)
+    return(list("is_ok" = FALSE))
+  }
+  
+  )
+  
+  return(output)
 }
 
 

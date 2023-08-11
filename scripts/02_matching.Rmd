@@ -167,15 +167,19 @@ For pre- and post-processing steps, the different functions are called in a loop
 count = 0 #Initialize counter
 max_i = length(list_iso) #Max value of the counter
 tic_pre = tic() #Start timer
+
+#Create a log to track progress
+log = fn_pre_log(list_iso)
+
 for (i in list_iso)
 {
   #Update counter and display progress
   count = count+1
   print(paste0(i, " : country ", count, "/", max_i))
   
-  #Create a log to track progress of the process
-  # log_i = fn_pre_log(iso = i)
-  # cat("\nrout", file = log_i, append = TRUE)
+  #Append the log to track progress of the process on country i
+  cat(paste("#####\nCOUNTRY :", i, "\n#####\n\n"), file = log, append = TRUE)
+
   
   #Generate observation units
   print("--Generating observation units")
@@ -183,7 +187,9 @@ for (i in list_iso)
                                 yr_min,
                                 path_tmp = tmp_pre, 
                                 data_pa = data_pa,
-                                sampling = n_sampling)
+                                sampling = n_sampling,
+                                log = log)
+  if(output_pre_grid$is_ok == FALSE) {next}
   
   #Load the outputs 
   utm_code = output_pre_grid$utm_code
@@ -193,36 +199,39 @@ for (i in list_iso)
   
   #Determining Group IDs and WDPA IDs for all observation units
   print("--Determining Group IDs and WDPA IDs")
-  grid_param = fn_pre_group(iso = i, wdpa_raw = wdpa_wld_raw,
+  output_pre_group = fn_pre_group(iso = i, wdpa_raw = wdpa_wld_raw,
                             yr_min = yr_min,
                             path_tmp = tmp_pre, utm_code = utm_code,
                             buffer_m = buffer_m, data_pa = data_pa,
                             gadm_prj = gadm_prj, grid = grid, 
-                            gridSize = gridSize)
+                            gridSize = gridSize,
+                            log = log)
+  if(output_pre_group$is_ok == FALSE) {next} else grid_param = output_pre_group$grid.param
 
   #Calculating outcome and other covariates for all observation units
   print("--Calculating outcome and other covariates")
-  tic_parallel = tic()
-  fn_pre_mf_parallel(grid.param = grid_param, path_tmp = tmp_pre, iso = i,
+  output_mf = 
+    fn_pre_mf_parallel(grid.param = grid_param, path_tmp = tmp_pre, iso = i,
           name_output = paste0("matching_frame_spling", n_sampling),
           ext_output = ".gpkg",
-          yr_first = yr_first, yr_last = yr_last)
-  toc_parallel = toc()
+          yr_first = yr_first, yr_last = yr_last,
+          log = log)
+  if(output_mf$is_ok == FALSE) {next}
   
-  # ##Without parallel computing
-  # tic = tic()
-  # fn_pre_mf(grid.param = grid_param, path_tmp = tmp_pre, iso = i,
-  #           name_output = paste0("matching_frame_spling", n_sampling),
-  #           ext_output = ".gpkg",
-  #           yr_first = yr_first, yr_last = yr_last)
-  # toc = toc()
-
+  #Remove files in the session memory
   tmp_files = list.files(tmp_pre, include.dirs = T, full.names = T, recursive = T)
   file.remove(tmp_files)
   
 }
 
-toc_pre = toc() #end timer
+  #End timer for pre-processing
+  toc_pre = toc()
+  
+  #Append the log
+  cat(paste("END OF PRE-PROCESSING :", toc_pre$callback_msg, "\n\n"), 
+      file = log, append = TRUE)
+
+
 
 ```
 
@@ -233,20 +242,33 @@ toc_pre = toc() #end timer
 count_i = 0 #Initialize counter
 max_i = length(list_iso) #Max value of the counter
 tic_post = tic() #start timer
+
+#Append the log
+cat(paste("##########\nPOST-PROCESSING\n##########\n\n"), 
+    file = log, append = TRUE)
+  
 for (i in list_iso)
 {
   #Update counter and show progress
   count_i = count_i+1
   print(paste0(i, " : country ", count_i, "/", max_i))
   
+  #Append the log to track progress of the process on country i
+  cat(paste("#####\nCOUNTRY :", i, "\n"), file = log, append = TRUE)
+  
   #Load the matching frame
   print("--Loading the matching frame")
-  mf_ini = fn_post_load_mf(iso = i, 
+  output_load = fn_post_load_mf(iso = i, 
                            yr_min = yr_min,
                            name_input = paste0("matching_frame_spling", n_sampling),
                            ext_input = ".gpkg")
+  if(output_load$is_ok == FALSE) {next} else mf_ini = output_load$mf
   
   list_pa = unique(mf_ini[mf_ini$wdpaid != 0, ]$wdpaid)
+  
+    #Append the log : list of PAs in the matching frame
+  cat(paste("WDPAIDs :", paste(list_pa, collapse = ", "), "\n#####\n\n"), 
+      file = log, append = TRUE)
   
   #Initialization
   ##Counter
@@ -261,6 +283,9 @@ for (i in list_iso)
     #Update counter and show progress
     count_j = count_j+1
     print(paste0("WDPA ID ", j, " : ", count_j, "/", max_j))
+    
+    #Append the log to track progress of the process on PA j
+    cat(paste("###\nWDPAID :", j, "\n###\n\n"), file = log, append = TRUE)
   
     mf_ini_j = mf_ini %>%
       filter(group == 1 | (group == 2 & wdpaid == j))
@@ -268,9 +293,6 @@ for (i in list_iso)
     #Add average pre-loss
     print("--Add covariate : average tree loss pre-funding")
     mf_j = fn_post_avgLoss_prefund(mf = mf_ini_j, colfl.prefix = colfl.prefix)
-    
-    #Define cut-offs
-    print("--Define cutoffs")
     
     #Run Coarsened Exact Matching
     print("--Run CEM")
@@ -362,7 +384,17 @@ for (i in list_iso)
   
 }
 
-toc_post = toc() #end timer
+#End post-processing timer
+toc_post = toc()
+
+#Append the log and save it
+cat(paste("END OF POST-PROCESSING :", toc_post$callback_msg, "\n\n"),
+    file = log, append = TRUE)
+aws.s3::put_object(file = log,
+                   bucket = "projet-afd-eva-ap/data_tidy/mapme_bio_data/matching",
+                   region = "",
+                   show_progress = FALSE)
+
 
 #Notes
 ## Automate the definition of cutoffs for CEM
