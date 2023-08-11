@@ -588,19 +588,28 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   ## Transform the output dataframe into a pivot dataframe
   data.soil = unnest(get.soil, soilproperties) %>%
     mutate(across(c("mean"), \(x) round(x, 3))) %>% # Round numeric columns
-    pivot_wider(names_from = c("layer", "depth", "stat"), values_from = "mean")
+    pivot_wider(names_from = c("layer", "depth", "stat"), values_from = "mean") %>%
+    rename("clay_0_5cm_mean" = "clay_0-5cm_mean") %>%
+    mutate(clay_0_5cm_mean = case_when(is.nan(clay_0_5cm_mean) ~ NA,
+                                       TRUE ~ clay_0_5cm_mean))
   
   data.travelT = unnest(get.travelT, traveltime) %>%
-    pivot_wider(names_from = "distance", values_from = "minutes_median", names_prefix = "minutes_median_")
+    pivot_wider(names_from = "distance", values_from = "minutes_median", names_prefix = "minutes_median_") %>%
+    mutate(minutes_median_5k_110mio = case_when(is.nan(minutes_median_5k_110mio) ~ NA,
+                                       TRUE ~ minutes_median_5k_110mio))
   
   data.tree = unnest(get.tree, treecover_area) %>%
     drop_na(treecover) %>% #get rid of units with NA values 
     mutate(across(c("treecover"), \(x) round(x, 3))) %>% # Round numeric columns
     pivot_wider(names_from = "years", values_from = "treecover", names_prefix = "treecover_")
   
-  data.tri = unnest(get.tri, tri)
+  data.tri = unnest(get.tri, tri) %>%
+    mutate(tri_mean = case_when(is.nan(tri_mean) ~ NA,
+                                TRUE ~ tri_mean))
   
-  data.elevation = unnest(get.elevation, elevation)
+  data.elevation = unnest(get.elevation, elevation) %>%
+    mutate(elevation_mean = case_when(is.nan(elevation_mean) ~ NA,
+                                TRUE ~ elevation_mean))
   
   ## End parallel plan : close parallel sessions, so must be done once indicators' datasets are built
   plan(sequential)
@@ -631,7 +640,8 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   df.tri = data.tri %>% mutate(x=NULL) %>% as.data.frame()
   
   # Make a dataframe containing only "assetid" and geometry
-  df.geom = data.tree[, c("assetid", "x")] %>% as.data.frame()
+  # Use data.soil instead of data.tree, as some pixels are removed in data.tree (NA values from get.tree)
+  df.geom = data.soil[, c("assetid", "x")] %>% as.data.frame() 
   
   # Merge all output dataframes 
   pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.elevation, df.tri, df.geom)) %>%

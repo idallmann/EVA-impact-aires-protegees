@@ -139,7 +139,7 @@ yr_min = yr_first
 
 # Define Column Names of Covariates
 colname.travelTime = "minutes_median_5k_110mio"
-colname.clayContent = "clay_0.5cm_mean"
+colname.clayContent = "clay_0_5cm_mean"
 colname.elevation = "elevation_mean"
 colname.tri = "tri_mean"
 colname.fcIni = "treecover_2000"
