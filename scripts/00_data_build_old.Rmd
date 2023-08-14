@@ -17,10 +17,6 @@ library(janitor)
 library(stringi)
 library(sf)
 library(mapview)
-library(wdpar)
-
-#Install webdriver to download WDPA data
-webdriver::install_phantomjs()
 
 ```
 
@@ -58,148 +54,27 @@ data_iso = fread("data_raw/liste-197-etats-2020.csv") %>%
                               "Palaos", "Guinée-Bissao")) ~ nom_alpha2
          ))
 
-#Import the manually reported dataset
-data_pa = read_excel("data_raw/BDD_PA_AFD.xlsx") %>%
+#Import the initial BDD_joint, change the encoding to keep accentuation 
+data_PA_raw = read_excel("data_raw/BDD_joint.xlsx") %>%
   as.data.frame() %>%
-  rename("wdpaid" = "ID_WDPA",
-         "name_pa" = "Nom de l'aire protégée") %>%
-  clean_names() %>%
-  # Change encoding of characters
-  mutate(across(.cols = names(.),
-                .fns = ~stri_enc_toutf8(.x))) %>%
-  # Convert WDPAID to numeric, with NA values for unknown WDPAID
-  mutate(wdpaid = case_when(wdpaid %in% c("NA", "") ~ NA,
-                          TRUE ~ wdpaid)) %>%
-  mutate(wdpaid = as.numeric(wdpaid)) 
+  mutate(across(.cols = names(.), 
+                .fns = ~stri_enc_toutf8(.x)))
 
-#Import SIOP extract
-#/!\ Attention need a more recent verison
-data_siop = read_excel("data_raw/AP_BO_2000-2017_V3.xlsx") %>%
-  clean_names() %>%
-  rename("id_projet" = "idprojet") %>%
-  select(c(id_projet, id_concours, 
-           montant_prevu_concours_euro_octroi, 
-           mt_global_projet_prevu_devise, 
-           engagements_nets_euro_octroi, 
-           montant_total_projet, 
-           produit, libelle_produit, 
-           cofinancier,
-           division_technique, 
-           agence, libelle_agence, 
-           date_octroi, annee_octroi,
-           pays_de_realisation, direction_regionale))
-
-#Import WDPA data
-# data_wdpa = wdpa_fetch(x = "global", wait = TRUE, download_dir = "data_raw",
-#                        page_wait = 2, verbose = TRUE)
-# st_write(wdpa,
-#          dsn = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
-#          delete_dsn = TRUE)
-data_wdpa = st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg")
-
-#Merge the datasets
-data_raw = data_pa %>%
-  #Add the ISO3 code corresponding to the country hosting the PA.             #Facilitate future mergings
-  left_join(data_iso, by = c("pays" = "nom_alpha2")) %>%
-  #Add information from WDPA to PAs funded and with WDPAID
-  left_join(data_wdpa, by = "wdpaid") %>%
-  #Add information from SIOP
-  left_join(data_siop, by = c("id_projet", "id_concours"))
-```
-
-### Tidy the datasets
-
-```{r}
-#Pivot along cofinancier
-
-data_tidy = data_raw %>%
-  #Pivot on "cofinancier" so information on co-funders is on different        #columns, not rows
-  pivot_wider(names_from = "Cofinancier", values_from ="cofinancier") %>%
-  #Create dummy variables for main investors
-  #AFD is always funder, so no need of a dummy. 
-  mutate(kfw_bin = ifelse(cofinancier_1 == "KFW" | cofinancier_2 == "KFW" 
-                          | cofinancier_3 == "KFW" |cofinancier_4 == "KFW" 
-                          | cofinancier_5 == "KFW" | cofinancier_6 == "KFW",
-                          yes = TRUE, 
-                          no = FALSE),
-         kfw_bin = ifelse(is.na(kfw_bin), yes = FALSE, no = kfw_bin),
-         ffem_bin = ifelse(cofinancier_1 == "FFEM"|cofinancier_2 == "FFEM"
-                           |cofinancier_3 == "FFEM"|cofinancier_4 == "FFEM"
-                           |cofinancier_5 == "FFEM"|cofinancier_6 == "FFEM"
-                           ,
-                          yes = TRUE, 
-                          no = FALSE),
-         ffem_bin = ifelse(is.na(ffem_bin), yes = FALSE, no = ffem_bin),
-         .after = "cofinancier_6") %>%
-  #Nouvelle-Calédonie is divided in two provinces : north and south. 
-  #This subdivision is irrelevant in our analysis so we keep 
-  #only "Nouvelle Caledonie"
-  mutate(pays = case_when(pays %in% c("P-N N.Caléd", "P-S N.Caléd", "Nlle Caledonie") ~ "Nouvelle-Caledonie",
-         TRUE ~ pays)) %>%
-  #Some entries in "pays" are French department, DROM-COM, "Ocean Indien" or   #"Multi-Pays".
-  #French related : the ISO3 code 
-  #Ocen Indien let NA value, Muti-pays set to ZZ as in the SIOP dataset
-  mutate(iso3 = case_when(
-    pays == "Mayotte" ~ "MYT",
-    pays == "Nouvelle-Caledonie" ~ "NCL",
-    pays == "Polynesie Francaise" ~ "PYF",
-    pays %in% c("Multi-Pays", "Ocean Indien") ~ "ZZ",
-    !(pays %in% c("Mayotte", "P-N N.Caléd", "P-S N.Caléd", 
-                "Polynesie Francaise", "Nlle Caledonie", "Multi-Pays")) ~ iso3
-  )) %>%
-  #Add the description of IUCN from its category
-    mutate(iucn_des = case_when(
-  !is.na(wdpaid) & iucn_cat == "Ia" ~ "Réserve naturelle intégrale",
-  !is.na(wdpaid) & iucn_cat == "Ib" ~ "Zone de nature sauvage",
-  !is.na(wdpaid) & iucn_cat == "II" ~ "Parc national",
-  !is.na(wdpaid) & iucn_cat == "III" ~ "Monument naturel",
-  !is.na(wdpaid) & iucn_cat == "IV" ~ "Gest. des habitats/espèces",
-  !is.na(wdpaid) & iucn_cat == "V" ~ "Paysage protégé",
-  !is.na(wdpaid) & iucn_cat == "VI" ~ "Gest. de ress. protégées",
-  !is.na(wdpaid) & iucn_cat == "Not Applicable" ~ "Non catégorisée",
-  !is.na(wdpaid) & iucn_cat == "Not Reported" ~ "Non catégorisée",
-  !is.na(wdpaid) & iucn_cat == "Not Assigned" ~ "Non catégorisée",
-  TRUE ~ "Non référencée"), .after = iucn_cat) %>%
-    #Modify class of some variables
-  mutate(across(.cols = c("wdpaid", "superficie",
-                          "montant_prevu_concours_euro_octroi",
-                          "mt_global_projet_prevu_devise" ,
-                          "engagements_nets_euro_octroi",
-                          "montant_total_projet"),
-                .fns = ~as.numeric(.x))) %>%
-  mutate(across(.cols = -c("wdpaid", "superficie",
-                                  "montant_prevu_concours_euro_octroi",
-                          "mt_global_projet_prevu_devise" ,
-                          "engagements_nets_euro_octroi",
-                          "montant_total_projet"), 
-                .fns = ~stri_enc_toutf8(.x))) 
-
-
-
-
-```
-
-### Correct errors
-
-```{r}
 #Modify errors in the dataset
-##WDPAID 797 in Senegal : the ID project corresponds to APAC de Kawawana in Senegal, with no WDPAID
-data_raw[data_raw$wdpaid == "797" & data_raw$id_projet == "CZZ3056",]$name_pa = "APAC de Kawawana"
-data_raw[data_raw$wdpaid == "797" & data_raw$id_projet == "CZZ3056",]$wdpaid = NA
+##WDPAID 797 in Senegal
+data_PA_raw[data_PA_raw$wdpaid == "797" & data_PA_raw$pays == "Senegal",]$nom_ap = "APAC de Kawawana"
+data_PA_raw[data_PA_raw$wdpaid == "797" & data_PA_raw$pays == "Senegal",]$wdpaid = NA
 ##4223, 4224, 4226, 4228, 4229 : all in PS-N.Caledonie
-data_raw[data_raw$wdpaid %in% c("4223", "4224", "4226", "4228", "4229") & data_raw$pays == "Fidji",]$pays = "P-S N.Caléd"
+data_PA_raw[data_PA_raw$wdpaid %in% c("4223", "4224", "4226", "4228", "4229") & data_PA_raw$pays == "Fidji",]$pays = "P-S N.Caléd"
 ##305082 : Vanuatu instead of Fidji
-data_raw[data_raw$wdpaid %in% c("305082") & data_raw$pays == "Fidji",]$pays = "Vanuatu"
+data_PA_raw[data_PA_raw$wdpaid %in% c("305082") & data_PA_raw$pays == "Fidji",]$pays = "Vanuatu"
 ##31459 : Central African Republic instead of Cameroon. /!\ Vérifier le nom : anglais ou français ??
-data_raw[data_raw$wdpaid %in% c("31459") & data_raw$pays == "Cameroun",]$pays = "Centrafrique"
+data_PA_raw[data_PA_raw$wdpaid %in% c("31459") & data_PA_raw$pays == "Cameroun",]$pays = "Centrafrique"
 ##Rio Grande de Buba : Guinee Bissau instead of Gambia
-data_raw[data_raw$wdpaid %in% c("317051") & data_raw$pays == "Gambie",]$pays = "Guinee-Bissau"
-##WDPAID 20267 : in GNQ instead of GIN
-data_raw[data_raw$wdpaid %in% c("20267") ,]$pays = "Guinee-Equatoriale"
-data_raw[data_raw$wdpaid %in% c("20267") ,]$iso3 = "GNQ"
+data_PA_raw[data_PA_raw$wdpaid %in% c("317051") & data_PA_raw$pays == "Gambie",]$pays = "Guinee-Bissau"
 
 #Create a clean dataset with relevant variables
-data_PA_tidy = data_raw %>%
+data_PA_tidy = data_PA_raw %>%
   #Get rid of the iso code in the initial dataset, to avoid confusion when merging with data_iso
   dplyr::select(-iso3) %>%
   #Create dummy variables for main investors
@@ -298,7 +173,7 @@ To perform analysis we want to keep one row per PA, characterized by WDPA ID or 
 
 #Listing relevant variables for analysis that are NOT confidential (i.e not concern funding)
 list_var_PA_nofund = 
-  c("id_projet", "nom_du_projet", "name_pa", "id_concours", 
+  c("id_projet", "nom_du_projet", "nom_ap", "id_concours", 
     "wdpaid", 
     "pays", "iso3", "direction_regionale",
     "annee_octroi", "nb_ap_nombre_potentiel", "detail",
@@ -326,7 +201,7 @@ data_nofund_wdpa = data_nofund %>%
 data_nofund_na = data_nofund %>%
   subset(is.na(wdpaid) == TRUE) %>%
   #Create a unique key for a PA : project ID from AFD, country (ISO code) and PA name
-  mutate(id1 = paste(id_projet, iso3, name_pa, sep = "_"),
+  mutate(id1 = paste(id_projet, iso3, nom_ap, sep = "_"),
        .before = id_projet) %>%
   group_by(id1) %>%
   #Keep the earlier year of funding
@@ -349,7 +224,7 @@ Variables related to the funding are removed.
 ```{r, eval = FALSE}
 
 #Listing relevant variables for descriptive statistics
-list_var_PA_fund = c("id_projet", "nom_du_projet", "name_pa", "id_concours", 
+list_var_PA_fund = c("id_projet", "nom_du_projet", "nom_ap", "id_concours", 
                 "wdpaid",
                 "pays", "iso3", "direction_regionale",
                 "montant_prevu_concours_euro_octroi",
@@ -417,7 +292,7 @@ pa_shp =
   sf::st_cast(to="POLYGON") %>%
   clean_names() %>%
   #Select relevant variables
-  #Note ann_c = annee_octroi in the initial database data_raw
+  #Note ann_c = annee_octroi in the initial database data_PA_raw
   dplyr::select(c(wdpaid, sprfc, rep_a, gis_a, geom, iso3, drct, ann_c)) %>%
   #Variable sprfc corresponds to AFD internal reported size
   rename("sprfc_int" = "sprfc") %>%
@@ -548,7 +423,7 @@ pa_area_wld = sum(data_nofund_nodupl$superficie) - pa_int_wld %>%
 #Listing variables public or confidential
 
 #Public variables in the PAs dataset
-list_var_PA_open = c("id_projet", "nom_du_projet", "name_pa", "id_concours", 
+list_var_PA_open = c("id_projet", "nom_du_projet", "nom_ap", "id_concours", 
                 "wdpaid", "wdpaid_2", "wdpaid_3", "wdpa_pid",
                 "pays", "iso3", "direction_regionale", "annee_octroi",
                 "cofinancier_1", "cofinancier_2", "cofinancier_3", 
@@ -652,15 +527,15 @@ base_old_id = base_nodupl_old %>%
 
 #Identify PA in common among them with WDPAID reported
 test_id = base_old_id %>%
-  select(c(id_projet, nom_du_projet, name_pa, id_concours, wdpaid)) %>%
+  select(c(id_projet, nom_du_projet, nom_ap, id_concours, wdpaid)) %>%
   left_join(select(base_id, 
-                   c(id_projet, nom_du_projet, name_pa, id_concours, wdpaid)),
+                   c(id_projet, nom_du_projet, nom_ap, id_concours, wdpaid)),
             by = "wdpaid")
 
 #PA whose WDPAID is unknown, identified by id1 uniquely
 #The duplicates comes from different concours ID, so do not correspond to different PA
 base_na = data_stat %>% filter(is.na(wdpaid)) %>%
-  mutate(id1 = paste(id_projet, iso3, name_pa, sep = "_"),
+  mutate(id1 = paste(id_projet, iso3, nom_ap, sep = "_"),
          .before = id_projet) %>%
   group_by(id1) %>%
   arrange(annee_octroi) %>%
@@ -669,7 +544,7 @@ base_na = data_stat %>% filter(is.na(wdpaid)) %>%
 
 base_old_na = base_nodupl_old %>% 
   filter(grepl("NA", wdpaid) == TRUE) %>%
-  mutate(id1 = paste(id_projet, iso3, name_pa, sep = "_"),
+  mutate(id1 = paste(id_projet, iso3, nom_ap, sep = "_"),
          .before = id_projet) %>%
   group_by(id1) %>%
   arrange(annee_octroi) %>%
@@ -677,9 +552,9 @@ base_old_na = base_nodupl_old %>%
   ungroup()
 
 test_na = base_na %>%
-  select(c(id1, id_projet, nom_du_projet, name_pa, id_concours)) %>%
+  select(c(id1, id_projet, nom_du_projet, nom_ap, id_concours)) %>%
   left_join(select(base_old_na, 
-                   c(id1, id_projet, nom_du_projet, name_pa, id_concours)),
+                   c(id1, id_projet, nom_du_projet, nom_ap, id_concours)),
             by = "id1")
 
 nrow(test_na %>% subset(is.na(id_projet.y) == TRUE))
