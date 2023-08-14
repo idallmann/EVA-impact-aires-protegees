@@ -160,6 +160,8 @@ data_tidy = data_raw %>%
   !is.na(wdpaid) & iucn_cat == "Not Reported" ~ "Non catégorisée",
   !is.na(wdpaid) & iucn_cat == "Not Assigned" ~ "Non catégorisée",
   TRUE ~ "Non référencée"), .after = iucn_cat) %>%
+  #Keep only year in "annee_octroi"
+  mutate(annee_octroi = year(annee_octroi)) %>%
     #Modify class of some variables
   mutate(across(.cols = c("wdpaid", "superficie",
                           "montant_prevu_concours_euro_octroi",
@@ -284,9 +286,9 @@ list_var_siop_AP = c( "id_projet", "nom_du_projet", "nom_de_projet_pour_les_inst
                       "maitrise_ouvrage", "superf_interne", "nb_ap_nombre_potentiel", "detail", "projet", "commentaires")
 
 #Definining dataset for future work with dataset other than WDPA 
-data_siop_AP = data_PA_tidy %>%
+data_siop_tidy = data_tidy %>%
   dplyr::select(all_of(list_var_siop_AP), iso3)
-#write_csv(data_siop_AP, "data_tidy/BDD_AP_SIOP_joint.xlsx")
+#write_csv(data_siop_tidy, "data_tidy/BDD_siop_tidy.xlsx")
 
 ```
 
@@ -306,7 +308,7 @@ list_var_PA_nofund =
     "status", "status_yr", "gov_type","own_type", "mang_auth")
 
 #Defining dataset for descriptive statistics
-data_nofund = data_PA_tidy %>%
+data_nofund = data_tidy %>%
   select(all_of(list_var_PA_nofund), iso3)
 
 #fwrite(data_nofund, "data_tidy/BDD_nofund.csv")
