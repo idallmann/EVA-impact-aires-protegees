@@ -39,6 +39,7 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 #Install some libraries
 install.packages(c("tictoc", "geodata", "wdpar", "exactextractr", "MatchIt", "fixest", "cobalt", "future", "progressr", "mapme.biodiversity", "future.callr", "janitor"))
 #remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
+#remotes::install_github("prioritizr/wdpar", upgrade="always")
 
 #Install the web driver to download wdpa data directly
 webdriver::install_phantomjs()
@@ -130,7 +131,8 @@ yr_first = 2000
 yr_last = 2021
 
 #Minimum treatment year
-yr_min = yr_first
+#At least two pre-treatment periods of forest cover are needed to compute average pre-treatment deforestation
+yr_min = yr_first+2
 
 #####
 ###Post-processing
@@ -169,7 +171,7 @@ tic_pre = tic() #Start timer
 
 #Create a log to track progress
 log = fn_pre_log(list_iso,
-                 name = paste0("log-", Sys.Date(), "-test-LAO+GIN.txt"),
+                 name = paste0("log-", Sys.Date(), "-test-GAB.txt"),
                  notes = "All country in Dr Ocean Indien")
 
 for (i in list_iso)
@@ -184,30 +186,30 @@ for (i in list_iso)
   
   #Generate observation units
   print("--Generating observation units")
-  output_pre_grid = fn_pre_grid(iso = i, 
-                                yr_min,
-                                path_tmp = tmp_pre, 
-                                data_pa = data_pa,
-                                sampling = n_sampling,
-                                log = log)
-  if(output_pre_grid$is_ok == FALSE) {next}
+  output_grid = fn_pre_grid(iso = i, 
+                            yr_min = yr_min,
+                            path_tmp = tmp_pre, 
+                            data_pa = data_pa,
+                            sampling = n_sampling,
+                            log = log)
+  if(output_grid$is_ok == FALSE) {next}
   
   #Load the outputs 
-  utm_code = output_pre_grid$utm_code
-  gadm_prj = output_pre_grid$ctry_shp_prj
-  grid = output_pre_grid$grid
-  gridSize = output_pre_grid$gridSize
+  utm_code = output_grid$utm_code
+  gadm_prj = output_grid$ctry_shp_prj
+  grid = output_grid$grid
+  gridSize = output_grid$gridSize
   
   #Determining Group IDs and WDPA IDs for all observation units
   print("--Determining Group IDs and WDPA IDs")
-  output_pre_group = fn_pre_group(iso = i, wdpa_raw = wdpa_wld_raw,
+  output_group = fn_pre_group(iso = i, wdpa_raw = wdpa_wld_raw,
                             yr_min = yr_min,
                             path_tmp = tmp_pre, utm_code = utm_code,
                             buffer_m = buffer_m, data_pa = data_pa,
                             gadm_prj = gadm_prj, grid = grid, 
                             gridSize = gridSize,
                             log = log)
-  if(output_pre_group$is_ok == FALSE) {next} else grid_param = output_pre_group$grid.param
+  if(output_group$is_ok == FALSE) {next} else grid_param = output_group$grid.param
 
   #Calculating outcome and other covariates for all observation units
   print("--Calculating outcome and other covariates")

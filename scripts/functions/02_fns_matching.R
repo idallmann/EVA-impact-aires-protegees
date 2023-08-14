@@ -63,9 +63,9 @@ fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log)
     st_transform(crs = utm_code)
   
   #Determine relevant grid size
-  ##Select the PA in the country with minimum area. PAs with null areas or treatment year before 2000 are discarded (not analyzed anyway)
+  ##Select the PA in the country with minimum area. PAs with null areas, marine or treatment year before 2000 are discarded (not analyzed anyway)
   pa_min = data_pa %>%
-    filter(iso3 == iso & is.na(wdpaid) == FALSE & status_yr >= yr_min) %>%
+    filter(iso3 == iso & is.na(wdpaid) == FALSE & status_yr >= yr_min & marine %in% c(0,1)) %>%
     arrange(superficie) %>%
     slice(1)
   ##From this minimum area, define the grid size. 
@@ -87,7 +87,6 @@ fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log)
   grid = grid.ini[sort(grid.sub)] %>%
     st_as_sf() %>%
     mutate(gridID = seq(1:nrow(.))) # Add id for grid cells
-  #Visualize and save the grid
   
   #Extract country name
   country.name = data_pa %>% 
@@ -95,6 +94,7 @@ fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log)
     slice(1)
   country.name = country.name$pays
   
+  #Visualize and save the grid
   fig_grid = ggplot() +
     geom_sf(data = st_geometry(bbox)) +
     geom_sf(data = st_geometry(gadm_prj)) +
@@ -160,6 +160,8 @@ fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log)
 ### gridSize : resolution of the gridding
 ##OUTPUTS : 
 ### grid.param : a raster representing the gridding of the country with two layers. One for the group each pixel belongs to (funded PA, non-funded PA, potential control, buffer), the other for the WDPAID corresponding to each pixel (0 if not a PA)
+##NOTES :
+### Errors can arise from the wdpa_clean() function, during "formatting attribute data" step. Can be settled playing with geometry_precision parameter
 
 fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, data_pa, gadm_prj, grid, gridSize, log)
 {
@@ -174,7 +176,8 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
   # PAs are projected, and column "geometry_type" is added
   wdpa_prj = wdpa_raw %>%
     filter(ISO3 == iso) %>%
-    wdpa_clean(geometry_precision = 1000) %>%
+    #st_make_valid() %>%
+    wdpa_clean() %>% #the geometry precision is set to default. Used to be 1000 in Kemmeng code
     # Remove the PAs that are only proposed, or have geometry type "point"
     filter(STATUS != "Proposed") %>%
     filter(GEOMETRY_TYPE != "POINT") %>%
@@ -277,9 +280,14 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
   # For instance, if a PA non-funded (group = 4) overlaps with a funded, analyzed one (group = 2), then the pixel will be assigned to the group 2
   # Same for group 3 (funded, not analyzed). Then, the following correction is applied.
   # Finally, each group is given a name for later plotting
+  # grid.param = grid.param.ini %>%
+  #   mutate(group = case_when(wdpaid %in% wdpaID_no_afd & group == 2 ~ 4,
+  #                            wdpaid %in% wdpaID_afd_no_ie & group == 2 ~3,
+  #                            TRUE ~ group)) %>%
+  #/!\ For the moment, a pixel both non-funded and funded is considered funded !
+  #But if funded not analyzed AND funded analyzed, then funded not analyzed
   grid.param = grid.param.ini %>%
-    mutate(group = case_when(wdpaid %in% wdpaID_no_afd & group == 2 ~ 4,
-                             wdpaid %in% wdpaID_afd_no_ie & group == 2 ~3,
+    mutate(group = case_when(wdpaid %in% wdpaID_afd_no_ie & group == 2 ~ 3,
                              TRUE ~ group)) %>%
     #Add name for the group
     mutate(group_name = case_when(group == 0 ~ "Background",
@@ -892,9 +900,25 @@ fn_post_avgLoss_prefund = function(mf, colfl.prefix, colname.flAvg, log)
     filter(group == 2) %>% 
     slice(1)
   treatment.year = treatment.year$status_yr
+  
+  #Extract first year treeloss is computed
+  ##Select cols with "treeloss" in mf, drop geometry, replace "treeloss_" by "", convert to num and take min
+  treeloss.ini.year = mf[grepl(colfl.prefix, names(mf))] %>%
+    st_drop_geometry() %>%
+    names() %>%
+    gsub(paste0(colfl.prefix, "_"), "", .) %>%
+    as.numeric() %>%
+    min()
+  
   #Define period to compute average loss
-  yr_start = (treatment.year-5)
-  yr_end = (treatment.year -1)
+  ##If 5 pre-treatment periods are available at least, then average pre-treatment deforestation is computed on this 5 years range
+  ## If less than 5 are available, compute on this restricted period
+  ## Note that by construction, treatment.year >= treeloss.ini.year +1 (as yr_min = yr_first+2 in the parameters)
+  if((treatment.year-treeloss.ini.year) >=5)
+  {yr_start = (treatment.year)-5
+  yr_end = (treatment.year)-1} else if((treatment.year-treeloss.ini.year <5) & (treatment.year-treeloss.ini.year >0))
+  {yr_start = treeloss.ini.year
+  yr_end = (treatment.year)-1} 
   #Transform it in variable suffix
   var_start = yr_start - 2000
   var_end = yr_end - 2000
@@ -1130,7 +1154,10 @@ fn_post_match_auto = function(mf,
                               log)
 {
 
-
+  #Append the log file : CEM step
+  cat("#Run Coarsened Exact Matching\n", 
+      file = log, append = TRUE)
+  
   ## Matching handling errors due to absence of matching
   output = 
     tryCatch(
@@ -1165,12 +1192,12 @@ fn_post_match_auto = function(mf,
       if(sum(df.cov.m$is_bal_ok) < nrow(df.cov.m) | is.na(sum(df.cov.m$is_bal_ok)) == TRUE)
       {
         message("Matched control and treated units are not balanced enough. Increase sample size, turn to less restrictive tests or visually check balance.")
-        cat("#Run Coarsened Exact Matching\n-> Careful : matched control and treated units are not balanced enough. Increase sample size, turn to less restrictive tests or visually check balance.", 
+        cat("-> Careful : matched control and treated units are not balanced enough. Increase sample size, turn to less restrictive tests or visually check balance.\n", 
             file = log, append = TRUE)
       }
       
-      #Append the log
-      cat("#Run Coarsened Exact Matching\n-> OK\n", file = log, append = TRUE)
+      #Append the log : note the step has already been appended at the beginning of the function
+      cat("-> OK\n", file = log, append = TRUE)
       
       return(list("out.cem" = out.cem, "df.cov.m" = df.cov.m, "is_ok" = TRUE))
       
@@ -1179,7 +1206,7 @@ fn_post_match_auto = function(mf,
     error=function(e)
     {
       print(e)
-      cat(paste("#Run Coarsened Exact Matching\n-> Error :\n", e, "\n"), file = log, append = TRUE)
+      cat(paste("-> Error :\n", e, "\n"), file = log, append = TRUE)
       return(list("is_ok" = FALSE))
     },
     
@@ -1187,7 +1214,7 @@ fn_post_match_auto = function(mf,
     {
       #Print the warning and append the log
       #Append the log 
-      cat(paste("#Run Coarsened Exact Matching\n-> Warning :\n", w, "\n"),
+      cat(paste("-> Warning :\n", w, "\n"),
           file = log, append = TRUE)
       return(list("is_ok" = FALSE)) #Here warning comes from an absence of matching : thus must skip to next country
     }
@@ -1901,7 +1928,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
   do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
   
   #Append the log
-  cat("#Plot matched and unmatched trends\n-> OK\n", file = log, append = TRUE)
+  cat("#Plot matched and unmatched trends\n-> OK\n\n", file = log, append = TRUE)
   
   return(list("is_ok" = TRUE))
   
@@ -1910,7 +1937,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
   error=function(e)
   {
     print(e)
-    cat(paste("#Plot matched and unmatched trends\n-> Error :\n", e, "\n"), file = log, append = TRUE)
+    cat(paste("#Plot matched and unmatched trends\n-> Error :\n", e, "\n\n"), file = log, append = TRUE)
     return(list("is_ok" = FALSE))
   }
   
