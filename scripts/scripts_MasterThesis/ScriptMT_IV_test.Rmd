@@ -1,0 +1,372 @@
+---
+title: "Prediciting LSLA with world price index"
+author: "Antoine Vuillot"
+date: "2023-07-30"
+output: pdf_document
+editor_options: 
+  chunk_output_type: console
+  markdown: 
+    wrap: 72
+---
+
+## Loading packages
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(tidyverse)
+library(haven)
+library(data.table)
+library(xlsx)
+library(stringr)
+library(ARTofR)
+library(geojsonsf)
+library(sf)
+library(RColorBrewer)
+library(dplyr)
+library(terra)
+library(raster)
+library(tidyterra)
+library(gridExtra)
+library(grid)
+library(cowplot)
+library(scales)
+library(mapview)
+library(janitor)
+library(RCurl) #to download data from URLs
+
+#For TWFE
+library(estimatr)
+library(lfe)
+library(fastDummies)
+library(stargazer)
+```
+
+## Importing data
+
+```{r}
+
+#Berman et al. 2023
+rep_dta = read_dta('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/others/berman_al_2023/Replication_data.dta') 
+list_price_crop = read_dta('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/others/berman_al_2023/list_price_crop.dta') 
+wb_prices_annual_berman = read_dta('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/others/berman_al_2023/wb_prices_annual.dta') 
+suit_crop_gid_gaez = read_dta('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/others/berman_al_2023/suit_crop_gid_gaez.dta')
+list_crop_main = c("banana", "barley", "cocoa", "coconut", "coffee", "cotton", "maize", "oil palm", "dryland rice", "wetland rice", "sorghum", "soybean", "sugarcane", "tea", "tobacco", "wheat") #List of crops used in the main analysis of Berman et al. 2023
+
+#Annual commodity world prices (nominal)
+#https://www.worldbank.org/en/research/commodity-markets
+wb_prices_annual_all = read_excel("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/others/wb_cmo/CMO-Historical-Data-Annual.xlsx",
+                              sheet = "Annual Prices (Nominal)", 
+                              skip = 5) %>%
+  #Remove the two first lines (description of the variables)
+  slice(3:65) %>%
+  #Rename variables
+  rename("year" = "...1") %>%
+  clean_names() %>%
+  #Deal with "...", ".." values and transform to numeric all variables
+  mutate(across(.cols = everything(),
+                .fns = ~ case_when(.x %in% c("…", "..") ~ NA,
+                                   TRUE ~ .x))) %>%
+  mutate(across(.cols = everything(),
+                .fns = ~ as.numeric(.x)))
+
+
+
+
+#Data on land deals
+## Information
+lmd_all = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_roi.csv")
+lmd_muller = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_muller.csv") %>%
+  #Filter some deals :
+  ## year of intention and year of implementation after 2000
+  ## if year of implementation is unknown or deal never implemented, put to NA (null used to be for "never", "" for unknown)
+  mutate(year_int = as.numeric(year_int),
+         year_impl = as.numeric(
+           case_when(year_impl %in% c("", "null") ~ NA,
+                               TRUE ~ year_impl)),
+         year_cont = as.numeric(
+           case_when(year_cont %in% c("", "null") ~ NA,
+                               TRUE ~ year_cont))) %>%
+  filter(year_int >= 2000 & (is.na(year_impl) | year_impl >= 2000))
+
+##Land polygons
+lmd_T_all = st_read("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/T_all.geojson") 
+lmd_T_muller = lmd_T_all %>%
+  filter(loc_id %in% lmd_muller$loc_id) %>%
+  mutate(ID = row_number())
+
+##An extent of land deals to restrict the computation areas of global rasters
+ext_muller = extent(lmd_T_muller)
+
+#mapview(lmd_T_muller)
+```
+
+## Download GAEZ data
+
+### List of files' URLs
+
+```{r}
+
+list_files_si_all_land_1981_2010_gaez = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/others/gaez/list_files_gaez_th4_si_AllLand_1981_2010.csv')
+
+#First a list of download URLs : 
+## low input level, co2 fertilization, rainfed (water supply)
+list_dl_si_gaez_Li_co2_rfed = list_files_si_all_land_1981_2010_gaez %>%
+  clean_names() %>%
+  mutate(crop = tolower(crop)) %>%
+  filter(crop %in% list_crop_main) %>%
+  filter(input_level == "Low" 
+         & co2_fertilization == "With CO2 Fertilization"
+         & water_supply == "Rainfed")
+
+## low input level, co2 fertilization, rainfed (water supply)
+list_dl_si_gaez_Li_co2_rfed_all = list_files_si_all_land_1981_2010_gaez %>%
+  clean_names() %>%
+  mutate(crop = tolower(crop)) %>%
+  filter(crop %in% list_crop_main) %>%
+  filter(input_level == "Low" 
+         & co2_fertilization == "With CO2 Fertilization"
+         & water_supply == "Rainfed All Phases")
+
+#Create a list to know which crop corresponds to the file name
+df_name2crop = list_dl_si_gaez_Li_co2_rfed %>%
+  select(c(name, crop))
+
+
+```
+
+### Get data and stack rasters in layers
+
+```{r}
+#Rainfed data
+dl_dir_rfed = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/others/gaez/si_gaez_Li_co2_rfed"
+
+for (i in 1:nrow(list_dl_si_gaez_Li_co2_rfed))
+{
+  url = list_dl_si_gaez_Li_co2_rfed[i, download_url]
+  #name_lyr = list_dl_si_gaez_Li_co2_rfed[i, name]
+  name_file = paste0(list_dl_si_gaez_Li_co2_rfed[i, name], ".tif")
+  data = download.file(url,
+                      destfile = paste(dl_dir_rfed, name_file, sep = "/"),
+                      mode = "wb")
+}
+
+
+
+#Rainfed all phases data
+dl_dir_rfed_all = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/others/gaez/si_gaez_Li_co2_rfed_all"
+
+for (i in 1:nrow(list_dl_si_gaez_Li_co2_rfed_all))
+{
+  url = list_dl_si_gaez_Li_co2_rfed_all[i, download_url]
+  #name_lyr = list_dl_si_gaez_Li_co2_rfed[i, name]
+  name_file = paste0(list_dl_si_gaez_Li_co2_rfed_all[i, name], ".tif")
+  data = download.file(url,
+                      destfile = paste(dl_dir_rfed_all, name_file, sep = "/"),
+                      mode = "wb")
+  
+}
+```
+
+### Build rasters
+
+```{r}
+#Create a list of the files downloaded
+list_rast_rfed = list.files("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/others/gaez/si_gaez_Li_co2_rfed", 
+                            full.names = TRUE)
+list_rast_rfed_all = list.files("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/others/gaez/si_gaez_Li_co2_rfed", 
+                            full.names = TRUE)
+
+#Create a raster where each layers (one crop = one layer) are stacked
+##Globally
+rast_si_rfed = rast(list_rast_rfed)
+rast_si_rfed_all = rast(list_rast_rfed_all)
+##Crop to the extent of the lands we consider (less computations)
+rast_si_rfed_muller = crop(rast_si_rfed, ext_muller)
+rast_si_rfed_all_muller = crop(rast_si_rfed_all, ext_muller)
+```
+
+## Compute the price index
+
+### Relative cell suitability
+
+```{r}
+#Sum of crop suitability for each cell
+rast_tot_rfed_muller = app(rast_si_rfed_muller, fun = sum, na.rm = TRUE) %>%
+  rename("si_tot" = "sum") %>%
+  subst(from = 0, to = NA) #0 values (null or NA suitability for all crops) -> NA to avoid errors
+
+rast_rsi_rfed_muller = c(rast_si_rfed_muller, rast_tot_rfed_muller) %>%
+  transmute(across(names(rast_si_rfed_muller), ~ .x/si_tot))
+
+#Test on smaller raster to check computation steps
+# ext = extent(134.4, 134.6,-15.6, -15.4) #extent(112, 159,-54, -9)
+# test_si = crop(rast_si_rfed, ext)
+# test_tot = app(test_si, fun = sum, na.rm = TRUE) %>%
+#   rename("si_tot" = "sum") %>%
+#   subst(from = 0, to = NA)
+# test_rsi = c(test_si, test_tot) %>%
+#   transmute(across(names(rast_si_rfed), ~ .x/si_tot))
+
+#plot(rast_rsi_rfed_muller$sxLr_whe)
+```
+
+### Extract relative suitability for each land in our sample
+
+```{r}
+#For each land polygon, extract relative suitability values and average it on polygon area
+df_rsi_muller = extract(x = rast_rsi_rfed_muller, 
+                        y = lmd_T_muller,
+                        raw = TRUE, 
+                        exact = TRUE) %>%
+  as.data.frame() %>%
+  group_by(ID) %>%
+  #Weighted mean of crop suitability among pixels in each land polygon
+  #ADD WEIGHTED STANDARD DEVIATION 
+  summarise(across(.cols = starts_with("sxLr"),
+                   .fns = ~ weighted.mean(x = .x, w = fraction, na.rm = TRUE),
+                   .names = NULL)) %>%
+  #Pivot to longer : 1 row = land+crop
+  pivot_longer(cols = starts_with("sxLr"), 
+             names_to = "name", 
+             values_to = "rsi") %>%
+  #Change to clearer crop names
+  left_join(df_name2crop, by = c("name")) %>%
+  #Add information on land deals
+  left_join(lmd_T_muller, by = "ID") %>%
+  left_join(lmd_muller, by = c("deal_id", "loc_id")) %>%
+  #Select relevant variables
+  select(c(region:country, deal_id, loc_id, ID, year_int:year_aban, crop, rsi, contract_farming:livestock_com, geometry)) 
+
+#A faire 
+## Vérifier que les ID sont bien les mêmes (i.e que la valeur de rsi de l'ID 1 correspond bien à la parcelles ID1 dans lmd_muller)
+## Compute weighted standard deviation for rsi in each land
+```
+
+### World price (base = 1999)
+
+In our land deals dataset, deals are intended
+
+```{r}
+#Select prices for the crop of interests
+wb_prices_annual_main = wb_prices_annual_all %>%
+  #Select relevant crops
+  select(c(year, cocoa, coffee_arabica, coffee_robusta,
+           tea_avg_3_auctions, palm_oil, soybeans, barley,
+           maize, sorghum, coconut_oil,
+           starts_with(c("rice", "wheat", "banana", "sugar")),
+           tobacco_us_import_u_v, cotton_a_index)) %>%
+  #Compute average of the nominal prices (as with tea_avg_3_auctions in the raw data) for rice, wheat, coffee and banana
+  dplyr::rowwise() %>%
+  mutate(coffee_avg = mean(c(coffee_robusta, coffee_arabica), na.rm = TRUE),
+         .after = "coffee_robusta") %>%
+  mutate(rice_avg = mean(c(rice_thai_5_percent, 
+                           rice_thai_25_percent, 
+                           rice_thai_a_1,
+                           rice_viet_namese_5_percent),
+                         na.rm = TRUE),
+         .after = "rice_viet_namese_5_percent") %>%
+  mutate(wheat_avg = mean(c(wheat_us_srw, 
+                         wheat_us_hrw),
+                       na.rm = TRUE),
+       .after = "wheat_us_hrw") %>%
+  mutate(banana_avg = mean(c(banana_europe, 
+                             banana_us),
+                           na.rm = TRUE),
+     .after = "banana_us") %>%
+  ungroup() %>%
+  #Add a world price for dryland and wetland rice (assumed to be similar)
+  mutate(dryland_rice = rice_avg,
+         wetland_rice = rice_avg,
+         .after = "rice_avg")
+
+#Compute price index (base = base_yr)
+yr_base = 1999
+wb_prices_annual_main_base = wb_prices_annual_main %>%
+  #Build the index : value/base_value*100
+  mutate(across(.cols = !c(year),
+                .fns = ~.x/.x[year == yr_base]*100)) %>%
+  #Select only relevant variables (ie keep average for some crops)
+    select(-c("rice_thai_25_percent", "rice_thai_5_percent", 
+              "rice_thai_a_1", "rice_avg",
+            "rice_viet_namese_5_percent", "wheat_us_srw", "wheat_us_hrw",
+            "sugar_eu", "sugar_us", "banana_us", "banana_europe",
+            "coffee_arabica", "coffee_robusta")) %>%
+  #Make longer to ease matching with RSI dataframe
+  pivot_longer(cols = !year,
+               names_to = "crop",
+               values_to = "wld_price") %>%
+  #Keep only year after base_yr
+  filter(year >= yr_base) %>%
+  #Finally change crop name coherently with GAEZ terminology in df_rsi_muller
+  mutate(crop = case_when(crop == "coffee_avg" ~ "coffee",
+                          crop == "tea_avg_3_auctions" ~ "tea",
+                          crop == "coconut_oil" ~ "coconut",
+                          crop == "cotton_a_index" ~ "cotton",
+                          crop == "palm_oil" ~ "oil palm",
+                          crop == "dryland_rice" ~ "dryland rice",
+                          crop == "wetland_rice" ~ "wetland rice",
+                          crop == "wheat_avg" ~ "wheat",
+                          crop == "banana_avg" ~ "banana",
+                          crop == "sugar_world" ~ "sugarcane",
+                          crop == "tobacco_us_import_u_v" ~ "tobacco",
+                          crop == "soybeans" ~ "soybean",
+                          TRUE ~ crop)) 
+
+
+
+```
+
+### Compute world price index for each land
+
+```{r}
+#Finally we compute price index for each year in each land
+df_price_muller = df_rsi_muller %>%
+  #Add the world price of each crop in each year, for each land
+  left_join(wb_prices_annual_main_base, by = "crop") %>%
+  #For each land and year, compute price index (sum of prices weighted by relative crop suitability)
+  group_by(loc_id, year) %>%
+  summarize(price_idx = sum(rsi*wld_price, na.rm = TRUE)) %>%
+  ungroup() %>%
+  #Remove the 9 lands with price_index = 0 on the full period (necessarily only rsi = NA)
+  filter(price_idx != 0) %>%
+  #Add the year of intention, contract and implementation for each land deal
+  left_join(select(lmd_muller, 
+                   c(deal_id, loc_id, region, sub_region, country, year_int, year_cont, year_impl)), 
+            by = "loc_id") %>%
+  #Add a dummy : 1 if the deal is intended/contracted/implemented the year considered
+  mutate(dummy_int = ifelse(year == year_int, 1, 0),
+         dummy_cont = ifelse(year == year_cont, 1, 0),
+         dummy_impl = ifelse(year == year_impl, 1, 0)) %>%
+  #Reorder variables
+  select(c(region:country, deal_id, loc_id, year, price_idx, year_int:dummy_impl))
+
+#TO DO
+## Check the codes again : look at the warning for the last df_price_muller
+## Decide which regression to do : number of intention vs price index ?
+## Make some graphs : number of intention/contract/implementation vs index ? Do that by region ?
+
+
+```
+
+## Analysis
+
+### Visual evidence
+
+```{r}
+df_plot_subreg = df_price_muller %>%
+  group_by(sub_region, year) %>%
+  summarize(n_int = sum(dummy_int, na.rm = TRUE),
+            n_cont = sum(dummy_cont, na.rm = TRUE),
+            n_impl = sum(dummy_impl, na.rm = TRUE),
+            idx_avg = mean(price_idx, na.rm = TRUE)) %>%
+  ungroup()
+  
+df_plot_wld = df_price_muller %>%
+  group_by(year) %>%
+    summarize(n_int = sum(dummy_int, na.rm = TRUE),
+            n_cont = sum(dummy_cont, na.rm = TRUE),
+            n_impl = sum(dummy_impl, na.rm = TRUE),
+            idx_avg = mean(price_idx, na.rm = TRUE)) %>%
+  ungroup()
+```

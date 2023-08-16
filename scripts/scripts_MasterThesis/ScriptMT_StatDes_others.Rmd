@@ -1,0 +1,1231 @@
+---
+title: "Others"
+author: "Antoine Vuillot"
+date: "2023-05-22"
+output: html_document
+---
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            ~~
+##                              Packages                                    ----
+##                                                                            ~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r setup, include=FALSE}
+
+tempdir()
+dir.create(tempdir())
+
+knitr::opts_chunk$set(echo = TRUE)
+#library(fortunes)
+library(ggplot2)
+library(tidyverse)
+library(data.table)
+library(xlsx)
+library(stringr)
+library(ARTofR)
+#library(geojsonsf)
+#library(sf)
+#library(rgdal)
+library(RColorBrewer)
+library(dplyr)
+#library(terra)
+#library(raster)
+#library(tidyterra)
+#library(mapview)
+#library(gridExtra)
+library(grid)
+library(cowplot)
+#library(wopr)
+
+# remotes::install_github("rstudio/leaflet", force = TRUE)
+# library(leaflet)
+# library(raster)
+
+
+
+```
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##----------------------------------- DATA--------------------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+##~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Raw deal dataset  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+data_raw = fread(file = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/02_2023/deals_all.csv', 
+                 encoding = 'UTF-8') %>%
+  select(c('Deal ID', 'Deal scope', 'Target country', 'Deal size', 'Intended size (in ha)', 'Size under contract (leased or purchased area, in ha)', 'Size in operation (production, in ha)', 'Comment on land area',
+           'Operating company: Investor ID', "Negotiation status", "Current negotiation status", "Comment on negotiation status", "Implementation status", "Current implementation status", "Comment on implementation status",
+           "Former land owner", "Former land use", "Former land cover", 'Intention of investment', "Comment on intention of investment", 'Nature of the deal', "Comment on nature of the deal", "Crops area/yield/export", "Comment on crops",
+           "Livestock area/yield/export", "Comment on livestock" , 'Contract farming',
+           'Jobs created (total)', 'Planned number of jobs (total)', 'Current total number of jobs/employees/ daily/seasonal workers',
+           'Jobs created (domestic)', 'Planned number of jobs (domestic)', 'Current domestic number of jobs/employees/ daily/seasonal workers',
+           'Name of community', 'Comment on communities / indigenous peoples affected', 'Community consultation',
+           'Community reaction', 'Comment on community reaction', 'Presence of land conflicts', 'Displacement of people',
+           'Number of people actually displaced', 'Number of households actually displaced', 'Number of people displaced out of their community land',
+           'Number of people displaced staying on community land', 'Number of households displaced ""only"" from their agricultural fields',
+           'Number of people facing displacement once project is fully implemented', 'Negative impacts for local communities',
+           'Promised compensation (e.g. for damages or resettlements)', 'Received compensation (e.g. for damages or resettlements)',
+           'Promised benefits for local communities', 'Materialized benefits for local communities', 'Has domestic use', 'Domestic use', 'Has export', 'Export',
+           'Water extraction envisaged', 'Use of irrigation infrastructure', 'In country processing of produce')) %>%
+  rename('Investor ID' = 'Operating company: Investor ID')
+
+
+
+##~~~~~~~~~~~~~~~~~~~~~
+##  ~ ISO dataset  ----
+##~~~~~~~~~~~~~~~~~~~~~
+
+country_iso = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/02_2023/ctry_regions.csv', encoding = 'UTF-8') %>%
+  dplyr::select(c('name', 'alpha-3')) %>%
+  rename('iso_a3' = 'alpha-3',
+         "country" = "name")
+
+country_iso[country_iso$country == "Lao People's Democratic Republic",]$country = 'Lao PDR'
+country_iso[country_iso$country == 'Bolivia (Plurinational State of)',]$country = 'Bolivia'
+country_iso[country_iso$country == "Viet Nam",]$country = 'Vietnam'
+country_iso[country_iso$country == "Yemen",]$country = "Yemen, Rep."
+country_iso[country_iso$country == "Venezuela (Bolivarian Republic of)",]$country = "Venezuela, RB"
+country_iso[country_iso$country == "Congo",]$country = "Congo, Rep."
+country_iso[country_iso$country == "Egypt",]$country = "Egypt, Arab Rep."
+country_iso[country_iso$country == "Eswatini",]$country = 'Swaziland'
+country_iso[country_iso$country == "Tanzania, United Republic of",]$country = "Tanzania"
+country_iso[country_iso$country == "Congo, Democratic Republic of the",]$country = "Congo, Dem. Rep."
+country_iso[country_iso$country == "Gambia",]$country = "Gambia, The"
+country_iso[country_iso$country ==  "Sao Tome and Principe",]$country = "São Tomé and Principe"
+country_iso[country_iso$country ==  "Moldova, Republic of",]$country = "Moldova"
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Country and region  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##ISO codes and regions of countries : names are modified for latter merging with Land Matrix database
+ctry_reg = fread(file = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/02_2023/ctry_regions.csv', 
+                 encoding = 'UTF-8') %>%
+  select(c('name', 'alpha-2', "alpha-3", 'region', 'sub-region')) %>%
+  rename('ISO_A3' = 'alpha-3',
+         "ISO_A2" = "alpha-2",
+         'country' = 'name',
+         'sub_region' = 'sub-region')
+
+temp = left_join(data_raw, ctry_reg, by = c('Target country' = 'country'))
+ctry_rep = unique(temp[is.na(temp$region) == TRUE,]$`Target country`)
+remove(temp)
+
+ctry_reg[ctry_reg$country == "Lao People's Democratic Republic",]$country = 'Lao PDR'
+ctry_reg[ctry_reg$country == 'Bolivia (Plurinational State of)',]$country = 'Bolivia'
+ctry_reg[ctry_reg$country == "Viet Nam",]$country = 'Vietnam'
+ctry_reg[ctry_reg$country == "Yemen",]$country = "Yemen, Rep."
+ctry_reg[ctry_reg$country == "Venezuela (Bolivarian Republic of)",]$country = "Venezuela, RB"
+ctry_reg[ctry_reg$country == "Congo",]$country = "Congo, Rep."
+ctry_reg[ctry_reg$country == "Egypt",]$country = "Egypt, Arab Rep."
+ctry_reg[ctry_reg$country == "Eswatini",]$country = 'Swaziland'
+ctry_reg[ctry_reg$country == "Tanzania, United Republic of",]$country = "Tanzania"
+ctry_reg[ctry_reg$country == "Congo, Democratic Republic of the",]$country = "Congo, Dem. Rep."
+ctry_reg[ctry_reg$country == "Gambia",]$country = "Gambia, The"
+ctry_reg[ctry_reg$country ==  "Sao Tome and Principe",]$country = "São Tomé and Principe"
+ctry_reg[ctry_reg$country ==  "Moldova, Republic of",]$country = "Moldova"
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Investors dataset  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+data_investors_all = fread(file = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/02_2023/investors_all.csv', 
+                           encoding = 'UTF-8') %>%
+  select(c('Investor ID', 'Country of registration/origin', 'Classification'))
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Working dataset  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+
+data_lmd = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_roi.csv') %>%
+  left_join(country_iso, by = "country") %>%
+  dplyr::select(c(region:country, iso_a3, deal_id, loc_id, n_par:livestock_com)) 
+ndeal_lmd = length(unique(data_lmd$deal_id))
+
+# data_agri = data_lmd %>%
+#   subset(dummy_agri == TRUE)
+# data_trans = data_lmd %>%
+#   subset(scope == "transnational")
+# data_agri_trans = data_lmd %>%
+#   subset(dummy_agri == TRUE & scope == "transnational")
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Sample dataset  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~
+
+data_muller = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/filt_crop/data_muller_filt_crop.csv') 
+
+data_muller_n_ctry = data_muller %>%
+  group_by(sub_region, country) %>%
+  summarize(n_par = length(unique(loc_id)),
+            n_deal = length(unique(deal_id))) %>%
+  ungroup()
+data_muller_n_reg = data_muller_n_ctry %>%
+  group_by(sub_region) %>%
+  summarize(n_par = sum(n_par), n_deal = sum(n_deal))
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Land and agricultural land  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#Land area of country
+area_land = fread(file = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/others/LandArea_WB/API_AG.LND.TOTL.K2_DS2_en_csv_v2_5455195.csv", encoding = 'UTF-8', header = TRUE) %>%
+  select(c("Country Name", "Country Code", "2020")) %>%
+  rename("country" = "Country Name",
+         "iso_3" = "Country Code",
+         "land_area_km2_2020" = "2020") %>%
+  left_join(select(ctry_reg, c(region, sub_region, ISO_A3)), by = c("iso_3" = "ISO_A3"))
+
+#Agricultural area of country
+area_agri = fread(file = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/others/AgriLandArea_WB/API_AG.LND.AGRI.K2_DS2_en_csv_v2_5455225.csv", encoding = 'UTF-8', header = TRUE) %>%
+  select(c("Country Name", "Country Code", "2020")) %>%
+  rename("country" = "Country Name",
+         "iso_3" = "Country Code",
+         "agri_area_km2_2020" = "2020") %>%
+  left_join(select(ctry_reg, c(region, sub_region, ISO_A3)), by = c("iso_3" = "ISO_A3"))
+
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##-------------------------- DESCRIPTIVE STATISTICS-----------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Intended versus effective size under production  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+data_lmd_int_vs_op = data_lmd %>%
+  subset(dummy_agri == TRUE & scope == "transnational") %>%
+  subset(!is.na(size_int) & !is.na(size_max_deal)) %>%
+  group_by(sub_region, country, deal_id) %>%
+  reframe(shr_prod = size_max_deal/size_int)
+
+data_lmd_int_vs_op_subreg  = data_lmd %>%
+  subset(dummy_agri == TRUE & scope == "transnational") %>%
+  subset(!is.na(size_int) & !is.na(size_max_deal)) %>%
+  group_by(sub_region) %>%
+  summarise(size_int_tot = sum(size_int, na.rm = TRUE),
+            size_max_deal_tot = sum(size_max_deal, na.rm = TRUE),
+            shr_op = size_max_deal_tot/size_int_tot)
+data_lmd_int_vs_op_subreg$acro_subreg = c("C. Asia", "E. Asia", "E. Europe", "LAC", "Mel.", "N. Africa", "SE. Asia", "S. Asia", "S. Europe", "SSA", "W. Asia")
+
+fig_lmd_int_vs_op_subreg = ggplot(data_lmd_int_vs_op_subreg) %>%
+  + geom_bar(aes(x = reorder(acro_subreg, shr_op), y = shr_op*100), 
+             fill = "#3182BD", stat = "identity") %>%
+    + labs(y = "Share (%)",
+         x = "", 
+         title = "Difference between area intended and under production",
+         caption = paste0(nrow(data_lmd_int_vs_op), " transnational, agriculture-related deals whose areas intended and under production are known. \n", length(unique(data_lmd$deal_id)), " deals in the Land Matrix Database overall.")) %>%
++ theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(hjust = 0), 
+      axis.text.x = element_text(angle = 45),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+      ) 
+fig_lmd_int_vs_op_subreg
+
+ggsave(plot = fig_lmd_int_vs_op_subreg,
+       filename = "fig_lmd_TransAgri_int_vs_op_size.jpeg",
+       path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+       width = 8, height = 5)
+
+
+````
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Dynamics of land grabbing  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#In number of deals
+
+````{r}
+
+StatDes_deal_number_all = data_lmd %>%
+  #Keep only deals, not parcels
+  group_by(deal_id) %>%
+  slice(1) %>%
+  ungroup() %>%
+  select(c('deal_id', 'year_cont')) %>%
+  group_by(year_cont) %>%
+  summarize(n = n()) %>%
+  mutate(n_cum_all = cumsum(n),
+         n_cum2_all = n_cum_all - StatDes_deal_number_all[StatDes_deal_number_all$year_cont == '',]$n) #Remove deals whose intention date is unknown
+
+StatDes_deal_number_agri = data_lmd %>%
+  #Keep only deals, not parcels
+  group_by(deal_id) %>%
+  slice(1) %>%
+  ungroup() %>%
+  subset(dummy_agri == TRUE) %>%
+  select(c('deal_id', 'year_cont')) %>%
+  group_by(year_cont) %>%
+  summarize(n = n()) %>%
+  mutate(n_cum_agri = cumsum(n),
+         n_cum2_agri = n_cum_agri - StatDes_deal_number_agri[StatDes_deal_number_agri$year_cont == '',]$n) #Remove deals whose intention date is unknown
+
+StatDes_deal_number_trans_agri = data_lmd %>%
+  #Keep only deals, not parcels
+  group_by(deal_id) %>%
+  slice(1) %>%
+  ungroup() %>%
+  subset(dummy_agri == TRUE & scope == "transnational") %>%
+  select(c('deal_id', 'year_cont')) %>%
+  group_by(year_cont) %>%
+  summarize(n = n()) %>%
+  mutate(n_cum_tagri = cumsum(n),
+         n_cum2_tagri = n_cum_tagri - StatDes_deal_number_trans_agri[StatDes_deal_number_trans_agri$year_cont == '',]$n) #Remove deals whose intention date is unknown
+
+StatDes_deal_number = StatDes_deal_number_all %>%
+  left_join(StatDes_deal_number_agri, by = "year_cont") %>%
+  left_join(StatDes_deal_number_trans_agri, by = "year_cont") %>%
+  select(c(year_cont, n_cum2_all, n_cum2_agri, n_cum2_tagri)) %>%
+  pivot_longer(cols = c(n_cum2_all, n_cum2_agri, n_cum2_tagri),
+               names_to = 'type')
+
+fig_StatDes_deal_number_cum2 = ggplot(data = subset(StatDes_deal_number, year_cont %in% c(2000:2022)),
+               aes(x = factor(year_cont), y = value, fill = type)) %>%
+    + geom_bar(stat = 'identity', position = position_dodge2(reverse = TRUE)) %>%
+    # + geom_text(data = subset(StatDes_deal_number_all, year_cont %in% c(2000:2022)),
+    #             aes(x = factor(year_cont), y = n_cum2, label = n_cum2), 
+    #             color = "black", size=3, vjust = -0.3) %>%
+    # + geom_bar(data = subset(StatDes_deal_number_agri, year_cont %in% c(2000:2022)),
+    #            aes(x = factor(year_cont), y = n_cum2, fill = "agri"),
+    #            stat = 'identity') %>%
+    # + geom_bar(data = subset(StatDes_deal_number_trans_agri, year_cont %in% c(2000:2022)),
+    #            aes(x = factor(year_cont), y = n_cum2, fill = "trans_agri"),
+    #            stat = 'identity') %>%
+    # + scale_fill_manual("", values = c("all" = "#3182BD",
+    #                                    "agri" = "#9ECAE1",
+    #                                    "trans_agri" = "#DEEBF7"),
+    #                     labels = c("Agri.", "All deals", "Trans. agri.")) %>%
+    + scale_fill_manual("Deal type",
+                        values=c("#9ECAE1","#3182BD", "#DEEBF7"),
+                        labels = c("Agri.", "All", "Trans. agri")) %>%
+    + labs(x = 'Year', y = 'Number of deals',
+           title = 'Cumulative number of deals concluded each year, globally (2000-2022)',
+           caption = paste('Sample :', sum(subset(StatDes_deal_number_all, year_cont %in% c(2000:2022))$n), 'deals with known dates on the period 2000-2022,', sum(StatDes_deal_number_all$n), 'deals recorded overall including', StatDes_deal_number_all[StatDes_deal_number_all$year_cont == '',]$n, 'with unknown dates. \n "Concluded" means that an oral or written agreement has been reached between parties.' )) %>%
+    + theme(plot.title = element_text(hjust = 0), 
+            axis.text.x = element_text(angle = 90),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)) 
+fig_StatDes_deal_number_cum2
+
+# ggsave(plot = fig_StatDes_deal_number_cum2,
+#        filename = "fig_StatDes_deal_number_cum2.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 9, height = 5)
+
+
+
+````
+
+#In size
+
+````{r}
+
+StatDes_deal_size_all = data_lmd %>%
+  #Keep only deals, not parcels
+  group_by(deal_id) %>%
+  slice(1) %>%
+  ungroup() %>%
+  select(c('deal_id', 'year_cont', "size_min_deal", "size_max_deal", "size_avg_deal")) %>%
+  group_by(year_cont) %>%
+  summarize(n = n(),
+            size_min = sum(size_min_deal, na.rm = TRUE),
+            size_avg = sum(size_avg_deal, na.rm = TRUE),
+            size_max = sum(size_max_deal, na.rm = TRUE)) %>%
+  mutate(type = "all",
+         size_min_cum = cumsum(size_min),
+         size_avg_cum = cumsum(size_avg),
+         size_max_cum = cumsum(size_max),
+         size_min_cum2 = size_min_cum - StatDes_deal_size_all[StatDes_deal_size_all$year_cont == '',]$size_min,
+         size_avg_cum2 = size_avg_cum - StatDes_deal_size_all[StatDes_deal_size_all$year_cont == '',]$size_avg,
+         size_max_cum2 = size_max_cum - StatDes_deal_size_all[StatDes_deal_size_all$year_cont == '',]$size_max) %>%
+  select(c(year_cont, type, size_min_cum2, size_avg_cum2, size_max_cum2))
+
+
+StatDes_deal_size_agri = data_lmd %>%
+  #Keep only deals, not parcels
+  group_by(deal_id) %>%
+  slice(1) %>%
+  ungroup() %>%
+  subset(dummy_agri == TRUE) %>%
+  select(c('deal_id', 'year_cont', "size_min_deal", "size_max_deal", "size_avg_deal")) %>%
+  group_by(year_cont) %>%
+  summarize(n = n(),
+            size_min = sum(size_min_deal, na.rm = TRUE),
+            size_avg = sum(size_avg_deal, na.rm = TRUE),
+            size_max = sum(size_max_deal, na.rm = TRUE)) %>%
+  mutate(type = "agri",
+         size_min_cum = cumsum(size_min),
+         size_avg_cum = cumsum(size_avg),
+         size_max_cum = cumsum(size_max),
+         size_min_cum2 = size_min_cum - StatDes_deal_size_agri[StatDes_deal_size_agri$year_cont == '',]$size_min,
+         size_avg_cum2 = size_avg_cum - StatDes_deal_size_agri[StatDes_deal_size_agri$year_cont == '',]$size_avg,
+         size_max_cum2 = size_max_cum - StatDes_deal_size_agri[StatDes_deal_size_agri$year_cont == '',]$size_max) %>%
+  select(c(year_cont, type, size_min_cum2, size_avg_cum2, size_max_cum2))
+
+
+StatDes_deal_size_trans_agri = data_lmd %>%
+  #Keep only deals, not parcels
+  group_by(deal_id) %>%
+  slice(1) %>%
+  ungroup() %>%
+  subset(dummy_agri == TRUE & scope == "transnational") %>%
+  select(c('deal_id', 'year_cont', "size_min_deal", "size_max_deal", "size_avg_deal")) %>%
+  group_by(year_cont) %>%
+  summarize(n = n(),
+            size_min = sum(size_min_deal, na.rm = TRUE),
+            size_avg = sum(size_avg_deal, na.rm = TRUE),
+            size_max = sum(size_max_deal, na.rm = TRUE)) %>%
+  mutate(type = "tagri",
+         size_min_cum = cumsum(size_min),
+         size_avg_cum = cumsum(size_avg),
+         size_max_cum = cumsum(size_max),
+         size_min_cum2 = size_min_cum - StatDes_deal_size_trans_agri[StatDes_deal_size_trans_agri$year_cont == '',]$size_min,
+         size_avg_cum2 = size_avg_cum - StatDes_deal_size_trans_agri[StatDes_deal_size_trans_agri$year_cont == '',]$size_avg,
+         size_max_cum2 = size_max_cum - StatDes_deal_size_trans_agri[StatDes_deal_size_trans_agri$year_cont == '',]$size_max) %>%
+  select(c(year_cont, type, size_min_cum2, size_avg_cum2, size_max_cum2))
+
+
+StatDes_deal_size = StatDes_deal_size_all %>%
+  rbind(StatDes_deal_size_agri) %>%
+  rbind(StatDes_deal_size_trans_agri)
+
+fig_StatDes_deal_size_cum2 = ggplot(data = subset(StatDes_deal_size, year_cont %in% c(2000:2022)),
+               aes(x = factor(year_cont), y = size_avg_cum2/1e3, fill = type,
+                   ymin = size_min_cum2/1e3, ymax = size_max_cum2/1e3)) %>%
+      + geom_bar(position="dodge", stat = "identity") %>% 
+      + geom_errorbar( position = position_dodge(),
+                       color = "grey70", alpha = .8) %>%
+    # + geom_text(data = subset(StatDes_deal_number_all, year_cont %in% c(2000:2022)),
+    #             aes(x = factor(year_cont), y = n_cum2, label = n_cum2), 
+    #             color = "black", size=3, vjust = -0.3) %>%
+    # + geom_bar(data = subset(StatDes_deal_number_agri, year_cont %in% c(2000:2022)),
+    #            aes(x = factor(year_cont), y = n_cum2, fill = "agri"),
+    #            stat = 'identity') %>%
+    # + geom_bar(data = subset(StatDes_deal_number_trans_agri, year_cont %in% c(2000:2022)),
+    #            aes(x = factor(year_cont), y = n_cum2, fill = "trans_agri"),
+    #            stat = 'identity') %>%
+    # + scale_fill_manual("", values = c("all" = "#3182BD",
+    #                                    "agri" = "#9ECAE1",
+    #                                    "trans_agri" = "#DEEBF7"),
+    #                     labels = c("Agri.", "All deals", "Trans. agri.")) %>%
+    + scale_fill_manual("Deal type",
+                        values=c("#9ECAE1","#3182BD", "#DEEBF7"),
+                        labels = c("Agri.", "All", "Trans. agri")) %>%
+    + scale_y_continuous(labels = function(x) format(x, scientific = TRUE)) %>%
+    # + scale_y_log10(breaks = trans_breaks("log10", function(x) 10^x),
+    #           labels = trans_format("log10", math_format(10^.x))) %>%
+    # + annotation_logticks(sides="l") %>%
+    + labs(x = 'Year', y = 'Size (in thousand hectares)',
+           title = 'Cumulative size of deals concluded each year, globally (2000-2022)',
+           caption = paste('Sample :', sum(subset(StatDes_deal_number_all, year_cont %in% c(2000:2022))$n), 'deals with known dates on the period 2000-2022,', sum(StatDes_deal_number_all$n), 'deals recorded overall including', StatDes_deal_number_all[StatDes_deal_number_all$year_cont == '',]$n, 'with unknown dates. \n"Concluded" means that an oral or written agreement has been reached between parties. \nSize under production or the size under contract if not reported. Error bars are related to potential deal expansion.' )) %>%
+    + theme(plot.title = element_text(hjust = 0), 
+            axis.text.x = element_text(angle = 90),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)) 
+fig_StatDes_deal_size_cum2
+
+# ggsave(plot = fig_StatDes_deal_size_cum2,
+#        filename = "fig_StatDes_deal_size_cum2.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 9, height = 5)
+
+
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Investment purpose  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+temp_wld = data_lmd %>%
+  group_by(deal_id) %>%
+  slice(1) %>%
+  ungroup() %>%
+  subset(year_cont %in% c(2000:2022)) %>%
+  summarise(n = n(),
+            per_agri = sum(dummy_agri)/n*100,
+            per_for = sum(dummy_forest)/n*100,
+            per_other = sum(dummy_other)/n*100) %>%
+  mutate(sub_region = "World") %>%
+  group_by(sub_region) 
+
+StatDes_purp = data_lmd %>%
+  group_by(deal_id) %>%
+  slice(1) %>%
+  ungroup() %>%
+  subset(year_cont %in% c(2000:2022)) %>%
+  group_by(sub_region) %>%
+  summarise(n = n(),
+            per_agri = sum(dummy_agri)/n*100,
+            per_for = sum(dummy_forest)/n*100,
+            per_other = sum(dummy_other)/n*100) %>%
+  rbind(temp_wld) %>% 
+  pivot_longer(cols = c(per_agri, per_for, per_other),
+               names_to = 'type')
+
+df_acro = StatDes_purp %>% group_by(sub_region) %>% slice(1) %>% select(sub_region)
+df_acro$acro = c("C. Asia", "E. Asia", "E. Europe", "LAC", "Mel.", "N. Africa", "N. Europe",
+                  "SE. Asia", "S. Asia", "S. Europe", "SSA", "W. Asia", "World")
+
+StatDes_purp = left_join(StatDes_purp, df_acro, by = "sub_region")
+
+fig_purp = ggplot(data = StatDes_purp,
+                  aes(x = reorder(acro, n), y = value, fill = type)) %>%
+    + geom_bar(stat = "identity", position = "dodge") %>%
+    + geom_text(data = subset(StatDes_purp, type == "per_agri"),
+                aes(y = 0, label = n), vjust = -0.1, color="black", size=3) %>%
+    # + geom_text(data = subset(StatDes_purp,
+    #                           acro %in% c("Mel.", "E. Europe", "SSA", "SE. Asia", "S. Europe", "LAC", "NA", "World") & type == "per_agri"),
+    #             aes(y = 0, label = n), vjust = -0.1, color="black", size=3.5) %>%
+    + scale_fill_manual("Investment purpose",
+                        values=c("#9ECAE1","#3182BD", "#DEEBF7"),
+                        labels = c("Agriculture", "Forest", "Other")) %>%
+    + labs(x = "", y = '%',
+           title = 'Investment purpose of deals across sub-regions',
+           subtitle = 'Deals concluded on the period 2000-2022',
+           caption = paste('Sample :', StatDes_purp[StatDes_purp$sub_region == "World",]$n, 'deals,', sum(StatDes_deal_number_all$n), 'deals recorded overall including', StatDes_deal_number_all[StatDes_deal_number_all$year_cont == '',]$n, 'with unknown dates. Total number of deals indicated for each sub-region. \n"Concluded" means that an oral or written agreement has been reached between parties. \nAgriculture : biofuels, crops, fodder, livestock. Forest : timber, carbon trapping, forestry. \nOther : mining, extraction, tourism, industry, conservation, speculation, energy' )) %>%
+    + theme(plot.title = element_text(hjust = 0), 
+            legend.position = "bottom",
+            legend.key = element_rect(fill = "white"),
+            axis.text.x = element_text(angle = 35),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+fig_purp
+
+# 
+# ggsave(plot = fig_purp,
+#        filename = "fig_StatDes_deal_purp.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 9, height = 5)
+
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Targeted sub-regions  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+StatDes_targ = data_lmd %>%
+  group_by(deal_id) %>%
+  slice(1) %>%
+  ungroup() %>%
+  subset(year_cont %in% c(2000:2022)) %>%
+  mutate(n_all = n(),
+         n_all_agri = sum(dummy_agri),
+         is_tagri = scope == "transnational" & dummy_agri == TRUE,
+         n_all_tagri = sum(is_tagri),
+         size_tot_all = sum(size_max_deal, na.rm = TRUE),
+         size_tot_agri = sum(size_max_deal*dummy_agri, na.rm = TRUE),
+         size_tot_tagri = sum(size_max_deal*is_tagri, na.rm = TRUE)) %>%
+  select(c(n_all, n_all_agri, n_all_tagri, size_tot_all, size_tot_agri, 
+           size_tot_tagri, sub_region, country, deal_id, year_cont, scope, 
+           dummy_agri, is_tagri, size_max_deal)) %>%
+  group_by(sub_region) %>%
+  summarise(n_all, n_all_agri, n_all_tagri, size_tot_all, size_tot_agri, size_tot_tagri,
+            n = n(), n_agri = sum(dummy_agri), n_tagri = sum(is_tagri),
+            per_size = sum(size_max_deal, na.rm = TRUE)/size_tot_all*100, 
+            per_size_agri = sum(size_max_deal*dummy_agri, na.rm = TRUE)/size_tot_agri*100,
+            per_size_tagri = sum(size_max_deal*is_tagri, na.rm = TRUE)/size_tot_tagri*100,
+            per_all = n/n_all*100,
+            per_agri = n_agri/n_all_agri*100,
+            per_tagri = n_tagri/n_all_tagri*100) %>%
+  slice(1) %>%
+  ungroup()  %>%
+  left_join(df_acro, by = "sub_region")
+
+StatDes_targ_per = StatDes_targ %>%
+  select(-c(n, n_agri, n_tagri, per_size, per_size_agri, per_size_tagri)) %>%
+  pivot_longer(cols = c(per_all, per_agri, per_tagri),
+               names_to = 'type',
+               values_to = "per")
+
+StatDes_targ_per_size = StatDes_targ %>%
+  select(-c(n, n_agri, n_tagri, per_all, per_agri, per_tagri)) %>%
+  pivot_longer(cols = c(per_size, per_size_agri, per_size_tagri),
+               names_to = 'type',
+               values_to = "per")
+
+# StatDes_targ_n = StatDes_targ %>%
+#   select(-c(per_all, per_agri, per_tagri)) %>%
+#   pivot_longer(cols = c(n, n_agri, n_tagri),
+#                names_to = 'type',
+#                values_to = "n")
+
+#In number of deals
+fig_targ_per_subreg = ggplot() %>%
+    + geom_bar(data = StatDes_targ_per,
+              aes(x = reorder(acro, -per), y = per, fill = type),
+              stat = "identity", position = "dodge") %>%
+    + scale_fill_manual("",
+                        values=c("#9ECAE1","#3182BD", "#DEEBF7"),
+                        labels = c("Agriculture", "All", "Trans. agri.")) %>%
+    + labs(x = "", y = 'Number of deals (%)',
+           title = "Distribution of deals across sub-regions",
+           subtitle = 'Deals concluded on the period 2000-2022',
+           caption = paste('Sample :', min(StatDes_targ_per$n_all), 'deals reported in the Land Matrix database, with', min(StatDes_targ_per$n_all_agri), "related to agricultural activies and", min(StatDes_targ_per$n_all_tagri), "implying also foreign investors. \n", sum(StatDes_deal_number_all$n), 'deals recorded overall including', StatDes_deal_number_all[StatDes_deal_number_all$year_cont == '',]$n, 'with unknown dates. \n"Concluded" means that an oral or written agreement has been reached between parties.')) %>%
+    + theme(plot.title = element_text(hjust = 0),
+            legend.position = "bottom",
+            legend.key = element_rect(fill = "white"),
+            axis.text.x = element_text(angle = 35),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+fig_targ_per_subreg
+
+# ggsave(plot = fig_targ_per_subreg,
+#        filename = "fig_StatDes_deal_targ_per_subreg.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 9, height = 5)
+
+#In size
+fig_targ_per_size_subreg = ggplot() %>%
+    + geom_bar(data = StatDes_targ_per_size,
+              aes(x = reorder(acro, -per), y = per, fill = type),
+              stat = "identity", position = "dodge") %>%
+    + scale_fill_manual("",
+                        values=c("#3182BD", "#9ECAE1", "#DEEBF7"),
+                        labels = c("All", "Agriculture" , "Trans. agri.")) %>%
+    + labs(x = "", y = 'Area acquired (%)',
+           title = "Distribution of acquired land across sub-regions",
+           subtitle = 'Deals concluded on the period 2000-2022',
+           caption = paste0('Sample : ', format(min(StatDes_targ$size_tot_all), scientific = TRUE, digits = 3) , ' ha in ',  min(StatDes_targ$n_all),  ' deals. ', format(min(StatDes_targ$size_tot_agri), scientific = TRUE, digits = 3), ' ha are related to agricultural activies (', min(StatDes_targ$n_all_agri), ' deals) and ', format(min(StatDes_targ$size_tot_tagri), scientific = TRUE, digits = 3), ' ha implying also foreign investors (', min(StatDes_targ$n_all_tagri), ' deals). \n', sum(StatDes_deal_number_all$n), ' deals recorded overall corresponding to ', format(sum(data_lmd$size_max_par, na.rm = TRUE), scientific = TRUE, digits = 3) , ' ha. Includes', StatDes_deal_number_all[StatDes_deal_number_all$year_cont == '',]$n, ' deals with unknown dates. \n"Concluded" means that an oral or written agreement has been reached between parties.\nThe size is the one under production, or under contract if not reported.')) %>%
+    + theme(plot.title = element_text(hjust = 0),
+            legend.position = "bottom",
+            legend.key = element_rect(fill = "white"),
+            axis.text.x = element_text(angle = 35),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+fig_targ_per_size_subreg
+
+# ggsave(plot = fig_targ_per_size_subreg,
+#        filename = "fig_StatDes_deal_targ_per_size_subreg.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 9, height = 5)
+
+
+# StatDes_distrib = data_lmd %>%
+#   group_by(deal_id) %>%
+#   slice(1) %>%
+#   ungroup() %>%
+#   subset(year_cont %in% c(2000:2022)) %>%
+#   mutate(n = n(), 
+#          n_agri = sum(dummy_agri), 
+#          is_tagri = scope == "transnational" & dummy_agri == TRUE,
+#          n_tagri = sum(is_tagri)) %>%
+#   group_by(sub_region) %>%
+#   summarise(n, n_agri, n_tagri, 
+#             per = n()/n*100, 
+#             per_agri = sum(dummy_agri)/n_agri*100, 
+#             per_tagri = sum(is_tagri)/n_tagri*100 
+#             ) %>%
+#   slice(1) %>%
+#   ungroup() %>%
+#   arrange(desc(sub_region)) %>%
+#   mutate(ypos = cumsum(per)- 0.5*per,
+#          ypos_agri = cumsum(per_agri)-0.5*per_agri,
+#          ypos_tagri = cumsum(per_tagri)-0.5*per_agri)
+# 
+# fig_distrib_subreg = ggplot(data = StatDes_distrib, aes(x = "", y = per, fill = sub_region)) %>%
+#     + geom_bar(stat = 'identity', width = 1, color="white") %>%
+#     + coord_polar("y", start = 0) %>%
+#     + geom_text(aes(y = ypos, label = round(per, 1)), color = "black", size=6) %>%
+#     + labs(y = '%', title = 'Distribution of recorded deals across the world',
+#          subtitle = paste('Sample :', min(StatDes_distrib$n), 'deals')) %>%
+#     + theme(plot.title = element_text(hjust = 0.5)) %>%
+#     + theme_minimal() 
+# fig_distrib_subreg
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ 20 targeted countries  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+#Building datasets
+StatDes_targ_ctry = data_lmd %>%
+  group_by(deal_id) %>%
+  slice(1) %>%
+  ungroup() %>%
+  subset(year_cont %in% c(2000:2022)) %>%
+  mutate(n_all = n(),
+         n_all_agri = sum(dummy_agri),
+         is_tagri = scope == "transnational" & dummy_agri == TRUE,
+         n_all_tagri = sum(is_tagri),
+         size_tot_all = sum(size_max_deal, na.rm = TRUE),
+         size_tot_agri = sum(size_max_deal*dummy_agri, na.rm = TRUE),
+         size_tot_tagri = sum(size_max_deal*is_tagri, na.rm = TRUE)) %>%
+  select(c(n_all, n_all_agri, n_all_tagri, size_tot_all, size_tot_agri, 
+           size_tot_tagri, sub_region, country,
+           deal_id, year_cont, scope, dummy_agri, is_tagri, size_max_deal)) %>%
+  group_by(country) %>%
+  summarise(n_all, n_all_agri, n_all_tagri, size_tot_all, size_tot_agri, size_tot_tagri,
+            n = n(), n_agri = sum(dummy_agri), n_tagri = sum(is_tagri),
+            size = sum(size_max_deal, na.rm = TRUE),
+            size_agri = sum(size_max_deal*dummy_agri, na.rm = TRUE),
+            size_tagri = sum(size_max_deal*is_tagri, na.rm = TRUE),
+            per_all = n/n_all*100,
+            per_agri = n_agri/n_all_agri*100,
+            per_tagri = n_tagri/n_all_tagri*100,
+            per_size = size/size_tot_all*100, 
+            per_size_agri = size_agri/size_tot_agri*100,
+            per_size_tagri = size_tagri/size_tot_tagri*100) %>%
+  slice(1) %>%
+  ungroup()  %>%
+  left_join(country_iso, by = "country") %>%
+  left_join(select(area_agri, c(iso_3, agri_area_km2_2020)), by = c("iso_a3" = "iso_3")) %>%
+  left_join(select(area_land, c(iso_3, land_area_km2_2020)), by = c("iso_a3" = "iso_3")) %>%
+  mutate(agri_area_ha_2020 = agri_area_km2_2020*100,
+         land_area_ha_2020 = land_area_km2_2020*100)
+
+#For all deals
+StatDes_targ_ctry_all = StatDes_targ_ctry %>%
+  arrange(desc(n)) %>%
+  slice(1:20)
+StatDes_targ_ctry_all_size = StatDes_targ_ctry %>%
+  arrange(desc(size)) %>%
+  slice(1:20) 
+
+#Agri deals
+StatDes_targ_ctry_agri = StatDes_targ_ctry %>%
+  arrange(desc(n_agri)) %>%
+  slice(1:20) 
+StatDes_targ_ctry_agri_size = StatDes_targ_ctry %>%
+  arrange(desc(size_agri)) %>%
+  slice(1:20) 
+
+#Transnational agri
+StatDes_targ_ctry_tagri = StatDes_targ_ctry %>%
+  arrange(desc(n_tagri)) %>%
+  slice(1:20) 
+StatDes_targ_ctry_tagri_size = StatDes_targ_ctry %>%
+  arrange(desc(size_tagri)) %>%
+  slice(1:20) 
+
+#Figures
+##all deals
+###Number
+fig_targ_ctry20_all = ggplot(data = StatDes_targ_ctry_all,
+                           aes(x = reorder(iso_a3, -per_all), y = per_all)) %>%
+  + geom_bar(stat = "identity", fill = "#3182BD", color = "#3182BD") %>%
+  + geom_text(aes(label=n), vjust=-0.4, color="grey20", size=3.5) %>%
+  + labs(x = "", y = "Number of deals (%)",
+           title = "Top 20 targeted countries by land acquisitions (all)",
+           subtitle = 'Deals concluded on the period 2000-2022',
+           caption = paste('Sample :', min(StatDes_targ_ctry_all$n_all), 'deals with', min(StatDes_targ_ctry_all$n_all_agri), "related to agricultural activies and", min(StatDes_targ_ctry_all$n_all_tagri), "implying also foreign investors. \n", sum(StatDes_deal_number_all$n), 'deals recorded overall including', StatDes_deal_number_all[StatDes_deal_number_all$year_cont == '',]$n, 'with unknown dates. Number of deals reported for each country.\n"Concluded" means that an oral or written agreement has been reached between parties.')) %>%
+    + theme(plot.title = element_text(hjust = 0),
+            legend.position = "bottom",
+            legend.key = element_rect(fill = "white"),
+            axis.text.x = element_text(angle = 0),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+fig_targ_ctry20_all
+
+# ggsave(plot = fig_targ_ctry20_all,
+#        filename = "fig_StatDes_deal_targ_ctry20_all.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 9, height = 5)
+
+###Size 
+fig_targ_ctry20_all_size = ggplot(data = StatDes_targ_ctry_all,
+                           aes(x = reorder(iso_a3, -per_size), y = per_size)) %>%
+  + geom_bar(stat = "identity", fill = "#3182BD", color = "#3182BD") %>%
+  + geom_text(aes(label=format(size, scientific = TRUE, digits = 2)), 
+              vjust=-1.9, color="grey20", size=3) %>%
+  + geom_text(aes(label=paste0('(',format(size/land_area_ha_2020*100, scientific = FALSE, digits = 0), "%)")), 
+              vjust=-0.5, color="grey20", size=3) %>%
+  + labs(x = "", y = "Acquired land (%)",
+           title = "Top 20 targeted countries by land acquisitions (all)",
+           subtitle = 'Deals concluded on the period 2000-2022',
+           caption = paste('Sample :', format(min(StatDes_targ$size_tot_all), scientific = TRUE, digits = 3) , 'ha in',  min(StatDes_targ$n_all),  ' deals.', format(min(StatDes_targ$size_tot_agri), scientific = TRUE, digits = 3), 'ha are related to agricultural activies (', min(StatDes_targ$n_all_agri), 'deals) and', format(min(StatDes_targ$size_tot_tagri), scientific = TRUE, digits = 3), 'ha implying also foreign investors (', min(StatDes_targ$n_all_tagri), 'deals). \n', sum(StatDes_deal_number_all$n), 'deals recorded overall corresponding to', format(sum(data_lmd$size_max_par, na.rm = TRUE), scientific = TRUE, digits = 3) , 'ha. Includes', StatDes_deal_number_all[StatDes_deal_number_all$year_cont == '',]$n, 'deals with unknown dates. \n"Concluded" means that an oral or written agreement has been reached between parties.\nThe total size acquired for each country, and the corresponding land share in 2020, are reported above the corresponding bar in ha. \nSize : under production, or under contract if not reported')) %>%
+    + theme(plot.title = element_text(hjust = 0),
+            legend.position = "bottom",
+            legend.key = element_rect(fill = "white"),
+            axis.text.x = element_text(angle = 0),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+fig_targ_ctry20_all_size
+
+# ggsave(plot = fig_targ_ctry20_all_size,
+#        filename = "fig_StatDes_deal_targ_ctry20_all_size.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 10, height = 7)
+
+##Agri deals
+###Number
+fig_targ_ctry20_agri = ggplot(data = StatDes_targ_ctry_all,
+                           aes(x = reorder(iso_a3, -per_agri), y = per_agri)) %>%
+  + geom_bar(stat = "identity", fill = "#3182BD", color = "#3182BD") %>%
+  + geom_text(aes(label=n_agri), vjust=-0.4, color="grey20", size=3.5) %>%
+  + labs(x = "", y = "Number of deals (%)",
+           title = "Top 20 targeted countries by agricultural land acquisitions",
+           subtitle = 'Deals concluded on the period 2000-2022',
+           caption = paste('Sample :', min(StatDes_targ_ctry_all$n_all_agri), 'deals with agricultural purpose.', sum(StatDes_deal_number_all$n), 'deals recorded overall including', StatDes_deal_number_all[StatDes_deal_number_all$year_cont == '',]$n, 'with unknown dates. \n"Concluded" means that an oral or written agreement has been reached between parties.')) %>%
+    + theme(plot.title = element_text(hjust = 0),
+            legend.position = "bottom",
+            legend.key = element_rect(fill = "white"),
+            axis.text.x = element_text(angle = 0),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+fig_targ_ctry20_agri
+
+# ggsave(plot = fig_targ_ctry20_agri,
+#        filename = "fig_StatDes_deal_targ_ctry20_agri.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 9, height = 5)
+
+###Size 
+fig_targ_ctry20_agri_size = ggplot(data = StatDes_targ_ctry_agri,
+                           aes(x = reorder(iso_a3, -per_size_agri), y = per_size_agri)) %>%
+  + geom_bar(stat = "identity", fill = "#3182BD", color = "#3182BD") %>%
+  + geom_text(aes(label=format(size_agri, scientific = TRUE, digits = 2)), 
+              vjust=-1.9, color="grey20", size=3) %>%
+  + geom_text(aes(label=paste0('(',format(size_agri/agri_area_ha_2020*100, scientific = FALSE, digits = 0), "%)")), 
+              vjust=-0.5, color="grey20", size=3) %>%
+  + labs(x = "", y = "Acquired land (%)",
+           title = "Top 20 targeted countries by agricultural land acquisitions",
+           subtitle = 'Deals concluded on the period 2000-2022',
+           caption = paste('Sample :', format(min(StatDes_targ$size_tot_all), scientific = TRUE, digits = 3) , 'ha in',  min(StatDes_targ$n_all),  ' deals.', format(min(StatDes_targ$size_tot_agri), scientific = TRUE, digits = 3), 'ha are related to agricultural activies (', min(StatDes_targ$n_all_agri), 'deals) and', format(min(StatDes_targ$size_tot_tagri), scientific = TRUE, digits = 3), 'ha implying also foreign investors (', min(StatDes_targ$n_all_tagri), 'deals). \n', sum(StatDes_deal_number_all$n), 'deals recorded overall corresponding to', format(sum(data_lmd$size_max_par, na.rm = TRUE), scientific = TRUE, digits = 3) , 'ha. Includes', StatDes_deal_number_all[StatDes_deal_number_all$year_cont == '',]$n, 'deals with unknown dates. \n"Concluded" means that an oral or written agreement has been reached between parties.\nThe total size acquired for each country, and the corresponding agricultural land share in 2020, are reported above the corresponding bar in ha. \nSize : under production, or under contract if not reported')) %>%
+    + theme(plot.title = element_text(hjust = 0),
+            legend.position = "bottom",
+            legend.key = element_rect(fill = "white"),
+            axis.text.x = element_text(angle = 0),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 9, face = 'plain', hjust = 0))
+fig_targ_ctry20_agri_size
+
+# ggsave(plot = fig_targ_ctry20_agri_size,
+#        filename = "fig_StatDes_deal_targ_ctry20_agri_size.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 10, height = 7)
+
+#Transnational agri
+###Number of deals
+fig_targ_ctry20_tagri = ggplot(data = StatDes_targ_ctry_all,
+                           aes(x = reorder(iso_a3, -per_tagri), y = per_tagri)) %>%
+  + geom_bar(stat = "identity", fill = "#3182BD", color = "#3182BD") %>%
+  + geom_text(aes(label=n_tagri), vjust=-0.4, color="grey20", size=3.5) %>%
+  + labs(x = "", y = "Number of deals (%)",
+           title = "Top 20 targeted countries by foreign, agricultural land acquisitions",
+           subtitle = 'Deals concluded on the period 2000-2022',
+           caption = paste('Sample :', min(StatDes_targ_ctry_all$n_all_tagri), 'deals with agricultural purpose.', sum(StatDes_deal_number_all$n), 'deals recorded overall including', StatDes_deal_number_all[StatDes_deal_number_all$year_cont == '',]$n, 'with unknown dates. \n"Concluded" means that an oral or written agreement has been reached between parties.')) %>%
+    + theme(plot.title = element_text(hjust = 0),
+            legend.position = "bottom",
+            legend.key = element_rect(fill = "white"),
+            axis.text.x = element_text(angle = 0),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+fig_targ_ctry20_tagri
+
+# ggsave(plot = fig_targ_ctry20_tagri,
+#        filename = "fig_StatDes_deal_targ_ctry20_tagri.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 9, height = 5)
+
+###Size 
+fig_targ_ctry20_tagri_size = ggplot(data = StatDes_targ_ctry_tagri,
+                           aes(x = reorder(iso_a3, -per_size_tagri), y = per_size_tagri)) %>%
+  + geom_bar(stat = "identity", fill = "#3182BD", color = "#3182BD") %>%
+  + geom_text(aes(label=format(size_tagri, scientific = TRUE, digits = 2)), 
+              vjust=-1.9, color="grey20", size=3) %>%
+  + geom_text(aes(label=paste0('(',format(size_tagri/agri_area_ha_2020*100, scientific = FALSE, digits = 0), "%)")), 
+              vjust=-0.5, color="grey20", size=3) %>%
+  + labs(x = "", y = "Acquired land (%)",
+           title = "Top 20 targeted countries by foreign, agricultural land acquisitions",
+           subtitle = 'Deals concluded on the period 2000-2022',
+           caption = paste('Sample :', format(min(StatDes_targ$size_tot_all), scientific = TRUE, digits = 3) , 'ha in',  min(StatDes_targ$n_all),  ' deals.', format(min(StatDes_targ$size_tot_agri), scientific = TRUE, digits = 3), 'ha are related to agricultural activies (', min(StatDes_targ$n_all_agri), 'deals) and', format(min(StatDes_targ$size_tot_tagri), scientific = TRUE, digits = 3), 'ha implying also foreign investors (', min(StatDes_targ$n_all_tagri), 'deals). \n', sum(StatDes_deal_number_all$n), 'deals recorded overall corresponding to', format(sum(data_lmd$size_max_par, na.rm = TRUE), scientific = TRUE, digits = 3) , 'ha. Includes', StatDes_deal_number_all[StatDes_deal_number_all$year_cont == '',]$n, 'deals with unknown dates. \n"Concluded" means that an oral or written agreement has been reached between parties.\nThe total size acquired for each country, and the corresponding agricultural land share in 2020, are reported above the corresponding bar in ha. \nSize : under production, or under contract if not reported')) %>%
+    + theme(plot.title = element_text(hjust = 0),
+            legend.position = "bottom",
+            legend.key = element_rect(fill = "white"),
+            axis.text.x = element_text(angle = 0),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+fig_targ_ctry20_tagri_size
+
+# ggsave(plot = fig_targ_ctry20_tagri_size,
+#        filename = "fig_StatDes_deal_targ_ctry20_tagri_size.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 10, height = 7)
+````
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Former land use  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+#Defining datasets
+
+StatDes_former_use = data_raw %>%
+  select(c("Deal ID", "Former land use")) %>%
+  mutate(`Deal ID` = as.numeric(`Deal ID`)) %>%
+  rename("deal_id" = "Deal ID") %>%
+  left_join(data_lmd, by = "deal_id") %>%
+  mutate(is_small = NA, is_pasto = NA, is_cons = NA, is_for = NA, is_hg = NA, is_comm = NA, is_other = NA, is_na = NA, is_shi = NA) %>%
+  select(c(sub_region, country, deal_id, year_cont,
+           dummy_agri, scope, "Former land use", is_small:is_shi)) %>%
+  left_join(df_acro, by = "sub_region")
+
+StatDes_former_use[StatDes_former_use$`Former land use` == '',]$`Former land use` = 'unknown'
+StatDes_former_use$is_small = attr(regexpr(pattern = "(Smallholder agriculture)", text = StatDes_former_use$`Former land use`), "match.length") != -1
+StatDes_former_use$is_pasto = attr(regexpr(pattern = "(Pastoralism)", text = StatDes_former_use$`Former land use`), "match.length") != -1
+StatDes_former_use$is_cons = attr(regexpr(pattern = "(Conservation)", text = StatDes_former_use$`Former land use`), "match.length") != -1
+StatDes_former_use$is_for = attr(regexpr(pattern = "(Forestry)", text = StatDes_former_use$`Former land use`), "match.length") != -1
+StatDes_former_use$is_hg = attr(regexpr(pattern = "(Hunting/Gathering)", text = StatDes_former_use$`Former land use`), "match.length") != -1
+StatDes_former_use$is_comm = attr(regexpr(pattern = "(Commercial)", text = StatDes_former_use$`Former land use`), "match.length") != -1
+StatDes_former_use$is_shi = attr(regexpr(pattern = "(Shifting cultivation)", text = StatDes_former_use$`Former land use`), "match.length") != -1
+StatDes_former_use$is_other = attr(regexpr(pattern = "(Other)", text = StatDes_former_use$`Former land use`), "match.length") != -1
+StatDes_former_use$is_na = attr(regexpr(pattern = "(unknown)", text = StatDes_former_use$`Former land use`), "match.length") != -1
+
+##For all deals
+StatDes_former_use_all = StatDes_former_use %>% 
+  group_by(deal_id) %>%
+  slice(1) %>%
+  ungroup() %>%
+  subset(year_cont %in% c(2000:2022)) %>%
+  group_by(sub_region, acro) %>%
+  summarise(n_deals = n(), n_small = sum(is_small), n_pasto = sum(is_pasto), 
+            n_cons = sum(is_cons), n_for = sum(is_for), n_hg = sum(is_small), 
+            n_comm = sum(is_comm), n_other = sum(is_other), 
+            n_na = sum(is_na), n_shi = sum(is_shi)) %>%
+  pivot_longer(cols = c(n_small, n_pasto, n_cons, n_for, n_hg, n_comm, n_other, n_na, n_shi),
+               names_to = 'type') 
+
+##For agricultural ones
+StatDes_former_use_agri = StatDes_former_use %>% 
+  group_by(deal_id) %>%
+  slice(1) %>%
+  ungroup() %>%
+  subset(year_cont %in% c(2000:2022) & dummy_agri == TRUE) %>%
+  group_by(sub_region, acro) %>%
+  summarise(n_deals = n(), n_small = sum(is_small), n_pasto = sum(is_pasto), 
+            n_cons = sum(is_cons), n_for = sum(is_for), n_hg = sum(is_small), 
+            n_comm = sum(is_comm), n_other = sum(is_other), 
+            n_na = sum(is_na), n_shi = sum(is_shi)) %>%
+  pivot_longer(cols = c(n_small, n_pasto, n_cons, n_for, n_hg, n_comm, n_other, n_na, n_shi),
+               names_to = 'type') 
+
+##For trans agri
+StatDes_former_use_tagri = StatDes_former_use %>% 
+  group_by(deal_id) %>%
+  slice(1) %>%
+  ungroup() %>%
+  subset(year_cont %in% c(2000:2022) & dummy_agri == TRUE & scope == "transnational") %>%
+  group_by(sub_region, acro) %>%
+  summarise(n_deals = n(), n_small = sum(is_small), n_pasto = sum(is_pasto), 
+            n_cons = sum(is_cons), n_for = sum(is_for), n_hg = sum(is_small), 
+            n_comm = sum(is_comm), n_other = sum(is_other), 
+            n_na = sum(is_na), n_shi = sum(is_shi)) %>%
+  pivot_longer(cols = c(n_small, n_pasto, n_cons, n_for, n_hg, n_comm, n_other, n_na, n_shi),
+               names_to = 'type')
+
+#Plotting
+##All deals
+fig_former_use_all_subreg = ggplot(data = StatDes_former_use_all,
+                               aes(x = reorder(acro, -n_deals), y = value/n_deals*100, fill = type)) %>%
+  + geom_bar(stat = 'identity', position = position_dodge()) %>%
+  + geom_text(data = subset(StatDes_former_use_all, type == "n_small"),
+              aes(y = 0, label = n_deals), color = "grey10", size = 3.5, vjust = -.8) %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals (%)', 
+         title = "Former land use of acquired lands across sub-regions", 
+         subtitle = "All deals",
+         caption = paste('Sample :', min(StatDes_targ_per$n_all), 'deals with', min(StatDes_targ_per$n_all_agri), "related to agricultural activies and", min(StatDes_targ_per$n_all_tagri), "implying also foreign investors. \n", sum(StatDes_deal_number_all$n), 'deals recorded overall including', StatDes_deal_number_all[StatDes_deal_number_all$year_cont == '',]$n, 'with unknown dates. For each sub-regions, the number of deals is reported. \nDeals are "contracted" here, it means that an oral or written agreement has been reached between parties.')) %>%
+  + scale_fill_manual(values = brewer.pal(n = 9, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Former land use",
+                      labels = c('Commercial', 'Conservation', 'Forestry', 'Huntering & gathering', 'Unknown', 'Other', 'Pastoralism', 'Shifting cultivation', 'Smallholder farming')
+                      ) %>%
+    + theme(plot.title = element_text(hjust = 0),
+            legend.position = "bottom",
+            legend.key = element_rect(fill = "white"),
+            axis.text.x = element_text(angle = 35),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+
+fig_former_use_all_subreg
+
+# ggsave(plot = fig_former_use_all_subreg,
+#        filename = "fig_StatDes_former_use_all_subreg.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/',
+#        width = 9, height = 7)
+
+##Agricultural ones
+
+fig_former_use_agri_subreg = ggplot(data = StatDes_former_use_agri,
+                               aes(x = reorder(acro, -n_deals), y = value/n_deals*100, fill = type)) %>%
+  + geom_bar(stat = 'identity', position = position_dodge()) %>%
+  + geom_text(data = subset(StatDes_former_use_agri, type == "n_small"),
+              aes(y = 0, label = n_deals), color = "grey10", size = 3.5, vjust = -.8) %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals (%)', 
+         title = "Former land use of acquired lands across sub-regions", 
+         subtitle = "Agriculture-related deals",
+         caption = paste('Sample :', min(StatDes_targ_per$n_all), 'deals with', min(StatDes_targ_per$n_all_agri), "related to agricultural activies and", min(StatDes_targ_per$n_all_tagri), "implying also foreign investors. \n", sum(StatDes_deal_number_all$n), 'deals recorded overall including', StatDes_deal_number_all[StatDes_deal_number_all$year_cont == '',]$n, 'with unknown dates. For each country, the number of deals is reported. \nDeals are "contracted" here, it means that an oral or written agreement has been reached between parties.')) %>%
+  + scale_fill_manual(values = brewer.pal(n = 9, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Former land use",
+                      labels = c('Commercial', 'Conservation', 'Forestry', 'Huntering & gathering', 'Unknown', 'Other', 'Pastoralism', 'Shifting cultivation', 'Smallholder farming')
+                      ) %>%
+    + theme(plot.title = element_text(hjust = 0),
+            legend.position = "bottom",
+            legend.key = element_rect(fill = "white"),
+            axis.text.x = element_text(angle = 35),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+
+fig_former_use_agri_subreg
+# 
+# ggsave(plot = fig_former_use_agri_subreg,
+#        filename = "fig_StatDes_former_use_agri_subreg.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/',
+#        width = 9, height = 7)
+
+##Trans, agricultural ones
+
+fig_former_use_tagri_subreg = ggplot(data = StatDes_former_use_tagri,
+                               aes(x = reorder(acro, -n_deals), y = value/n_deals*100, fill = type)) %>%
+  + geom_bar(stat = 'identity', position = position_dodge()) %>%
+  + geom_text(data = subset(StatDes_former_use_tagri, type == "n_small"),
+              aes(y = 0, label = n_deals), color = "grey10", size = 3.5, vjust = -.8) %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals (%)', 
+         title = "Former land use of acquired lands across sub-regions", 
+         subtitle = "Transnational, agriculture-related deals",
+         caption = paste('Sample :', min(StatDes_targ_per$n_all), 'deals with', min(StatDes_targ_per$n_all_agri), "related to agricultural activies and", min(StatDes_targ_per$n_all_tagri), "implying also foreign investors. \n", sum(StatDes_deal_number_all$n), 'deals recorded overall including', StatDes_deal_number_all[StatDes_deal_number_all$year_cont == '',]$n, 'with unknown dates. For each country the number of deals is reported. \nDeals are "contracted" here, it means that an oral or written agreement has been reached between parties.')) %>%
+  + scale_fill_manual(values = brewer.pal(n = 9, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Former land use",
+                      labels = c('Commercial', 'Conservation', 'Forestry', 'Huntering & gathering', 'Unknown', 'Other', 'Pastoralism', 'Shifting cultivation', 'Smallholder farming')
+                      ) %>%
+    + theme(plot.title = element_text(hjust = 0),
+            legend.position = "bottom",
+            legend.key = element_rect(fill = "white"),
+            axis.text.x = element_text(angle = 35),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+
+fig_former_use_tagri_subreg
+# 
+# ggsave(plot = fig_former_use_tagri_subreg,
+#        filename = "fig_StatDes_former_use_tagri_subreg.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/',
+#        width = 9, height = 7)
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Former land owner ---
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+#Defining datasets
+
+StatDes_former_owner = data_raw %>%
+  select(c("Deal ID", "Former land owner")) %>%
+  mutate(`Deal ID` = as.numeric(`Deal ID`)) %>%
+  rename("deal_id" = "Deal ID") %>%
+  left_join(data_lmd, by = "deal_id") %>%
+  mutate(is_na = NA, is_comm = NA, is_ind = NA, is_state = NA, 
+         is_small = NA, is_large = NA, is_other = NA) %>%
+  select(c(sub_region, country, deal_id, year_cont,
+           dummy_agri, scope, "Former land owner", is_na:is_other)) %>%
+  left_join(df_acro, by = "sub_region")
+
+
+StatDes_former_owner[StatDes_former_owner$`Former land owner` == '',]$`Former land owner` = 'unknown'
+StatDes_former_owner$is_comm = attr(regexpr(pattern = "(Community)", text = StatDes_former_owner$`Former land owner`), "match.length") != -1
+StatDes_former_owner$is_ind = attr(regexpr(pattern = "(Indigenous)", text = StatDes_former_owner$`Former land owner`), "match.length") != -1
+StatDes_former_owner$is_state = attr(regexpr(pattern = "(State)", text = StatDes_former_owner$`Former land owner`), "match.length") != -1
+StatDes_former_owner$is_small = attr(regexpr(pattern = "(smallholders)", text = StatDes_former_owner$`Former land owner`), "match.length") != -1
+StatDes_former_owner$is_large = attr(regexpr(pattern = "(large-scale farm)", text = StatDes_former_owner$`Former land owner`), "match.length") != -1
+StatDes_former_owner$is_other = attr(regexpr(pattern = "(Other)", text = StatDes_former_owner$`Former land owner`), "match.length") != -1
+StatDes_former_owner$is_na = attr(regexpr(pattern = "(unknown)", text = StatDes_former_owner$`Former land owner`), "match.length") != -1
+
+#All deals
+StatDes_former_owner_all = StatDes_former_owner %>% 
+  group_by(deal_id) %>%
+  slice(1) %>%
+  ungroup() %>%
+  subset(year_cont %in% c(2000:2022)) %>%
+  group_by(sub_region, acro) %>%
+  summarise(n_deals = n(), n_comm = sum(is_comm), n_ind = sum(is_ind), n_state = sum(is_state),
+            n_small = sum(is_small), n_large = sum(is_large), n_other = sum(is_other), n_na = sum(is_na)) %>%
+  pivot_longer(cols = c(n_comm, n_ind, n_state, n_small, n_large, n_other, n_na),
+               names_to = 'type') 
+
+#Agri
+StatDes_former_owner_agri = StatDes_former_owner %>% 
+  group_by(deal_id) %>%
+  slice(1) %>%
+  ungroup() %>%
+  subset(year_cont %in% c(2000:2022) & dummy_agri == TRUE) %>%
+  group_by(sub_region, acro) %>%
+  summarise(n_deals = n(), n_comm = sum(is_comm), n_ind = sum(is_ind), n_state = sum(is_state),
+            n_small = sum(is_small), n_large = sum(is_large), n_other = sum(is_other), n_na = sum(is_na)) %>%
+  pivot_longer(cols = c(n_comm, n_ind, n_state, n_small, n_large, n_other, n_na),
+               names_to = 'type')
+
+#TransAgri
+StatDes_former_owner_tagri = StatDes_former_owner %>% 
+  group_by(deal_id) %>%
+  slice(1) %>%
+  ungroup() %>%
+  subset(year_cont %in% c(2000:2022) & dummy_agri == TRUE & scope == "transnational") %>%
+  group_by(sub_region, acro) %>%
+  summarise(n_deals = n(), n_comm = sum(is_comm), n_ind = sum(is_ind), n_state = sum(is_state),
+            n_small = sum(is_small), n_large = sum(is_large), n_other = sum(is_other), n_na = sum(is_na)) %>%
+  pivot_longer(cols = c(n_comm, n_ind, n_state, n_small, n_large, n_other, n_na),
+               names_to = 'type') 
+
+#Plotting
+#All
+
+fig_StatDes_former_owner_all_subreg = ggplot(data = StatDes_former_owner_all,
+                               aes(x = reorder(acro, -n_deals), y = value/n_deals*100, fill = type)) %>%
+  + geom_bar(stat = 'identity', position = position_dodge()) %>%
+  + geom_text(data = subset(StatDes_former_owner_all, type == "n_small"),
+              aes(y = 0, label = n_deals), color = "grey10", size = 3.5, vjust = -.8) %>%
+  + labs(x = "", y = 'Number of deals (%)', 
+         title = "Former land owner of acquired lands across sub-regions", 
+         subtitle = "All deals",
+         caption = paste('Sample :', min(StatDes_targ_per$n_all), 'deals with', min(StatDes_targ_per$n_all_agri), "related to agricultural activies and", min(StatDes_targ_per$n_all_tagri), "implying also foreign investors. \n", sum(StatDes_deal_number_all$n), 'deals recorded overall including', StatDes_deal_number_all[StatDes_deal_number_all$year_cont == '',]$n, 'with unknown dates. \nDeals are "contracted" here, it means that an oral or written agreement has been reached between parties.')) %>%
+  + scale_fill_manual(values = brewer.pal(n = 7, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Former land owner",
+                      labels = c('Community', "Indigenous people", "Private, large farm", 'Unknown', 'Other', "Private, smallholder", 'State')) %>%
+    + theme(plot.title = element_text(hjust = 0),
+            legend.position = "bottom",
+            legend.key = element_rect(fill = "white"),
+            axis.text.x = element_text(angle = 35),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+              
+fig_StatDes_former_owner_all_subreg 
+
+# ggsave(plot = fig_StatDes_former_owner_all_subreg,
+#        filename = "fig_StatDes_former_owner_all_subreg.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/',
+#        width = 9, height = 7)
+
+##Agri
+
+fig_StatDes_former_owner_agri_subreg = ggplot(data = StatDes_former_owner_agri,
+                               aes(x = reorder(acro, -n_deals), y = value/n_deals*100, fill = type)) %>%
+  + geom_bar(stat = 'identity', position = position_dodge()) %>%
+  + geom_text(data = subset(StatDes_former_owner_agri, type == "n_small"),
+              aes(y = 0, label = n_deals), color = "grey10", size = 3.5, vjust = -.8) %>%
+  + labs(x = "", y = 'Number of deals (%)', 
+         title = "Former land owner of acquired lands across sub-regions", 
+         subtitle = "Agriculture-related deals",
+         caption = paste('Sample :', min(StatDes_targ_per$n_all), 'deals with', min(StatDes_targ_per$n_all_agri), "related to agricultural activies and", min(StatDes_targ_per$n_all_tagri), "implying also foreign investors. \n", sum(StatDes_deal_number_all$n), 'deals recorded overall including', StatDes_deal_number_all[StatDes_deal_number_all$year_cont == '',]$n, 'with unknown dates. \nDeals are "contracted" here, it means that an oral or written agreement has been reached between parties.')) %>%
+  + scale_fill_manual(values = brewer.pal(n = 7, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Former land owner",
+                      labels = c('Community', "Indigenous people", "Private, large farm", 'Unknown', 'Other', "Private, smallholder", 'State')) %>%
+    + theme(plot.title = element_text(hjust = 0),
+            legend.position = "bottom",
+            legend.key = element_rect(fill = "white"),
+            axis.text.x = element_text(angle = 35),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+              
+fig_StatDes_former_owner_agri_subreg 
+
+# ggsave(plot = fig_StatDes_former_owner_agri_subreg,
+#        filename = "fig_StatDes_former_owner_agri_subreg.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/',
+#        width = 9, height = 7)
+
+##Trans agri
+
+fig_StatDes_former_owner_tagri_subreg = ggplot(data = StatDes_former_owner_tagri,
+                               aes(x = reorder(acro, -n_deals), y = value/n_deals*100, fill = type)) %>%
+  + geom_bar(stat = 'identity', position = position_dodge()) %>%
+  + geom_text(data = subset(StatDes_former_owner_tagri, type == "n_small"),
+              aes(y = 0, label = n_deals), color = "grey10", size = 3.5, vjust = -.8) %>%
+  + labs(x = "", y = 'Number of deals', 
+         title = "Former land owner of acquired lands across sub-regions", 
+         subtitle = "Transnational, agriculture-related deals",
+         caption = paste('Sample :', min(StatDes_targ_per$n_all), 'deals with', min(StatDes_targ_per$n_all_agri), "related to agricultural activies and", min(StatDes_targ_per$n_all_tagri), "implying also foreign investors. \n", sum(StatDes_deal_number_all$n), 'deals recorded overall including', StatDes_deal_number_all[StatDes_deal_number_all$year_cont == '',]$n, 'with unknown dates. \nDeals are "contracted" here, it means that an oral or written agreement has been reached between parties.')) %>%
+  + scale_fill_manual(values = brewer.pal(n = 7, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Former land owner",
+                      labels = c('Community', "Indigenous people", "Private, large farm", 'Unknown', 'Other', "Private, smallholder", 'State')) %>%
+    + theme(plot.title = element_text(hjust = 0),
+            legend.position = "bottom",
+            legend.key = element_rect(fill = "white"),
+            axis.text.x = element_text(angle = 35),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+            plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+              
+fig_StatDes_former_owner_tagri_subreg 
+
+# ggsave(plot = fig_StatDes_former_owner_tagri_subreg,
+#        filename = "fig_StatDes_former_owner_tagri_subreg.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/',
+#        width = 9, height = 7)
+
+````

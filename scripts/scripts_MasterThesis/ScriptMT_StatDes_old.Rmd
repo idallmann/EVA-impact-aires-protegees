@@ -1,0 +1,1780 @@
+---
+title: "ScriptMT_StatDes"
+author: "Antoine Vuillot"
+date: "2023-01-26"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(lmtest)
+library(ggplot2)
+library(gganimate)
+library(regclass)
+library(tidyverse)
+library(olsrr)
+library(countrycode)
+library(ggplot2)
+library(textreg)
+library(estimatr)
+library(modelsummary)
+library(ivreg)
+library(ivpack)
+library(data.table)
+library(stringr)
+library(xlsx)
+library(sqldf)
+library(stringr)
+library(tictoc)
+library(ARTofR)
+library(scales)
+library(maps)
+library(leaflet)
+library(geojsonsf)
+library(sf)
+library(gridExtra)
+library(RColorBrewer)
+library(dplyr)
+
+#library(rworldmap)
+
+
+library(xml2)
+
+```
+
+```{r}
+
+
+tempdir()
+dir.create(tempdir())
+setwd("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data")
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            ~~
+##                           Data Import                                    ----
+##                                                                            ~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+##Data from Land Matrix database
+
+data_contracts_all = fread(file = 'contracts_all.csv', encoding = 'UTF-8') %>% #Every variables are taken but reordered
+  select(c('ID', 'Deal ID', 'Contract number', 'Contract date', 'Contract expiration date', 'Duration of the agreement', 'Comment on contract'))
+
+data_sources_all = fread(file = 'datasources_all.csv', encoding = 'UTF-8') %>%
+  select(c('Deal ID', 'Data source type'))
+
+##In the selected variables are included comments for some : might be informative. 
+data_deals_all = fread(file = 'deals_all.csv', encoding = 'UTF-8') %>%
+  select(c('Deal ID', 'Deal scope', 'Target country', 'Deal size', 'Intended size (in ha)', 'Size under contract (leased or purchased area, in ha)', 'Size in operation (production, in ha)', 'Comment on land area', 
+           'Operating company: Investor ID', "Negotiation status", "Current negotiation status", "Comment on negotiation status", "Implementation status", "Current implementation status", "Comment on implementation status",
+           "Former land owner", "Former land use", "Former land cover", 'Intention of investment', "Comment on intention of investment", 'Nature of the deal', "Comment on nature of the deal", 'Contract farming',
+           'Jobs created (total)', 'Planned number of jobs (total)', 'Current total number of jobs/employees/ daily/seasonal workers', 
+           'Jobs created (domestic)', 'Planned number of jobs (domestic)', 'Current domestic number of jobs/employees/ daily/seasonal workers', 
+           'Name of community', 'Comment on communities / indigenous peoples affected', 'Community consultation', 
+           'Community reaction', 'Comment on community reaction', 'Presence of land conflicts', 'Displacement of people',
+           'Number of people actually displaced', 'Number of households actually displaced', 'Number of people displaced out of their community land',
+           'Number of people displaced staying on community land', 'Number of households displaced ""only"" from their agricultural fields',
+           'Number of people facing displacement once project is fully implemented', 'Negative impacts for local communities', 
+           'Promised compensation (e.g. for damages or resettlements)', 'Received compensation (e.g. for damages or resettlements)',
+           'Promised benefits for local communities', 'Materialized benefits for local communities', 'Has domestic use', 'Domestic use', 'Has export', 'Export', 
+           'Water extraction envisaged', 'Use of irrigation infrastructure', 'In country processing of produce')) %>%
+  rename('Investor ID' = 'Operating company: Investor ID')
+
+data_investors_all = fread(file = 'investors_all.csv', encoding = 'UTF-8') %>%
+  select(c('Investor ID', 'Country of registration/origin', 'Classification'))
+
+#data_involvements_all = fread(file = 'involvements_all.csv')
+# data_loc_all= fread(file = 'locations_all.csv') %>%
+#   select(c('Deal ID', 'Spatial accuracy level', 'Point'))
+
+geo_areas_all = st_zm(geojson_sf('areas_all.geojson'), drop = TRUE, what = 'ZM') %>%
+  select(c('deal_id', 'id', 'geometry')) %>%
+  rename('geometry_areas' = 'geometry',
+        'Deal ID' = 'deal_id',
+        'ID' = 'id')
+
+geo_loc_all = st_read(dsn = 'locations_all.geojson') %>%
+  select(c('deal_id', 'id', 'geometry', 'spatial_accuracy')) %>%
+  rename('geometry_loc' = 'geometry',
+         'Deal ID' = 'deal_id',
+         'ID' = 'id') 
+
+##Geometry of countries
+geo_countries = st_read(dsn = 'geo-countries.geojson') %>%
+  select(c('ISO_A3', 'geometry')) %>%
+  rename('geometry_country' = 'geometry')
+
+##ISO codes and regions of countries : names are modified for latter merging with Land Matrix database
+ctry_reg = fread(file = 'ctry_regions.csv', encoding = 'UTF-8') %>%
+  select(c('name', 'alpha-3', 'region', 'sub-region')) %>%
+  rename('ISO_A3' = 'alpha-3',
+         'country' = 'name',
+         'sub_region' = 'sub-region')
+temp = left_join(data_deals_all, ctry_reg, by = c('Target country' = 'country'))
+ctry_rep = unique(temp[is.na(temp$region) == TRUE,]$`Target country`)
+remove(temp)
+
+ctry_reg[ctry_reg$country == "Lao People's Democratic Republic",]$country = 'Lao PDR'
+ctry_reg[ctry_reg$country == 'Bolivia (Plurinational State of)',]$country = 'Bolivia'
+ctry_reg[ctry_reg$country == "Viet Nam",]$country = 'Vietnam'
+ctry_reg[ctry_reg$country == "Yemen",]$country = "Yemen, Rep."
+ctry_reg[ctry_reg$country == "Venezuela (Bolivarian Republic of)",]$country = "Venezuela, RB"
+ctry_reg[ctry_reg$country == "Congo",]$country = "Congo, Rep."
+ctry_reg[ctry_reg$country == "Egypt",]$country = "Egypt, Arab Rep."
+ctry_reg[ctry_reg$country == "Eswatini",]$country = 'Swaziland'
+ctry_reg[ctry_reg$country == "Tanzania, United Republic of",]$country = "Tanzania"
+ctry_reg[ctry_reg$country == "Congo, Democratic Republic of the",]$country = "Congo, Dem. Rep."
+ctry_reg[ctry_reg$country == "Gambia",]$country = "Gambia, The"
+ctry_reg[ctry_reg$country ==  "Sao Tome and Principe",]$country = "São Tomé and Principe"
+ctry_reg[ctry_reg$country ==  "Moldova, Republic of",]$country = "Moldova"
+
+
+
+
+
+```
+
+```{r}
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            ~~
+##                           DESCRIPTIVE STATISTICS                         ----
+##                                                                            ~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```
+
+```{r}
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##------------------------------- WORLD LEVEL-----------------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##Building the dataset
+
+data_StatDes = right_join(ctry_reg, data_deals_all, by = c('country' = 'Target country')) 
+
+##Percentage of recorded deal per region
+StatDes_deal_reg = data_StatDes %>%
+  group_by(region) %>%
+  summarise(n = n(), per = n/nrow(data_StatDes)*100) %>%
+  arrange(desc(region)) %>%
+  mutate(ypos = cumsum(per)- 0.5*per)
+  
+
+fig_StatDes_deal_reg = ggplot(data = StatDes_deal_reg, aes(x = region, y = per)) %>%
+    + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+    + scale_x_discrete(name = '') %>%
+    + coord_cartesian(ylim = c(0, max(StatDes_deal_reg$per) + 20)) %>%
+    + geom_text(aes(label = round(per, 1)), 
+              vjust = -0.5, color="black",
+              size=4.2) %>%
+    + labs(y = '%', title = 'Distribution of recorded deals across the world',
+         subtitle = paste('Sample :', nrow(data_StatDes), 'deals')) %>%
+    + theme(plot.title = element_text(hjust = 0.5)) %>%
+    + theme_minimal() 
+fig_StatDes_deal_reg
+
+# ggsave(plot = fig_StatDes_deal_reg,
+#        filename = "fig_StatDes_deal_reg.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 5)
+
+fig_StatDes_deal_reg_pie = ggplot(data = StatDes_deal_reg, aes(x = "", y = per, fill = region)) %>%
+    + geom_bar(stat = 'identity', width = 1, color="white") %>%
+    + coord_polar("y", start = 0) %>%
+    + labs(y = '%', fill = 'Region', title = 'Distribution of recorded deals across the world (%)',
+         subtitle = paste('Sample :', nrow(data_StatDes), 'deals')) %>%
+    + geom_text(aes(y = ypos, label = round(per, 1)), color = "black", size=6) %>%
+    + scale_fill_brewer(palette="Blues") %>%
+    + theme(plot.title = element_text(hjust = 0.5)) %>%
+    + theme_void() 
+fig_StatDes_deal_reg_pie
+
+# ggsave(plot = fig_StatDes_deal_reg_pie,
+#        filename = "fig_StatDes_deal_reg_pie.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 7)
+
+
+#Percentage of recorded deal by sub-region
+StatDes_deal_subreg = data_StatDes %>%
+  group_by(sub_region) %>%
+  summarise(n = n(), per = n/nrow(data_StatDes)*100) %>%
+  arrange(desc(sub_region)) %>%
+  mutate(ypos = cumsum(per) - 0.5*per)
+
+StatDes_deal_subreg[StatDes_deal_subreg$sub_region == 'Latin America and the Caribbean',]$sub_region = 'Latin America'
+
+row = data.frame(sub_region = 'RoW', 
+                 n = sum(StatDes_deal_subreg[StatDes_deal_subreg$sub_region %in% c('Central Asia', 'Eastern Asia', 'Melanesia', 'Northern Africa', 'Northern Europe', 'Southern Asia', 'Southern Europe', 'Western Asia'),]$n),
+                 per = sum(StatDes_deal_subreg[StatDes_deal_subreg$sub_region %in% c('Central Asia', 'Eastern Asia', 'Melanesia', 'Northern Africa', 'Northern Europe', 'Southern Asia', 'Southern Europe', 'Western Asia'),]$per),
+                 ypos = 60) %>%
+  arrange(desc(ypos)) %>%
+  slice(1)
+
+  
+StatDes_deal_subreg = rbind(StatDes_deal_subreg, row) %>%  #Adding a row for the rest of the world
+  subset(!(sub_region %in% c('Central Asia', 'Eastern Asia', 'Melanesia', 'Northern Africa', 'Northern Europe', 'Southern Asia', 'Southern Europe', 'Western Asia')))
+StatDes_deal_subreg[StatDes_deal_subreg$sub_region == 'South-eastern Asia',]$ypos = 44
+
+fig_StatDes_deal_subreg = ggplot(data = StatDes_deal_subreg[StatDes_deal_subreg$sub_region %in% c('Eastern Europe', 'Latin America', 'South-eastern Asia', 'Sub-Saharan Africa', 'RoW'),], aes(x = sub_region, y = per)) %>%
+    + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+    + scale_x_discrete(name = '') %>%
+    + coord_cartesian(ylim = c(0, max(StatDes_deal_subreg$per) + 20)) %>%
+    + geom_text(aes(label = round(per, 1)), 
+              vjust = -0.5, color="black",
+              size = 4.2) %>%
+    + labs(y = '%', title = 'Distribution of recorded deals across the world', 
+         subtitle = paste('Sample :', nrow(data_StatDes), 'deals')) %>%
+    + theme(plot.title = element_text(hjust = 0.5)) %>%
+    + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_deal_subreg,
+#        filename = "fig_StatDes_deal_subreg.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 7)
+
+fig_StatDes_deal_subreg_pie = ggplot(data = StatDes_deal_subreg[StatDes_deal_subreg$sub_region %in% c('Eastern Europe', 'Latin America', 'South-eastern Asia', 'Sub-Saharan Africa', 'RoW'),], aes(x = "", y = per, fill = sub_region)) %>%
+    + geom_bar(stat = 'identity', width = 1, color="white") %>%
+    + coord_polar("y", start = 0) %>%
+    + labs(y = '%', fill = 'Sub-region', title = 'Distribution of recorded deals across the world (%)',
+         subtitle = paste('Sample :', nrow(data_StatDes), 'deals')) %>%
+    + geom_text(aes(y = ypos, label = round(per, 1)), color = "black", size=6) %>%
+    + scale_fill_brewer(palette="Blues") %>%
+    + theme(plot.title = element_text(hjust = 0.5)) %>%
+    + theme_void() 
+fig_StatDes_deal_subreg_pie
+
+# ggsave(plot = fig_StatDes_deal_subreg_pie,
+#        filename = "fig_StatDes_deal_subreg_pie.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 7)
+
+
+#Cumulative number of deals over the period 
+##The variable "year_intd" for year where the intention was expressed is built following LMI instructions 
+##See analytical report 2021, box 1 (page 37) to extract year of negotiation
+
+StatDes_deal_number = data_deals_all %>%
+  mutate(year_intd = ifelse(str_sub(`Negotiation status`, 1, 1) != '#' & str_sub(`Negotiation status`, 1, 4) != 'None', 
+                           sub("\\#.*", "", `Negotiation status`),
+                           ifelse(str_sub(`Size under contract (leased or purchased area, in ha)`, 1, 1) != '#' & str_sub(`Size under contract (leased or purchased area, in ha)`, 1, 4) != 'None', 
+                                  sub("\\#.*", "", `Size under contract (leased or purchased area, in ha)`),
+                                  ifelse(`Current implementation status` != 'Project abandoned' & `Current negotiation status` == 'Concluded (Contract signed)',
+                                         sub("\\#.*", "", `Implementation status`),
+                                         ''))
+                           ),
+         .after = `Deal size`) %>%
+  mutate(year_intd = as.numeric(str_sub(year_intd, 1, 4)))
+
+
+fig_StatDes_deal_number_year = ggplot(data = StatDes_deal_number, aes(x = year, y = n)) %>%
+    + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+    + labs(x = 'Year', y = 'Number of deals', 
+           title = 'Number of deals recorded each year (2000-2022)', 
+           subtitle = paste('Sample :', sum(StatDes_deal_number$n), 'deals with known contract dates')) %>%
+    + theme(plot.title = element_text(hjust = 0.5)) %>%
+    + theme_minimal() 
+fig_StatDes_deal_number_year
+
+
+# ggsave(plot = fig_StatDes_deal_number_year,
+#        filename = "fig_StatDes_deal_number_year.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 5)
+
+fig_StatDes_deal_number_cum = ggplot(data = StatDes_deal_number, aes(x = year, y = sum)) %>%
+    + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+    + labs(x = 'Year', y = 'Number of deals', 
+           title = 'Cumulative number of deals recorded (2000-2022)',
+           subtitle = paste('Sample :', sum(StatDes_deal_number$n), 'deals with known contract dates')) %>%
+    + theme(plot.title = element_text(hjust = 0.5), 
+            axis.text.x = element_text(angle = 90),
+            panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'))
+fig_StatDes_deal_number_cum
+
+# ggsave(plot = fig_StatDes_deal_number_cum,
+#        filename = "fig_StatDes_deal_number_cum.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 5)
+
+```
+
+
+````{r}
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##--------------------------  Latin America LEVEL ------------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                            Creating the dataset                          ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##Identifying duplicates in the contract data and keeping the most relevant one
+###Creating a list of contract ID with duplicates (more than one occurrence)
+list_dup_contracts = unique(data_contracts_all[duplicated(data_contracts_all$`Deal ID`),]$`Deal ID`) #List of Deal ID with several observations for contracts
+list_dup_loc = unique(geo_loc_all[duplicated(geo_loc_all$`Deal ID`),]$`Deal ID`)
+list_dup_areas = unique(geo_areas_all[duplicated(geo_areas_all$`Deal ID`),]$`Deal ID`)
+
+###Creating a dataset of SSA deals and extract ones with duplicates in contracts, localisation and areas of the deal
+data_StatDes_LA = data_StatDes %>%
+  subset(sub_region == 'Latin America and the Caribbean') 
+  #left_join(data_contracts_all, by = 'Deal ID') 
+  # left_join(select(geo_loc_all, -c('ID')), by = 'Deal ID') %>%
+  # left_join(select(geo_areas_all, -c('ID')), by = 'Deal ID')
+
+# data_StatDes_LA_dup_contracts = data_StatDes_LA[data_StatDes_LA$`Deal ID` %in% list_dup_contracts,] %>%
+#   select(c('ID', 'Deal ID', 'Contract number', 'Contract date', 'Contract expiration date', 'Duration of the agreement', 'Comment on contract'))
+
+##### /!\ removing of irrelevant contracts not perform here : we focus on the distribution of deals, total size and mean size only
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                   Distribution of deals across countries                 ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Number of deals  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+data_StatDes_LA_distrib = data_StatDes_LA %>%
+  group_by(country) %>%
+  summarise(n_deals = n()) %>%
+  ungroup()
+
+fig_StatDes_LA_distrib = ggplot(data = data_StatDes_LA_distrib, 
+                                 aes(x = reorder(country, n_deals), y = n_deals)) %>%
+  + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + geom_text(aes(label = n_deals),
+            vjust = +0.5,
+            hjust = -0.3,
+            color="black",
+            size=3.5) %>%
+  + labs(y = 'Number of deals', title = 'Distribution of recorded deals across Latin America and the Caribbean', 
+       subtitle = paste('Sample :', nrow(data_StatDes_LA), 'deals', 'in', nrow(data_StatDes_LA_distrib), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + theme_minimal() 
+# ggsave(plot = fig_StatDes_LA_distrib,
+#        filename = "fig_StatDes_LA_distrib.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/LatinAmerica',
+#        width = 9, height = 7)
+
+
+fig_StatDes_LA_distrib_100 = ggplot(data = subset(data_StatDes_LA_distrib, data_StatDes_LA_distrib$n_deals >= 100), 
+                                 aes(x = reorder(country, n_deals), y = n_deals)) %>%
+  + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + geom_text(aes(label = n_deals),
+            vjust = +0.5,
+            hjust = -0.3,
+            color="black",
+            size=3.5) %>%
+  + labs(y = 'Number of deals', title = 'Distribution of recorded deals across Latin America and the Caribbean', 
+       subtitle = paste('Sample :', sum(subset(data_StatDes_LA_distrib, data_StatDes_LA_distrib$n_deals >= 100)$n_deals), 'deals', 'in',
+                        nrow(subset(data_StatDes_LA_distrib, data_StatDes_LA_distrib$n_deals >= 100)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + theme_minimal() 
+# ggsave(plot = fig_StatDes_LA_distrib_100,
+#        filename = "fig_StatDes_LA_distrib_100.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/LatinAmerica',
+#        width = 9, height = 7)
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Total size of deals  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+data_StatDes_LA_distrib_tot_size = data_StatDes_LA %>%
+  group_by(country) %>%
+  summarise(size_tot = sum(`Deal size`, na.rm = TRUE)) %>%
+  ungroup()
+
+fig_StatDes_LA_distrib_tot_size = ggplot(data = data_StatDes_LA_distrib_tot_size, 
+                                 aes(x = reorder(country, size_tot), y = size_tot)) %>%
+  + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + scale_y_continuous(labels = function(x) format(x, scientific = TRUE)) %>%
+  + geom_text(aes(label = format(size_tot, digits = 2, scientific = TRUE)),
+              vjust = +0.5,
+              hjust = -0.1,
+              color="black",
+              size=3.5) %>%
+  + labs(y = 'Cumulated size of deals (in ha)', title = 'Distribution and cumulated size of deals recorded across Latin America and the Caribbean', 
+       subtitle = paste('Sample :', nrow(data_StatDes_LA), 'deals', 'in', nrow(data_StatDes_LA_distrib_tot_size), 'countries'),
+       caption = paste('Note :', nrow(subset(data_StatDes_LA, data_StatDes_LA$`Deal size` == 0)), 'deals have size 0 due to unknown or uncertain information. Keeping them does not affect the computations here.')
+       ) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_LA_distrib_tot_size,
+#        filename = "fig_StatDes_LA_distrib_tot_size.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/LatinAmerica',
+#        width = 14, height = 7)
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Mean size of deals   ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+data_StatDes_LA_distrib_nozero = data_StatDes_LA %>%
+  group_by(country) %>%
+  subset(`Deal size` != 0) %>%
+  summarise(n_deals = n()) %>%
+  ungroup()
+
+data_StatDes_LA_distrib_mean_size = left_join(data_StatDes_LA_distrib_nozero, data_StatDes_LA_distrib_tot_size, by = 'country') %>%
+  mutate(mean_size = size_tot/n_deals, mean_size_sc = format(mean_size, digit = 2, scientific = TRUE))
+
+fig_StatDes_LA_distrib_mean_size = ggplot(data = data_StatDes_LA_distrib_mean_size, 
+                                 aes(x = reorder(country, mean_size), y = mean_size)) %>%
+  + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + scale_y_continuous(labels = function(x) format(x, scientific = TRUE)) %>%
+  + geom_text(aes(label = n_deals),
+              vjust = +0.5,
+              hjust = -0.3,
+              color="black",
+              size=3.5) %>%
+  + labs(y = 'Average size of deals (in ha)', title = 'Distribution and average size of deals recorded across Latin America and the Caribbean', 
+       subtitle = paste('Sample :', sum(data_StatDes_LA_distrib_mean_size$n_deals), 'deals', 'in', 
+                        nrow(data_StatDes_LA_distrib_mean_size), 'countries (# indicated for each country)'),
+       caption = paste('Note :', nrow(subset(data_StatDes_LA, data_StatDes_LA$`Deal size` == 0)), 'deals have size 0 due to unknown or uncertain information. These deals are not kept in the computation of the mean')
+       ) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_LA_distrib_mean_size,
+#        filename = "fig_StatDes_LA_distrib_mean_size.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/LatinAmerica',
+#        width = 14, height = 9)
+
+
+
+
+
+
+````
+
+
+````{r}
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##------------------------  South-eastern Asia LEVEL ---------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                            Creating the dataset                          ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##Identifying duplicates in the contract data and keeping the most relevant one
+###Creating a list of contract ID with duplicates (more than one occurrence)
+list_dup_contracts = unique(data_contracts_all[duplicated(data_contracts_all$`Deal ID`),]$`Deal ID`) #List of Deal ID with several observations for contracts
+list_dup_loc = unique(geo_loc_all[duplicated(geo_loc_all$`Deal ID`),]$`Deal ID`)
+list_dup_areas = unique(geo_areas_all[duplicated(geo_areas_all$`Deal ID`),]$`Deal ID`)
+
+###Creating a dataset of SSA deals and extract ones with duplicates in contracts, localisation and areas of the deal
+data_StatDes_SEA = data_StatDes %>%
+  subset(sub_region == 'South-eastern Asia') 
+  #left_join(data_contracts_all, by = 'Deal ID') 
+  # left_join(select(geo_loc_all, -c('ID')), by = 'Deal ID') %>%
+  # left_join(select(geo_areas_all, -c('ID')), by = 'Deal ID')
+
+# data_StatDes_LA_dup_contracts = data_StatDes_LA[data_StatDes_LA$`Deal ID` %in% list_dup_contracts,] %>%
+#   select(c('ID', 'Deal ID', 'Contract number', 'Contract date', 'Contract expiration date', 'Duration of the agreement', 'Comment on contract'))
+
+##### /!\ removing of irrelevant contracts not perform here : we focus on the distribution of deals, total size and mean size only
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                   Distribution of deals across countries                 ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Number of deals  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+data_StatDes_SEA_distrib = data_StatDes_SEA %>%
+  group_by(country) %>%
+  summarise(n_deals = n()) %>%
+  ungroup()
+
+fig_StatDes_SEA_distrib = ggplot(data = data_StatDes_SEA_distrib, 
+                                 aes(x = reorder(country, n_deals), y = n_deals)) %>%
+  + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + geom_text(aes(label = n_deals),
+            vjust = +0.5,
+            hjust = -0.3,
+            color="black",
+            size=3.5) %>%
+  + labs(y = 'Number of deals', title = 'Distribution of recorded deals across South-eastern Asia', 
+       subtitle = paste('Sample :', nrow(data_StatDes_SEA), 'deals', 'in', nrow(data_StatDes_SEA_distrib), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + theme_minimal() 
+# ggsave(plot = fig_StatDes_SEA_distrib,
+#        filename = "fig_StatDes_SEA_distrib.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/SouthEastAsia',
+#        width = 9, height = 7)
+
+
+fig_StatDes_SEA_distrib_100 = ggplot(data = subset(data_StatDes_SEA_distrib, data_StatDes_SEA_distrib$n_deals >= 100), 
+                                 aes(x = reorder(country, n_deals), y = n_deals)) %>%
+  + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + geom_text(aes(label = n_deals),
+            vjust = +0.5,
+            hjust = -0.3,
+            color="black",
+            size=3.5) %>%
+  + labs(y = 'Number of deals', title = 'Distribution of recorded deals across South-eastern Asia', 
+       subtitle = paste('Sample :', sum(subset(data_StatDes_SEA_distrib, data_StatDes_SEA_distrib$n_deals >= 100)$n_deals), 'deals', 'in',
+                        nrow(subset(data_StatDes_SEA_distrib, data_StatDes_SEA_distrib$n_deals >= 100)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + theme_minimal() 
+# ggsave(plot = fig_StatDes_SEA_distrib_100,
+#        filename = "fig_StatDes_SEA_distrib_100.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/SouthEastAsia',
+#        width = 9, height = 7)
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Total size of deals  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+data_StatDes_SEA_distrib_tot_size = data_StatDes_SEA %>%
+  group_by(country) %>%
+  summarise(size_tot = sum(`Deal size`, na.rm = TRUE)) %>%
+  ungroup()
+
+fig_StatDes_SEA_distrib_tot_size = ggplot(data = data_StatDes_SEA_distrib_tot_size, 
+                                 aes(x = reorder(country, size_tot), y = size_tot)) %>%
+  + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + scale_y_continuous(labels = function(x) format(x, scientific = TRUE)) %>%
+  + geom_text(aes(label = format(size_tot, digits = 2, scientific = TRUE)),
+              vjust = +0.5,
+              hjust = -0.1,
+              color="black",
+              size=3.5) %>%
+  + labs(y = 'Cumulated size of deals (in ha)', title = 'Distribution and cumulated size of deals recorded across South-eastern Asia', 
+       subtitle = paste('Sample :', nrow(data_StatDes_SEA), 'deals', 'in', nrow(data_StatDes_SEA_distrib_tot_size), 'countries'),
+       caption = paste('Note :', nrow(subset(data_StatDes_SEA, data_StatDes_SEA$`Deal size` == 0)), 'deals have size 0 due to unknown or uncertain information. Keeping them does not affect the computations here.')
+          ) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_SEA_distrib_tot_size,
+#        filename = "fig_StatDes_SEA_distrib_tot_size.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/SouthEastAsia',
+#        width = 14, height = 7)
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Mean size of deals   ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+data_StatDes_SEA_distrib_nozero = data_StatDes_SEA %>%
+  group_by(country) %>%
+  subset(`Deal size` != 0) %>%
+  summarise(n_deals = n()) %>%
+  ungroup()
+
+data_StatDes_SEA_distrib_mean_size = left_join(data_StatDes_SEA_distrib_nozero, data_StatDes_SEA_distrib_tot_size, by = 'country') %>%
+  mutate(mean_size = size_tot/n_deals, mean_size_sc = format(mean_size, digit = 2, scientific = TRUE))
+
+fig_StatDes_SEA_distrib_mean_size = ggplot(data = data_StatDes_SEA_distrib_mean_size, 
+                                 aes(x = reorder(country, mean_size), y = mean_size)) %>%
+  + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + scale_y_continuous(labels = function(x) format(x, scientific = TRUE)) %>%
+  + geom_text(aes(label = n_deals),
+              vjust = +0.5,
+              hjust = -0.3,
+              color = "black",
+              size=3.5) %>%
+  + labs(y = 'Average size of deals (in ha)', title = 'Distribution and average size of deals recorded across South-eastern Asia', 
+       subtitle = paste('Sample :', sum(data_StatDes_SEA_distrib_mean_size$n_deals), 'deals', 'in', 
+                        nrow(data_StatDes_SEA_distrib_mean_size), 'countries (# indicated for each country)'),
+       caption = paste('Note :', nrow(subset(data_StatDes_SEA, data_StatDes_SEA$`Deal size` == 0)), 'deals have size 0 due to unknown or uncertain information. These deals are not kept in the computation of the mean')
+       ) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_SEA_distrib_mean_size,
+#        filename = "fig_StatDes_SEA_distrib_mean_size.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/SouthEastAsia',
+#        width = 14, height = 9)
+
+
+
+
+````
+
+
+
+````{r}
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##------------------------  Eastern Europe LEVEL -------------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                            Creating the dataset                          ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##Identifying duplicates in the contract data and keeping the most relevant one
+###Creating a list of contract ID with duplicates (more than one occurrence)
+list_dup_contracts = unique(data_contracts_all[duplicated(data_contracts_all$`Deal ID`),]$`Deal ID`) #List of Deal ID with several observations for contracts
+list_dup_loc = unique(geo_loc_all[duplicated(geo_loc_all$`Deal ID`),]$`Deal ID`)
+list_dup_areas = unique(geo_areas_all[duplicated(geo_areas_all$`Deal ID`),]$`Deal ID`)
+
+###Creating a dataset of SSA deals and extract ones with duplicates in contracts, localisation and areas of the deal
+data_StatDes_EE = data_StatDes %>%
+  subset(sub_region == 'Eastern Europe') 
+  #left_join(data_contracts_all, by = 'Deal ID') 
+  # left_join(select(geo_loc_all, -c('ID')), by = 'Deal ID') %>%
+  # left_join(select(geo_areas_all, -c('ID')), by = 'Deal ID')
+
+# data_StatDes_LA_dup_contracts = data_StatDes_LA[data_StatDes_LA$`Deal ID` %in% list_dup_contracts,] %>%
+#   select(c('ID', 'Deal ID', 'Contract number', 'Contract date', 'Contract expiration date', 'Duration of the agreement', 'Comment on contract'))
+
+##### /!\ removing of irrelevant contracts not perform here : we focus on the distribution of deals, total size and mean size only
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                   Distribution of deals across countries                 ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Number of deals  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+data_StatDes_EE_distrib = data_StatDes_EE %>%
+  group_by(country) %>%
+  summarise(n_deals = n()) %>%
+  ungroup()
+
+fig_StatDes_EE_distrib = ggplot(data = data_StatDes_EE_distrib, 
+                                 aes(x = reorder(country, n_deals), y = n_deals)) %>%
+  + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + geom_text(aes(label = n_deals),
+            vjust = +0.5,
+            hjust = -0.3,
+            color="black",
+            size=3.5) %>%
+  + labs(y = 'Number of deals', title = 'Distribution of recorded deals across Eastern Europe', 
+       subtitle = paste('Sample :', nrow(data_StatDes_EE), 'deals', 'in', nrow(data_StatDes_EE_distrib), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + theme_minimal() 
+# ggsave(plot = fig_StatDes_EE_distrib,
+#        filename = "fig_StatDes_EE_distrib.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/EasternEurope',
+#        width = 9, height = 7)
+
+
+fig_StatDes_EE_distrib_100 = ggplot(data = subset(data_StatDes_EE_distrib, data_StatDes_EE_distrib$n_deals >= 100), 
+                                 aes(x = reorder(country, n_deals), y = n_deals)) %>%
+  + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + geom_text(aes(label = n_deals),
+            vjust = +0.5,
+            hjust = -0.3,
+            color="black",
+            size=3.5) %>%
+  + labs(y = 'Number of deals', title = 'Distribution of recorded deals across Eastern Europe', 
+       subtitle = paste('Sample :', sum(subset(data_StatDes_EE_distrib, data_StatDes_EE_distrib$n_deals >= 100)$n_deals), 'deals', 'in',
+                        nrow(subset(data_StatDes_EE_distrib, data_StatDes_EE_distrib$n_deals >= 100)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + theme_minimal() 
+# ggsave(plot = fig_StatDes_EE_distrib_100,
+#        filename = "fig_StatDes_EE_distrib_100.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/EasternEurope',
+#        width = 9, height = 7)
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Total size of deals  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+data_StatDes_EE_distrib_tot_size = data_StatDes_EE %>%
+  group_by(country) %>%
+  summarise(size_tot = sum(`Deal size`, na.rm = TRUE)) %>%
+  ungroup()
+
+fig_StatDes_EE_distrib_tot_size = ggplot(data = data_StatDes_EE_distrib_tot_size, 
+                                 aes(x = reorder(country, size_tot), y = size_tot)) %>%
+  + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + scale_y_continuous(labels = function(x) format(x, scientific = TRUE)) %>%
+  + geom_text(aes(label = format(size_tot, digits = 2, scientific = TRUE)),
+              vjust = +0.5,
+              hjust = -0.1,
+              color="black",
+              size=3.5) %>%
+  + labs(y = 'Cumulated size of deals (in ha)', title = 'Distribution and cumulated size of deals recorded across Eastern Europe', 
+       subtitle = paste('Sample :', nrow(data_StatDes_EE), 'deals', 'in', nrow(data_StatDes_EE_distrib_tot_size), 'countries'),
+       caption = paste('Note :', nrow(subset(data_StatDes_EE, data_StatDes_EE$`Deal size` == 0)), 'deals have size 0 due to unknown or uncertain information. Keeping them does not affect the computations here.')
+          ) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_EE_distrib_tot_size,
+#        filename = "fig_StatDes_EE_distrib_tot_size.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/EasternEurope',
+#        width = 14, height = 7)
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Mean size of deals   ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+data_StatDes_EE_distrib_nozero = data_StatDes_EE %>%
+  group_by(country) %>%
+  subset(`Deal size` != 0) %>%
+  summarise(n_deals = n()) %>%
+  ungroup()
+
+data_StatDes_EE_distrib_mean_size = left_join(data_StatDes_EE_distrib_nozero, data_StatDes_EE_distrib_tot_size, by = 'country') %>%
+  mutate(mean_size = size_tot/n_deals, mean_size_sc = format(mean_size, digit = 2, scientific = TRUE))
+
+
+fig_StatDes_EE_distrib_mean_size = ggplot(data = data_StatDes_EE_distrib_mean_size, 
+                                 aes(x = reorder(country, mean_size), y = mean_size)) %>%
+  + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + scale_y_continuous(labels = function(x) format(x, scientific = TRUE)) %>%
+  + geom_text(aes(label = n_deals),
+              vjust = +0.5,
+              hjust = -0.3,
+              color = "black",
+              size=3.5) %>%
+  + labs(y = 'Average size of deals (in ha)', title = 'Distribution and average size of deals recorded across Eastern Europe', 
+       subtitle = paste('Sample :', sum(data_StatDes_EE_distrib_mean_size$n_deals), 'deals', 'in', 
+                        nrow(data_StatDes_EE_distrib_mean_size), 'countries (# indicated for each country)'),
+       caption = paste('Note :', nrow(subset(data_StatDes_EE, data_StatDes_EE$`Deal size` == 0)), 'deals have size 0 due to unknown or uncertain information. These deals are not kept in the computation of the mean')
+       ) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_EE_distrib_mean_size,
+#        filename = "fig_StatDes_EE_distrib_mean_size.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/EasternEurope',
+#        width = 14, height = 9)
+
+
+
+
+````
+
+
+````{r}
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##------------------------  RoW LEVEL ------------------------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                            Creating the dataset                          ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##Identifying duplicates in the contract data and keeping the most relevant one
+###Creating a list of contract ID with duplicates (more than one occurrence)
+list_dup_contracts = unique(data_contracts_all[duplicated(data_contracts_all$`Deal ID`),]$`Deal ID`) #List of Deal ID with several observations for contracts
+list_dup_loc = unique(geo_loc_all[duplicated(geo_loc_all$`Deal ID`),]$`Deal ID`)
+list_dup_areas = unique(geo_areas_all[duplicated(geo_areas_all$`Deal ID`),]$`Deal ID`)
+
+###Creating a dataset of SSA deals and extract ones with duplicates in contracts, localisation and areas of the deal
+data_StatDes_RoW = data_StatDes %>%
+  subset(!(sub_region %in% c('Eastern Europe', 'Latin America and the Caribbean', 'Sub-Saharan Africa', 'South-eastern Asia'))) 
+  #left_join(data_contracts_all, by = 'Deal ID') 
+  # left_join(select(geo_loc_all, -c('ID')), by = 'Deal ID') %>%
+  # left_join(select(geo_areas_all, -c('ID')), by = 'Deal ID')
+
+# data_StatDes_LA_dup_contracts = data_StatDes_LA[data_StatDes_LA$`Deal ID` %in% list_dup_contracts,] %>%
+#   select(c('ID', 'Deal ID', 'Contract number', 'Contract date', 'Contract expiration date', 'Duration of the agreement', 'Comment on contract'))
+
+##### /!\ removing of irrelevant contracts not perform here : we focus on the distribution of deals, total size and mean size only
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                   Distribution of deals across countries                 ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Number of deals  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+data_StatDes_RoW_distrib = data_StatDes_RoW %>%
+  group_by(country) %>%
+  summarise(n_deals = n()) %>%
+  ungroup()
+
+fig_StatDes_RoW_distrib = ggplot(data = data_StatDes_RoW_distrib, 
+                                 aes(x = reorder(country, n_deals), y = n_deals)) %>%
+  + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + geom_text(aes(label = n_deals),
+            vjust = +0.5,
+            hjust = -0.3,
+            color="black",
+            size=3.5) %>%
+  + labs(y = 'Number of deals', title = 'Distribution of recorded deals across Asia (expect South-eastern), \n Northern Africa, Melanesia and Europe (except Eastern)',
+       subtitle = paste('Sample :', nrow(data_StatDes_RoW), 'deals', 'in', nrow(data_StatDes_RoW_distrib), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + theme_minimal() 
+# ggsave(plot = fig_StatDes_RoW_distrib,
+#        filename = "fig_StatDes_RoW_distrib.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/RoW',
+#        width = 9, height = 7)
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Total size of deals  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+data_StatDes_RoW_distrib_tot_size = data_StatDes_RoW %>%
+  group_by(country) %>%
+  summarise(size_tot = sum(`Deal size`, na.rm = TRUE)) %>%
+  ungroup()
+
+fig_StatDes_RoW_distrib_tot_size = ggplot(data = data_StatDes_RoW_distrib_tot_size, 
+                                 aes(x = reorder(country, size_tot), y = size_tot)) %>%
+  + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + scale_y_continuous(labels = function(x) format(x, scientific = TRUE)) %>%
+  + geom_text(aes(label = format(size_tot, digits = 2, scientific = TRUE)),
+              vjust = +0.5,
+              hjust = -0.1,
+              color="black",
+              size=3.5) %>%
+  + labs(y = 'Cumulated size of deals (in ha)', title = 'Distribution and cumulated size of recorded deals across \n Asia (expect South-eastern), Northern Africa, Melanesia and Europe (except Eastern)',
+       subtitle = paste('Sample :', nrow(data_StatDes_RoW), 'deals', 'in', nrow(data_StatDes_RoW_distrib_tot_size), 'countries'),
+       caption = paste('Note :', nrow(subset(data_StatDes_RoW, data_StatDes_RoW$`Deal size` == 0)), 'deals have size 0 due to unknown or uncertain information. Keeping them does not affect the computations here.')
+          ) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_RoW_distrib_tot_size,
+#        filename = "fig_StatDes_RoW_distrib_tot_size.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/RoW',
+#        width = 14, height = 7)
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Mean size of deals   ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+data_StatDes_RoW_distrib_nozero = data_StatDes_RoW %>%
+  group_by(country) %>%
+  subset(`Deal size` != 0) %>%
+  summarise(n_deals = n()) %>%
+  ungroup()
+
+data_StatDes_RoW_distrib_mean_size = left_join(data_StatDes_RoW_distrib_nozero, data_StatDes_RoW_distrib_tot_size, by = 'country') %>%
+  mutate(mean_size = size_tot/n_deals, mean_size_sc = format(mean_size, digit = 2, scientific = TRUE))
+
+
+fig_StatDes_RoW_distrib_mean_size = ggplot(data = data_StatDes_RoW_distrib_mean_size, 
+                                 aes(x = reorder(country, mean_size), y = mean_size)) %>%
+  + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + scale_y_continuous(labels = function(x) format(x, scientific = TRUE)) %>%
+  + geom_text(aes(label = n_deals),
+              vjust = +0.5,
+              hjust = -0.3,
+              color = "black",
+              size=3.5) %>%
+  + labs(y = 'Average size of deals (in ha)', title = 'Distribution and mean size of recorded deals across \n Asia (expect South-eastern), Northern Africa, Melanesia and Europe (except Eastern)', 
+       subtitle = paste('Sample :', sum(data_StatDes_RoW_distrib_mean_size$n_deals), 'deals', 'in', 
+                        nrow(data_StatDes_RoW_distrib_mean_size), 'countries (# indicated for each country)'),
+       caption = paste('Note :', nrow(subset(data_StatDes_RoW, data_StatDes_RoW$`Deal size` == 0)), 'deals have size 0 due to unknown or uncertain information. These deals are not kept in the computation of the mean')
+       ) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_RoW_distrib_mean_size,
+#        filename = "fig_StatDes_RoW_distrib_mean_size.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/RoW',
+#        width = 15, height = 9)
+
+
+
+
+````
+
+
+```{r}
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##-------------------------------  SSA LEVEL -----------------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                            Creating the dataset                          ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##Identifying duplicates in the contract data and keeping the most relevant one
+###Creating a list of contract ID with duplicates (more than one occurrence)
+list_dup_contracts = unique(data_contracts_all[duplicated(data_contracts_all$`Deal ID`),]$`Deal ID`) #List of Deal ID with several observations for contracts
+list_dup_contracts_ID = unique(data_contracts_all[duplicated(data_contracts_all$`ID`),]$`ID`)
+data_contracts_dup = data_contracts_all[data_contracts_all$`Deal ID` %in% list_dup_contracts,]
+data_contracts_dup_ID = data_contracts_all[data_contracts_all$`ID` %in% list_dup_contracts_ID,]
+
+
+list_dup_loc = unique(geo_loc_all[duplicated(geo_loc_all$`Deal ID`),]$`Deal ID`)
+list_dup_loc_ID = unique(geo_loc_all[duplicated(geo_loc_all$`ID`),]$`ID`)
+geo_loc_dup = geo_loc_all[geo_loc_all$`Deal ID` %in% list_dup_loc,] %>%
+  left_join(data_contracts_all, by = c('Deal ID' = 'Deal ID', 'ID' = 'ID'))
+
+list_dup_areas = unique(geo_areas_all[duplicated(geo_areas_all$`Deal ID`),]$`Deal ID`)
+list_dup_areas_ID = unique(geo_areas_all[duplicated(geo_areas_all$`ID`),]$`ID`)
+geo_areas_dup = geo_areas_all[geo_areas_all$`Deal ID` %in% list_dup_areas,] %>%
+  left_join(data_contracts_all, by = c('Deal ID' = 'Deal ID', 'ID' = 'ID'))
+
+
+###Creating a dataset of SSA deals and extract ones with duplicates in contracts, localisation and areas of the deal
+data_StatDes_SSA = data_StatDes %>%
+  subset(sub_region == 'Sub-Saharan Africa') %>%
+  left_join(data_contracts_all, by = 'Deal ID') 
+  # left_join(select(geo_loc_all, -c('ID')), by = 'Deal ID') %>%
+  # left_join(select(geo_areas_all, -c('ID')), by = 'Deal ID')
+
+data_StatDes_SSA_dup_contracts = data_StatDes_SSA[data_StatDes_SSA$`Deal ID` %in% list_dup_contracts,] %>%
+  select(c('ID', 'Deal ID', 'Contract number', 'Contract date', 'Contract expiration date', 'Duration of the agreement', 'Comment on contract'))
+
+# data_StatDes_SSA_dup_loc = data_StatDes_SSA[data_StatDes_SSA$`Deal ID` %in% list_dup_loc,] %>%
+#   select(c('ID', 'Deal ID', 'Contract number', 'Contract date', 'Contract expiration date', 'Duration of the agreement', 'Comment on contract',
+#            'spatial_accuracy', 'geometry_loc'))
+
+# data_StatDes_SSA_dup_areas = data_StatDes_SSA[data_StatDes_SSA$`Deal ID` %in% list_dup_areas,] %>%
+#   select(c('ID', 'Deal ID', 'Contract number', 'Contract date', 'Contract expiration date', 'Duration of the agreement', 'Comment on contract', 'geometry_areas'))
+
+###Manually choose which contracts to remove
+list_rm_contracts_SSA = c('mYPwpzQa', #Deal 3843 
+                          'o3nNZGKv', 'XtlLRvsH', 'thfAszvn', #Deal 8943 : cPNoNuSF kept (pure duplicates = same info)
+                          'MarR1JsC', #Deal 4994 : 1Q8UkKpk kept and updated
+                          'a5x-aTk3', #Deal 7629 : gCtm24mC kept and updated (extension leading to new end date)
+                          '87hovGq4', #Deal 3404 : CWnBtvdA kept (the removed one corresponds to an extension)
+                          'vWEqgAZf', #Deal 5055 : HVIvsxCD kept (the removed one correspond to a second lease, with no more info.)
+                          'yroDxXQk', #Deal 7396 : uTUe97lW kept and updated (extension of the initial contract)
+                          'iurJ7OLS', #Deal 3022 : z9hHYVSK kept and updated (extension of the contract duration ?)
+                          'lSAnz9lW', 'mpoCLgpF', #Deal 3100 : dLy1a-ue kept (corresponding to main estate and initial contract)
+                          'QLzz2rDn' #Deal 4521 : L_rpxcZr kept (initial contract in 2013, the removed one indicates an extension in 2016 with no more info.)
+                          ) 
+
+###Remove the observations with outdated contracts and eventually update the ones kept with comments on old/actual contracts
+###Note that all observations considered have no info on localisation or areas
+
+data_StatDes_SSA = data_StatDes_SSA %>%
+  subset(!(ID %in% list_rm_contracts_SSA))
+
+data_StatDes_SSA[data_StatDes_SSA$`Deal ID` == 3843]$`Contract date` = '1996' #Corresponds to old ID mYPwpzQa : updated from comments
+
+data_StatDes_SSA[data_StatDes_SSA$`Deal ID` == 4994]$`Contract expiration date` = '2045-02-05'  #Corresponds to old ID MarR1JsC : updated from comment. Deal from 2011 to 2018 (cancelled) then from 2020 to 2045. We simplify by saying the deal is signed for the period 2011-2045 (34 years)
+data_StatDes_SSA[data_StatDes_SSA$`Deal ID` == 4994]$`Duration of the agreement` = 34
+
+data_StatDes_SSA[data_StatDes_SSA$`Deal ID` == 7629]$`Contract expiration date` = '2065-09-26' #Correspond to old ID a5x-aTk3 : the initial contract is singed in 2015 and updated for an extension in 2016 with a new end date. We simplify with the full period concerned and update the duration
+data_StatDes_SSA[data_StatDes_SSA$`Deal ID` == 7629]$`Duration of the agreement` = 50
+
+data_StatDes_SSA[data_StatDes_SSA$`Deal ID` == 7396]$`Contract expiration date` = '2034-08-08' #Correspond to old ID yroDxXQk : initial contract 2004-2019 extended to 2004-2034 (waiting for Parliament ratification, we suppose it still have same impact on local pop. while waiting)
+data_StatDes_SSA[data_StatDes_SSA$`Deal ID` == 7396]$`Duration of the agreement` = 30
+
+data_StatDes_SSA[data_StatDes_SSA$`Deal ID` == 3022]$`Contract expiration date` = '2062' #Correspond to old ID iurJ7OLS : initial contract in 2007 for 50 years, and a new contract is recorded with initial date 2012 for 50 years. We update for 2007-2062 period (55 years) 
+data_StatDes_SSA[data_StatDes_SSA$`Deal ID` == 3022]$`Duration of the agreement` = 55
+
+data_StatDes_SSA[data_StatDes_SSA$`Deal ID` == 3100]$`Contract expiration date` = '2098-12-06' #Correspond to old ID lSAnz9lW and mpoCLgpF. Initial contract for main estate in 1986, the removed ID correspond to extension with later contract expiration date. For this deal, we consider the contract date of the main estate and the expiration date of the later extension : 1986-12-18 to 2098-12-06 covering 112 years.
+data_StatDes_SSA[data_StatDes_SSA$`Deal ID` == 3100]$`Duration of the agreement` = 112
+
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                   Distribution of deals across countries                 ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Number of deals  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+data_StatDes_SSA_distrib = data_StatDes_SSA %>%
+  group_by(country) %>%
+  summarise(n_deals = n()) %>%
+  ungroup()
+
+fig_StatDes_SSA_distrib = ggplot(data = data_StatDes_SSA_distrib, 
+                                 aes(x = reorder(country, n_deals), y = n_deals)) %>%
+  + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + geom_text(aes(label = n_deals),
+          vjust = +0.5,
+          hjust = -0.3,
+          color="black",
+          size=3.5) %>%
+  + labs(y = 'Number of deals', title = 'Distribution of recorded deals across Sub-Saharan Africa', 
+       subtitle = paste('Sample :', nrow(data_StatDes_SSA), 'deals', 'in', nrow(data_StatDes_SSA_distrib), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + theme_minimal() 
+# ggsave(plot = fig_StatDes_SSA_distrib,
+#        filename = "fig_StatDes_SSA_distrib.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/SSA',
+#        width = 9, height = 9)
+
+
+fig_StatDes_SSA_distrib_100 = ggplot(data = subset(data_StatDes_SSA_distrib, data_StatDes_SSA_distrib$n_deals >= 100), 
+                                 aes(x = reorder(country, n_deals), y = n_deals)) %>%
+  + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + geom_text(aes(label = n_deals),
+          vjust = +0.5,
+          hjust = -0.3,
+          color="black",
+          size=3.5) %>%
+  + labs(y = 'Number of deals', title = 'Distribution of recorded deals across Sub-Saharan Africa', 
+       subtitle = paste('Sample :', sum(subset(data_StatDes_SSA_distrib, data_StatDes_SSA_distrib$n_deals >= 100)$n_deals), 'deals', 'in',
+                        nrow(subset(data_StatDes_SSA_distrib, data_StatDes_SSA_distrib$n_deals >= 100)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + theme_minimal() 
+# ggsave(plot = fig_StatDes_SSA_distrib_100,
+#        filename = "fig_StatDes_SSA_distrib_100.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/SSA',
+#        width = 7, height = 7)
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Total size of deals  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+data_StatDes_SSA_distrib_tot_size = data_StatDes_SSA %>%
+  group_by(country) %>%
+  summarise(size_tot = sum(`Deal size`, na.rm = TRUE)) %>%
+  ungroup()
+
+fig_StatDes_SSA_distrib_tot_size = ggplot(data = data_StatDes_SSA_distrib_tot_size, 
+                                 aes(x = reorder(country, size_tot), y = size_tot)) %>%
+  + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + scale_y_continuous(labels = function(x) format(x, scientific = TRUE)) %>%
+  + geom_text(aes(label = format(size_tot, digits = 2, scientific = TRUE)),
+              vjust = +0.5,
+              hjust = -0.1,
+              color="black",
+              size=3.5) %>%
+  + labs(y = 'Cumulated size of deals (in ha)', title = 'Distribution and cumulated size of deals recorded across Sub-Saharan Africa', 
+       subtitle = paste('Sample :', nrow(data_StatDes_SSA), 'deals', 'in', nrow(data_StatDes_SSA_distrib_tot_size), 'countries'),
+       caption = paste('Note :', nrow(subset(data_StatDes_SSA, data_StatDes_SSA$`Deal size` == 0)), 'deals have size 0 due to unknown or uncertain information. Keeping them does not affect the computations here.')
+       ) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_SSA_distrib_tot_size,
+#        filename = "fig_StatDes_SSA_distrib_tot_size.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/SSA',
+#        width = 14, height = 7)
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Mean size of deals   ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+data_StatDes_SSA_distrib_nozero = data_StatDes_SSA %>%
+  group_by(country) %>%
+  subset(`Deal size` != 0) %>%
+  summarise(n_deals = n()) %>%
+  ungroup()
+
+data_StatDes_SSA_distrib_mean_size = left_join(data_StatDes_SSA_distrib_nozero, data_StatDes_SSA_distrib_tot_size, by = 'country') %>%
+  mutate(mean_size = size_tot/n_deals, mean_size_sc = format(mean_size, digit = 2, scientific = TRUE))
+
+fig_StatDes_SSA_distrib_mean_size = ggplot(data = data_StatDes_SSA_distrib_mean_size, 
+                                 aes(x = reorder(country, mean_size), y = mean_size)) %>%
+  + geom_bar(stat = 'identity', fill = '#2D7FB9') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + scale_y_continuous(labels = function(x) format(x, scientific = TRUE)) %>%
+  + geom_text(aes(label = n_deals),
+              vjust = +0.5,
+              hjust = -0.3,
+              color="black",
+              size=3.5) %>%
+  + labs(y = 'Average size of deals (in ha)', title = 'Distribution and average size of deals recorded across Sub-Saharan Africa', 
+       subtitle = paste('Sample :', sum(data_StatDes_SSA_distrib_mean_size$n_deals), 'deals', 'in', 
+                        nrow(data_StatDes_SSA_distrib_mean_size), 'countries (# indicated for each country)'),
+       caption = paste('Note :', nrow(subset(data_StatDes_SSA, data_StatDes_SSA$`Deal size` == 0)), 'deals have size 0 due to unknown or uncertain information. These deals are not kept in the computation of the mean')
+       ) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + theme_minimal() 
+# 
+# ggsave(plot = fig_StatDes_SSA_distrib_mean_size,
+#        filename = "fig_StatDes_SSA_distrib_mean_size.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/SSA',
+#        width = 14, height = 9)
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                    Distribution + spatial accuracy                       ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#Adding information about locations : share of accuracies
+##Problem : in the location dataset, a deal (Deal ID) is associated to different contracts and locations (accuracy and/or coordinates) but there is no information to choose one. Also, a deal ID might have more than one contract in the location dataset, but none in the contract dataset (e.g 1130 deal ID) : it is then impossible to choose the relevant location accuracy and coordinates
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                    Distribution + knwon areas                            ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#Adding information about areas : share of deals with known areas
+##Problem : same as location
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                    Distribution + implementation status                  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#Adding information on implementation status
+##Full sample
+
+data_StatDes_SSA_impl_status = data_StatDes_SSA %>%
+  group_by(country) %>%
+  mutate(n_impl_none = sum(`Current implementation status` == 'None'),
+         n_impl_start = sum(`Current implementation status` == 'Startup phase (no production)'),
+         n_impl_op = sum(`Current implementation status` == 'In operation (production)'),
+         n_impl_aban = sum(`Current implementation status` == 'Project abandoned'),
+         n_impl_not_start = sum(`Current implementation status` == 'Project not started')) %>%
+  summarise(n_deals = n(), n_impl_none, n_impl_start, n_impl_op, n_impl_aban, n_impl_not_start) %>%
+  slice(1) %>%
+  pivot_longer(cols = c(n_impl_none, n_impl_start, n_impl_op, n_impl_aban, n_impl_not_start),
+               names_to = 'status') 
+
+fig_StatDes_SSA_distrib_impl = ggplot(data = data_StatDes_SSA_impl_status, 
+                                 aes(x = reorder(country, n_deals), y = value, fill = status)) %>%
+  + geom_bar(stat = 'identity', position = 'stack') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = 'Distribution of recorded deals across Sub-Saharan Africa \n and current implementation status', 
+       subtitle = paste('Sample :', nrow(data_StatDes_SSA), 'deals', 'in', length(unique(data_StatDes_SSA_impl_status$country)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + scale_fill_manual(values = brewer.pal(n = 5, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Project implementation status",
+                      labels = c('Abandoned', 'Unknown', 'Not started', 'In operation', 'Startup phase (no production)')
+                      ) %>%
+  + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_SSA_distrib_impl,
+#        filename = "fig_StatDes_SSA_distrib_impl.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 7)
+
+##Countries with more than 100 deals
+
+fig_StatDes_SSA_distrib_impl_100 = ggplot(data = subset(data_StatDes_SSA_impl_status, data_StatDes_SSA_impl_status$n_deals >= 100), 
+                                 aes(x = reorder(country, n_deals), y = value, fill = status)) %>%
+  + geom_bar(stat = 'identity', position = 'stack') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = 'Distribution of recorded deals across Sub-Saharan Africa \n and current implementation status', 
+       subtitle = paste('Sample :', sum(subset(data_StatDes_SSA_impl_status, data_StatDes_SSA_impl_status$n_deals >= 100)$value), 'deals', 'in',
+                        length(unique(subset(data_StatDes_SSA_impl_status, data_StatDes_SSA_impl_status$n_deals >= 100)$country)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + scale_fill_manual(values = brewer.pal(n = 5, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Project implementation status",
+                      labels = c('Abandoned', 'Unknown', 'Not started', 'In operation', 'Startup phase (no production)')
+                      ) %>%
+  + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_SSA_distrib_impl_100,
+#        filename = "fig_StatDes_SSA_distrib_impl_100.jpeg", 
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 7)
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                      Distribution + negotiation status                   ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#Adding information on negotiation status
+
+data_StatDes_SSA_nego_status = data_StatDes_SSA %>%
+  group_by(country) %>%
+  mutate(n_nego_none = sum(`Current negotiation status` == 'None'),
+         n_nego_fail = sum(`Current negotiation status` == 'Failed (Negotiations failed)' | `Current negotiation status` == 'Failed (Contract cancelled)'),
+         n_nego_int = sum(`Current negotiation status` == 'Intended (Under negotiation)' | 
+                            `Current negotiation status` == 'Intended (Expression of interest)' | 
+                            `Current negotiation status` == 'Intended (Memorandum of understanding)'),
+         n_nego_conc = sum(`Current negotiation status` == 'Concluded (Contract signed)' | 
+                            `Current negotiation status` == 'Concluded (Oral Agreement)' | 
+                            `Current negotiation status` == 'Concluded (Change of ownership)'),
+         n_nego_exp = sum(`Current negotiation status` == 'Contract expired')) %>%
+  summarise(n_deals = n(), n_nego_none, n_nego_fail, n_nego_int, n_nego_conc, n_nego_exp) %>%
+  slice(1) %>%
+  pivot_longer(cols = c( n_nego_none, n_nego_fail, n_nego_int, n_nego_conc, n_nego_exp),
+               names_to = 'status') 
+
+fig_StatDes_SSA_distrib_nego = ggplot(data = data_StatDes_SSA_nego_status, 
+                                 aes(x = reorder(country, n_deals), y = value, fill = status)) %>%
+  + geom_bar(stat = 'identity', position = 'stack') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = 'Distribution of recorded deals across Sub-Saharan Africa \n and current negotiation status', 
+       subtitle = paste('Sample :', nrow(data_StatDes_SSA), 'deals', 'in', length(unique(data_StatDes_SSA_nego_status$country)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + scale_fill_manual(values = brewer.pal(n = 5, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Project negotiation status",
+                      labels = c('Concluded', 'Contract expired', 'Failed', 'Intended', 'Unknown')
+                      ) %>%
+  + theme_minimal() 
+
+
+# ggsave(plot = fig_StatDes_SSA_distrib_nego,
+#        filename = "fig_StatDes_SSA_distrib_nego.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 7)
+
+#For countries with more than 100 deals
+
+fig_StatDes_SSA_distrib_nego_100 = ggplot(data = subset(data_StatDes_SSA_nego_status, data_StatDes_SSA_nego_status$n_deals >= 100),
+                                 aes(x = reorder(country, n_deals), y = value, fill = status)) %>%
+  + geom_bar(stat = 'identity', position = 'stack') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = 'Distribution of recorded deals across Sub-Saharan Africa \n and current negotiation status', 
+       subtitle = paste('Sample :', sum(subset(data_StatDes_SSA_nego_status, data_StatDes_SSA_nego_status$n_deals >= 100)$value), 'deals', 'in',
+                        length(unique(subset(data_StatDes_SSA_nego_status, data_StatDes_SSA_nego_status$n_deals >= 100)$country)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + scale_fill_manual(values = brewer.pal(n = 5, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Project negotiation status",
+                      labels = c('Concluded', 'Contract expired', 'Failed', 'Intended', 'Unknown')
+                      ) %>%
+  + theme_minimal() 
+
+
+# ggsave(plot = fig_StatDes_SSA_distrib_nego_100,
+#        filename = "fig_StatDes_SSA_distrib_nego_100.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 7)
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                            Distribution + scope                          ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+data_StatDes_SSA_scope = data_StatDes_SSA %>%
+  group_by(country) %>%
+  mutate(n_dom = sum(`Deal scope` == 'domestic'), 
+         n_trans = sum(`Deal scope` == 'transnational')) %>%
+  summarise(n_deals = n(), n_dom, n_trans) %>%
+  slice(1) %>%
+  pivot_longer(cols = c(n_dom, n_trans),
+               names_to = 'scope') 
+
+
+fig_StatDes_SSA_distrib_scope = ggplot(data = data_StatDes_SSA_scope, 
+                                 aes(x = reorder(country, n_deals), y = value, fill = scope)) %>%
+  + geom_bar(stat = 'identity', position = 'stack') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = 'Distribution of recorded deals across Sub-Saharan Africa \n and scope', 
+       subtitle = paste('Sample :', sum(data_StatDes_SSA_scope$value), 'deals', 'in', length(unique(data_StatDes_SSA_scope$country)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + scale_fill_manual(values = brewer.pal(n = 2, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Scope of the deal",
+                      labels = c('Domestic', 'Transnational')
+                      ) %>%
+  + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_SSA_distrib_scope,
+#        filename = "fig_StatDes_SSA_distrib_scope.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 7)
+
+##For countries with more than 100 deals
+
+fig_StatDes_SSA_distrib_scope_100 = ggplot(data = subset(data_StatDes_SSA_scope, data_StatDes_SSA_scope$n_deals >= 100), 
+                                 aes(x = reorder(country, n_deals), y = value, fill = scope)) %>%
+  + geom_bar(stat = 'identity', position = 'stack') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = 'Distribution of recorded deals across Sub-Saharan Africa \n and scope', 
+       subtitle = paste('Sample :', sum(subset(data_StatDes_SSA_scope, data_StatDes_SSA_scope$n_deals >= 100)$value), 'deals', 'in', length(unique(subset(data_StatDes_SSA_scope, data_StatDes_SSA_scope$n_deals >= 100)$country)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + scale_fill_manual(values = brewer.pal(n = 2, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Scope of the deal",
+                      labels = c('Domestic', 'Transnational')
+                      ) %>%
+  + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_SSA_distrib_scope_100,
+#        filename = "fig_StatDes_SSA_distrib_scope_100.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 7)
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                            Distribution + size                           ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+data_StatDes_SSA_size = data_StatDes_SSA %>%
+  group_by(country) %>%
+  mutate(n_zero = sum(`Deal size` == 0), 
+         n_200_b = sum(`Deal size` > 0 & `Deal size` < 200),
+         n_200_a = sum(`Deal size` >= 200)) %>%
+  summarise(n_deals = n(), n_zero, n_200_b, n_200_a) %>%
+  slice(1) %>%
+  pivot_longer(cols = c(n_zero, n_200_b, n_200_a),
+               names_to = 'size') 
+
+
+fig_StatDes_SSA_distrib_size = ggplot(data = data_StatDes_SSA_size, 
+                                 aes(x = reorder(country, n_deals), y = value, fill = size)) %>%
+  + geom_bar(stat = 'identity', position = 'stack') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = 'Distribution of recorded deals across \n Sub-Saharan Africa and size', 
+       subtitle = paste('Sample :', sum(data_StatDes_SSA_size$value), 'deals', 'in', length(unique(data_StatDes_SSA_size$country)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + scale_fill_manual(values = brewer.pal(n = 3, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Size of the deal, in hectares",
+                      labels = c('Above 200 ha', 'Below 200 ha', '0')
+                      ) %>%
+  + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_SSA_distrib_size,
+#        filename = "fig_StatDes_SSA_distrib_size.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 7)
+
+##For countries with more than 100 deals
+
+fig_StatDes_SSA_distrib_size_100 = ggplot(data = subset(data_StatDes_SSA_size, data_StatDes_SSA_size$n_deals >= 100), 
+                                 aes(x = reorder(country, n_deals), y = value, fill = size)) %>%
+  + geom_bar(stat = 'identity', position = 'stack') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = 'Distribution of recorded deals across \n Sub-Saharan Africa and size', 
+       subtitle = paste('Sample :', sum(subset(data_StatDes_SSA_size, data_StatDes_SSA_size$n_deals >= 100)$value), 'deals', 'in', length(unique(subset(data_StatDes_SSA_size, data_StatDes_SSA_size$n_deals >= 100)$country)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + scale_fill_manual(values = brewer.pal(n = 3, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Size of the deal, in hectares",
+                      labels = c('Above 200 ha', 'Below 200 ha', '0')
+                      ) %>%
+  + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_SSA_distrib_size_100,
+#        filename = "fig_StatDes_SSA_distrib_size_100.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 7)
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                            distribution + LSLA                           ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+#Here we want to determine the share of deals we can consider as LSLA and study
+#Criteria 1 : transnational scope, deal size > 200 ha, negotiation concluded
+#Criteria 2 : transnational scope, deal size > 200 ha, implementation "in operation" or "start-up" phase (can ensure population are affected)
+#Note the deals with "none" implementation or negotiation status are not considered as suitable, though some might
+#Criteria 3 : deal size > 200 ha, implementation "in operation" or "start-up" phase (can ensure population are affected)
+#Note the deals with "none" implementation or negotiation status are not considered as suitable, though some might
+
+
+##~~~~~~~~~~~~~~~~~~~~
+##  ~ Criteria 1  ----
+##~~~~~~~~~~~~~~~~~~~~
+
+data_StatDes_SSA_LSLA_1 = data_StatDes_SSA %>%
+  group_by(country) %>%
+  mutate(n_LSLA_1 = sum(`Deal size` >= 200 
+                        & `Deal scope` == 'transnational' 
+                        & (`Current negotiation status` == 'Concluded (Contract signed)' | 
+                            `Current negotiation status` == 'Concluded (Oral Agreement)' | 
+                            `Current negotiation status` == 'Concluded (Change of ownership)'))) %>%
+  summarise(n_deals = n(), n_LSLA_1, n_LSLA_0 = n_deals - n_LSLA_1) %>%
+  slice(1) %>%
+  pivot_longer(cols = c(n_LSLA_1, n_LSLA_0),
+               names_to = 'LSLA') 
+
+
+fig_StatDes_SSA_distrib_LSLA_1 = ggplot(data = data_StatDes_SSA_LSLA_1, 
+                                 aes(x = reorder(country, n_deals), y = value, fill = LSLA)) %>%
+  + geom_bar(stat = 'identity', position = 'stack') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = 'Distribution of LSLA deals across Sub-Saharan Africa \n (transnational, >200 ha, negotiations concluded)', 
+       subtitle = paste('Sample :', sum(data_StatDes_SSA_LSLA_1$value), 'deals', 'in', length(unique(data_StatDes_SSA_LSLA_1$country)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + scale_fill_manual(values = brewer.pal(n = 2, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Nature of the deal",
+                      labels = c('Not a LSLA', 'LSLA')
+                      ) %>%
+  + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_SSA_distrib_LSLA_1,
+#        filename = "fig_StatDes_SSA_distrib_LSLA_1.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 7)
+
+##For countries with more than 100 deals
+
+fig_StatDes_SSA_distrib_LSLA_1_100 = ggplot(data = subset(data_StatDes_SSA_LSLA_1, data_StatDes_SSA_LSLA_1$n_deals >= 100), 
+                                 aes(x = reorder(country, n_deals), y = value, fill = LSLA)) %>%
+  + geom_bar(stat = 'identity', position = 'stack') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = 'Distribution of LSLA deals across Sub-Saharan Africa \n (transnational, >200 ha, negotiations concluded)', 
+       subtitle = paste('Sample :', sum(subset(data_StatDes_SSA_LSLA_1, data_StatDes_SSA_LSLA_1$n_deals >= 100)$value), 'deals', 'in',
+                        length(unique(subset(data_StatDes_SSA_LSLA_1, data_StatDes_SSA_LSLA_1$n_deals >= 100)$country)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + scale_fill_manual(values = brewer.pal(n = 5, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Nature of the deal",
+                      labels = c('Not a LSLA', 'LSLA')
+                      ) %>%
+  + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_SSA_distrib_LSLA_1_100,
+#        filename = "fig_StatDes_SSA_distrib_LSLA_1_100.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 7)
+
+
+
+##~~~~~~~~~~~~~~~~~~~~
+##  ~ Criteria 2  ----
+##~~~~~~~~~~~~~~~~~~~~
+
+data_StatDes_SSA_LSLA_2 = data_StatDes_SSA %>%
+  group_by(country) %>%
+  mutate(n_LSLA_2 = sum(`Deal size` >= 200 
+                        & `Deal scope` == 'transnational' 
+                        & (`Current implementation status` == 'Startup phase (no production)' | 
+                           `Current implementation status` == 'In operation (production)'))) %>%
+  summarise(n_deals = n(), n_LSLA_2, n_LSLA_0 = n_deals - n_LSLA_2) %>%
+  slice(1) %>%
+  pivot_longer(cols = c(n_LSLA_2, n_LSLA_0),
+               names_to = 'LSLA') 
+
+
+fig_StatDes_SSA_distrib_LSLA_2 = ggplot(data = data_StatDes_SSA_LSLA_2, 
+                                 aes(x = reorder(country, n_deals), y = value, fill = LSLA)) %>%
+  + geom_bar(stat = 'identity', position = 'stack') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = 'Distribution of LSLA deals across Sub-Saharan Africa \n (transnational, >200 ha, in start-up phase or in operation)', 
+       subtitle = paste('Sample :', sum(data_StatDes_SSA_LSLA_2$value), 'deals', 'in', length(unique(data_StatDes_SSA_LSLA_2$country)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + scale_fill_manual(values = brewer.pal(n = 2, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Nature of the deal",
+                      labels = c('Not a LSLA', 'LSLA')
+                      ) %>%
+  + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_SSA_distrib_LSLA_2,
+#        filename = "fig_StatDes_SSA_distrib_LSLA_2.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 7)
+
+##For countries with more than 100 deals
+
+fig_StatDes_SSA_distrib_LSLA_2_100 = ggplot(data = subset(data_StatDes_SSA_LSLA_2, data_StatDes_SSA_LSLA_2$n_deals >= 100), 
+                                 aes(x = reorder(country, n_deals), y = value, fill = LSLA)) %>%
+  + geom_bar(stat = 'identity', position = 'stack') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = 'Distribution of LSLA deals across Sub-Saharan Africa \n (transnational, >200 ha, in start-up phase or in operation)', 
+       subtitle = paste('Sample :', sum(subset(data_StatDes_SSA_LSLA_2, data_StatDes_SSA_LSLA_2$n_deals >= 100)$value), 'deals', 'in',
+                        length(unique(subset(data_StatDes_SSA_LSLA_2, data_StatDes_SSA_LSLA_2$n_deals >= 100)$country)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + scale_fill_manual(values = brewer.pal(n = 2, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Nature of the deal",
+                      labels = c('Not a LSLA', 'LSLA')
+                      ) %>%
+  + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_SSA_distrib_LSLA_2_100,
+#        filename = "fig_StatDes_SSA_distrib_LSLA_2_100.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 7)
+
+
+##~~~~~~~~~~~~~~~~~~~~
+##  ~ Criteria 3  ----
+##~~~~~~~~~~~~~~~~~~~~
+
+data_StatDes_SSA_LSLA_3 = data_StatDes_SSA %>%
+  group_by(country) %>%
+  mutate(n_LSLA_3 = sum(`Deal size` >= 200
+                        & (`Current implementation status` == 'Startup phase (no production)' | 
+                           `Current implementation status` == 'In operation (production)'))) %>%
+  summarise(n_deals = n(), n_LSLA_3, n_LSLA_0 = n_deals - n_LSLA_3) %>%
+  slice(1) %>%
+  pivot_longer(cols = c(n_LSLA_3, n_LSLA_0),
+               names_to = 'LSLA') 
+
+
+fig_StatDes_SSA_distrib_LSLA_3 = ggplot(data = data_StatDes_SSA_LSLA_3, 
+                                 aes(x = reorder(country, n_deals), y = value, fill = LSLA)) %>%
+  + geom_bar(stat = 'identity', position = 'stack') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = 'Distribution of LSLA deals across Sub-Saharan Africa \n (>200 ha, in start-up phase or in operation)', 
+       subtitle = paste('Sample :', sum(data_StatDes_SSA_LSLA_3$value), 'deals', 'in', length(unique(data_StatDes_SSA_LSLA_3$country)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + scale_fill_manual(values = brewer.pal(n = 2, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Nature of the deal",
+                      labels = c('Not a LSLA', 'LSLA')
+                      ) %>%
+  + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_SSA_distrib_LSLA_3,
+#        filename = "fig_StatDes_SSA_distrib_LSLA_3.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 7)
+
+##For countries with more than 100 deals
+
+fig_StatDes_SSA_distrib_LSLA_3_100 = ggplot(data = subset(data_StatDes_SSA_LSLA_3, data_StatDes_SSA_LSLA_3$n_deals >= 100), 
+                                 aes(x = reorder(country, n_deals), y = value, fill = LSLA)) %>%
+  + geom_bar(stat = 'identity', position = 'stack') %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = 'Distribution of LSLA deals across Sub-Saharan Africa \n (>200 ha, in start-up phase or in operation)', 
+       subtitle = paste('Sample :', sum(subset(data_StatDes_SSA_LSLA_3, data_StatDes_SSA_LSLA_3$n_deals >= 100)$value), 'deals', 'in',
+                        length(unique(subset(data_StatDes_SSA_LSLA_3, data_StatDes_SSA_LSLA_3$n_deals >= 100)$country)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + scale_fill_manual(values = brewer.pal(n = 2, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Nature of the deal",
+                      labels = c('Not a LSLA', 'LSLA')
+                      ) %>%
+  + theme_minimal() 
+
+# ggsave(plot = fig_StatDes_SSA_distrib_LSLA_3_100,
+#        filename = "fig_StatDes_SSA_distrib_LSLA_3_100.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 7, height = 7)
+
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                              Former land use                             ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+#For each type of former land use, we create a dummy variable by reading in the 'Former land use' variable. This variable can indicate more than one use
+#So the dummy takes value TRUE if the type is indicated in the list of former land uses in the considered deal.
+#Regular expressions are used to identify each type of former use
+
+data_StatDes_SSA_former_use = data_StatDes_SSA %>%
+  mutate(is_small = NA, is_pasto = NA, is_cons = NA, is_for = NA, is_hg = NA, is_comm = NA, is_other = NA, is_na = NA, is_shi = NA)
+
+data_StatDes_SSA_former_use[data_StatDes_SSA_former_use$`Former land use` == '',]$`Former land use` = 'unknown'
+data_StatDes_SSA_former_use$is_small = attr(regexpr(pattern = "(Smallholder agriculture)", text = data_StatDes_SSA_former_use$`Former land use`), "match.length") != -1
+data_StatDes_SSA_former_use$is_pasto = attr(regexpr(pattern = "(Pastoralism)", text = data_StatDes_SSA_former_use$`Former land use`), "match.length") != -1
+data_StatDes_SSA_former_use$is_cons = attr(regexpr(pattern = "(Conservation)", text = data_StatDes_SSA_former_use$`Former land use`), "match.length") != -1
+data_StatDes_SSA_former_use$is_for = attr(regexpr(pattern = "(Forestry)", text = data_StatDes_SSA_former_use$`Former land use`), "match.length") != -1
+data_StatDes_SSA_former_use$is_hg = attr(regexpr(pattern = "(Hunting/Gathering)", text = data_StatDes_SSA_former_use$`Former land use`), "match.length") != -1
+data_StatDes_SSA_former_use$is_comm = attr(regexpr(pattern = "(Commercial)", text = data_StatDes_SSA_former_use$`Former land use`), "match.length") != -1
+data_StatDes_SSA_former_use$is_shi = attr(regexpr(pattern = "(Shifting cultivation)", text = data_StatDes_SSA_former_use$`Former land use`), "match.length") != -1
+data_StatDes_SSA_former_use$is_other = attr(regexpr(pattern = "(Other)", text = data_StatDes_SSA_former_use$`Former land use`), "match.length") != -1
+data_StatDes_SSA_former_use$is_na = attr(regexpr(pattern = "(unknown)", text = data_StatDes_SSA_former_use$`Former land use`), "match.length") != -1
+
+data_StatDes_SSA_former_use = data_StatDes_SSA_former_use %>% 
+  group_by(country) %>%
+  summarise(n_deals = n(), n_small = sum(is_small), n_pasto = sum(is_pasto), n_cons = sum(is_cons), n_for = sum(is_for), n_hg = sum(is_small), 
+            n_comm = sum(is_comm), n_other = sum(is_other), n_na = sum(is_na), n_shi = sum(is_shi)) %>%
+  pivot_longer(cols = c(n_small, n_pasto, n_cons, n_for, n_hg, n_comm, n_other, n_na, n_shi),
+               names_to = 'type') 
+
+fig_StatDes_SSA_distrib_former_use_100 = ggplot(data = subset(data_StatDes_SSA_former_use, data_StatDes_SSA_former_use$n_deals >= 100), 
+                                 aes(x = reorder(country, n_deals), y = value, fill = type)) %>%
+  + geom_bar(stat = 'identity', position = position_dodge()) %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = 'Distribution of LSLA deals across Sub-Saharan Africa and former land use \n (possibly several per deal)', 
+       subtitle = paste('Sample :', sum(slice(group_by(data_StatDes_SSA_former_use, country), 1)$n_deals), 'deals', 'in',
+                        length(unique(subset(data_StatDes_SSA_former_use, data_StatDes_SSA_former_use$n_deals >= 100)$country)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + scale_fill_manual(values = brewer.pal(n = 9, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Former land use",
+                      labels = c('Commercial', 'Conservation', 'Forestry', 'Huntering & gathering', 'Unknown', 'Other', 'Pastoralism', 'Shifting cultivation', 'Smallholder farming')
+                      ) %>%
+  + theme_minimal() 
+                      
+ggsave(plot = fig_StatDes_SSA_distrib_former_use_100,
+       filename = "fig_StatDes_SSA_distrib_former_use_100.jpeg",
+       path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+       width = 9, height = 7)
+
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                              Former land cover                           ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+#For each type of former land coer, we create a dummy variable by reading in the 'Former land cover' variable. This variable can indicate more than one cover type
+#So the dummy takes value TRUE if the type is indicated in the list of former land covers in the considered deal.
+#Regular expressions are used to identify each type of former cover
+
+data_StatDes_SSA_former_cover = data_StatDes_SSA %>%
+  mutate(is_crop = NA, is_for= NA, is_mar = NA, is_grass = NA, is_wet = NA, is_other = NA, is_na = NA)
+
+data_StatDes_SSA_former_cover[data_StatDes_SSA_former_cover$`Former land cover` == '',]$`Former land cover` = 'unknown'
+data_StatDes_SSA_former_cover$is_crop = attr(regexpr(pattern = "(Cropland)", text = data_StatDes_SSA_former_cover$`Former land cover`), "match.length") != -1
+data_StatDes_SSA_former_cover$is_for = attr(regexpr(pattern = "(Forest land)", text = data_StatDes_SSA_former_cover$`Former land cover`), "match.length") != -1
+data_StatDes_SSA_former_cover$is_mar = attr(regexpr(pattern = "(Marginal land)", text = data_StatDes_SSA_former_cover$`Former land cover`), "match.length") != -1
+data_StatDes_SSA_former_cover$is_grass = attr(regexpr(pattern = "(Grassland)", text = data_StatDes_SSA_former_cover$`Former land cover`), "match.length") != -1
+data_StatDes_SSA_former_cover$is_wet = attr(regexpr(pattern = "(Wetland)", text = data_StatDes_SSA_former_cover$`Former land cover`), "match.length") != -1
+data_StatDes_SSA_former_cover$is_other = attr(regexpr(pattern = "(Other)", text = data_StatDes_SSA_former_cover$`Former land cover`), "match.length") != -1
+data_StatDes_SSA_former_cover$is_na = attr(regexpr(pattern = "(unknown)", text = data_StatDes_SSA_former_cover$`Former land cover`), "match.length") != -1
+
+data_StatDes_SSA_former_cover = data_StatDes_SSA_former_cover %>% 
+  group_by(country) %>%
+  summarise(n_deals = n(), n_crop = sum(is_crop), n_for = sum(is_for), n_mar = sum(is_mar),
+            n_grass = sum(is_grass), n_wet = sum(is_wet), n_other = sum(is_other), n_na = sum(is_na)) %>%
+  pivot_longer(cols = c(n_crop, n_for, n_mar, n_grass, n_wet, n_other, n_na),
+               names_to = 'type') 
+
+fig_StatDes_SSA_distrib_former_cover_100 = ggplot(data = subset(data_StatDes_SSA_former_cover, data_StatDes_SSA_former_cover$n_deals >= 100), 
+                                 aes(x = reorder(country, n_deals), y = value, fill = type)) %>%
+  + geom_bar(stat = 'identity', position = position_dodge()) %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = 'Distribution of LSLA deals across Sub-Saharan Africa and former land cover \n (possibly several per deal)', 
+       subtitle = paste('Sample :', sum(slice(group_by(data_StatDes_SSA_former_cover, country), 1)$n_deals), 'deals', 'in',
+                        length(unique(subset(data_StatDes_SSA_former_cover, data_StatDes_SSA_former_cover$n_deals >= 100)$country)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + scale_fill_manual(values = brewer.pal(n = 7, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Former land cover",
+                      labels = c('Cropland', "Forest land", "Shrubland or grassland", "Marginal land", "Unknown", "Other", "Wetland")
+                      ) %>%
+  + theme_minimal() 
+                      
+# ggsave(plot = fig_StatDes_SSA_distrib_former_cover_100,
+#        filename = "fig_StatDes_SSA_distrib_former_cover_100.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 9, height = 7)
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                              Former land owner                           ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+#For each type of former land owner, we create a dummy variable by reading in the 'Former land owner' variable. This variable can indicate more than one owner
+#So the dummy takes value TRUE if the type is indicated in the list of former land owners in the considered deal.
+#Regular expressions are used to identify each type of former owner
+
+data_StatDes_SSA_former_owner = data_StatDes_SSA %>%
+  mutate(is_na = NA, is_comm = NA, is_ind = NA, is_state = NA, is_small = NA, is_large = NA, is_other = NA)
+
+data_StatDes_SSA_former_owner[data_StatDes_SSA_former_owner$`Former land owner` == '',]$`Former land owner` = 'unknown'
+data_StatDes_SSA_former_owner$is_comm = attr(regexpr(pattern = "(Community)", text = data_StatDes_SSA_former_owner$`Former land owner`), "match.length") != -1
+data_StatDes_SSA_former_owner$is_ind = attr(regexpr(pattern = "(Indigenous)", text = data_StatDes_SSA_former_owner$`Former land owner`), "match.length") != -1
+data_StatDes_SSA_former_owner$is_state = attr(regexpr(pattern = "(State)", text = data_StatDes_SSA_former_owner$`Former land owner`), "match.length") != -1
+data_StatDes_SSA_former_owner$is_small = attr(regexpr(pattern = "(smallholders)", text = data_StatDes_SSA_former_owner$`Former land owner`), "match.length") != -1
+data_StatDes_SSA_former_owner$is_large = attr(regexpr(pattern = "(large-scale farm)", text = data_StatDes_SSA_former_owner$`Former land owner`), "match.length") != -1
+data_StatDes_SSA_former_owner$is_other = attr(regexpr(pattern = "(Other)", text = data_StatDes_SSA_former_owner$`Former land owner`), "match.length") != -1
+data_StatDes_SSA_former_owner$is_na = attr(regexpr(pattern = "(unknown)", text = data_StatDes_SSA_former_owner$`Former land owner`), "match.length") != -1
+
+data_StatDes_SSA_former_owner = data_StatDes_SSA_former_owner %>% 
+  group_by(country) %>%
+  summarise(n_deals = n(), n_comm = sum(is_comm), n_ind = sum(is_ind), n_state = sum(is_state),
+            n_small = sum(is_small), n_large = sum(is_large), n_other = sum(is_other), n_na = sum(is_na)) %>%
+  pivot_longer(cols = c(n_comm, n_ind, n_state, n_small, n_large, n_other, n_na),
+               names_to = 'type') 
+
+fig_StatDes_SSA_distrib_former_owner_100 = ggplot(data = subset(data_StatDes_SSA_former_owner, data_StatDes_SSA_former_owner$n_deals >= 100), 
+                                 aes(x = reorder(country, n_deals), y = value, fill = type)) %>%
+  + geom_bar(stat = 'identity', position = position_dodge()) %>%
+  + coord_flip() %>%
+  + scale_x_discrete(name = '') %>%
+  + labs(y = 'Number of deals', title = 'Distribution of LSLA deals across Sub-Saharan Africa and former land owner \n (possibly several per deal)', 
+       subtitle = paste('Sample :', sum(slice(group_by(data_StatDes_SSA_former_owner, country), 1)$n_deals), 'deals', 'in',
+                        length(unique(subset(data_StatDes_SSA_former_owner, data_StatDes_SSA_former_owner$n_deals >= 100)$country)), 'countries')) %>%
+  + theme(plot.title = element_text(hjust = 0.5)) %>%
+  + scale_fill_manual(values = brewer.pal(n = 7, name = 'YlGnBu'),
+                      aesthetics = 'fill',
+                      name = "Former land owner",
+                      labels = c('Community', "Indigenous people", "Private, large farm", 'Unknown', 'Other', "Private, smallholder", 'State')
+
+                      ) %>%
+  + theme_minimal() 
+                      
+# ggsave(plot = fig_StatDes_SSA_distrib_former_owner_100,
+#        filename = "fig_StatDes_SSA_distrib_former_owner_100.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures',
+#        width = 9, height = 7)
+
+```
+````{r}
+
+
+
+````

@@ -1,0 +1,2894 @@
+---
+title: "ScriptMT_StatDes"
+author: "Antoine Vuillot"
+date: "2023-01-26"
+output: pdf_document
+editor_options: 
+  chunk_output_type: console
+---
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            ~~
+##                              Packages                                    ----
+##                                                                            ~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r setup, include=FALSE}
+
+tempdir()
+dir.create(tempdir())
+
+knitr::opts_chunk$set(echo = TRUE)
+library(fortunes)
+library(ggplot2)
+library(tidyverse)
+library(data.table)
+library(xlsx)
+library(stringr)
+library(ARTofR)
+library(geojsonsf)
+library(sf)
+library(rgdal)
+library(RColorBrewer)
+library(dplyr)
+library(terra)
+library(raster)
+library(tidyterra)
+library(mapview)
+library(gridExtra)
+library(grid)
+library(cowplot)
+#library(wopr)
+
+# remotes::install_github("rstudio/leaflet", force = TRUE)
+# library(leaflet)
+# library(raster)
+
+
+
+```
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            ~~
+##                            PURPOSE OF THE SCRIPT                         ----
+##                                                                            ~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#In this script we compute the average value of different raster within our buffers.
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##------------------------------ IMPORTING DATA---------------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                  ISO codes                               ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+country_iso = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/02_2023/ctry_regions.csv', encoding = 'UTF-8') %>%
+  dplyr::select(c('name', 'alpha-3')) %>%
+  rename('iso_a3' = 'alpha-3',
+         "country" = "name")
+
+country_iso[country_iso$country == "Lao People's Democratic Republic",]$country = 'Lao PDR'
+country_iso[country_iso$country == 'Bolivia (Plurinational State of)',]$country = 'Bolivia'
+country_iso[country_iso$country == "Viet Nam",]$country = 'Vietnam'
+country_iso[country_iso$country == "Yemen",]$country = "Yemen, Rep."
+country_iso[country_iso$country == "Venezuela (Bolivarian Republic of)",]$country = "Venezuela, RB"
+country_iso[country_iso$country == "Congo",]$country = "Congo, Rep."
+country_iso[country_iso$country == "Egypt",]$country = "Egypt, Arab Rep."
+country_iso[country_iso$country == "Eswatini",]$country = 'Swaziland'
+country_iso[country_iso$country == "Tanzania, United Republic of",]$country = "Tanzania"
+country_iso[country_iso$country == "Congo, Democratic Republic of the",]$country = "Congo, Dem. Rep."
+country_iso[country_iso$country == "Gambia",]$country = "Gambia, The"
+country_iso[country_iso$country ==  "Sao Tome and Principe",]$country = "São Tomé and Principe"
+country_iso[country_iso$country ==  "Moldova, Republic of",]$country = "Moldova"
+
+
+data = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/filt_crop/data_muller_filt_crop.csv') %>%
+  left_join(country_iso, by = "country") %>%
+  dplyr::select(c(region:country, iso_a3, deal_id, loc_id, n_par:livestock_com)) 
+
+#Import location of parcels, and compute the radius of earth at each latitude
+#This measurement matters if we need to compute total area of raster cells for instance
+r_eq = 6378137 #radius of earth at equator
+r_pol =  6356752 #radius of earth at poles
+data_loc = st_read('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/data_roi_loc.geojson') %>%
+  rowwise() %>%
+  mutate(lon = st_coordinates(geometry)[1],
+         lat = st_coordinates(geometry)[2],
+         lon_rad = lon*pi/180,
+         lat_rad = lat*pi/180,
+         r_lat = sqrt(((r_eq^2*cos(lat_rad))^2+(r_pol^2*sin(lat_rad))^2)/((r_eq*cos(lat_rad))^2+(r_pol*sin(lat_rad))^2))
+         ) %>%
+  ungroup()
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                  Buffers                                 ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+df_Tbuf = st_read('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/filt_crop/Tbuf_muller_filt_crop.geojson') %>%
+  mutate(ID = as.numeric(rownames(.)))
+vect_Tbuf = vect(df_Tbuf)
+df_C1buf = st_read('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/filt_crop/C1buf_muller_filt_crop2.geojson') %>%
+  mutate(ID = as.numeric(rownames(.)))
+vect_C1buf = vect(df_C1buf)
+df_C2buf = st_read('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/filt_crop/C2buf_muller_filt_crop2.geojson') %>%
+  mutate(ID = as.numeric(rownames(.)))
+vect_C2buf = vect(df_C2buf)
+df_C3buf = st_read('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/filt_crop/C3buf_muller_filt_crop2.geojson') %>%
+  mutate(ID = as.numeric(rownames(.)))
+vect_C3buf = vect(df_C3buf)
+
+#Defining the extent of the buffer (might be useful)
+# crs_buf = crs(vect_buf)
+# buf_ext = terra::ext(vect_buf) %>% as.polygons()
+# crs(buf_ext, warn = FALSE) <- crs_buf
+# st_write(st_as_sf(buf_ext), 
+#          dsn = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/filt_final/data_muller_buf_ext.geojson',
+#          delete_dsn = TRUE)
+#mapview(st_as_sf(buf_ext))
+
+buf_ext = st_read('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/filt_final/data_muller_buf_ext.geojson')
+
+````
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                  GDP PPP                                 ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r} 
+
+rast_gdp_30as = rast("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/GDP_HDI_gridded/GDP_PPP_30arcsec_v3.nc")
+rast_gdp_5am = rast("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/GDP_HDI_gridded/GDP_PPP_1990_2015_5arcmin_v2.nc")
+
+new_names_gdp_5am = paste0("GDP_PPP_", 1990:2015)
+new_names_gdp_30as = paste0("GDP_PPP_", c(1990, 2000, 2015))
+names(rast_gdp_5am) = new_names_gdp_5am
+names(rast_gdp_30as) = new_names_gdp_30as
+
+````
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                  NDVI                                    ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+rast_ndvi = rast("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/MOD13A3.061_1km_aid0001.nc")
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                  Land use                                ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+#Perform below
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                  SPEI                                    ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+#Each raster contains monthly SPEI values for the period 1901 to 2021
+
+rast_spei12 = rast("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/SPEI/spei12.nc")
+rast_spei6 = rast("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/SPEI/spei06.nc")
+
+````
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##----------------------------- EXTRACTING VALUES-------------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                  Relevant df & functions                 ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Informative dataset  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#Create an informative dataset (country, deal, parcel ID, radius at latitude)
+data_info = data %>%
+  dplyr::select(region, sub_region, country, loc_id, starts_with("year"), size_max_par) %>%
+  left_join(df_Tbuf, by = "loc_id") %>%
+  dplyr::select(c(region:deal_id, ID)) %>%
+  left_join(select(data_loc, c(loc_id, lat_rad, r_lat)), by = "loc_id")
+
+##~~~~~~~~~~~~~
+##  ~ GDP  ----
+##~~~~~~~~~~~~~
+
+#Computation of mean GDP inside buffer
+fun_ext_mean_gdp = function(rast, buf)
+{
+  buf_rast_mean_gdp = extract(x = rast, y = buf,
+                              raw = TRUE, exact = TRUE) %>%
+      as.data.frame() %>%
+      group_by(ID) %>%
+      summarise(across(.cols = GDP_PPP_1990:GDP_PPP_2015, 
+                   .fns = ~weighted.mean(x = .x, w = fraction, na.rm = TRUE),
+                   .names = NULL))
+  return(buf_rast_mean_gdp)
+    
+}
+
+##~~~~~~~~~~~~~~~~~~
+##  ~ Land use  ----
+##~~~~~~~~~~~~~~~~~~
+
+#Open and extract relevant values from land raster in a given year
+fun_ext_land_year = function(rast, buf, year, info, lccs)
+{
+  #Extract values from buffers in the raster
+  buf_land_year = extract(x = rast, y = buf,
+                           raw = TRUE, exact = TRUE) %>%
+  as.data.frame() %>%
+  #Join with information (Earth radius at parcel latitude) and compute the area of cells for each parcel, taking into account the share of cell overlapped (fraction)
+  left_join(select(info, c(ID, lat_rad, r_lat)), by = "ID") %>%
+  mutate(area_cell_m2 = fraction*(theta_res*r_lat)^2) %>%
+  #Add information on IPCC land class for each cell LCCS classification
+  left_join(lccs, by = "lccs_class") %>%
+  #For each ID and LCCS class, compute number of cells, 
+  group_by(ID, lccs_class) %>%
+  summarise(n_cell = n(),
+            area_m2 = sum(area_cell_m2),) %>%
+  ungroup() %>%
+  #Compute the total area of each parcel (T or C1/2/3)
+  group_by(ID) %>%
+  mutate(area_par_m2 = sum(area_m2),
+         year = year) %>%
+  ungroup() %>%
+  mutate(shr_lccs = area_m2/area_par_m2, 
+         .after = area_par_m2) %>%
+  left_join(select(data_info, c(region, sub_region, country, deal_id, loc_id, ID)), by = "ID") %>%
+  left_join(lccs, by = "lccs_class") %>%
+  select(c(year, region:loc_id, ID, year, ipcc_class, lccs_des, lccs_class:shr_lccs))
+}
+
+#Extract information from the different years (1 year = 1 raster)
+fun_ext_land_all = function(path, files, buf, info, lccs)
+{
+  tic = tictoc::tic()
+  buf_land_all = c()
+  list_year_land = c(2000:2020)
+  for (i in 1:length(files))
+  {
+    year_i = list_year_land[i]
+    rast_i = rast(paste0(path, files[i]))
+    temp_i = fun_ext_land_year(rast = rast_i, buf = buf, 
+                            year = year_i, 
+                            info = data_info, lccs = lccs)
+    buf_land_all = rbind(buf_land_all, temp_i)
+    print(paste("Iteration", i, "completed :-)"))
+  }
+  return(buf_land_all)
+  print(tictoc::toc())
+}
+
+#Plot share of sub-types of agricultural land
+fig_land_lccs_sh = function(data, data_info, list_sub_region, subtitle, caption, path_save, save_name)
+{
+  list_fig_land_all = c()
+  list_fig_land_T = c()
+ for (j in 1:length(list_sub_region))
+{
+  #We select data drom sub-region j and land class i
+  fig_land_temp_j_all = ggplot(data = subset(data, 
+                                          sub_region == list_sub_region[j])) %>%
+#ABSOLUTE VARATION
++ geom_point(aes(x = year, y = T_shr_subreg*100, group = sub_region),
+             color = "#08519C") %>%
++ geom_line(aes(x = year, y = T_shr_subreg*100, group = sub_region, color = "T"),
+            linetype = "solid") %>%
++ geom_point(aes(x = year, y = C1_shr_subreg*100, group = sub_region), color = "#3182BD") %>%
++ geom_line(aes(x = year, y = C1_shr_subreg*100, group = sub_region, color = "C1"), linetype = "dashed") %>%
++ geom_point(aes(x = year, y = C2_shr_subreg*100, group = sub_region), color = "#6BAED6") %>%
++ geom_line(aes(x = year, y = C2_shr_subreg*100, group = sub_region, color = "C2"), linetype = "dashed") %>%
++ geom_point(aes(x = year, y = C3_shr_subreg*100, group = sub_region), color = "#C6DBEF") %>%
++ geom_line(aes(x = year, y = C3_shr_subreg*100, group = sub_region, color = "C3"), linetype = "dashed") %>%
++ scale_y_continuous(labels = function(x) format(x, digits = 3, scientific = FALSE)) %>%
++ scale_color_manual(name = "Buffer",
+                     values = c("T" = "#08519C",
+                                "C1" = "#3182BD",
+                                "C2" = "#6BAED6",
+                                "C3" = "#C6DBEF"
+                                )) %>%
+
++ labs(x = '', y = '', 
+       title = list_sub_region[j],
+       subtitle = subtitle,
+       caption = paste("Note :", subset(data_info, sub_region == list_sub_region[j])[1,]$n_par_subreg, "parcel(s) in ", subset(data_info, sub_region == list_sub_region[j])[1,]$n_deal_subreg, "deal(s) covering about", format(subset(data_info, sub_region == list_sub_region[j])[1,]$T_tot_subreg_km2, scientific = TRUE, digits = 1), caption)) %>%
++ theme(legend.position = "bottom",
+        legend.key = element_rect(fill = "white"),
+        plot.title = element_text(hjust = 0), 
+        axis.text.x = element_text(angle = 90),
+        panel.background = element_rect(fill = 'white', colour = 'white', 
+                                        linewidth = 0.5, linetype = 'solid'),
+        panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+        panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+        plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+        ) 
+
+fig_land_temp_j_T = ggplot(data = subset(data, 
+                                          sub_region == list_sub_region[j])) %>%
++ geom_point(aes(x = year, y = T_shr_subreg*100, group = sub_region), 
+             color = "#08519C") %>%
++ geom_line(aes(x = year, y = T_shr_subreg*100, group = sub_region, color = "T"), 
+            linetype = "solid") %>%
++ scale_y_continuous(labels = function(x) format(x, digits = 3, scientific = TRUE)) %>%
++ scale_color_manual(name = "Buffer",
+                     values = c("T" = "#08519C")) %>%
++ labs(x = '', y = '', 
+       title = list_sub_region[j],
+       subtitle = subtitle,
+       caption = paste("Note :", subset(data_info, sub_region == list_sub_region[j])[1,]$n_par_subreg, "parcel(s) in ", subset(data_info, sub_region == list_sub_region[j])[1,]$n_deal_subreg, "deal(s) covering about", format(subset(data_info, sub_region == list_sub_region[j])[1,]$T_tot_subreg_km2, scientific = FALSE, digits = 2), "km2.", caption)) %>%
++ theme(legend.position = "bottom",
+        legend.key = element_rect(fill = "white"),
+        plot.title = element_text(hjust = 0), 
+        axis.text.x = element_text(angle = 90),
+        panel.background = element_rect(fill = 'white', colour = 'white', 
+                                        linewidth = 0.5, linetype = 'solid'),
+        panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+        panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+        plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+        )  
+  
+list_fig_land_all[[j]] = fig_land_temp_j_all
+list_fig_land_T[[j]] = fig_land_temp_j_T
+}
+
+
+#Then a multi plot is created from the list
+mplot_land_all = plot_grid(plotlist = list_fig_land_all,
+                      align = "hv",
+                      nrow = 3,
+                      ncol = 3,
+                      labels = "AUTO"
+                      )
+mplot_land_T = plot_grid(plotlist = list_fig_land_T,
+                      align = "hv",
+                      nrow = 3,
+                      ncol = 3,
+                      labels = "AUTO"
+                      ) 
+#Adding a common x and y axis
+y.grob <- textGrob("Area covered (%)", 
+                 gp=gpar(fontface = "bold", fontsize=15), rot=90)
+x.grob <- textGrob("Year", 
+                 gp=gpar(fontface = "bold", fontsize=15))
+#Building the final figure
+fig_all = grid.arrange(arrangeGrob(mplot_land_all, left = y.grob, bottom = x.grob))
+fig_T = grid.arrange(arrangeGrob(mplot_land_T, left = y.grob, bottom = x.grob))
+ggsave(plot = fig_all,
+     filename = paste0("fig_land_", save_name, "_all.jpeg"),
+     path = paste0('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/LandUseChange/', path_save),
+     width = 15, height = 10)
+ggsave(plot = fig_T,
+     filename = paste0("fig_land_", save_name, "_T.jpeg"),
+     path = paste0('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/LandUseChange/', path_save),
+     width = 15, height = 10)
+
+ 
+}
+
+#Plot share of sub-types of agricultural land in a buffer relative to an other
+fig_land_lccs_rel = function(data, data_info, list_sub_region, subtitle, caption, path_save, save_name)
+{
+  list_fig_land_TC1 = list_fig_land_C1C2 = list_fig_land_C2C3 = c()
+for (j in 1:length(list_sub_region))
+{
+  #We select data from sub-region j 
+  fig_land_temp_j_TC1 = ggplot(data = subset(data, 
+                                          sub_region == list_sub_region[j])) %>%
+  + geom_point(aes(x = year, y = (T_shr_subreg-C1_shr_subreg)/C1_shr_subreg, group = sub_region),
+             color = "#08519C") %>%
+  + geom_line(aes(x = year, y = (T_shr_subreg-C1_shr_subreg)/C1_shr_subreg, group = sub_region, color = "T as C1"), linetype = "solid") %>%
+  + scale_y_continuous(labels = function(x) format(x, digits = 3, scientific = FALSE)) %>%
+  + scale_color_manual(name = "Buffer",
+                     values = c("T as C1" = "#08519C",
+                                "C1 as C2" = "#08519C",
+                                "C2 as C3" = "#08519C"
+                                )) %>%
+  + labs(x = '', y = '', 
+       title = list_sub_region[j],
+       subtitle = subtitle,
+       caption = paste("Note :", subset(data_info, sub_region == list_sub_region[j])[1,]$n_par_subreg, "parcel(s) in ", subset(data_info, sub_region == list_sub_region[j])[1,]$n_deal_subreg, "deal(s) covering about", format(subset(data_info, sub_region == list_sub_region[j])[1,]$T_tot_subreg_km2, scientific = TRUE, digits = 1), "km2. \nRelative gap is defined as the difference (X-Y)/Y", caption)) %>%
+  + theme(legend.position = "bottom",
+        legend.key = element_rect(fill = "white"),
+        plot.title = element_text(hjust = 0), 
+        axis.text.x = element_text(angle = 90),
+        panel.background = element_rect(fill = 'white', colour = 'white', 
+                                        linewidth = 0.5, linetype = 'solid'),
+        panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+        panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+        plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+        ) 
+  
+  fig_land_temp_j_C1C2 = ggplot(data = subset(data, 
+                                          sub_region == list_sub_region[j])) %>%
+  + geom_point(aes(x = year, y = (C1_shr_subreg-C2_shr_subreg)/C2_shr_subreg, group = sub_region),
+             color = "#08519C") %>%
+  + geom_line(aes(x = year, y = (C1_shr_subreg-C2_shr_subreg)/C2_shr_subreg, group = sub_region, color = "T as C1"), linetype = "solid") %>%
+  + scale_y_continuous(labels = function(x) format(x, digits = 3, scientific = FALSE)) %>%
+  + scale_color_manual(name = "Buffer",
+                     values = c("T as C1" = "#08519C",
+                                "C1 as C2" = "#08519C",
+                                "C2 as C3" = "#08519C"
+                                )) %>%
++ labs(x = '', y = '', 
+       title = list_sub_region[j],
+       subtitle = subtitle,
+       caption = paste("Note :", subset(data_info, sub_region == list_sub_region[j])[1,]$n_par_subreg, "parcel(s) in ", subset(data_info, sub_region == list_sub_region[j])[1,]$n_deal_subreg, "deal(s) covering about", format(subset(data_info, sub_region == list_sub_region[j])[1,]$T_tot_subreg_km2, scientific = TRUE, digits = 1), "km2. \nRelative gap is defined as the difference (X-Y)/Y", caption)) %>%
++ theme(legend.position = "bottom",
+        legend.key = element_rect(fill = "white"),
+        plot.title = element_text(hjust = 0), 
+        axis.text.x = element_text(angle = 90),
+        panel.background = element_rect(fill = 'white', colour = 'white', 
+                                        linewidth = 0.5, linetype = 'solid'),
+        panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+        panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+        plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+        ) 
+
+  fig_land_temp_j_C2C3 = ggplot(data = subset(data, 
+                                          sub_region == list_sub_region[j])) %>%
+  + geom_point(aes(x = year, y = (C2_shr_subreg-C3_shr_subreg)/C3_shr_subreg, group = sub_region),
+             color = "#08519C") %>%
+  + geom_line(aes(x = year, y = (C2_shr_subreg-C3_shr_subreg)/C3_shr_subreg, group = sub_region, color = "T as C1"), linetype = "solid") %>%
+  + scale_y_continuous(labels = function(x) format(x, digits = 3, scientific = FALSE)) %>%
+  + scale_color_manual(name = "Buffer",
+                     values = c("T as C1" = "#08519C",
+                                "C1 as C2" = "#08519C",
+                                "C2 as C3" = "#08519C"
+                                )) %>%
++ labs(x = '', y = '', 
+       title = list_sub_region[j],
+       subtitle = subtitle,
+       caption = paste("Note :", subset(data_info, sub_region == list_sub_region[j])[1,]$n_par_subreg, "parcel(s) in ", subset(data_info, sub_region == list_sub_region[j])[1,]$n_deal_subreg, "deal(s) covering about", format(subset(data_info, sub_region == list_sub_region[j])[1,]$T_tot_subreg_km2, scientific = TRUE, digits = 1), "km2. \nRelative gap is defined as the difference (X-Y)/Y", caption)) %>%
++ theme(legend.position = "bottom",
+        legend.key = element_rect(fill = "white"),
+        plot.title = element_text(hjust = 0), 
+        axis.text.x = element_text(angle = 90),
+        panel.background = element_rect(fill = 'white', colour = 'white', 
+                                        linewidth = 0.5, linetype = 'solid'),
+        panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+        panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+        plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+        ) 
+  
+list_fig_land_TC1[[j]] = fig_land_temp_j_TC1
+list_fig_land_C1C2[[j]] = fig_land_temp_j_C1C2
+list_fig_land_C2C3[[j]] = fig_land_temp_j_C2C3
+}
+
+#Then a multi plot is created from the list
+mplot_land_TC1 = plot_grid(plotlist = list_fig_land_TC1,
+                      align = "hv",
+                      nrow = 3,
+                      ncol = 3,
+                      labels = "AUTO"
+                      )
+mplot_land_C1C2 = plot_grid(plotlist = list_fig_land_C1C2,
+                      align = "hv",
+                      nrow = 3,
+                      ncol = 3,
+                      labels = "AUTO"
+                      )
+mplot_land_C2C3 = plot_grid(plotlist = list_fig_land_C2C3,
+                      align = "hv",
+                      nrow = 3,
+                      ncol = 3,
+                      labels = "AUTO"
+                      )
+
+#Adding a common x and y axis
+y.grob <- textGrob("Relative gap of land type share", 
+                 gp=gpar(fontface = "bold", fontsize=15), rot=90)
+x.grob <- textGrob("Year", 
+                 gp=gpar(fontface = "bold", fontsize=15))
+#Building the final figure
+fig_TC1 = grid.arrange(arrangeGrob(mplot_land_TC1, left = y.grob, bottom = x.grob))
+ggsave(plot = fig_TC1,
+     filename = paste0("fig_land_", save_name, "_TC1.jpeg"),
+     path = paste0('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/LandUseChange/', path_save),
+     width = 15, height = 10)
+fig_C1C2 = grid.arrange(arrangeGrob(mplot_land_C1C2, left = y.grob, bottom = x.grob))
+ggsave(plot = fig_C1C2,
+     filename = paste0("fig_land_", save_name, "_C1C2.jpeg"),
+     path = paste0('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/LandUseChange/', path_save),
+     width = 15, height = 10)
+fig_C2C3 = grid.arrange(arrangeGrob(mplot_land_C2C3, left = y.grob, bottom = x.grob))
+ggsave(plot = fig_C2C3,
+     filename = paste0("fig_land_", save_name, "_C2C3.jpeg"),
+     path = paste0('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/LandUseChange/', path_save),
+     width = 15, height = 10)
+
+ 
+}
+
+##~~~~~~~~~~~~~~
+##  ~ NDVI  ----
+##~~~~~~~~~~~~~~
+
+#Extracting values
+fun_ext_ndvi = function(rast, buf, name_ndvi)
+{
+  buf_ndvi = extract(x = rast, y = buf,
+                    raw = TRUE, exact = TRUE) %>%
+      as.data.frame() %>%
+  select(c(ID, fraction, starts_with("_1_km_monthly_NDVI"))) %>%
+  rename_with(.fn = ~ sub("_1_km_monthly_", "", .x), 
+              .cols =  starts_with("_1_km_monthly_NDVI")) %>%
+    select(-NDVI_276) 
+  names(buf_ndvi) = c("ID", "fraction", paste0("NDVI_", name_ndvi))
+  return(buf_ndvi)
+}
+
+#Computing parcel-averaging
+fun_ext_mean_ndvi = function(buf_ndvi)
+{
+  buf_ndvi_avg = buf_ndvi %>% 
+  #For each ID, perform weighted average of NDVI across cells in the buffer
+  group_by(ID) %>%
+  summarise(across(.cols = `2000-02`:`2022-12`,
+                   .fns = ~weighted.mean(x = .x, w = fraction, na.rm = TRUE),
+                   .names = NULL)) %>%
+  #We notice problem on period 25 : only NA values in the initial dataset
+  mutate(`2002-02` = NaN) %>%
+  return(buf_ndvi_avg)
+  
+}
+ 
+#Computing parcel sd
+fun_ext_sd_ndvi = function(buf_ndvi, buf_ndvi_avg)
+{
+  #The full dataset from which we extract NDVI and NDVI_avg for each period in a loop
+  buf_ndvi_full = left_join(buf_ndvi, buf_ndvi_avg, by = "ID")
+  #Initialization of the sd dataset (one row by ID)
+  buf_ndvi_sd = buf_ndvi_avg %>% select(ID)
+  #In a loop we extract NDVI and NDVI_avg for each period
+  for (i in 1:275)
+    {
+    #Defining names of the columns needed (NDVI_i and NDVI_avg_i) to extract them
+    col_i = paste0("NDVI_",i)
+    col_avg_i = paste0("NDVI_avg_", i)
+    #final name of the NDVI_sd in this iteration
+    col_sd_i = paste0("NDVI_sd_", i)
+    #in a first temporary dataset, extract ID, NDVI and NDVI_avg for iteration i
+    temp1 = select(buf_ndvi_full, all_of(c("ID", "fraction", col_i, col_avg_i)))
+    #rename in more practical names
+    names(temp1) = c("ID", "fraction", "NDVI", "NDVI_avg")
+    #in a second dataset, compute the weighted standard deviation within each parcel...
+    temp2 = temp1 %>%
+      group_by(ID) %>%
+      summarise(n_cell = n(),
+                NDVI_sd = sqrt((n_cell/(n_cell-1))*weighted.mean(x = (NDVI-NDVI_avg)^2, 
+                                                                 w = fraction)
+                               )) %>%
+      #select only relevant variables : ID and the computed sd
+      select(c("ID", NDVI_sd)) 
+    #Renaming the variable NDVI_sd with the information on the period
+    names(temp2) = c("ID", col_sd_i)
+    #add the computed NDVI_sd for period i to the sd dataset
+    buf_ndvi_sd = left_join(buf_ndvi_sd, temp2, by = "ID")
+    #removing the temporary datasets
+    rm(temp1, temp2)
+  }
+  #We notice problem on period 25 : only NA values in the initial dataset
+  buf_ndvi_sd = mutate(buf_ndvi_sd, NDVI_sd_25 = NA)
+  return(buf_ndvi_sd)
+
+}
+
+#For each parcel, computes mean and max annual values
+fun_ndvi_avg_yr = function(buf_ndvi_avg)
+{
+  buf_ndvi_avg_yr = buf_ndvi_avg %>%
+    pivot_longer(cols = `2000-02`:`2022-12`, 
+                 names_to = "time", 
+                 values_to = "ndvi") %>%
+  mutate(year = as.numeric(str_sub(time, start = 1, end = 4)),
+         month = as.numeric(str_sub(time, start = 6, end = 7)),
+         .after = time) %>%
+  #Remove 2002-02 observation : only NA so not relevant for the computations
+  subset(time != "2002-02") %>%
+  #For each parcel-year, compute mean and max annual value
+  #Careful to NA values for some deals
+  group_by(ID, year) %>%
+  mutate(ndvi_mean = ifelse(!is.na(ndvi), yes = mean(ndvi, na.rm = TRUE), no = NA),
+         ndvi_max = ifelse(!is.na(ndvi), yes = max(ndvi, na.rm = TRUE), no = NA), 
+         .after = ndvi) %>%
+  slice(1) %>%
+  select(c(ID, year, ndvi_mean, ndvi_max))
+}
+
+
+#Plotting parcel average
+fig_ndvi_avg = function(data, list_sub_region, i, subtitle)
+{
+    fig = ggplot(data = subset(data, sub_region == list_sub_region[i])) %>%
+  + geom_point(aes(x = year, y = NDVI_T_avg, group = sub_region), color = "#08519C") %>%
+  + geom_line(aes(x = year, y = NDVI_T_avg, group = sub_region, color = "T"), linetype = "solid") %>%
+  + geom_point(aes(x = year, y = NDVI_C1_avg, group = sub_region), color = "#3182BD") %>%
+  + geom_line(aes(x = year, y = NDVI_C1_avg, group = sub_region, color = "C1"), linetype = "dashed") %>%
+  + geom_point(aes(x = year, y = NDVI_C2_avg, group = sub_region), color = "#6BAED6") %>% 
+  + geom_line(aes(x = year, y = NDVI_C2_avg, group = sub_region, color = "C2"), linetype = "dashed") %>%
+  # + geom_point(aes(x = year, y = NDVI_C3_avg, group = sub_region), color = "#C6DBEF") %>%
+  # + geom_line(aes(x = year, y = NDVI_C3_avg, group = sub_region, color = "C3"), linetype = "dashed") %>%
+  + scale_y_continuous(labels = function(x) format(x, digits = 2, scientific = TRUE)) %>%
+  + scale_color_manual(name = "Buffer",
+                       values = c("T" = "#08519C",
+                                  "C1" = "#3182BD",
+                                  "C2" = "#6BAED6",
+                                  "C3" = "#C6DBEF")) %>%
+  + labs(x = '', y = '', 
+         title = list_sub_region[i],
+         subtitle = subtitle,
+         caption = paste("Note :", subset(data, sub_region == list_sub_region[i])[1,]$n_par, "parcel(s) in ", subset(data, sub_region == list_sub_region[i])[1,]$n_deal, "deal(s)")) %>%
+  + theme(legend.position = "bottom",
+          legend.key = element_rect(fill = "white"),
+          plot.title = element_text(hjust = 0), 
+          axis.text.x = element_text(angle = 90),
+          panel.background = element_rect(fill = 'white', colour = 'white', linewidth = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+          ) 
+    return(fig)
+}
+
+#Plotting parcel sd
+fig_ndvi_sd = function(data, list_sub_region, i, subtitle)
+{
+    fig = ggplot(data = subset(data, sub_region == list_sub_region[i])) %>%
+  + geom_point(aes(x = year, y = NDVI_T_sd, group = sub_region), color = "#08519C") %>%
+  + geom_line(aes(x = year, y = NDVI_T_sd, group = sub_region, color = "T"), linetype = "solid") %>%
+  + geom_point(aes(x = year, y = NDVI_C1_sd, group = sub_region), color = "#3182BD") %>%
+  + geom_line(aes(x = year, y = NDVI_C1_sd, group = sub_region, color = "C1"), linetype = "dashed") %>%
+  + geom_point(aes(x = year, y = NDVI_C2_sd, group = sub_region), color = "#6BAED6") %>% 
+  + geom_line(aes(x = year, y = NDVI_C2_sd, group = sub_region, color = "C2"), linetype = "dashed") %>%
+  + geom_point(aes(x = year, y = NDVI_C3_sd, group = sub_region), color = "#C6DBEF") %>%
+  + geom_line(aes(x = year, y = NDVI_C3_sd, group = sub_region, color = "C3"), linetype = "dashed") %>%
+  + scale_y_continuous(labels = function(x) format(x, digits = 2, scientific = TRUE)) %>%
+  + scale_color_manual(name = "Buffer",
+                       values = c("T" = "#08519C",
+                                  "C1" = "#3182BD",
+                                  "C2" = "#6BAED6",
+                                  "C3" = "#C6DBEF")) %>%
+  + labs(x = '', y = '', 
+         title = list_sub_region[i],
+         subtitle = subtitle,
+         caption = paste("Note :", subset(data, sub_region == list_sub_region[i])[1,]$n_par, "parcel(s) in ", subset(data, sub_region == list_sub_region[i])[1,]$n_deal, "deal(s)")) %>%
+  + theme(legend.position = "bottom",
+          legend.key = element_rect(fill = "white"),
+          plot.title = element_text(hjust = 0), 
+          axis.text.x = element_text(angle = 90),
+          panel.background = element_rect(fill = 'white', colour = 'white', linewidth = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+          ) 
+    return(fig)
+}
+
+#Plotting relative gap between buffers
+##T relative to C1
+fig_ndvi_avg_TC1 = function(data, list_sub_region, i, subtitle)
+{
+    fig = ggplot(data = subset(data, sub_region == list_sub_region[i])) %>%
+  + geom_point(aes(x = year, y = (NDVI_T_avg-NDVI_C1_avg)/NDVI_C1_avg, group = sub_region), color = "#08519C") %>%
+  + geom_line(aes(x = year, y =  (NDVI_T_avg-NDVI_C1_avg)/NDVI_C1_avg, group = sub_region, color = "T as C1"), linetype = "solid") %>%
+  + scale_y_continuous(labels = function(x) format(x, digits = 2, scientific = TRUE)) %>%
+  + scale_color_manual(name = "Buffer",
+                       values = c("T as C1" = "#08519C")) %>%
+  + labs(x = '', y = '', 
+         title = list_sub_region[i],
+         subtitle = subtitle,
+         caption = paste("Note :", subset(data, sub_region == list_sub_region[i])[1,]$n_par, "parcel(s) in ", subset(data, sub_region == list_sub_region[i])[1,]$n_deal, 'deal(s). \nRelative gap ("X as Y") computed as (X-Y)/Y')) %>%
+  + theme(legend.position = "bottom",
+          legend.key = element_rect(fill = "white"),
+          plot.title = element_text(hjust = 0), 
+          axis.text.x = element_text(angle = 90),
+          panel.background = element_rect(fill = 'white', colour = 'white', linewidth = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+          ) 
+    return(fig)
+}
+##C1 relative to C2
+fig_ndvi_avg_C1C2 = function(data, list_sub_region, i, subtitle)
+{
+    fig = ggplot(data = subset(data, sub_region == list_sub_region[i])) %>%
+  + geom_point(aes(x = year, y = (NDVI_C1_avg-NDVI_C2_avg)/NDVI_C2_avg, group = sub_region), color = "#08519C") %>%
+  + geom_line(aes(x = year, y =  (NDVI_C1_avg-NDVI_C2_avg)/NDVI_C2_avg, group = sub_region, color = "C1 as C2"), linetype = "solid") %>%
+  + scale_y_continuous(labels = function(x) format(x, digits = 2, scientific = TRUE)) %>%
+  + scale_color_manual(name = "Buffer",
+                       values = c("C1 as C2" = "#08519C")) %>%
+  + labs(x = '', y = '', 
+         title = list_sub_region[i],
+         subtitle = subtitle,
+         caption = paste("Note :", subset(data, sub_region == list_sub_region[i])[1,]$n_par, "parcel(s) in ", subset(data, sub_region == list_sub_region[i])[1,]$n_deal, 'deal(s). \nRelative gap ("X as Y") computed as (X-Y)/Y')) %>%
+  + theme(legend.position = "bottom",
+          legend.key = element_rect(fill = "white"),
+          plot.title = element_text(hjust = 0), 
+          axis.text.x = element_text(angle = 90),
+          panel.background = element_rect(fill = 'white', colour = 'white', linewidth = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+          ) 
+    return(fig)
+}
+##C2 relative to C3
+fig_ndvi_avg_C2C3 = function(data, list_sub_region, i, subtitle)
+{
+    fig = ggplot(data = subset(data, sub_region == list_sub_region[i])) %>%
+  + geom_point(aes(x = year, y = (NDVI_C2_avg-NDVI_C3_avg)/NDVI_C3_avg, group = sub_region), color = "#08519C") %>%
+  + geom_line(aes(x = year, y =  (NDVI_C2_avg-NDVI_C3_avg)/NDVI_C3_avg, group = sub_region, color = "C2 as C3"), linetype = "solid") %>%
+  + scale_y_continuous(labels = function(x) format(x, digits = 2, scientific = TRUE)) %>%
+  + scale_color_manual(name = "Buffer",
+                       values = c("C2 as C3" = "#08519C")) %>%
+  + labs(x = '', y = '', 
+         title = list_sub_region[i],
+         subtitle = subtitle,
+         caption = paste("Note :", subset(data, sub_region == list_sub_region[i])[1,]$n_par, "parcel(s) in ", subset(data, sub_region == list_sub_region[i])[1,]$n_deal, 'deal(s). \nRelative gap ("X as Y") computed as (X-Y)/Y')) %>%
+  + theme(legend.position = "bottom",
+          legend.key = element_rect(fill = "white"),
+          plot.title = element_text(hjust = 0), 
+          axis.text.x = element_text(angle = 90),
+          panel.background = element_rect(fill = 'white', colour = 'white', linewidth = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+          ) 
+    return(fig)
+}
+
+##~~~~~~~~~~~~~~
+##  ~ SPEI  ----
+##~~~~~~~~~~~~~~
+
+#Extracting values
+fun_ext_spei12 = function(rast, buf, name_spei)
+{
+  #Extracting values in the parcels
+  buf_spei = extract(x = rast, y = buf,
+                    raw = TRUE, exact = TRUE) %>%
+      as.data.frame() %>%
+    select(c(ID, fraction, starts_with("spei")))
+  #Renaming the variables by adding information on date (year, month)
+  names(buf_spei) = c("ID", "fraction", name_spei)
+  #Keeping only December values for each year i.e monthly average for each year (spei12)
+  #We keep only year in the name
+  buf_spei = select(buf_spei, c(ID, fraction, ends_with("-12"))) %>%
+    rename_with(.cols = starts_with("spei"),
+                .fn = ~sub("-12", "", .x))
+  return(buf_spei)
+}
+
+
+#Parcel average
+fun_ext_mean_spei12 = function(buf_spei)
+{
+  buf_spei_avg = buf_spei %>% 
+  group_by(ID) %>%
+  summarise(across(.cols = `spei_1901`:`spei_2021`,
+                   .fns = ~weighted.mean(x = .x, w = fraction, na.rm = TRUE),
+                   .names = NULL))
+  return(buf_spei_avg)
+  
+}
+
+  
+fun_spei_cs = function(buf_avg)
+{
+  buf_shock = buf_avg %>%
+  pivot_longer(cols = starts_with("spei"),
+               names_to = c("year"),
+               names_prefix = "spei_") %>%
+  rename("spei" = "value") %>%
+  #Compute a dummy for climate shocks according de Defrance 2020
+  ##dry_year :
+  ##"1 if the average monthly value of SPEI in a given year is below the average monthly value of
+  ##SPEI computed on the whole period (=0 after normalization) by more than one standard deviation
+  ##(=1 after standardisation), and 0 otherwise"
+  ##intdry_year
+  ##"1 if the average monthly value of SPEI in a given year is below the average monthly value of
+  ##SPEI computed on the whole period (=0) by more than 1.5 standard deviation (=1), and 0
+  ##otherwise"
+  mutate(dry_year = spei < -1 & spei > -1.5,
+         intdry_year = spei < -1.5,
+         .after = spei) 
+}
+
+
+````
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                  GDP PPP                                 ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+#We need to extract all values in each parcel, and compute the average value
+##First we extract the value of every cell contained in the polygon. For each cell, we have have the fraction
+##contained in the polygon
+##Then for each parcel, we take the weighted average of cell values. The weights correspond to the fraction of ## the cell contained in the polygon.
+#Note that zero values do not face special treatment : it is possible that some areas begin an economic ##activity during the period. Also the raster contains NA values for seas and oceans only (not water areas like lake for instance). It is not a problem in our case.  
+
+##~~~~~~~~~~~~~~~~~
+##  ~ GDP 5am  ----
+##~~~~~~~~~~~~~~~~~
+
+#Compute/import the average GDP in each buffer for each year
+
+# Tbuf_gdp_5am_avg = fun_ext_mean_gdp(rast = rast_gdp_5am, buf = vect_Tbuf)
+# C1buf_gdp_5am_avg = fun_ext_mean_gdp(rast = rast_gdp_5am, buf = vect_C1buf)
+# C2buf_gdp_5am_avg = fun_ext_mean_gdp(rast = rast_gdp_5am, buf = vect_C2buf)
+# C3buf_gdp_5am_avg = fun_ext_mean_gdp(rast = rast_gdp_5am, buf = vect_C3buf)
+
+# fwrite(Tbuf_gdp_5am_avg, "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/GDP_HDI_gridded/Tbuf_muller_gdp_5am_avg.csv")
+# fwrite(C1buf_gdp_5am_avg, "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/GDP_HDI_gridded/C1buf_muller_gdp_5am_avg.csv")
+# fwrite(C2buf_gdp_5am_avg, "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/GDP_HDI_gridded/C2buf_muller_gdp_5am_avg.csv")
+# fwrite(C3buf_gdp_5am_avg, "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/GDP_HDI_gridded/C3buf_muller_gdp_5am_avg.csv")
+
+Tbuf_gdp_5am_avg = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/GDP_HDI_gridded/Tbuf_muller_gdp_5am_avg.csv")
+C1buf_gdp_5am_avg = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/GDP_HDI_gridded/C1buf_muller_gdp_5am_avg.csv")
+C2buf_gdp_5am_avg = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/GDP_HDI_gridded/C2buf_muller_gdp_5am_avg.csv")
+C3buf_gdp_5am_avg = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/GDP_HDI_gridded/C3buf_muller_gdp_5am_avg.csv")
+
+#Compute the GDP per ha to allow comparisons between buffers and across parcels
+Tbuf_gdp_5am_avg_perha = Tbuf_gdp_5am_avg %>%
+  left_join(df_Tbuf, by = "ID") %>%
+  select(c("ID", starts_with("GDP"), area_crop_T)) %>%
+  transmute(ID = ID, 
+            across(.cols = GDP_PPP_1990:GDP_PPP_2015, 
+               .fns = ~.x/(area_crop_T*1e-4) ,
+               .names = NULL))
+C1buf_gdp_5am_avg_perha = C1buf_gdp_5am_avg %>%
+  left_join(df_C1buf, by = "ID") %>%
+  select(c("ID", starts_with("GDP"), area_buf_crop)) %>%
+  transmute(ID = ID, 
+            across(.cols = GDP_PPP_1990:GDP_PPP_2015, 
+               .fns = ~.x/(area_buf_crop*1e-4) ,
+               .names = NULL))
+C2buf_gdp_5am_avg_perha = C2buf_gdp_5am_avg %>%
+  left_join(df_C2buf, by = "ID") %>%
+  select(c("ID", starts_with("GDP"), area_buf_crop)) %>%
+  transmute(ID = ID, 
+            across(.cols = GDP_PPP_1990:GDP_PPP_2015, 
+               .fns = ~.x/(area_buf_crop*1e-4) ,
+               .names = NULL))
+C3buf_gdp_5am_avg_perha = C3buf_gdp_5am_avg %>%
+  left_join(df_C3buf, by = "ID") %>%
+  select(c("ID", starts_with("GDP"), area_buf_crop)) %>%
+  transmute(ID = ID, 
+            across(.cols = GDP_PPP_1990:GDP_PPP_2015, 
+               .fns = ~.x/(area_buf_crop*1e-4) ,
+               .names = NULL))
+
+
+
+##~~~~~~~~~~~~~~~~~
+##  ~ GDP 30as ----
+##~~~~~~~~~~~~~~~~~
+
+# smry_gdp_30as = summary(rast_gdp_30as)
+# n_na = 75975
+# n_cell = 2160*4320
+# p_na = n_na/n_cell*100
+
+# buf_gdp_30as = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/GDP_HDI_gridded/Tbuf_muller_gdp_30as.csv")
+# buf_gdp_30as = extract(x = rast_gdp_30as, y = vect_buf,
+#                            raw = TRUE, exact = TRUE) %>%
+#   as.data.frame()
+
+
+# Tbuf_test = vect_Tbuf[5]
+# ext_test = ext(Tbuf_test)
+# test_rast30as = crop(rast_gdp_30as, Tbuf_test)
+# test_rast5am = crop(rast_gdp_5am, Tbuf_test)
+# test2_rast30as = crop(rast_gdp_30as, ext_test)
+# test2_rast5am = crop(rast_gdp_5am, ext_test)
+# summary(test_rast30as)
+# fig = ggplot() %>%
+#   + geom_spatraster(data = test2_rast30as$GDP_PPP_2000) %>%
+#   + scale_fill_continuous(na.value = "red") %>%
+#   + labs(
+#     title = "Default colors on ggplot2",
+#     subtitle = "But NAs are not plotted"
+#   ) %>%
+#   + theme_minimal()
+# fig
+
+# mapview(st_as_sf(Tbuf_test))
+# plot(test_rast30as$GDP_PPP_2000)
+# par(new=TRUE)
+# plot(Tbuf_test)
+# 
+# a = test_rast[,,1]
+# buf_gdp_30as_mean = buf_gdp_30as %>%
+#   group_by(ID) %>%
+#   summarise(across(.cols = GDP_PPP_1990:GDP_PPP_2015, 
+#                    .fns = ~ sum(.x*fraction, na.rm = TRUE)/sum(fraction), 
+#                    .names = NULL))
+# 
+# plet(x = test_rast5am, y = 1,  alpha=0.8, main=names(test_rast5am)), tiles=NULL, 
+#    wrap=TRUE, maxcell=500000, legend="bottomright", 
+#    shared=FALSE, panel=FALSE, collapse=TRUE, map=NULL)
+
+# fwrite(buf_gdp_30as, "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/GDP_HDI_gridded/Tbuf_muller_gdp_30as.csv")
+# fwrite(buf_gdp_30as_mean, "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/GDP_HDI_gridded/Tbuf_muller_gdp_30as_mean.csv")
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                  LAND USE CHANGE                         ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+#We need to extract all values in each parcel, and compute share of the different land categories in each parcel
+##First we extract the value of every cell contained in the polygon. For each cell, we have its category and the fraction contained in the polygon
+##Then we can compute the share of each land category in the parcel (rainfed cropland, forest ...)
+##Finally to compute the share of agricultural land, we need to apply a coefficient to the different agriculture-related categories : a pixel of mosaic vegetation has only 20-50% of land used for crop purpose by definition (see Müller et al. 2021)
+
+path_land = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/LandUseChange/"
+file_land = c(paste0("ESACCI-LC-L4-LCCS-Map-300m-P1Y-", c(2000:2015), "-v2.0.7cds.nc"), 
+              paste0("C3S-LC-L4-LCCS-Map-300m-P1Y-", c(2016:2020), "-v2.1.1.nc"))
+
+
+#From documentation we create the relation between LCCS classification and IPCC land one.
+#We also add coef_agri, a multiplying coefficient to get the share of agricultural area in a given 
+#pixel category.
+
+ipcc_nodata = data.frame(ipcc_class = rep("no_data", 1),
+                         lccs_class = c(0),
+                         coef_agri = 0)
+ipcc_agri = data.frame(ipcc_class = rep("ipcc_agri", 6),
+                          lccs_class = c(10, 11, 12, 20, 30, 40),
+                       coef_agri = c(1, 1, 1, 1, 0.75, 0.25))
+ipcc_for = data.frame(ipcc_class = rep("ipcc_for", 14),
+                      lccs_class = c(50, 60, 61, 62, 70, 71, 72, 80, 81, 82, 90, 100, 160, 170),
+                      coef_agri = c(rep(0,14)))
+ipcc_grass = data.frame(ipcc_class = rep("ipcc_grass", 2),
+                      lccs_class = c(110, 130),
+                      coef_agri = c(rep(0,2)))
+ipcc_wet = data.frame(ipcc_class = rep("ipcc_wet", 1),
+                      lccs_class = c(180),
+                      coef_agri = c(rep(0,1)))
+ipcc_urb = data.frame(ipcc_class = rep("ipcc_urb", 1),
+                      lccs_class = c(190),
+                      coef_agri = c(rep(0,1)))
+ipcc_other = data.frame(ipcc_class = rep("ipcc_other", 12),
+                      lccs_class = c(120, 121, 122, 140, 150, 151, 152, 153, 200, 201, 202, 210),
+                      coef_agri = c(rep(0,12)))
+ipcc_ice = data.frame(ipcc_class = rep("ipcc_ice", 1),
+                         lccs_class = c(220),
+                      coef_agri = c(rep(0,1)))
+ipcc_class = rbind(ipcc_nodata, ipcc_agri, ipcc_for, ipcc_grass, 
+                   ipcc_wet, ipcc_urb, ipcc_other, ipcc_ice)
+
+
+#We extract from metadata LCCS and add information on IPCC land classification
+##raster of reference (arbitrarily chosen) to extract metadata
+rast_ref = rast(paste0(path_land, file_land[1]))
+lccs = data.frame(lccs_class = str_split(meta(rast_ref)[[1]][11,][2], ",")[[1]],
+                  lccs_des = str_split(meta(rast_ref)[[1]][10,][2], " ")[[1]]
+                  ) %>%
+  mutate(lccs_class = as.numeric(sub("(\\{)|(\\})", "", lccs_class))) %>%
+  left_join(ipcc_class, by = "lccs_class")
+
+# fwrite(lccs,
+#        "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/LandUseChange/lccs.csv")
+
+##angular resolution of raster
+theta_res = res(rast_ref)[1]*pi/180
+##approximate metric resolution (doc)
+m_res = 300
+
+#Extracting values from the raster 
+##T
+# Tbuf_land_all = fun_ext_land_all(path = path_land, files = file_land,
+#                                  buf = vect_Tbuf,
+#                                  info = data_info, lccs = lccs)
+# fwrite(Tbuf_land_all,
+#        "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/LandUseChange/Tbuf_muller_land_all.csv")
+# #C1
+# C1buf_land_all = fun_ext_land_all(path = path_land, files = file_land,
+#                                  buf = vect_C1buf,
+#                                  info = data_info, lccs = lccs)
+# fwrite(C1buf_land_all,
+#        "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/LandUseChange/C1buf_muller_land_all.csv")
+# #C2
+# C2buf_land_all = fun_ext_land_all(path = path_land, files = file_land,
+#                                  buf = vect_C2buf,
+#                                  info = data_info, lccs = lccs)
+# fwrite(C2buf_land_all,
+#        "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/LandUseChange/C2buf_muller_land_all.csv")
+# #C3
+# C3buf_land_all = fun_ext_land_all(path = path_land, files = file_land,
+#                                  buf = vect_C3buf,
+#                                  info = data_info, lccs = lccs)
+# fwrite(C3buf_land_all,
+#        "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/LandUseChange/C3buf_muller_land_all.csv")
+
+
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                  NDVI                                    ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Restrict NDVI à la Müller et al. 2021  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#As in Müller et al. 2021, we need to restrict the computation of NDVI on pixels 
+## 1 : of type "rainfed cropland" on all the period
+## 2 : with less than 50% of quality flag in a year
+## 3 : they must have a value of NDVI at least one year before/after deal is implemented
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~  Create land raster masks -
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+
+#Path and name of rasters
+path_land = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/LandUseChange/"
+file_land = c(paste0("ESACCI-LC-L4-LCCS-Map-300m-P1Y-", c(2000:2015), "-v2.0.7cds.nc"), 
+              paste0("C3S-LC-L4-LCCS-Map-300m-P1Y-", c(2016:2020), "-v2.1.1.nc"))
+path_ndvi = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/"
+
+#First we get the extent of ndvi raster, and resolution of both land and ndvi rasters 
+ext_ndvi = ext(rast_ndvi)
+res_land = res(rast(paste0(path_land, file_land[1])))
+res_ndvi = res(rast_ndvi)
+fac_agg = (res_ndvi/res_land)[1]
+
+#land rasters for years 2000, 2005, 2010 2015 and 2020 are loaded and 
+#aggregated to match NDVI raster resolution
+
+# rast00 = rast(paste0(path_land, file_land[1])) %>%
+#   select(lccs_class) %>%
+#   aggregate(fact = fac_agg) %>%
+#   crop(ext_ndvi)
+# rast05 = rast(paste0(path_land, file_land[6])) %>%
+#   select(lccs_class) %>%
+#   aggregate(fact = fac_agg) %>%
+#   crop(ext_ndvi)
+# rast10 = rast(paste0(path_land, file_land[11])) %>%
+#   select(lccs_class) %>%
+#   aggregate(fact = fac_agg) %>%
+#   crop(ext_ndvi)
+# rast15 = rast(paste0(path_land, file_land[16])) %>%
+#   select(lccs_class) %>%
+#   aggregate(fact = fac_agg) %>%
+#   crop(ext_ndvi)
+# rast20 = rast(paste0(path_land, file_land[21])) %>%
+#   select(lccs_class) %>%
+#   aggregate(fact = fac_agg) %>%
+#   crop(ext_ndvi)
+
+# writeCDF(rast00, 
+#        filename = paste0(path_land, "rast_land_00_agg3.nc"))
+# writeCDF(rast05, 
+#        filename = paste0(path_land, "rast_land_05_agg3.nc"))
+# writeCDF(rast10, 
+#        filename = paste0(path_land, "rast_land_10_agg3.nc"))
+# writeCDF(rast15, 
+#        filename = paste0(path_land, "rast_land_15_agg3.nc"))
+# writeCDF(rast20, 
+#        filename = paste0(path_land, "rast_land_20_agg3.nc"))
+
+#function to create a mask from a raster and values of interest
+fun_land_mask_def = function(rast, val_to_sel)
+{
+  rast[!(rast$lccs_class %in% val_to_sel), ] = NA
+  rast[rast$lccs_class %in% val_to_sel, ] = 1
+  return(rast)
+}
+
+#transform raster to mask (1 if pixel among values of interest, 0 otherwise)
+#We restrict to rainfed cropland (lccs class among 10,11,12). We do not consider 
+#irrigated cropland because of low coverage worldwide with respect to rainfed croplands 
+#(see figures)
+
+# rast00_mask = fun_land_mask_def(rast00, c(10:12))
+# rast05_mask = fun_land_mask_def(rast05, c(10:12))
+# rast10_mask = fun_land_mask_def(rast10, c(10:12))
+# rast15_mask = fun_land_mask_def(rast15, c(10:12))
+# rast20_mask = fun_land_mask_def(rast20, c(10:12))
+# 
+# plot(rast00_mask)
+# plot(rast05_mask)
+# plot(rast10_mask)
+# plot(rast15_mask)
+# plot(rast20_mask)
+
+#Keep only pixel of value 1 across periods (i.e permanent rainfed cropland)
+
+# rast_land_mask = rast00_mask %>% 
+#   mask(rast05_mask) %>%
+#   mask(rast10_mask) %>%
+#   mask(rast15_mask) %>%
+#   mask(rast20_mask)
+# plot(rast_land_mask)
+# 
+# writeCDF(rast_land_mask, 
+#        filename = paste0(path_land, "rast_land_mask_rfed_resNDVI.nc"))
+
+rast_land_mask = rast(paste0(path_land, "rast_land_mask_rfed_resNDVI.nc"))
+
+````
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ NDVI in "permanent" rainfed cropland  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+#Initialize the new raster from raw NDVI raster
+##Value of NDVI
+rast_ndvi_val_perm_rfed = rast_ndvi %>%
+  select(contains("NDVI"))
+#Quality assessment
+rast_ndvi_qa_perm_rfed = rast_ndvi %>%
+  select(contains("Quality"))
+
+#For each layer of NDVI raster, apply the mask
+##NDVI values
+# for (i in 1:nlyr(rast_ndvi_val_perm_rfed))
+# {
+#   #Apply mask to the layer i
+#   rast_ndvi_val_perm_rfed[[i]] = mask(rast_ndvi_val_perm_rfed[[i]], rast_land_mask)
+#   #Print message to see progression
+#   print(paste("Layer", i, "out of", nlyr(rast_ndvi_val_perm_rfed), "completed :-)"))
+# }
+
+##QA
+# for (i in 1:nlyr(rast_ndvi_qa_perm_rfed))
+# {
+#   #Apply mask to the layer i
+#   rast_ndvi_qa_perm_rfed[[i]] = mask(rast_ndvi_qa_perm_rfed[[i]], rast_land_mask)
+#   #Print message to see progression
+#   print(paste("Layer", i, "out of", nlyr(rast_ndvi_qa_perm_rfed), "completed :-)"))
+# }
+
+#Extract values
+#For QA
+# Tbuf_ndvi_qa_perm_rfed = extract(x = rast_ndvi_qa_perm_rfed, y = vect_Tbuf,
+#                                  raw = TRUE, exact = TRUE) %>%
+#   as.data.frame() %>%
+#   group_by(ID) %>%
+#   mutate(pix_id = paste0(ID, "_", row_number()), .after = ID)
+# 
+# C1buf_ndvi_qa_perm_rfed = extract(x = rast_ndvi_qa_perm_rfed, y = vect_C1buf,
+#                                  raw = TRUE, exact = TRUE) %>%
+#   as.data.frame() %>%
+#   group_by(ID) %>%
+#   mutate(pix_id = paste0(ID, "_", row_number()), .after = ID)
+
+# C2buf_ndvi_qa_perm_rfed = extract(x = rast_ndvi_qa_perm_rfed, y = vect_C2buf,
+#                                  raw = TRUE, exact = TRUE) %>%
+#   as.data.frame() %>%
+#   group_by(ID) %>%
+#   mutate(pix_id = paste0(ID, "_", row_number()), .after = ID)
+# 
+# C3buf_ndvi_qa_perm_rfed = extract(x = rast_ndvi_qa_perm_rfed, y = vect_C3buf,
+#                                  raw = TRUE, exact = TRUE) %>%
+#   as.data.frame() %>%
+#   group_by(ID) %>%
+#   mutate(pix_id = paste0(ID, "_", row_number()), .after = ID)
+
+# fwrite(Tbuf_ndvi_qa_perm_rfed, 
+#        "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/Tbuf_ndvi_qa_perm_rfed.csv")
+# fwrite(C1buf_ndvi_qa_perm_rfed,
+#        "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/C1buf_ndvi_qa_perm_rfed.csv")
+# fwrite(C2buf_ndvi_qa_perm_rfed,
+#        "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/C2buf_ndvi_qa_perm_rfed.csv")
+# fwrite(C3buf_ndvi_qa_perm_rfed,
+#        "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/C3buf_ndvi_qa_perm_rfed.csv")
+
+#For NDVI itself
+# Tbuf_ndvi_val_perm_rfed = extract(x = rast_ndvi_val_perm_rfed, y = vect_Tbuf,
+#                                  raw = TRUE, exact = TRUE) %>%
+#   as.data.frame() %>%
+#   group_by(ID) %>%
+#   mutate(pix_id = paste0(ID, "_", row_number()), .after = ID)
+#  
+# C1buf_ndvi_val_perm_rfed = extract(x = rast_ndvi_val_perm_rfed, y = vect_C1buf,
+#                                  raw = TRUE, exact = TRUE) %>%
+#   as.data.frame() %>%
+#   group_by(ID) %>%
+#   mutate(pix_id = paste0(ID, "_", row_number()), .after = ID)
+
+# C2buf_ndvi_val_perm_rfed = extract(x = rast_ndvi_val_perm_rfed, y = vect_C2buf,
+#                                  raw = TRUE, exact = TRUE) %>%
+#   as.data.frame() %>%
+#   group_by(ID) %>%
+#   mutate(pix_id = paste0(ID, "_", row_number()), .after = ID)
+# 
+# C3buf_ndvi_val_perm_rfed = extract(x = rast_ndvi_val_perm_rfed, y = vect_C3buf,
+#                                  raw = TRUE, exact = TRUE) %>%
+#   as.data.frame() %>%
+#   group_by(ID) %>%
+#   mutate(pix_id = paste0(ID, "_", row_number()), .after = ID)
+
+# fwrite(Tbuf_ndvi_val_perm_rfed,
+#        "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/Tbuf_ndvi_val_perm_rfed.csv")
+# fwrite(C1buf_ndvi_val_perm_rfed,
+#        "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/C1buf_ndvi_val_perm_rfed.csv")
+# fwrite(C2buf_ndvi_val_perm_rfed,
+#        "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/C2buf_ndvi_val_perm_rfed.csv")
+# fwrite(C3buf_ndvi_val_perm_rfed,
+#        "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/C3buf_ndvi_val_perm_rfed.csv")
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Filtering low quality pixels  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+name_ndvi = seq(as.Date("2000-02-01"), as.Date("2022-12-01"), by="months") %>%
+  substr(start = 1, stop = 7) 
+
+#Importing QA extracted data
+Tbuf_ndvi_qa_perm_rfed = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/Tbuf_ndvi_qa_perm_rfed.csv") %>%
+  #Careful : we do not take 2023-01-01 as we perform annual average !
+  select(c(ID, pix_id, fraction, `_1_km_monthly_VI_Quality_1`:`_1_km_monthly_VI_Quality_275`)) 
+names(Tbuf_ndvi_qa_perm_rfed) = c("ID", "pix_id", "fraction", name_ndvi)
+
+C1buf_ndvi_qa_perm_rfed = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/C1buf_ndvi_qa_perm_rfed.csv") %>%
+  select(c(ID, pix_id, fraction, `_1_km_monthly_VI_Quality_1`:`_1_km_monthly_VI_Quality_275`)) 
+names(C1buf_ndvi_qa_perm_rfed) = c("ID", "pix_id", "fraction", name_ndvi)
+
+C2buf_ndvi_qa_perm_rfed = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/C2buf_ndvi_qa_perm_rfed.csv") %>%
+  select(c(ID, pix_id, fraction, `_1_km_monthly_VI_Quality_1`:`_1_km_monthly_VI_Quality_275`)) 
+names(C2buf_ndvi_qa_perm_rfed) = c("ID", "pix_id", "fraction", name_ndvi)
+
+# C3buf_ndvi_qa_perm_rfed = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/C3buf_ndvi_qa_perm_rfed.csv") %>%
+#   select(c(ID, pix_id, fraction, `_1_km_monthly_VI_Quality_1`:`_1_km_monthly_VI_Quality_275`))
+# names(C3buf_ndvi_qa_perm_rfed) = c("ID", "pix_id", "fraction", name_ndvi)
+
+#Define function to convert QA from decimal to bit with 15 figures
+fun_int2bit = function(x)
+{
+  bit = paste(rev(as.integer(intToBits(x)))[18:32], collapse = "")
+  return(bit)
+}
+#Define function to extract VI usefulness parameter from QA bit
+fun_substr_3_6 = function(x)
+{
+  x_sub = substr(x, start = 3, stop = 6)
+  return(x_sub)
+}
+
+#Define dataset with information on treatment year
+data_info_ndvi = data_info %>%
+  #Restrict to 2000-2022 period (data driven), we don't want year_impl = "null" (never implemented deals)
+  subset(year_impl %in% c(2000:2022) | (year_impl %in% c("") & year_cont %in% c(2000:2022))) %>%
+  subset(year_aban > 2022 | year_aban == "null") %>%
+  mutate(year_T = as.numeric(ifelse(year_impl != "", yes = year_impl, no = year_cont)),
+         .after = year_aban)
+
+#Define a function returning the list of bad pixels
+##Need a dataframe with quality assessment for each pixel
+##An informative dataset with the year of treatment for the corresponding parcel
+##A function converting decimal integer to bit properly
+#A function extracting str
+fun_ndvi_qa_pix_filt = function(buf_pix_qa, data_info_ndvi, fun_bit, fun_substr)
+{
+  df1 = buf_pix_qa %>%
+  pivot_longer(cols = contains("-"),
+               names_to = "year_month",
+               values_to = "qa") %>%
+  #Extract year
+  mutate(year = substr(year_month, start = 1, stop = 4), .after = fraction) %>%
+  #Subset QA = NA corresponding to pixels masked (non permanent rainfed)
+  subset(is.na(qa) == FALSE) %>%
+  #Create variables for storing quality assessment in bit, and the useful part (see doc)
+  mutate(qa_bit = NA,
+         qa_bit_use = NA)
+  #Apply bit converting function and extraction function to obtain the four bits of interest
+  df1$qa_bit = lapply(df1$qa, fun_int2bit)
+  df1$qa_bit_use = lapply(df1$qa_bit, fun_substr_3_6)
+
+  #Then in a second dataframe, compute the dummies according to Müller et al. 2021 criteria
+  df2 = df1 %>% 
+   #dummy_pix_per = 1 if pixel OK, 0 if "quality so low it is not useful", "L1B faulty", "not useful for other reason" according to usefulness part of QA bit
+  mutate(dummy_pix_per = !(qa_bit_use %in% c("1101", "1110", "1111"))) %>%
+  #dummy_pix_year = 1 if pixels is OK more than 6 months in a year
+  group_by(ID, pix_id, year) %>%
+  summarize(dummy_pix_year = sum(dummy_pix_per) >= 6) %>%
+  left_join(select(data_info_ndvi, c(ID, year_T)), by = "ID") %>%
+  group_by(pix_id) %>%
+  subset(year == year_T+1 | year == year_T-1) %>%
+  mutate(dummy_pix_pm1 = sum(dummy_pix_year) == 2) %>%
+  ungroup() %>%
+  subset(dummy_pix_pm1 == FALSE)
+  
+  list_pix_bad = sort(unique(df2$pix_id))
+}
+
+#Call the function for T and C1 : list of pixels to remove accroding to Müller et al. 2021 
+list_pix_bad_T = fun_ndvi_qa_pix_filt(Tbuf_ndvi_qa_perm_rfed,
+                                   data_info_ndvi = data_info_ndvi,
+                                   fun_bit = fun_int2bit,
+                                   fun_substr = fun_substr_3_6)
+
+list_pix_bad_C1 = fun_ndvi_qa_pix_filt(C1buf_ndvi_qa_perm_rfed,
+                                   data_info_ndvi = data_info_ndvi,
+                                   fun_bit = fun_int2bit,
+                                   fun_substr = fun_substr_3_6)
+
+list_pix_bad_C2 = fun_ndvi_qa_pix_filt(C2buf_ndvi_qa_perm_rfed,
+                                   data_info_ndvi = data_info_ndvi,
+                                   fun_bit = fun_int2bit,
+                                   fun_substr = fun_substr_3_6)
+
+#Too much for lil'computer memory :(
+# list_pix_bad_C3 = fun_ndvi_qa_pix_filt(C3buf_ndvi_qa_perm_rfed,
+#                                    data_info_ndvi = data_info_ndvi,
+#                                    fun_bit = fun_int2bit,
+#                                    fun_substr = fun_substr_3_6)
+  
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Compute average NDVI in parcels  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+name_ndvi = seq(as.Date("2000-02-01"), as.Date("2022-12-01"), by="months") %>%
+  substr(start = 1, stop = 7) 
+path_ndvi = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/"
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Filter NDVI pixels à la Müller et al. 2021 in buffers  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#Importing NDVI values extracted data
+Tbuf_ndvi_val_perm_rfed = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/Tbuf_ndvi_val_perm_rfed.csv") %>%
+  #Careful : we do not take 2023-01-01 as we perform annual average !
+  select(c(ID, pix_id, fraction, `_1_km_monthly_NDVI_1`:`_1_km_monthly_NDVI_275`)) 
+names(Tbuf_ndvi_val_perm_rfed) = c("ID", "pix_id", "fraction", name_ndvi)
+
+C1buf_ndvi_val_perm_rfed = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/C1buf_ndvi_val_perm_rfed.csv") %>%
+  select(c(ID, pix_id, fraction, `_1_km_monthly_NDVI_1`:`_1_km_monthly_NDVI_275`)) 
+names(C1buf_ndvi_val_perm_rfed) = c("ID", "pix_id", "fraction", name_ndvi)
+
+C2buf_ndvi_val_perm_rfed = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/C2buf_ndvi_val_perm_rfed.csv") %>%
+  select(c(ID, pix_id, fraction, `_1_km_monthly_NDVI_1`:`_1_km_monthly_NDVI_275`)) 
+names(C2buf_ndvi_val_perm_rfed) = c("ID", "pix_id", "fraction", name_ndvi)
+
+# C3buf_ndvi_val_perm_rfed = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/C3buf_ndvi_val_perm_rfed.csv") %>%
+#   select(c(ID, pix_id, fraction, `_1_km_monthly_NDVI_1`:`_1_km_monthly_NDVI_275`))
+# names(C3buf_ndvi_val_perm_rfed) = c("ID", "pix_id", "fraction", name_ndvi)
+
+#Keep only permanent rainfed pixels (non NA values) and "good" pixels
+fun_ndvi_val_pix_filt = function(buf_ndvi_val, list_bad)
+{
+  buf_ndvi_val_muller = buf_ndvi_val %>%
+  #Remove pixels non permanent rainfed : have NA value in all periods year-month
+  pivot_longer(cols = contains("-"),
+               names_to = "year_month",
+               values_to = "ndvi") %>%
+  group_by(pix_id) %>%
+  #If not NA in all periods, then the sum is different than 0 = sum(c(NA...NA), na.rm = TRUE)
+  mutate(dummy_perm_rfed = sum(ndvi, na.rm = TRUE) != 0) %>%
+  ungroup() %>%
+  #Keep only perm-rfed pixels
+  subset(dummy_perm_rfed == 1) %>%
+  #Remove bad pixels compute from QA
+  subset(!(pix_id %in% list_bad)) %>%
+  select(-dummy_perm_rfed) %>%
+  pivot_wider(names_from = "year_month",
+              values_from = "ndvi") %>%
+  group_by(ID) %>%
+  mutate(n_pix = n(), .after = pix_id) %>%
+  ungroup()
+  
+  return(buf_ndvi_val_muller)
+
+}
+
+
+Tbuf_ndvi_val_perm_rfed_muller = fun_ndvi_val_pix_filt(buf_ndvi_val = Tbuf_ndvi_val_perm_rfed,
+                                                       list_bad = list_pix_bad_T)
+C1buf_ndvi_val_perm_rfed_muller = fun_ndvi_val_pix_filt(buf_ndvi_val = C1buf_ndvi_val_perm_rfed,
+                                                       list_bad = list_pix_bad_C1)
+C2buf_ndvi_val_perm_rfed_muller = fun_ndvi_val_pix_filt(buf_ndvi_val = C2buf_ndvi_val_perm_rfed,
+                                                       list_bad = list_pix_bad_C2)
+# C3buf_ndvi_val_perm_rfed_muller = fun_ndvi_val_pix_filt(buf_ndvi_val = C3buf_ndvi_val_perm_rfed,
+#                                                        list_bad = list_pix_bad_C3)
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Average value in a parcel --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Tbuf_ndvi_avg = fun_ext_mean_ndvi(buf_ndvi = Tbuf_ndvi_val_perm_rfed_muller)
+C1buf_ndvi_avg = fun_ext_mean_ndvi(buf_ndvi = C1buf_ndvi_val_perm_rfed_muller)
+C2buf_ndvi_avg = fun_ext_mean_ndvi(buf_ndvi = C2buf_ndvi_val_perm_rfed_muller)
+#C3buf_ndvi_avg = fun_ext_mean_ndvi(buf_ndvi = C3buf_ndvi_val_perm_rfed_muller)
+
+fwrite(Tbuf_ndvi_avg, paste0(path_ndvi, "Tbuf_muller_ndvi_avg.csv"))
+fwrite(C1buf_ndvi_avg, paste0(path_ndvi, "C1buf_muller_ndvi_avg.csv"))
+fwrite(C2buf_ndvi_avg, paste0(path_ndvi, "C2buf_muller_ndvi_avg.csv"))
+#fwrite(C3buf_ndvi_avg, paste0(path_ndvi, "C3buf_muller_ndvi_avg.csv"))
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Standard deviation in a parcel  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#Not used in our study
+
+# Tbuf_ndvi_sd = fun_ext_sd_ndvi(buf_ndvi = Tbuf_ndvi, buf_ndvi_avg = Tbuf_ndvi_avg)
+# C1buf_ndvi_sd = fun_ext_sd_ndvi(buf_ndvi = C1buf_ndvi, buf_ndvi_avg = C1buf_ndvi_avg)
+# C2buf_ndvi_sd = fun_ext_sd_ndvi(buf_ndvi = C2buf_ndvi, buf_ndvi_avg = C2buf_ndvi_avg)
+# C3buf_ndvi_sd = fun_ext_sd_ndvi(buf_ndvi = C3buf_ndvi, buf_ndvi_avg = C3buf_ndvi_avg)
+
+# fwrite(Tbuf_ndvi_sd, paste0(path_ndvi, "Tbuf_muller_ndvi_sd.csv"))
+# fwrite(C1buf_ndvi_sd, paste0(path_ndvi, "C1buf_muller_ndvi_sd.csv"))
+# fwrite(C2buf_ndvi_sd, paste0(path_ndvi, "C2buf_muller_ndvi_sd.csv"))
+# fwrite(C3buf_ndvi_sd, paste0(path_ndvi, "C3buf_muller_ndvi_sd.csv"))
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Mean and max annual value in a parcel --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# Tbuf_ndvi_avg = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/Tbuf_muller_ndvi_avg.csv")
+# C1buf_ndvi_avg = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/C1buf_muller_ndvi_avg.csv")
+# C2buf_ndvi_avg = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/C2buf_muller_ndvi_avg.csv")
+# C3buf_ndvi_avg = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/C3buf_muller_ndvi_avg.csv")
+
+Tbuf_ndvi_avg_yr = fun_ndvi_avg_yr(Tbuf_ndvi_avg)
+C1buf_ndvi_avg_yr = fun_ndvi_avg_yr(C1buf_ndvi_avg)
+C2buf_ndvi_avg_yr = fun_ndvi_avg_yr(C2buf_ndvi_avg)
+# C3buf_ndvi_avg_yr = fun_ndvi_avg_yr(C3buf_ndvi_avg)
+
+fwrite(Tbuf_ndvi_avg_yr, paste0(path_ndvi, "Tbuf_muller_ndvi_yr.csv"))
+fwrite(C1buf_ndvi_avg_yr, paste0(path_ndvi, "C1buf_muller_ndvi_yr.csv"))
+fwrite(C2buf_ndvi_avg_yr, paste0(path_ndvi, "C2buf_muller_ndvi_yr.csv"))
+# fwrite(C3buf_ndvi_avg_yr, paste0(path_ndvi, "C3buf_muller_ndvi_yr.csv"))
+
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                  SPEI                                    ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Extracting data  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#Defining names of variables
+name_spei = paste0("spei_", seq(as.Date("1901-01-16"), as.Date("2021-12-16"), by="months")) %>%
+  substr(start = 1, stop = 12)
+#Defining saving path
+path_spei = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/SPEI/"
+
+#Extracting values for each buffer, and computing buffer average
+##T
+# Tbuf_spei12 = fun_ext_spei12(rast = rast_spei12, buf = vect_Tbuf, name_spei = name_spei)
+# Tbuf_spei12_avg = fun_ext_mean_spei12(buf_spei = Tbuf_spei12)
+# fwrite(Tbuf_spei12, paste0(path_spei, "Tbuf_muller_spei12.csv"))
+# fwrite(Tbuf_spei12_avg, paste0(path_spei, "Tbuf_muller_spei12_avg.csv"))
+
+##C1
+# C1buf_spei12 = fun_ext_spei12(rast = rast_spei12, buf = vect_C1buf, name_spei = name_spei)
+# C1buf_spei12_avg = fun_ext_mean_spei12(buf_spei = C1buf_spei12)
+# fwrite(C1buf_spei12, paste0(path_spei, "C1buf_muller_spei12.csv"))
+# fwrite(C1buf_spei12_avg, paste0(path_spei, "C1buf_muller_spei12_avg.csv"))
+# 
+# ##C2
+# C2buf_spei12 = fun_ext_spei12(rast = rast_spei12, buf = vect_C2buf, name_spei = name_spei)
+# C2buf_spei12_avg = fun_ext_mean_spei12(buf_spei = C2buf_spei12)
+# fwrite(C2buf_spei12, paste0(path_spei, "C2buf_muller_spei12.csv"))
+# fwrite(C2buf_spei12_avg, paste0(path_spei, "C2buf_muller_spei12_avg.csv"))
+# 
+# ##C3
+# C3buf_spei12 = fun_ext_spei12(rast = rast_spei12, buf = vect_C3buf, name_spei = name_spei)
+# C3buf_spei12_avg = fun_ext_mean_spei12(buf_spei = C3buf_spei12)
+# fwrite(C3buf_spei12, paste0(path_spei, "C3buf_muller_spei12.csv"))
+# fwrite(C3buf_spei12_avg, paste0(path_spei, "C3buf_muller_spei12_avg.csv"))
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Defining climate shock  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#Importing data
+Tbuf_spei12_avg = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/SPEI/Tbuf_muller_spei12_avg.csv")
+C1buf_spei12_avg = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/SPEI/C1buf_muller_spei12_avg.csv")
+C2buf_spei12_avg = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/SPEI/C2buf_muller_spei12_avg.csv")
+C3buf_spei12_avg = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/SPEI/C3buf_muller_spei12_avg.csv")
+
+#Computing moderate drought and severe droughts dummies
+Tbuf_spei12_shock = fun_spei_cs(Tbuf_spei12_avg) %>%
+  rename_with(.cols = c("dry_year", "intdry_year"), .fn = ~paste0("T", .x))
+C1buf_spei12_shock = fun_spei_cs(C1buf_spei12_avg) %>%
+  rename_with(.cols = c("dry_year", "intdry_year"), .fn = ~paste0("C1", .x))
+C2buf_spei12_shock = fun_spei_cs(C2buf_spei12_avg) %>%
+  rename_with(.cols = c("dry_year", "intdry_year"), .fn = ~paste0("C2", .x))
+C3buf_spei12_shock = fun_spei_cs(C3buf_spei12_avg) %>%
+  rename_with(.cols = c("dry_year", "intdry_year"), .fn = ~paste0("C2", .x)) 
+
+# fwrite(Tbuf_spei12_shock,
+#        "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/SPEI/Tbuf_muller_spei12_shock.csv")
+# fwrite(C1buf_spei12_shock,
+#        "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/SPEI/C1buf_muller_spei12_shock.csv")
+# fwrite(C2buf_spei12_shock,
+#        "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/SPEI/C2buf_muller_spei12_shock.csv")
+# fwrite(C3buf_spei12_shock,
+#        "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/SPEI/C3buf_muller_spei12_shock.csv")
+
+
+````
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##-----------------------------DESCRIPTIVE STATISTICS---------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                  GDP PPP                                 ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Creating long version of datasets  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##For GDP, measurements stop in 2015. Thus we take average value of GDP evolution 
+##across each sub_region, for deals implemented before 2015 strictly
+
+#Same for gdp_5am_avg_perha
+Tbuf_gdp_5am_avg_perha_lg = Tbuf_gdp_5am_avg_perha %>%
+  rename_with(.fn = ~ sub("GDP_PPP_", "", .x), .cols =  starts_with("GDP")) %>%
+  pivot_longer(cols = as.character(c(1990:2015)), names_to = "year", values_to = "GDP_PPP_T") %>%
+  mutate(ID_year = paste0(ID, "_", year))
+C1buf_gdp_5am_avg_perha_lg = C1buf_gdp_5am_avg_perha %>%
+  rename_with(.fn = ~ sub("GDP_PPP_", "", .x), .cols =  starts_with("GDP")) %>%
+  pivot_longer(cols = as.character(c(1990:2015)), names_to = "year", values_to = "GDP_PPP_C1")%>%
+  mutate(ID_year = paste0(ID, "_", year)) %>%
+  dplyr::select(c(ID_year, GDP_PPP_C1))
+C2buf_gdp_5am_avg_perha_lg = C2buf_gdp_5am_avg_perha %>%
+  rename_with(.fn = ~ sub("GDP_PPP_", "", .x), .cols =  starts_with("GDP")) %>%
+  pivot_longer(cols = as.character(c(1990:2015)), names_to = "year", values_to = "GDP_PPP_C2")%>%
+  mutate(ID_year = paste0(ID, "_", year))%>%
+  dplyr::select(c(ID_year, GDP_PPP_C2))
+C3buf_gdp_5am_avg_perha_lg = C3buf_gdp_5am_avg_perha %>%
+  rename_with(.fn = ~ sub("GDP_PPP_", "", .x), .cols =  starts_with("GDP")) %>%
+  pivot_longer(cols = as.character(c(1990:2015)), names_to = "year", values_to = "GDP_PPP_C3")%>%
+  mutate(ID_year = paste0(ID, "_", year))%>%
+  dplyr::select(c(ID_year, GDP_PPP_C3))
+
+
+
+#and the same for gdp_5am_avg_perha
+data_stat_gdp_5am_avg_perha = data_info %>% 
+  subset((year_impl != '' & year_impl < 2015)) %>% # | (year_impl == '' & year_cont < 2010)) %>%
+  dplyr::select(c(region, sub_region, country, deal_id, loc_id, ID)) %>%
+  left_join(Tbuf_gdp_5am_avg_perha_lg, by = "ID") %>%
+  left_join(C1buf_gdp_5am_avg_perha_lg, by = "ID_year") %>%
+  left_join(C2buf_gdp_5am_avg_perha_lg, by = "ID_year") %>%
+  left_join(C3buf_gdp_5am_avg_perha_lg, by = "ID_year") %>%
+  dplyr::select(-c(ID_year)) %>%
+  group_by(sub_region, year) %>%
+  summarise(n_deal = length(unique(deal_id)),
+            n_par = n(),
+            across(starts_with("GDP"), ~mean(.x, na.rm = TRUE))) %>%
+  #Compute the deviation of T as a share of C1/C2/C3, C1 as a share of C2 and C3, C2 as a share of C3
+  mutate(dev_TC1 = (GDP_PPP_T-GDP_PPP_C1)/GDP_PPP_C1,
+         dev_TC2 = (GDP_PPP_T-GDP_PPP_C2)/GDP_PPP_C2,
+         dev_TC3 = (GDP_PPP_T-GDP_PPP_C3)/GDP_PPP_C3,
+         dev_C1C2 = (GDP_PPP_C1-GDP_PPP_C2)/GDP_PPP_C2,
+         dev_C1C3 = (GDP_PPP_C1-GDP_PPP_C3)/GDP_PPP_C3,
+         dev_C2C3 = (GDP_PPP_C2-GDP_PPP_C3)/GDP_PPP_C3)
+
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Plotting GDP in relative values  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#Plotting : a figure with one plot for each sub_region (as need multi scales)
+##GDP PPP per ha; variation of GDP per ha in T relative to C1/C2/C3; variation in C1 relative to C2; variation in C2 relative to C3
+#As the GDP dataset stops in 2015 we consider deals whose implementation date is strictly before 2015
+#A list of plot is first created in a loop
+list_sub_region = unique(data_stat_gdp_5am_avg_perha$sub_region)
+list_sub_accro = c("EE", "LA", "Mel", "NA", "SEAs", "SE", "SSA")
+list_fig_gdp_5_am_avg_perha = list()
+
+##For GDP_5am_avg
+for (i in 1:length(list_sub_region))
+{
+  fig_gdp_5am_avg_perha_temp = ggplot(data = subset(data_stat_gdp_5am_avg_perha, sub_region == list_sub_region[i] & year >=2000)) %>%
+  + geom_point(aes(x = year, y = log(GDP_PPP_T), group = sub_region), color = "#08519C") %>%
+  + geom_line(aes(x = year, y = log(GDP_PPP_T), group = sub_region, color = "T"), linetype = "solid") %>%
+  + geom_point(aes(x = year, y = log(GDP_PPP_C1), group = sub_region), color = "#3182BD") %>%
+  + geom_line(aes(x = year, y = log(GDP_PPP_C1), group = sub_region, color = "C1"), linetype = "dashed") %>%
+  + geom_point(aes(x = year, y = log(GDP_PPP_C2), group = sub_region), color = "#6BAED6") %>%
+  + geom_line(aes(x = year, y = log(GDP_PPP_C2), group = sub_region, color = "C2"), linetype = "dashed") %>%
+  + geom_point(aes(x = year, y = log(GDP_PPP_C3), group = sub_region), color = "#C6DBEF") %>%
+  + geom_line(aes(x = year, y = log(GDP_PPP_C3), group = sub_region, color = "C3"), linetype = "dashed") %>%
+  # + geom_point(aes(x = year, y = dev_TC1, group = sub_region), color = "#08519C") %>%
+  # + geom_line(aes(x = year, y = dev_TC1, group = sub_region, color = "T as C1"), linetype = "solid") %>%
+  # + geom_point(aes(x = year, y = dev_TC2, group = sub_region), color ="#6BAED6") %>%
+  # + geom_line(aes(x = year, y = dev_TC2, group = sub_region, color = "T as C2"), linetype = "solid") %>%
+  # + geom_point(aes(x = year, y = dev_TC3, group = sub_region), color = "#C6DBEF") %>%
+  # + geom_line(aes(x = year, y = dev_TC3, group = sub_region, color = "T as C3"), linetype = "solid") %>%
+  # + geom_point(aes(x = year, y = dev_C1C2, group = sub_region), color = "#08519C") %>%
+  # + geom_line(aes(x = year, y = dev_C1C2, group = sub_region, color = "C1 as C2"), linetype = "solid") %>%
+  # + geom_point(aes(x = year, y = dev_C2C3, group = sub_region), color = "#08519C") %>%
+  # + geom_line(aes(x = year, y = dev_C2C3, group = sub_region, color = "C2 as C3"), linetype = "solid") %>%
+  + scale_y_continuous(labels = function(x) format(x, digits = 3, scientific = TRUE)) %>%
+  + scale_color_manual(name = "Buffer",
+                       values = c("T" = "#08519C", "C1" = "#3182BD", "C2" = "#6BAED6", "C3" = "#C6DBEF"#,
+                                  #"T as C1" = "#08519C"#,
+                                    #"T as C2" = "#6BAED6",
+                                    #"T as C3" = "#C6DBEF",
+                                  #"C1 as C2" = "#08519C",
+                                  #"C2 as C3" = "#08519C"
+                                     )) %>%
+  + labs(x = '', y = '', 
+         title = list_sub_region[i],
+         caption = paste("Note :", subset(data_stat_gdp_5am_avg_perha, sub_region == list_sub_region[i])[1,]$n_par, "parcel(s) in ", subset(data_stat_gdp_5am_avg_perha, sub_region == list_sub_region[i])[1,]$n_deal, "deal(s)")) %>%
+  + theme(legend.position = "bottom",
+          legend.key = element_rect(fill = "white"),
+          plot.title = element_text(hjust = 0), 
+          axis.text.x = element_text(angle = 90),
+          panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+          ) 
+  list_fig_gdp_5_am_avg_perha[[i]] = fig_gdp_5am_avg_perha_temp
+  plot(list_fig_gdp_5_am_avg_perha[[i]])
+}
+
+#Then a multi plot is created from the list
+mplot_gdp_5am_avg_perha = plot_grid(plotlist = list_fig_gdp_5_am_avg_perha,
+                        align = "hv",
+                        nrow = 3,
+                        ncol = 3,
+                        labels = "AUTO"
+                        ) 
+
+#Adding a common x and y axis
+#y.grob <- textGrob("Relative GDP gap between buffers \n(PPP per ha, constant international 2011 US dollars)",
+y.grob <- textGrob("log of GDP PPP per ha \n(constant international 2011 US dollars)",
+                 gp=gpar(fontface = "bold", fontsize=15), rot=90)
+x.grob <- textGrob("Year", 
+                 gp=gpar(fontface = "bold", fontsize=15))
+
+  
+#Building the final figure
+fig_gdp_5am_avg_perha = grid.arrange(arrangeGrob(mplot_gdp_5am_avg_perha, left = y.grob, bottom = x.grob))
+
+ggsave(plot = fig_gdp_5am_avg_perha,
+       filename = "fig_gdp_5am_avg_perha_log_all_2000_2015.jpeg",
+       path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/GDP',
+       width = 15, height = 10)
+
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                  LAND USE                                ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Generate datasets  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+Tbuf_land_all = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/LandUseChange/Tbuf_muller_land_all.csv")
+C1buf_land_all = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/LandUseChange/C1buf_muller_land_all.csv")
+C2buf_land_all = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/LandUseChange/C2buf_muller_land_all.csv")
+C3buf_land_all = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/LandUseChange/C3buf_muller_land_all.csv")
+
+#Total area (T, C1/C2/C3) and number of parcels for each sub-region (fixed over years)
+
+temp_T = Tbuf_land_all %>%
+  group_by(sub_region, year) %>%
+  mutate(T_tot_subreg_km2 = sum(area_m2)/1e3,
+         n_deal_subreg = length(unique(deal_id)),
+         n_par_subreg = length(unique(ID))) %>%
+  ungroup(year) %>%
+  slice(1) %>%
+  select(c(region, sub_region, T_tot_subreg_km2, n_deal_subreg, n_par_subreg))
+temp_C1 = C1buf_land_all %>%
+  group_by(sub_region, year) %>%
+  mutate(C1_tot_subreg_km2 = sum(area_m2)/1e3) %>%
+  ungroup(year) %>%
+  slice(1) %>%
+  select(c(sub_region, C1_tot_subreg_km2))
+temp_C2 = C2buf_land_all %>%
+  group_by(sub_region, year) %>%
+  mutate(C2_tot_subreg_km2 = sum(area_m2)/1e3) %>%
+  ungroup(year) %>%
+  slice(1) %>%
+  select(c(sub_region, C2_tot_subreg_km2))
+temp_C3 = C3buf_land_all %>%
+  group_by(sub_region, year) %>%
+  mutate(C3_tot_subreg_km2 = sum(area_m2)/1e3) %>%
+  ungroup(year) %>%
+  slice(1) %>%
+  select(c(sub_region, C3_tot_subreg_km2))
+info_stat_land_subreg = temp_T %>%
+  left_join(temp_C1, by = "sub_region") %>%
+  left_join(temp_C2, by = "sub_region") %>%
+  left_join(temp_C3, by = "sub_region")
+rm(temp_T, temp_C1, temp_C2, temp_C3)
+
+
+#Rearrange dataset for the different buffers : 
+#Area of each lccs_class for each sub-region, year
+##T
+Tbuf_land_all_subreg = Tbuf_land_all %>%
+  group_by(sub_region, year, ipcc_class, lccs_class) %>%
+  summarise(area_subreg_m2 = sum(area_m2)) %>%
+  rename("T_area_subreg_m2" = "area_subreg_m2") %>%
+  mutate(T_area_subreg_km2 = T_area_subreg_m2/1e3, 
+         key_join = paste0(sub_region, "+", lccs_class, "+", year),
+         .after = T_area_subreg_m2) %>%
+  select(-T_area_subreg_m2)
+##C1
+C1buf_land_all_subreg = C1buf_land_all %>%
+  group_by(sub_region, year, ipcc_class, lccs_class) %>%
+  summarise(area_subreg_m2 = sum(area_m2)) %>%
+  rename("C1_area_subreg_m2" = "area_subreg_m2") %>%
+  mutate(C1_area_subreg_km2 = C1_area_subreg_m2/1e3, 
+         key_join = paste0(sub_region, "+", lccs_class, "+", year),
+         .after = C1_area_subreg_m2) %>%
+  ungroup() %>%
+  select(c(key_join, C1_area_subreg_km2))
+##C2
+C2buf_land_all_subreg = C2buf_land_all %>%
+  group_by(sub_region, year, ipcc_class, lccs_class) %>%
+  summarise(area_subreg_m2 = sum(area_m2)) %>%
+  rename("C2_area_subreg_m2" = "area_subreg_m2") %>%
+  mutate(C2_area_subreg_km2 = C2_area_subreg_m2/1e3, 
+         key_join = paste0(sub_region, "+", lccs_class, "+", year),
+         .after = C2_area_subreg_m2) %>%
+    ungroup() %>%
+  select(c(key_join, C2_area_subreg_km2))
+##C3
+C3buf_land_all_subreg = C3buf_land_all %>%
+  group_by(sub_region, year, ipcc_class, lccs_class) %>%
+  summarise(area_subreg_m2 = sum(area_m2)) %>%
+  rename("C3_area_subreg_m2" = "area_subreg_m2") %>%
+  mutate(C3_area_subreg_km2 = C3_area_subreg_m2/1e3, 
+         key_join = paste0(sub_region, "+", lccs_class, "+", year),
+         .after = C3_area_subreg_m2) %>%
+  ungroup() %>%
+  select(c(key_join, C3_area_subreg_km2))
+
+#Join in a dataset information for all buffers : lccs_class
+data_stat_land_lccs_subreg = Tbuf_land_all_subreg %>%
+  left_join(C1buf_land_all_subreg, by = "key_join") %>%
+  left_join(C2buf_land_all_subreg, by = "key_join") %>%
+  left_join(C3buf_land_all_subreg, by = "key_join") %>%
+  left_join(select(info_stat_land_subreg, 
+                   c(sub_region, n_deal_subreg, n_par_subreg, 
+                     T_tot_subreg_km2,C1_tot_subreg_km2, C2_tot_subreg_km2, C3_tot_subreg_km2))
+                   , by = "sub_region") %>%
+  mutate(T_shr_subreg = T_area_subreg_km2/T_tot_subreg_km2,
+         C1_shr_subreg = C1_area_subreg_km2/C1_tot_subreg_km2,
+         C2_shr_subreg = C2_area_subreg_km2/C2_tot_subreg_km2,
+         C3_shr_subreg = C3_area_subreg_km2/C3_tot_subreg_km2) %>%
+  select(c(sub_region, year, n_deal_subreg, n_par_subreg,
+           ipcc_class, lccs_class, T_shr_subreg, C1_shr_subreg, C2_shr_subreg, C3_shr_subreg))
+
+#...ipcc class by joining lccs_class
+data_stat_land_ipcc_subreg = data_stat_land_lccs_subreg %>%
+  group_by(sub_region, year, ipcc_class) %>% 
+  summarise(T_shr_subreg = sum(T_shr_subreg, na.rm = TRUE),
+            C1_shr_subreg = sum(C1_shr_subreg, na.rm = TRUE),
+            C2_shr_subreg = sum(C2_shr_subreg, na.rm = TRUE),
+            C3_shr_subreg = sum(C3_shr_subreg, na.rm = TRUE))
+
+#... true agricultural area, with corrective coefficients
+data_stat_land_TrueAgri_subreg = data_stat_land_lccs_subreg %>%
+  left_join(select(lccs, c(lccs_class, coef_agri)), by = "lccs_class") %>%
+  group_by(sub_region, year) %>%
+  summarise(across(.cols = c("T_shr_subreg", "C1_shr_subreg", "C2_shr_subreg", "C3_shr_subreg"),
+                   .fn = ~sum(.x*coef_agri, na.rm = TRUE))) %>%
+  ungroup()
+
+
+#..rainfed
+data_stat_land_rain_subreg = data_stat_land_lccs_subreg %>%
+  subset(lccs_class %in% c(10,11,12)) %>%
+  group_by(sub_region, year) %>% 
+  summarise(T_shr_subreg = sum(T_shr_subreg, na.rm = TRUE),
+            C1_shr_subreg = sum(C1_shr_subreg, na.rm = TRUE),
+            C2_shr_subreg = sum(C2_shr_subreg, na.rm = TRUE),
+            C3_shr_subreg = sum(C3_shr_subreg, na.rm = TRUE)) 
+
+#irrigated
+data_stat_land_irri_subreg = data_stat_land_lccs_subreg %>%
+  subset(lccs_class %in% c(20)) %>%
+  group_by(sub_region, year) %>% 
+  summarise(T_shr_subreg = sum(T_shr_subreg, na.rm = TRUE),
+            C1_shr_subreg = sum(C1_shr_subreg, na.rm = TRUE),
+            C2_shr_subreg = sum(C2_shr_subreg, na.rm = TRUE),
+            C3_shr_subreg = sum(C3_shr_subreg, na.rm = TRUE)) 
+
+#mosaic cropland
+data_stat_land_mosacrop_subreg = data_stat_land_lccs_subreg %>%
+  subset(lccs_class %in% c(30)) %>%
+  group_by(sub_region, year) %>% 
+  summarise(T_shr_subreg = sum(T_shr_subreg, na.rm = TRUE),
+            C1_shr_subreg = sum(C1_shr_subreg, na.rm = TRUE),
+            C2_shr_subreg = sum(C2_shr_subreg, na.rm = TRUE),
+            C3_shr_subreg = sum(C3_shr_subreg, na.rm = TRUE)) 
+
+#mosaic natural
+data_stat_land_mosaveg_subreg = data_stat_land_lccs_subreg %>%
+  subset(lccs_class %in% c(40)) %>%
+  group_by(sub_region, year) %>% 
+  summarise(T_shr_subreg = sum(T_shr_subreg, na.rm = TRUE),
+            C1_shr_subreg = sum(C1_shr_subreg, na.rm = TRUE),
+            C2_shr_subreg = sum(C2_shr_subreg, na.rm = TRUE),
+            C3_shr_subreg = sum(C3_shr_subreg, na.rm = TRUE))
+
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Plotting IPCC classes  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+##In absolute value 
+
+list_ipcc_class = unique(lccs$ipcc_class)
+list_ipcc_name = c("No data", "Agricultural land", "Forest", "Grassland", "Other type of land", "Wetland", "Urban settlement", "Snow and ice")
+list_sub_region = unique(data_stat_land_subreg$sub_region)
+list_fig_land_all = c()
+list_fig_land_T = c()
+
+for (i in 1:length(list_ipcc_class))
+{
+  list_fig_land_i_all = c()
+  list_fig_land_i_T = c()
+  for (j in 1:length(list_sub_region))
+  {
+    #We select data drom sub-region j and land class i
+    fig_land_temp_ij_all = ggplot(data = subset(data_stat_land_ipcc_subreg, 
+                                            sub_region == list_sub_region[j] 
+                                            & ipcc_class == list_ipcc_class[i])) %>%
+  #ABSOLUTE VARATION
+  + geom_point(aes(x = year, y = T_shr_subreg*100, group = sub_region),
+               color = "#08519C") %>%
+  + geom_line(aes(x = year, y = T_shr_subreg*100, group = sub_region, color = "T"),
+              linetype = "solid") %>%
+  + geom_point(aes(x = year, y = C1_shr_subreg*100, group = sub_region), color = "#3182BD") %>%
+  + geom_line(aes(x = year, y = C1_shr_subreg*100, group = sub_region, color = "C1"), linetype = "dashed") %>%
+  + geom_point(aes(x = year, y = C2_shr_subreg*100, group = sub_region), color = "#6BAED6") %>%
+  + geom_line(aes(x = year, y = C2_shr_subreg*100, group = sub_region, color = "C2"), linetype = "dashed") %>%
+  + geom_point(aes(x = year, y = C3_shr_subreg*100, group = sub_region), color = "#C6DBEF") %>%
+  + geom_line(aes(x = year, y = C3_shr_subreg*100, group = sub_region, color = "C3"), linetype = "dashed") %>%
+  + scale_y_continuous(labels = function(x) format(x, digits = 3, scientific = FALSE)) %>%
+  + scale_color_manual(name = "Buffer",
+                       values = c("T" = "#08519C",
+                                  "C1" = "#3182BD",
+                                  "C2" = "#6BAED6",
+                                  "C3" = "#C6DBEF"
+                                  )) %>%
+
+  + labs(x = '', y = '', 
+         title = list_sub_region[j],
+         subtitle = list_ipcc_name[i],
+         caption = paste("Note :", subset(info_stat_land_subreg, sub_region == list_sub_region[j])[1,]$n_par_subreg, "parcel(s) in ", subset(info_stat_land_subreg, sub_region == list_sub_region[j])[1,]$n_deal_subreg, "deal(s) covering about", format(subset(info_stat_land_subreg, sub_region == list_sub_region[j])[1,]$T_tot_subreg_km2, scientific = TRUE, digits = 1), "km2. Relative gap is defined as the difference (X-Y)/Y.")) %>%
+  + theme(legend.position = "bottom",
+          legend.key = element_rect(fill = "white"),
+          plot.title = element_text(hjust = 0), 
+          axis.text.x = element_text(angle = 90),
+          panel.background = element_rect(fill = 'white', colour = 'white', 
+                                          linewidth = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+          ) 
+
+  fig_land_temp_ij_T = ggplot(data = subset(data_stat_land_ipcc_subreg, 
+                                            sub_region == list_sub_region[j] 
+                                            & ipcc_class == list_ipcc_class[i])) %>%
+  + geom_point(aes(x = year, y = T_shr_subreg*100, group = sub_region), 
+               color = "#08519C") %>%
+  + geom_line(aes(x = year, y = T_shr_subreg*100, group = sub_region, color = "T"), 
+              linetype = "solid") %>%
+  + scale_y_continuous(labels = function(x) format(x, digits = 2, scientific = TRUE)) %>%
+  + scale_color_manual(name = "Buffer",
+                       values = c("T" = "#08519C")) %>%
+  + labs(x = '', y = '', 
+         title = list_sub_region[j],
+         subtitle = list_ipcc_name[i],
+         caption = paste("Note :", subset(info_stat_land_subreg, sub_region == list_sub_region[j])[1,]$n_par_subreg, "parcel(s) in ", subset(info_stat_land_subreg, sub_region == list_sub_region[j])[1,]$n_deal_subreg, "deal(s) covering about", format(subset(info_stat_land_subreg, sub_region == list_sub_region[j])[1,]$T_tot_subreg_km2, scientific = FALSE, digits = 2), "km2")) %>%
+  + theme(legend.position = "bottom",
+          legend.key = element_rect(fill = "white"),
+          plot.title = element_text(hjust = 0), 
+          axis.text.x = element_text(angle = 90),
+          panel.background = element_rect(fill = 'white', colour = 'white', 
+                                          linewidth = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+          )  
+    
+  list_fig_land_i_all[[j]] = fig_land_temp_ij_all
+  list_fig_land_i_T[[j]] = fig_land_temp_ij_T
+  }
+  list_fig_land_all[[i]] = list_fig_land_i_all
+  list_fig_land_T[[i]] = list_fig_land_i_T
+  
+  #Then a multi plot is created from the list
+  mplot_land_i_all = plot_grid(plotlist = list_fig_land_all[[i]],
+                        align = "hv",
+                        nrow = 3,
+                        ncol = 3,
+                        labels = "AUTO"
+                        )
+  mplot_land_i_T = plot_grid(plotlist = list_fig_land_T[[i]],
+                        align = "hv",
+                        nrow = 3,
+                        ncol = 3,
+                        labels = "AUTO"
+                        ) 
+  #Adding a common x and y axis
+  y.grob <- textGrob("Area covered (%)", 
+                   gp=gpar(fontface = "bold", fontsize=15), rot=90)
+  x.grob <- textGrob("Year", 
+                   gp=gpar(fontface = "bold", fontsize=15))
+  #Building the final figure
+  fig_i_all = grid.arrange(arrangeGrob(mplot_land_i_all, left = y.grob, bottom = x.grob))
+  fig_i_T = grid.arrange(arrangeGrob(mplot_land_i_T, left = y.grob, bottom = x.grob))
+  ggsave(plot = fig_i_all,
+       filename = paste0("fig_land_", list_ipcc_class[i], "_all.jpeg"),
+       path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/LandUseChange',
+       width = 15, height = 10)
+  ggsave(plot = fig_i_T,
+       filename = paste0("fig_land_", list_ipcc_class[i], "_T.jpeg"),
+       path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/LandUseChange',
+       width = 15, height = 10)
+}
+
+
+#In relative gap
+
+list_ipcc_class = unique(lccs$ipcc_class)
+list_ipcc_name = c("No data", "Agricultural land", "Forest", "Grassland", "Other type of land", "Wetland", "Urban settlement", "Snow and ice")
+list_sub_region = unique(data_stat_land_subreg$sub_region)
+list_fig_land_all = c()
+
+
+for (i in 1:length(list_ipcc_class))
+{
+  list_fig_land_i_all = c()
+  list_fig_land_i_T = c()
+  for (j in 1:length(list_sub_region))
+  {
+    #We select data drom sub-region j and land class i
+    fig_land_temp_ij_all = ggplot(data = subset(data_stat_land_ipcc_subreg, 
+                                            sub_region == list_sub_region[j] 
+                                            & ipcc_class == list_ipcc_class[i])) %>%
+
+  #RELATIVE DEVIATION
+  # + geom_point(aes(x = year, y = (T_shr_subreg-C1_shr_subreg)/C1_shr_subreg, group = sub_region), 
+  #              color = "#08519C") %>%
+  # + geom_line(aes(x = year, y = (T_shr_subreg-C1_shr_subreg)/C1_shr_subreg, group = sub_region, color = "T as C1"), linetype = "solid") %>%
+  # + geom_point(aes(x = year, y = (C1_shr_subreg-C2_shr_subreg)/C2_shr_subreg, group = sub_region),
+  #              color = "#08519C") %>%
+  # + geom_line(aes(x = year, y = (C1_shr_subreg-C2_shr_subreg)/C2_shr_subreg, group = sub_region, color = "C1 as C2"), linetype = "solid") %>%
+  + geom_point(aes(x = year, y = (C2_shr_subreg-C3_shr_subreg)/C3_shr_subreg, group = sub_region),
+               color = "#08519C") %>%
+  + geom_line(aes(x = year, y = (C2_shr_subreg-C3_shr_subreg)/C3_shr_subreg, group = sub_region, color = "C2 as C3"), linetype = "solid") %>%
+  + scale_y_continuous(labels = function(x) format(x, digits = 3, scientific = FALSE)) %>%
+  + scale_color_manual(name = "Buffer",
+                       values = c(#"T as C1" = "#08519C",
+                                  #"C1 as C2" = "#08519C",
+                                  "C2 as C3" = "#08519C"
+                                  )) %>%
+  + labs(x = '', y = '', 
+         title = list_sub_region[j],
+         subtitle = list_ipcc_name[i],
+         caption = paste("Note :", subset(info_stat_land_subreg, sub_region == list_sub_region[j])[1,]$n_par_subreg, "parcel(s) in ", subset(info_stat_land_subreg, sub_region == list_sub_region[j])[1,]$n_deal_subreg, "deal(s) covering about", format(subset(info_stat_land_subreg, sub_region == list_sub_region[j])[1,]$T_tot_subreg_km2, scientific = TRUE, digits = 1), "km2. \nRelative gap is defined as the difference (X-Y)/Y.")) %>%
+  + theme(legend.position = "bottom",
+          legend.key = element_rect(fill = "white"),
+          plot.title = element_text(hjust = 0), 
+          axis.text.x = element_text(angle = 90),
+          panel.background = element_rect(fill = 'white', colour = 'white', 
+                                          linewidth = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+          plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+          ) 
+  list_fig_land_i_all[[j]] = fig_land_temp_ij_all
+  }
+  list_fig_land_all[[i]] = list_fig_land_i_all
+
+  #Then a multi plot is created from the list
+  mplot_land_i_all = plot_grid(plotlist = list_fig_land_all[[i]],
+                        align = "hv",
+                        nrow = 3,
+                        ncol = 3,
+                        labels = "AUTO"
+                        )
+
+  #Adding a common x and y axis
+  y.grob <- textGrob("Relative gap of land type share", 
+                   gp=gpar(fontface = "bold", fontsize=15), rot=90)
+  x.grob <- textGrob("Year", 
+                   gp=gpar(fontface = "bold", fontsize=15))
+  #Building the final figure
+  fig_i_all = grid.arrange(arrangeGrob(mplot_land_i_all, left = y.grob, bottom = x.grob))
+  ggsave(plot = fig_i_all,
+       filename = paste0("fig_land_", list_ipcc_class[i], "_C2C3.jpeg"),
+       path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/LandUseChange',
+       width = 15, height = 10)
+
+}
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Plotting true agri. land --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+##In absolute value 
+
+list_sub_region = unique(data_stat_land_TrueAgri_subreg$sub_region)
+list_fig_land_all = c()
+list_fig_land_T = c()
+
+for (j in 1:length(list_sub_region))
+{
+  #We select data drom sub-region j and land class i
+  fig_land_temp_j_all = ggplot(data = subset(data_stat_land_TrueAgri_subreg, 
+                                          sub_region == list_sub_region[j])) %>%
+#ABSOLUTE VARATION
++ geom_point(aes(x = year, y = T_shr_subreg*100, group = sub_region),
+             color = "#08519C") %>%
++ geom_line(aes(x = year, y = T_shr_subreg*100, group = sub_region, color = "T"),
+            linetype = "solid") %>%
++ geom_point(aes(x = year, y = C1_shr_subreg*100, group = sub_region), color = "#3182BD") %>%
++ geom_line(aes(x = year, y = C1_shr_subreg*100, group = sub_region, color = "C1"), linetype = "dashed") %>%
++ geom_point(aes(x = year, y = C2_shr_subreg*100, group = sub_region), color = "#6BAED6") %>%
++ geom_line(aes(x = year, y = C2_shr_subreg*100, group = sub_region, color = "C2"), linetype = "dashed") %>%
++ geom_point(aes(x = year, y = C3_shr_subreg*100, group = sub_region), color = "#C6DBEF") %>%
++ geom_line(aes(x = year, y = C3_shr_subreg*100, group = sub_region, color = "C3"), linetype = "dashed") %>%
++ scale_y_continuous(labels = function(x) format(x, digits = 3, scientific = FALSE)) %>%
++ scale_color_manual(name = "Buffer",
+                     values = c("T" = "#08519C",
+                                "C1" = "#3182BD",
+                                "C2" = "#6BAED6",
+                                "C3" = "#C6DBEF"
+                                )) %>%
+
++ labs(x = '', y = '', 
+       title = list_sub_region[j],
+       subtitle = "Agricultural land",
+       caption = paste("Note :", subset(info_stat_land_subreg, sub_region == list_sub_region[j])[1,]$n_par_subreg, "parcel(s) in ", subset(info_stat_land_subreg, sub_region == list_sub_region[j])[1,]$n_deal_subreg, "deal(s) covering about", format(subset(info_stat_land_subreg, sub_region == list_sub_region[j])[1,]$T_tot_subreg_km2, scientific = TRUE, digits = 1), "km2.")) %>%
++ theme(legend.position = "bottom",
+        legend.key = element_rect(fill = "white"),
+        plot.title = element_text(hjust = 0), 
+        axis.text.x = element_text(angle = 90),
+        panel.background = element_rect(fill = 'white', colour = 'white', 
+                                        linewidth = 0.5, linetype = 'solid'),
+        panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+        panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+        plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+        ) 
+
+fig_land_temp_j_T = ggplot(data = subset(data_stat_land_TrueAgri_subreg, 
+                                          sub_region == list_sub_region[j])) %>%
++ geom_point(aes(x = year, y = T_shr_subreg*100, group = sub_region), 
+             color = "#08519C") %>%
++ geom_line(aes(x = year, y = T_shr_subreg*100, group = sub_region, color = "T"), 
+            linetype = "solid") %>%
++ scale_y_continuous(labels = function(x) format(x, digits = 2, scientific = TRUE)) %>%
++ scale_color_manual(name = "Buffer",
+                     values = c("T" = "#08519C")) %>%
++ labs(x = '', y = '', 
+       title = list_sub_region[j],
+       subtitle = "Agricultural land",
+       caption = paste("Note :", subset(info_stat_land_subreg, sub_region == list_sub_region[j])[1,]$n_par_subreg, "parcel(s) in ", subset(info_stat_land_subreg, sub_region == list_sub_region[j])[1,]$n_deal_subreg, "deal(s) covering about", format(subset(info_stat_land_subreg, sub_region == list_sub_region[j])[1,]$T_tot_subreg_km2, scientific = FALSE, digits = 2), "km2.")) %>%
++ theme(legend.position = "bottom",
+        legend.key = element_rect(fill = "white"),
+        plot.title = element_text(hjust = 0), 
+        axis.text.x = element_text(angle = 90),
+        panel.background = element_rect(fill = 'white', colour = 'white', 
+                                        linewidth = 0.5, linetype = 'solid'),
+        panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+        panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+        plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+        )  
+  
+list_fig_land_all[[j]] = fig_land_temp_j_all
+list_fig_land_T[[j]] = fig_land_temp_j_T
+}
+
+#Then a multi plot is created from the list
+mplot_land_all = plot_grid(plotlist = list_fig_land_all,
+                      align = "hv",
+                      nrow = 3,
+                      ncol = 3,
+                      labels = "AUTO"
+                      )
+mplot_land_T = plot_grid(plotlist = list_fig_land_T,
+                      align = "hv",
+                      nrow = 3,
+                      ncol = 3,
+                      labels = "AUTO"
+                      ) 
+#Adding a common x and y axis
+y.grob <- textGrob("Area covered (%)", 
+                 gp=gpar(fontface = "bold", fontsize=15), rot=90)
+x.grob <- textGrob("Year", 
+                 gp=gpar(fontface = "bold", fontsize=15))
+#Building the final figure
+fig_all = grid.arrange(arrangeGrob(mplot_land_all, left = y.grob, bottom = x.grob))
+fig_T = grid.arrange(arrangeGrob(mplot_land_T, left = y.grob, bottom = x.grob))
+ggsave(plot = fig_all,
+     filename = "fig_land_TrueAgri_all.jpeg",
+     path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/LandUseChange',
+     width = 15, height = 10)
+ggsave(plot = fig_T,
+     filename = "fig_land_TrueAgri_T.jpeg",
+     path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/LandUseChange',
+     width = 15, height = 10)
+}
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Plotting IPCC sub-classes -
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`````{r}
+
+list_sub_region = unique(data_stat_land_subreg$sub_region)
+
+fig_land_lccs_abs(data = data_stat_land_rain_subreg, data_info = info_stat_land_subreg,
+                  list_sub_region = list_sub_region,
+                  subtitle = "Rainfed cropland", 
+                  caption = "",
+                  path_save = "rainfed",
+                  save_name = "rain")
+fig_land_lccs_abs(data = data_stat_land_irri_subreg, data_info = info_stat_land_subreg,
+                  list_sub_region = list_sub_region,
+                  subtitle = "Irrigated cropland", 
+                  caption = "",
+                  path_save = "irrigated",
+                  save_name = "irri")
+fig_land_lccs_abs(data = data_stat_land_mosacrop_subreg, data_info = info_stat_land_subreg,
+                  list_sub_region = list_sub_region,
+                  subtitle = "Mosaic cropland", 
+                  caption = "\nMosaic cropland (>50%) and natural vegetation (<50%)",
+                  path_save = "mosaic_crop",
+                  save_name = "mosacrop")
+fig_land_lccs_abs(data = data_stat_land_mosaveg_subreg, data_info = info_stat_land_subreg,
+                  list_sub_region = list_sub_region,
+                  subtitle = "Mosaic natural vegetation", 
+                  caption = "\nMosaic natural vegetation (>50%) and cropland (<50%)",
+                  path_save = "mosaic_veg",
+                  save_name = "mosaveg")
+
+fig_land_lccs_rel(data = data_stat_land_rain_subreg, data_info = info_stat_land_subreg,
+                  list_sub_region = list_sub_region,
+                  subtitle = "Rainfed cropland", 
+                  caption = "",
+                  path_save = "rainfed",
+                  save_name = "rain")
+fig_land_lccs_rel(data = data_stat_land_irri_subreg, data_info = info_stat_land_subreg,
+                  list_sub_region = list_sub_region,
+                  subtitle = "Irrigated cropland", 
+                  caption = "",
+                  path_save = "irrigated",
+                  save_name = "irri")
+fig_land_lccs_rel(data = data_stat_land_mosacrop_subreg, data_info = info_stat_land_subreg,
+                  list_sub_region = list_sub_region,
+                  subtitle = "Mosaic cropland", 
+                  caption = "\nMosaic cropland (>50%) and natural vegetation (<50%)",
+                  path_save = "mosaic_crop",
+                  save_name = "mosacrop")
+fig_land_lccs_rel(data = data_stat_land_mosaveg_subreg, data_info = info_stat_land_subreg,
+                  list_sub_region = list_sub_region,
+                  subtitle = "Mosaic natural vegetation", 
+                  caption = "\nMosaic natural vegetation (>50%) and cropland (<50%)",
+                  path_save = "mosaic_veg",
+                  save_name = "mosaveg")
+
+
+````
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                  NDVI                                    ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Defining datasets for each buffer  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+path_ndvi = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/"
+Tbuf_ndvi_avg = fread(paste0(path_ndvi, "Tbuf_muller_ndvi_avg.csv"))
+C1buf_ndvi_avg = fread(paste0(path_ndvi, "C1buf_muller_ndvi_avg.csv"))
+C2buf_ndvi_avg = fread(paste0(path_ndvi, "C2buf_muller_ndvi_avg.csv"))
+
+#A long version of the NDVI_avg and NDVI_sd ach buffer ...
+##T
+Tbuf_ndvi_avg_lg = Tbuf_ndvi_avg %>%
+  pivot_longer(cols = `2000-02`:`2022-12`, names_to = "time", values_to = "NDVI_T_avg") %>%
+  mutate(ID_time = paste0(ID, "_", time))
+# Tbuf_ndvi_sd_lg = Tbuf_ndvi_sd
+# names(Tbuf_ndvi_sd_lg) = c("ID", name_ndvi)
+# Tbuf_ndvi_sd_lg = Tbuf_ndvi_sd_lg %>%
+#   pivot_longer(cols = `2000-02`:`2022-12`, names_to = "time", values_to = "NDVI_T_sd") %>%
+#   mutate(ID_time = paste0(ID, "_", time)) %>%
+#   select(-c("ID", "time"))
+##C1 
+C1buf_ndvi_avg_lg = C1buf_ndvi_avg %>%
+  pivot_longer(cols = `2000-02`:`2022-12`, names_to = "time", values_to = "NDVI_C1_avg") %>%
+  mutate(ID_time = paste0(ID, "_", time))
+# C1buf_ndvi_sd_lg = C1buf_ndvi_sd
+# names(C1buf_ndvi_sd_lg) = c("ID", name_ndvi)
+# C1buf_ndvi_sd_lg = C1buf_ndvi_sd_lg %>%
+#   pivot_longer(cols = `2000-02`:`2022-12`, names_to = "time", values_to = "NDVI_C1_sd") %>%
+#   mutate(ID_time = paste0(ID, "_", time)) %>%
+#   select(-c("ID", "time"))
+##C2
+C2buf_ndvi_avg_lg = C2buf_ndvi_avg %>%
+  pivot_longer(cols = `2000-02`:`2022-12`, names_to = "time", values_to = "NDVI_C2_avg") %>%
+  mutate(ID_time = paste0(ID, "_", time))
+# C2buf_ndvi_sd_lg = C2buf_ndvi_sd
+# names(C2buf_ndvi_sd_lg) = c("ID", name_ndvi)
+# C2buf_ndvi_sd_lg = C2buf_ndvi_sd_lg %>%
+#   pivot_longer(cols = `2000-02`:`2022-12`, names_to = "time", values_to = "NDVI_C2_sd") %>%
+#   mutate(ID_time = paste0(ID, "_", time)) %>%
+#   select(-c("ID", "time"))
+##C3
+# C3buf_ndvi_avg_lg = C3buf_ndvi_avg
+# names(C3buf_ndvi_avg_lg) = c("ID", name_ndvi)
+# C3buf_ndvi_avg_lg = C3buf_ndvi_avg_lg %>%
+#   pivot_longer(cols = `2000-02`:`2022-12`, names_to = "time", values_to = "NDVI_C3_avg") %>%
+#   mutate(ID_time = paste0(ID, "_", time)) %>%
+#   select(-c("ID", "time"))
+# C3buf_ndvi_sd_lg = C3buf_ndvi_sd
+# names(C3buf_ndvi_sd_lg) = c("ID", name_ndvi)
+# C3buf_ndvi_sd_lg = C3buf_ndvi_sd_lg %>%
+#   pivot_longer(cols = `2000-02`:`2022-12`, names_to = "time", values_to = "NDVI_C3_sd") %>%
+#   mutate(ID_time = paste0(ID, "_", time)) %>%
+#   select(-c("ID", "time"))
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Defining plotting dataset  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#Merging the previous datasets
+data_stat_ndvi = Tbuf_ndvi_avg_lg %>%
+  #left_join(Tbuf_ndvi_sd_lg, by = "ID_time") %>%
+  left_join(select(C1buf_ndvi_avg_lg, c(ID_time, NDVI_C1_avg)), by = "ID_time") %>%
+  #left_join(C1buf_ndvi_sd_lg, by = "ID_time") %>%
+  left_join(select(C2buf_ndvi_avg_lg, c(ID_time, NDVI_C2_avg)), by = "ID_time") %>%
+  #left_join(C2buf_ndvi_sd_lg, by = "ID_time") %>%
+  #left_join(C3buf_ndvi_avg_lg, by = "ID_time") %>%
+  #left_join(C3buf_ndvi_sd_lg, by = "ID_time") %>%
+  select(-c("ID_time"))
+
+#In a given sub-region, take the average values across parcels
+data_stat_subreg_ndvi = data_stat_ndvi %>%
+  left_join(select(data_info, c(region, sub_region, deal_id, loc_id, ID)), by = "ID") %>%
+  #select(c(region, sub_region, deal_id, loc_id, ID, time, NDVI_T_avg:NDVI_C3_sd)) %>%
+  select(c(region, sub_region, deal_id, loc_id, ID, time, NDVI_T_avg:NDVI_C2_avg)) %>%
+  group_by(sub_region, time) %>%
+  # summarise(n_deal = length(unique(deal_id)),
+  #           n_par = length(unique(loc_id)),
+  #           across(.cols = NDVI_T_avg:NDVI_C3_sd, 
+  #              .fns = \(x) mean(x, na.rm = TRUE),
+  #              .names = NULL)) %>%
+  summarise(n_deal = length(unique(deal_id)),
+            n_par = length(unique(loc_id)),
+            across(.cols = NDVI_T_avg:NDVI_C2_avg, 
+               .fns = \(x) mean(x, na.rm = TRUE),
+               .names = NULL)) %>%
+  mutate(year = as.numeric(str_sub(time, 1,4)),
+         .after = time)
+
+#Then we can take annual max values
+data_stat_subreg_ndvi_max = data_stat_subreg_ndvi %>%
+  group_by(sub_region, year) %>%
+  # summarise(n_deal, n_par,
+  #           across(.cols = NDVI_T_avg:NDVI_C3_sd, 
+  #              .fns =  ~max(.x, na.rm = TRUE),
+  #              .names = NULL)) %>%
+  summarise(n_deal, n_par,
+            across(.cols = NDVI_T_avg:NDVI_C2_avg, 
+               .fns =  ~max(.x, na.rm = TRUE),
+               .names = NULL)) %>%
+  slice(1)
+
+#... and annual average
+data_stat_subreg_ndvi_avg = data_stat_subreg_ndvi %>%
+  group_by(sub_region, year) %>%
+  # summarise(n_deal, n_par,
+  #           across(.cols = NDVI_T_avg:NDVI_C3_sd,
+  #              .fns = ~mean(.x, na.rm = TRUE),
+  #              .names = NULL)) %>%
+  summarise(n_deal, n_par,
+            across(.cols = NDVI_T_avg:NDVI_C2_avg,
+               .fns = ~mean(.x, na.rm = TRUE),
+               .names = NULL)) %>%
+  slice(1)
+
+
+##~~~~~~~~~~~~~~~~~~
+##  ~ Plotting  ----
+##~~~~~~~~~~~~~~~~~~
+
+#Plotting : a figure with one plot for each sub_region (as need multi scales)
+#A list of plot is first created in a loop
+list_sub_region = unique(data_stat_subreg_ndvi$sub_region)
+list_sub_accro = c("EE", "LA", "Mel", "NA", "SEAs", "SE", "SSA")
+list_fig_ndvi_avg_max = list() 
+list_fig_ndvi_avg_avg = list()
+list_fig_ndvi_avg_max_TC1 = list() 
+list_fig_ndvi_avg_avg_TC1 = list()
+list_fig_ndvi_avg_max_C1C2 = list() 
+list_fig_ndvi_avg_avg_C1C2 = list()
+# list_fig_ndvi_avg_max_C2C3 = list() 
+# list_fig_ndvi_avg_avg_C2C3 = list()
+list_fig_ndvi_sd_max = list()
+list_fig_ndvi_sd_avg = list()
+
+##NDVI parcel avg (mean annual and max annual)
+for (i in 1:length(list_sub_region))
+{
+  fig_ndvi_avg_temp = fig_ndvi_avg(data = data_stat_subreg_ndvi_avg, 
+                                   list_sub_region,
+                                   i,
+                                   subtitle = "Mean annual value of NDVI averaged across parcels")
+  fig_ndvi_avg_TC1_temp = fig_ndvi_avg_TC1(data = data_stat_subreg_ndvi_avg, 
+                                   list_sub_region,
+                                   i,
+                                   subtitle = "Mean annual NDVI") 
+  fig_ndvi_avg_C1C2_temp = fig_ndvi_avg_C1C2(data = data_stat_subreg_ndvi_avg, 
+                                 list_sub_region,
+                                 i,
+                                 subtitle = "Mean annual NDVI") 
+  # fig_ndvi_avg_C2C3_temp = fig_ndvi_avg_C2C3(data = data_stat_subreg_ndvi_avg, 
+  #                              list_sub_region,
+  #                              i,
+  #                              subtitle = "Mean annual NDVI") 
+  fig_ndvi_max_temp = fig_ndvi_avg(data = data_stat_subreg_ndvi_max, 
+                                   list_sub_region,
+                                   i,
+                                   subtitle = "Max annual value of NDVI averaged across parcels")
+  fig_ndvi_max_TC1_temp = fig_ndvi_avg_TC1(data = data_stat_subreg_ndvi_max, 
+                                   list_sub_region,
+                                   i,
+                                   subtitle = "Max annual NDVI") 
+  fig_ndvi_max_C1C2_temp = fig_ndvi_avg_C1C2(data = data_stat_subreg_ndvi_max, 
+                                 list_sub_region,
+                                 i,
+                                 subtitle = "Max annual NDVI") 
+  # fig_ndvi_max_C2C3_temp = fig_ndvi_avg_C2C3(data = data_stat_subreg_ndvi_max, 
+  #                              list_sub_region,
+  #                              i,
+  #                              subtitle = "Max annual NDVI") 
+  list_fig_ndvi_avg_avg[[i]] = fig_ndvi_avg_temp
+  list_fig_ndvi_avg_max[[i]] = fig_ndvi_max_temp
+  list_fig_ndvi_avg_avg_TC1[[i]] = fig_ndvi_avg_TC1_temp
+  list_fig_ndvi_avg_max_TC1[[i]] = fig_ndvi_max_TC1_temp
+  list_fig_ndvi_avg_avg_C1C2[[i]] = fig_ndvi_avg_C1C2_temp
+  list_fig_ndvi_avg_max_C1C2[[i]] = fig_ndvi_max_C1C2_temp
+  # list_fig_ndvi_avg_avg_C2C3[[i]] = fig_ndvi_avg_C2C3_temp
+  # list_fig_ndvi_avg_max_C2C3[[i]] = fig_ndvi_max_C2C3_temp
+}
+
+##NDVI parcel sd (mean annual and max annual)
+# for (i in 1:length(list_sub_region))
+# {
+#   fig_ndvi_avg_temp = fig_ndvi_sd(data = data_stat_subreg_ndvi_avg, 
+#                                    list_sub_region,
+#                                    i,
+#                                    subtitle = "Mean annual value of NDVI standard deviation \naveraged across parcels")
+#   fig_ndvi_max_temp = fig_ndvi_sd(data = data_stat_subreg_ndvi_max, 
+#                                    list_sub_region,
+#                                    i,
+#                                    subtitle = "Max annual value of NDVI standard deviation \naveraged across parcels")
+#   list_fig_ndvi_sd_avg[[i]] = fig_ndvi_avg_temp
+#   list_fig_ndvi_sd_max[[i]] = fig_ndvi_max_temp
+# }
+
+
+#Then a multi plot is created from the lists
+##Mean annual of NDVI averaged across parcels
+mplot_ndvi_avg_avg = plot_grid(plotlist = list_fig_ndvi_avg_avg,
+                        align = "hv",
+                        nrow = 2,
+                        ncol = 3,
+                        labels = "AUTO"
+                        ) 
+mplot_ndvi_avg_avg_TC1 = plot_grid(plotlist = list_fig_ndvi_avg_avg_TC1,
+                        align = "hv",
+                        nrow = 2,
+                        ncol = 3,
+                        labels = "AUTO"
+                        ) 
+mplot_ndvi_avg_avg_C1C2 = plot_grid(plotlist = list_fig_ndvi_avg_avg_C1C2,
+                        align = "hv",
+                        nrow = 2,
+                        ncol = 3,
+                        labels = "AUTO"
+                        ) 
+# mplot_ndvi_avg_avg_C2C3 = plot_grid(plotlist = list_fig_ndvi_avg_avg_C2C3,
+#                         align = "hv",
+#                         nrow = 3,
+#                         ncol = 3,
+#                         labels = "AUTO"
+#                         ) 
+##Max annual of NDVI averaged across parcels
+mplot_ndvi_avg_max = plot_grid(plotlist = list_fig_ndvi_avg_max,
+                        align = "hv",
+                        nrow = 2,
+                        ncol = 3,
+                        labels = "AUTO"
+                        ) 
+mplot_ndvi_avg_max_TC1 = plot_grid(plotlist = list_fig_ndvi_avg_max_TC1,
+                        align = "hv",
+                        nrow = 2,
+                        ncol = 3,
+                        labels = "AUTO"
+                        ) 
+mplot_ndvi_avg_max_C1C2 = plot_grid(plotlist = list_fig_ndvi_avg_max_C1C2,
+                        align = "hv",
+                        nrow = 2,
+                        ncol = 3,
+                        labels = "AUTO"
+                        ) 
+# mplot_ndvi_avg_max_C2C3 = plot_grid(plotlist = list_fig_ndvi_avg_max_C2C3,
+#                         align = "hv",
+#                         nrow = 3,
+#                         ncol = 3,
+#                         labels = "AUTO"
+#                         ) 
+##Mean annual of the standard deviation of NDVI averaged across parcels
+# mplot_ndvi_sd_avg = plot_grid(plotlist = list_fig_ndvi_sd_avg,
+#                         align = "hv",
+#                         nrow = 3,
+#                         ncol = 3,
+#                         labels = "AUTO"
+#                         )
+##Max annual of the standard deviation of NDVI averaged across parcels
+# mplot_ndvi_sd_max = plot_grid(plotlist = list_fig_ndvi_sd_max,
+#                         align = "hv",
+#                         nrow = 3,
+#                         ncol = 3,
+#                         labels = "AUTO"
+#                         )
+#Adding a common x and y axis
+y.grob_avg <- textGrob("NDVI", 
+                   gp=gpar(fontface = "bold", fontsize=15), rot=90)
+y.grob_avg_dev <- textGrob("Relative gap of NDVI between buffers", 
+                   gp=gpar(fontface = "bold", fontsize=15), rot=90)
+y.grob_sd <- textGrob("standard deviation of NDVI", 
+                   gp=gpar(fontface = "bold", fontsize=15), rot=90)
+x.grob <- textGrob("Year", 
+                   gp=gpar(fontface = "bold", fontsize=15))
+#Building the final figures
+fig_ndvi_avg_avg = grid.arrange(arrangeGrob(mplot_ndvi_avg_avg, left = y.grob_avg, bottom = x.grob))
+fig_ndvi_avg_max = grid.arrange(arrangeGrob(mplot_ndvi_avg_max, left = y.grob_avg, bottom = x.grob))
+fig_ndvi_avg_avg_TC1 = grid.arrange(arrangeGrob(mplot_ndvi_avg_avg_TC1, left = y.grob_avg_dev, bottom = x.grob))
+fig_ndvi_avg_max_TC1 = grid.arrange(arrangeGrob(mplot_ndvi_avg_max_TC1, left = y.grob_avg_dev, bottom = x.grob))
+fig_ndvi_avg_avg_C1C2 = grid.arrange(arrangeGrob(mplot_ndvi_avg_avg_C1C2, left = y.grob_avg_dev, bottom = x.grob))
+fig_ndvi_avg_max_C1C2 = grid.arrange(arrangeGrob(mplot_ndvi_avg_max_C1C2, left = y.grob_avg_dev, bottom = x.grob))
+# fig_ndvi_avg_avg_C2C3 = grid.arrange(arrangeGrob(mplot_ndvi_avg_avg_C2C3, left = y.grob_avg_dev, bottom = x.grob))
+# fig_ndvi_avg_max_C2C3 = grid.arrange(arrangeGrob(mplot_ndvi_avg_max_C2C3, left = y.grob_avg_dev, bottom = x.grob))
+# fig_ndvi_sd_avg = grid.arrange(arrangeGrob(mplot_ndvi_sd_avg, left = y.grob_sd, bottom = x.grob))
+# fig_ndvi_sd_max = grid.arrange(arrangeGrob(mplot_ndvi_sd_max, left = y.grob_sd, bottom = x.grob))
+
+ggsave(plot = fig_ndvi_avg_avg,
+       filename = "fig_ndvi_avg_avg.jpeg",
+       path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/NDVI',
+       width = 15, height = 10)
+ggsave(plot = fig_ndvi_avg_max,
+       filename = "fig_ndvi_avg_max.jpeg",
+       path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/NDVI',
+       width = 15, height = 10)
+ggsave(plot = fig_ndvi_avg_avg_TC1,
+       filename = "fig_ndvi_avg_avg_TC1.jpeg",
+       path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/NDVI',
+       width = 15, height = 10)
+ggsave(plot = fig_ndvi_avg_max_TC1,
+       filename = "fig_ndvi_avg_max_TC1.jpeg",
+       path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/NDVI',
+       width = 15, height = 10)
+ggsave(plot = fig_ndvi_avg_avg_C1C2,
+       filename = "fig_ndvi_avg_avg_C1C2.jpeg",
+       path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/NDVI',
+       width = 15, height = 10)
+ggsave(plot = fig_ndvi_avg_max_C1C2,
+       filename = "fig_ndvi_avg_max_C1C2.jpeg",
+       path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/NDVI',
+       width = 15, height = 10)
+# ggsave(plot = fig_ndvi_avg_avg_C2C3,
+#        filename = "fig_ndvi_avg_avg_C2C3.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/NDVI',
+#        width = 15, height = 10)
+# ggsave(plot = fig_ndvi_avg_max_C2C3,
+#        filename = "fig_ndvi_avg_max_C2C3.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/NDVI',
+#        width = 15, height = 10)
+# ggsave(plot = fig_ndvi_sd_avg,
+#        filename = "fig_ndvi_sd_avg.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/NDVI',
+#        width = 15, height = 10)
+# ggsave(plot = fig_ndvi_sd_max,
+#        filename = "fig_ndvi_sd_max.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/NDVI',
+#        width = 15, height = 10)
+
+
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                  SPEI                                    ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+#Creating a dataset with information at sub-regional and world level
+
+data_stat_spei12_subreg = data_info %>%
+  left_join(Tbuf_spei12_shock, by = "ID") %>%
+  select(c(region, sub_region, country, deal_id, ID, year, Tdry_year, Tintdry_year)) %>%
+  subset(year >=2000) %>%
+  group_by(sub_region, year) %>%
+  summarize(n_deal = length(unique(deal_id)),
+            n_par = length(unique(ID)),
+            n_dry = sum(Tdry_year),
+            n_intdry = sum(Tintdry_year)) %>%
+  mutate(year = as.numeric(year)) %>%
+  pivot_longer(cols = c("n_dry", "n_intdry"),
+               names_to = "type")
+
+data_stat_spei12_wld = data_info %>%
+  left_join(Tbuf_spei12_shock, by = "ID") %>%
+  select(c(region, sub_region, country, deal_id, ID, year, Tdry_year, Tintdry_year)) %>%
+  subset(year >=2000) %>%
+  group_by(year) %>%
+  summarize(n_deal = length(unique(deal_id)),
+            n_par = length(unique(ID)),
+            n_dry = sum(Tdry_year),
+            n_intdry = sum(Tintdry_year)) %>%
+  mutate(year = as.numeric(year)) %>%
+  pivot_longer(cols = c("n_dry", "n_intdry"),
+               names_to = "type")
+
+#Creating plot for each sub-region in a loop and store each in a list
+##List with the name of each sub-region
+list_subreg_spei12 = sort(unique(data_stat_spei12_subreg$sub_region))
+list_fig_spei12_subreg = list()
+
+for (i in 1:length(list_subreg_spei12))
+{
+  fig_i = ggplot(data = subset(data_stat_spei12_subreg, sub_region == list_subreg_spei12[i]),
+                 aes(x = factor(year), y = value, fill = type)) %>%
+    + geom_bar(stat = "identity", position = position_dodge(), alpha = .9) %>%
+    + scale_fill_manual(name = "",
+                        values = c("#FCAE91", "#A50F15"),
+                        labels = c("Moderate drought", "Severe drought")) %>%
+    + labs(x = "", y = "", title = "",
+           subtitle = list_subreg_spei12[i],
+           caption = paste0(subset(data_stat_spei12_subreg, sub_region == list_subreg_spei12[i])$n_par[1], " parcels in ", subset(data_stat_spei12_subreg, sub_region == list_subreg_spei12[i])$n_deal[1]," deals in this sub-region.")) %>%
+    + theme(legend.position = "bottom",
+            legend.key = element_rect(fill = "white"),
+            plot.title = element_text(hjust = 0), 
+            axis.text.x = element_text(angle = 90),
+            panel.background = element_rect(fill = 'white', colour = 'white', 
+                                            linewidth = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 12, face = 'plain', hjust = 0),
+      plot.subtitle = element_text(size = 15, hjust = 0)
+            ) 
+  list_fig_spei12_subreg[[i]] = fig_i
+}
+
+#add the plot at world level to the list
+list_fig_spei12_subreg[[length(list_fig_spei12_subreg)+1]] = 
+  ggplot(data = data_stat_spei12_wld,
+                 aes(x = factor(year), y = value, fill = type)) %>%
+    + geom_bar(stat = "identity", position = position_dodge(), alpha = .9) %>%
+    + scale_fill_manual(name = "",
+                        values = c("#FCAE91", "#A50F15"),
+                        labels = c("Moderate drought", "Severe drought")) %>%
+    + labs(x = "", y = "", title = "",
+           subtitle = "World",
+           caption = paste0(data_stat_spei12_wld$n_par[1], " parcels in ", data_stat_spei12_wld$n_deal[1]," deals worldwide.")) %>%
+    + theme(legend.position = "bottom",
+            legend.key = element_rect(fill = "white"),
+            plot.title = element_text(hjust = 0), 
+            axis.text.x = element_text(angle = 90),
+            panel.background = element_rect(fill = 'white', colour = 'white', 
+                                            linewidth = 0.5, linetype = 'solid'),
+            panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+            panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 12, face = 'plain', hjust = 0),
+      plot.subtitle = element_text(size = 15, hjust = 0)
+            ) 
+
+#Create a multi-plot
+mplot_spei12 = plot_grid(plotlist = list_fig_spei12_subreg,
+                        align = "hv",
+                        nrow = 4,
+                        ncol = 2,
+                        labels = "AUTO"
+                        )
+#Adding a common x and y axis
+y.grob <- textGrob("Number of parcels facing a drought", 
+                   gp=gpar(fontface = "bold", fontsize=16), rot=90)
+x.grob <- textGrob("Year", 
+                   gp=gpar(fontface = "bold", fontsize=16))
+title.grob = textGrob("Aggregate number of moderate and severe droughts across parcels (2000-2021)",
+                      gp=gpar(fontface = "bold", fontsize=20))
+#Building the final figures
+fig_stat_spei12 = grid.arrange(arrangeGrob(mplot_spei12, left = y.grob, bottom = x.grob, top = title.grob))
+# 
+ggsave(plot = fig_stat_spei12,
+       filename = "fig_stat_spei12.jpeg",
+       path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/SPEI',
+       width = 16, height = 20)
+
+
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##--------------------------------- OLD CODE------------------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Plotting GDP NOT in per ha  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+#A long version of the gdp_5am_avg for each buffer ...
+# Tbuf_gdp_5am_avg_lg = Tbuf_gdp_5am_avg %>%
+#   rename_with(.fn = ~ sub("GDP_PPP_", "", .x), .cols =  starts_with("GDP")) %>%
+#   pivot_longer(cols = as.character(c(1990:2015)), names_to = "year", values_to = "GDP_PPP_T") %>%
+#   mutate(ID_year = paste0(ID, "_", year))
+# C1buf_gdp_5am_avg_lg = C1buf_gdp_5am_avg %>%
+#   rename_with(.fn = ~ sub("GDP_PPP_", "", .x), .cols =  starts_with("GDP")) %>%
+#   pivot_longer(cols = as.character(c(1990:2015)), names_to = "year", values_to = "GDP_PPP_C1")%>%
+#   mutate(ID_year = paste0(ID, "_", year)) %>%
+#   dplyr::select(c(ID_year, GDP_PPP_C1))
+# C2buf_gdp_5am_avg_lg = C2buf_gdp_5am_avg %>%
+#   rename_with(.fn = ~ sub("GDP_PPP_", "", .x), .cols =  starts_with("GDP")) %>%
+#   pivot_longer(cols = as.character(c(1990:2015)), names_to = "year", values_to = "GDP_PPP_C2")%>%
+#   mutate(ID_year = paste0(ID, "_", year))%>%
+#   dplyr::select(c(ID_year, GDP_PPP_C2))
+# C3buf_gdp_5am_avg_lg = C3buf_gdp_5am_avg %>%
+#   rename_with(.fn = ~ sub("GDP_PPP_", "", .x), .cols =  starts_with("GDP")) %>%
+#   pivot_longer(cols = as.character(c(1990:2015)), names_to = "year", values_to = "GDP_PPP_C3")%>%
+#   mutate(ID_year = paste0(ID, "_", year))%>%
+#   dplyr::select(c(ID_year, GDP_PPP_C3))
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Creating plotting datasets  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#... the dataset with average evolution of gdp_5am_avg at sub-regional level
+# data_stat_gdp_5am_avg = data_info %>% 
+#   subset((year_impl != '' & year_impl < 2015)) %>% # | (year_impl == '' & year_cont < 2010)) %>%
+#   dplyr::select(c(region, sub_region, country, deal_id, loc_id, ID)) %>%
+#   left_join(Tbuf_gdp_5am_avg_lg, by = "ID") %>%
+#   left_join(C1buf_gdp_5am_avg_lg, by = "ID_year") %>%
+#   left_join(C2buf_gdp_5am_avg_lg, by = "ID_year") %>%
+#   left_join(C3buf_gdp_5am_avg_lg, by = "ID_year") %>%
+#   dplyr::select(-c(ID_year)) %>%
+#   group_by(sub_region, year) %>%
+#   summarise(n_deal = length(unique(deal_id)),
+#             n_par = n(),
+#             across(starts_with("GDP"), ~mean(.x, na.rm = TRUE))) %>%
+#   #Compute the deviation of T as a share of C1/C2/C3, C1 as a share of C2 and C3, C2 as a share of C3
+#   mutate(dev_TC1 = (GDP_PPP_T-GDP_PPP_C1)/GDP_PPP_C1,
+#          dev_TC2 = (GDP_PPP_T-GDP_PPP_C2)/GDP_PPP_C2,
+#          dev_TC3 = (GDP_PPP_T-GDP_PPP_C3)/GDP_PPP_C3,
+#          dev_C1C2 = (GDP_PPP_C1-GDP_PPP_C2)/GDP_PPP_C2,
+#          dev_C1C3 = (GDP_PPP_C1-GDP_PPP_C3)/GDP_PPP_C3,
+#          dev_C2C3 = (GDP_PPP_C2-GDP_PPP_C3)/GDP_PPP_C3)
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Plotting GDP in absolute values  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#Plotting : a figure with one plot for each sub_region (as need multi scales)
+#A list of plot is first created in a loop
+# list_sub_region = unique(data_stat_gdp_5am_avg$sub_region)
+# list_sub_accro = c("EE", "LA", "Mel", "NA", "SEAs", "SE", "SSA")
+# list_fig_gdp_5_am_avg = list()
+# 
+# ##For GDP_5am_avg
+# for (i in 1:length(list_sub_region))
+# {
+#   fig_gdp_5am_avg_temp = ggplot(data = subset(data_stat_gdp_5am_avg, sub_region == list_sub_region[i])) %>%
+#   + geom_point(aes(x = year, y = GDP_PPP_T, group = sub_region), color = "#08519C") %>%
+#   + geom_line(aes(x = year, y = GDP_PPP_T, group = sub_region, color = "T"), linetype = "solid") %>%
+#   # + geom_point(aes(x = year, y = GDP_PPP_C1, group = sub_region), color = "#3182BD") %>%
+#   # + geom_line(aes(x = year, y = GDP_PPP_C1, group = sub_region, color = "C1"), linetype = "dashed") %>%
+#   # + geom_point(aes(x = year, y = GDP_PPP_C2, group = sub_region), color = "#6BAED6") %>%
+#   # + geom_line(aes(x = year, y = GDP_PPP_C2, group = sub_region, color = "C2"), linetype = "dashed") %>%
+#   # + geom_point(aes(x = year, y = GDP_PPP_C3, group = sub_region), color = "#C6DBEF") %>%
+#   # + geom_line(aes(x = year, y = GDP_PPP_C3, group = sub_region, color = "C3"), linetype = "dashed") %>%
+#   + scale_y_continuous(labels = function(x) format(x, digits = 2, scientific = TRUE)) %>%
+#   + scale_color_manual(name = "Buffer",
+#                        values = c("T" = "#08519C"#,
+#                                    #"C1" = "#3182BD",
+#                                    #"C2" = "#6BAED6",
+#                                    #"C3" = "#C6DBEF"
+#                                   )) %>%
+#   + labs(x = '', y = '', 
+#          title = list_sub_region[i],
+#          caption = paste("Note :", subset(data_stat_gdp_5am_avg, sub_region == list_sub_region[i])[1,]$n_par, "parcel(s) in ", subset(data_stat_gdp_5am_avg, sub_region == list_sub_region[i])[1,]$n_deal, "deal(s)")) %>%
+#   + theme(legend.position = "bottom",
+#           legend.key = element_rect(fill = "white"),
+#           plot.title = element_text(hjust = 0), 
+#           axis.text.x = element_text(angle = 90),
+#           panel.background = element_rect(fill = 'white', colour = 'white', size = 0.5, linetype = 'solid'),
+#           panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+#           panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+#           plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+#           ) 
+#   list_fig_gdp_5_am_avg[[i]] = fig_gdp_5am_avg_temp
+#   plot(list_fig_gdp_5_am_avg[[i]])
+# }
+# 
+# #Then a multi plot is created from the list
+# mplot_gdp_5am_avg = plot_grid(plotlist = list_fig_gdp_5_am_avg,
+#                         align = "hv",
+#                         nrow = 3,
+#                         ncol = 3,
+#                         labels = "AUTO"
+#                         ) 
+# 
+# #Building the final figure
+# fig_gdp_5am_avg = grid.arrange(arrangeGrob(mplot_gdp_5am_avg, left = y.grob, bottom = x.grob))
+# 
+# ggsave(plot = fig_gdp_5am_avg,
+#        filename = "fig_gdp_5am_avg_T_1990_2015.jpeg",
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/GDP',
+#        width = 15, height = 10)
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Extracting NDVI values without focusing on pixels à la Müller  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Values in parcels  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#The NDVI_276, corresponding to 2023-01 value (the only in 2023) is removed as it 
+#does not allow to compute relevant max/mean annual NDVI values
+
+# ##T
+# Tbuf_ndvi = fun_ext_ndvi(rast = rast_ndvi, buf = vect_Tbuf, name_ndvi)
+# fwrite(Tbuf_ndvi, paste0(path_ndvi, "Tbuf_muller_ndvi.csv"))
+# 
+# ##C1
+# C1buf_ndvi = fun_ext_ndvi(rast = rast_ndvi, buf = vect_C1buf, name_ndvi)
+# fwrite(C1buf_ndvi, paste0(path_ndvi, "C1buf_muller_ndvi.csv"))
+# 
+# 
+# ##C2
+# C2buf_ndvi = fun_ext_ndvi(rast = rast_ndvi, buf = vect_C2buf, name_ndvi)
+# fwrite(C2buf_ndvi, paste0(path_ndvi, "C2buf_muller_ndvi.csv"))
+
+# ##C3
+# C3buf_ndvi = fun_ext_ndvi(rast = rast_ndvi, buf = vect_C3buf, name_ndvi)
+# fwrite(C3buf_ndvi, paste0(path_ndvi, "C3buf_muller_ndvi.csv"))
+
+
+````
+
+##SPEI function
+
+````{r}
+
+fun_spei_cs = function(buf_avg)
+{
+  buf_shock = buf_avg %>%
+  pivot_longer(cols = starts_with("spei"),
+               names_to = c("time"),
+               names_prefix = "spei_") %>%
+  rename("spei" = "value") %>%
+  mutate(year = as.numeric(str_sub(time, start = 1, end = 4)),
+         month = as.numeric(str_sub(time, start = 6, end = 7)),
+         .after = time) %>%
+  #For each parcel, compute average and standard deviation of SPEI on the long period 1902-2021
+  group_by(ID) %>%
+  mutate(spei_all_avg = mean(spei, na.rm = TRUE),
+         spei_all_sd = sd(spei, na.rm = TRUE),
+         .after = spei) %>%
+  ungroup() %>%
+  #Compute monthly average of SPEI for each year
+  group_by(ID, year) %>%
+  mutate(spei_year_avg = mean(spei, na.rm = TRUE),
+         .after = spei_all_sd) %>%
+  ungroup() %>%
+  #Compute a dummy for climate shocks according de Defrance 2020
+  ##dry_year :
+  ##"1 if the average monthly value of SPEI in a given year is below the average monthly value of
+  ##SPEI computed from 1904 to the year of the survey by more than one standard deviation, and 0
+  ##otherwise"
+  ##intdry_year
+  ##"1 if the average monthly value of SPEI in a given year is below the average monthly value of
+  ##SPEI computed from 1904 to the year of the survey by more than 1.5 standard deviation, and 0
+  ##otherwise"
+  mutate(dry_year = spei_year_avg < spei_all_avg - spei_all_sd &
+           spei_all_avg - 1.5*spei_all_sd < spei_year_avg,
+         intdry_year = spei_year_avg < spei_all_avg - 1.5*spei_all_sd,
+         .after = spei_year_avg) %>%
+  #Finally, keep only year information and restrict time period to >= 2000
+  group_by(ID, year) %>%
+  slice(1) %>% 
+  ungroup() %>%
+  subset(year >= 2000) %>%
+  select(c(ID, year, spei_all_avg, spei_all_sd, spei_year_avg, dry_year, intdry_year)) %>%
+  group_by(ID) %>%
+  #Counting the number of dry years and intense dry years for each parcel
+  mutate(n_dry = sum(dry_year),
+         n_intdry = sum(intdry_year))
+}
+
+
+````

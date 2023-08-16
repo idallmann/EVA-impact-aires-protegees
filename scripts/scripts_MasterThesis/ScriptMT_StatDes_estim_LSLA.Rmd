@@ -1,0 +1,3117 @@
+---
+title: "ScriptMT_estim_LSLA"
+author: "Antoine Vuillot"
+date: "2023-01-26"
+output: pdf_document
+editor_options: 
+  chunk_output_type: console
+---
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            ~~
+##                              Packages                                    ----
+##                                                                            ~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(tidyverse)
+library(data.table)
+library(xlsx)
+library(stringr)
+library(ARTofR)
+library(geojsonsf)
+library(sf)
+library(RColorBrewer)
+library(dplyr)
+library(terra)
+library(raster)
+library(tidyterra)
+library(gridExtra)
+library(grid)
+library(cowplot)
+library(scales)
+
+#For TWFE
+library(estimatr)
+library(lfe)
+library(fastDummies)
+library(stargazer)
+```
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            ~~
+##                            PURPOSE OF THE SCRIPT                         ----
+##                                                                            ~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#Estimation of the impact of LSLA on land use, GDP and NDVI : DiD and TWFE
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##------------------------------ IMPORTING DATA---------------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+##~~~~~~~~~~~~~~~~~~~
+##  ~ ISO codes  ----
+##~~~~~~~~~~~~~~~~~~~
+
+country_iso = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/02_2023/ctry_regions.csv', encoding = 'UTF-8') %>%
+  dplyr::select(c('name', 'alpha-3')) %>%
+  rename('iso_a3' = 'alpha-3',
+         "country" = "name")
+
+country_iso[country_iso$country == "Lao People's Democratic Republic",]$country = 'Lao PDR'
+country_iso[country_iso$country == 'Bolivia (Plurinational State of)',]$country = 'Bolivia'
+country_iso[country_iso$country == "Viet Nam",]$country = 'Vietnam'
+country_iso[country_iso$country == "Yemen",]$country = "Yemen, Rep."
+country_iso[country_iso$country == "Venezuela (Bolivarian Republic of)",]$country = "Venezuela, RB"
+country_iso[country_iso$country == "Congo",]$country = "Congo, Rep."
+country_iso[country_iso$country == "Egypt",]$country = "Egypt, Arab Rep."
+country_iso[country_iso$country == "Eswatini",]$country = 'Swaziland'
+country_iso[country_iso$country == "Tanzania, United Republic of",]$country = "Tanzania"
+country_iso[country_iso$country == "Congo, Democratic Republic of the",]$country = "Congo, Dem. Rep."
+country_iso[country_iso$country == "Gambia",]$country = "Gambia, The"
+country_iso[country_iso$country ==  "Sao Tome and Principe",]$country = "São Tomé and Principe"
+country_iso[country_iso$country ==  "Moldova, Republic of",]$country = "Moldova"
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Data of parcels  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#Loading ID and loc_id
+data_loc = st_read('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/filt_crop/Tbuf_muller_filt_crop.geojson') %>%
+  mutate(ID = as.numeric(rownames(.))) %>%
+  st_as_sf() %>%
+  st_drop_geometry() %>%
+  select(c(loc_id, ID))
+
+#loading info on deals identified by loc_id
+data = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/filt_crop/data_muller_filt_crop.csv') %>%
+  left_join(country_iso, by = "country") %>%
+  left_join(data_loc, by = "loc_id") %>%
+  dplyr::select(c(region:country, iso_a3, deal_id, loc_id, ID, n_par:livestock_com)) 
+
+#Final informative dataset
+data_info = data %>%
+  select(region:country, iso_a3, deal_id, loc_id, ID, 
+         year_cont:year_aban, size_max_deal, size_max_par)
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Data of bufffers ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+
+df_Tbuf = st_read('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/filt_crop/Tbuf_muller_filt_crop.geojson') %>%
+  mutate(ID = as.numeric(rownames(.)))
+df_C1buf = st_read('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/filt_crop/C1buf_muller_filt_crop2.geojson') %>%
+  mutate(ID = as.numeric(rownames(.)))
+df_C2buf = st_read('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/filt_crop/C2buf_muller_filt_crop2.geojson') %>%
+  mutate(ID = as.numeric(rownames(.)))
+df_C3buf = st_read('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/filt_crop/C3buf_muller_filt_crop2.geojson') %>%
+  mutate(ID = as.numeric(rownames(.)))
+
+##~~~~~~~~~~~~~
+##  ~ GDP  ----
+##~~~~~~~~~~~~~
+
+#Importing dataset with GDP in each buffer
+
+Tbuf_gdp = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/GDP_HDI_gridded/Tbuf_muller_gdp_5am_avg.csv') %>%
+  rename_with(.cols = starts_with("GDP"),
+              .fn = ~sub("GDP_PPP", "T", .x))
+C1buf_gdp = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/GDP_HDI_gridded/C1buf_muller_gdp_5am_avg.csv') %>%
+  rename_with(.cols = starts_with("GDP"),
+              .fn = ~sub("GDP_PPP", "C1", .x))
+C2buf_gdp = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/GDP_HDI_gridded/C2buf_muller_gdp_5am_avg.csv') %>%
+  rename_with(.cols = starts_with("GDP"),
+              .fn = ~sub("GDP_PPP", "C2", .x))
+C3buf_gdp = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/GDP_HDI_gridded/C3buf_muller_gdp_5am_avg.csv') %>%
+  rename_with(.cols = starts_with("GDP"),
+              .fn = ~sub("GDP_PPP", "C3", .x))
+
+#Getting GDP per hecatre for each buffer, the outcome of interest
+
+Tbuf_gdp_pha = Tbuf_gdp %>%
+  left_join(df_Tbuf, by = "ID") %>%
+  select(c("ID", starts_with("T"), area_crop_T)) %>%
+  transmute(ID = ID,
+            across(.cols = T_1990:T_2015,
+               .fns = ~.x/(area_crop_T*1e-4) ,
+               .names = NULL))
+C1buf_gdp_pha = C1buf_gdp %>%
+  left_join(df_C1buf, by = "ID") %>%
+  select(c("ID", starts_with("C1"), area_buf_crop)) %>%
+  transmute(ID = ID,
+            across(.cols = C1_1990:C1_2015,
+               .fns = ~.x/(area_buf_crop*1e-4) ,
+               .names = NULL))
+C2buf_gdp_pha = C2buf_gdp %>%
+  left_join(df_C2buf, by = "ID") %>%
+  select(c("ID", starts_with("C2"), area_buf_crop)) %>%
+  transmute(ID = ID,
+            across(.cols = C2_1990:C2_2015,
+               .fns = ~.x/(area_buf_crop*1e-4) ,
+               .names = NULL))
+C3buf_gdp_pha = C3buf_gdp %>%
+  left_join(df_C3buf, by = "ID") %>%
+  select(c("ID", starts_with("C3"), area_buf_crop)) %>%
+  transmute(ID = ID,
+            across(.cols = C3_1990:C3_2015,
+               .fns = ~.x/(area_buf_crop*1e-4) ,
+               .names = NULL))
+
+
+##~~~~~~~~~~~~~~
+##  ~ NDVI  ----
+##~~~~~~~~~~~~~~
+
+Tbuf_ndvi = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/Tbuf_muller_ndvi_yr.csv') %>%
+  rename_with(.cols = starts_with("ndvi"), .fn = ~sub("ndvi", "Tndvi", .x))
+C1buf_ndvi = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/C1buf_muller_ndvi_yr.csv') %>%
+  rename_with(.cols = starts_with("ndvi"), .fn = ~sub("ndvi", "C1ndvi", .x))
+C2buf_ndvi = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/C2buf_muller_ndvi_yr.csv') %>%
+  rename_with(.cols = starts_with("ndvi"), .fn = ~sub("ndvi", "C2ndvi", .x))
+#Not computed because of memory issue
+# C3buf_ndvi = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/C3buf_muller_ndvi_yr.csv') %>%
+#   rename_with(.cols = starts_with("ndvi"), .fn = ~sub("ndvi", "C3ndvi", .x))
+
+##~~~~~~~~~~~~~~~~~~
+##  ~ Land use  ----
+##~~~~~~~~~~~~~~~~~~
+
+#Importing data with land share for each lccs class in each parcel over time
+Tbuf_land_all = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/LandUseChange/Tbuf_muller_land_all.csv')
+C1buf_land_all = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/LandUseChange/C1buf_muller_land_all.csv')
+C2buf_land_all = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/LandUseChange/C2buf_muller_land_all.csv')
+C3buf_land_all = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/LandUseChange/C3buf_muller_land_all.csv')
+
+#Importing lccs class description and corrective coefficient for agricultural categories
+lccs = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/LandUseChange/lccs.csv')
+
+#For T and C1 gathers by ipcc_class
+##T
+Tbuf_land_ipcc = Tbuf_land_all %>%
+  group_by(ID, year, ipcc_class) %>%
+  summarise(shr = sum(shr_lccs)) %>%
+  ungroup() %>%
+  pivot_wider(names_from = ipcc_class,
+              values_from = shr) %>%
+  rename_with(.cols = starts_with("ipcc"), .fn = ~sub("ipcc", "T_ipcc", .x))
+# ##C1
+C1buf_land_ipcc = C1buf_land_all %>%
+  group_by(ID, year, ipcc_class) %>%
+  summarise(shr = sum(shr_lccs)) %>%
+  ungroup() %>%
+  pivot_wider(names_from = ipcc_class,
+              values_from = shr)  %>%
+  rename_with(.cols = starts_with("ipcc"), .fn = ~sub("ipcc", "C1_ipcc", .x))
+# 
+# #For T and C1 gathers by lccs_class and select agricultural sub-classes only
+# #T
+Tbuf_land_agri = Tbuf_land_all %>%
+  group_by(ID, year, lccs_class) %>%
+  summarise(shr = sum(shr_lccs)) %>%
+  ungroup() %>%
+  pivot_wider(names_from = lccs_class,
+              values_from = shr) %>%
+  select(c("ID", "year", "10", "11", "12", "20", "30", "40")) %>%
+  rename("rfed_10" = "10",
+         "rfed_11" = "11",
+         "rfed_12" = "12",
+         "irri" = "20",
+         "mos_crop" = "30",
+         "mos_veg" = "40") %>%
+  dplyr::rowwise() %>%
+  mutate(rfed = sum(c(rfed_10, rfed_11, rfed_12), na.rm = TRUE)) %>%
+  select(c(ID, year, rfed, irri, mos_crop, mos_veg)) %>%
+  rename_with(.cols = c(rfed, irri, mos_crop, mos_veg),
+              .fn = ~paste0("T_", .x))
+#C1
+C1buf_land_agri = C1buf_land_all %>%
+  group_by(ID, year, lccs_class) %>%
+  summarise(shr = sum(shr_lccs)) %>%
+  ungroup() %>%
+  pivot_wider(names_from = lccs_class,
+              values_from = shr) %>%
+  select(c("ID", "year", "10", "11", "12", "20", "30", "40")) %>%
+  rename("rfed_10" = "10",
+         "rfed_11" = "11",
+         "rfed_12" = "12",
+         "irri" = "20",
+         "mos_crop" = "30",
+         "mos_veg" = "40") %>%
+  dplyr::rowwise() %>%
+  mutate(rfed = sum(c(rfed_10, rfed_11, rfed_12), na.rm = TRUE)) %>%
+  select(c(ID, year, rfed, irri, mos_crop, mos_veg)) %>%
+  rename_with(.cols = c(rfed, irri, mos_crop, mos_veg),
+              .fn = ~paste0("C1_", .x))
+
+#For T and C1 compute true agricultural share à la Müller et al. 2021
+#T
+Tbuf_land_TrueAgri = Tbuf_land_all %>%
+  left_join(select(lccs, c(lccs_class, coef_agri)), by = "lccs_class") %>%
+  mutate(shr_agri = shr_lccs*coef_agri) %>%
+  group_by(ID, year) %>%
+  summarize(T_TrueAgri = sum(shr_agri))
+#C1
+C1buf_land_TrueAgri = C1buf_land_all %>%
+  left_join(select(lccs, c(lccs_class, coef_agri)), by = "lccs_class") %>%
+  mutate(shr_agri = shr_lccs*coef_agri) %>%
+  group_by(ID, year) %>%
+  summarize(C1_TrueAgri = sum(shr_agri))
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##-------------------------------- VISUAL AID-----------------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##~~~~~~~~~~~~~
+##  ~ GDP  ----
+##~~~~~~~~~~~~~
+
+````{r}
+
+#For each parcel we want the evolution of GDP PER HECTARE in T and C1 (at least)
+#with an indication of the year of contract/implementation
+#We built a relevant dataset to do that
+#We restrict to deals relevant regarding the period we have data on GDP
+
+Tbuf_gdp_pha_plot = Tbuf_gdp_pha %>%
+  pivot_longer(cols = starts_with("T_"),
+               names_to = "time",
+               values_to = "T") %>%
+  mutate(time = as.numeric(sub("T_", "", time)))
+C1buf_gdp_pha_plot = C1buf_gdp_pha %>%
+  pivot_longer(cols = starts_with("C1_"),
+               names_to = "time",
+               values_to = "C1") %>%
+  mutate(time = as.numeric(sub("C1_", "", time)))
+C2buf_gdp_pha_plot = C2buf_gdp_pha %>%
+  pivot_longer(cols = starts_with("C2_"),
+               names_to = "time",
+               values_to = "C2") %>%
+  mutate(time = as.numeric(sub("C2_", "", time)))
+C3buf_gdp_pha_plot = C3buf_gdp_pha %>%
+  pivot_longer(cols = starts_with("C3_"),
+               names_to = "time",
+               values_to = "C3") %>%
+  mutate(time = as.numeric(sub("C3_", "", time)))
+
+df_gdp_pha_plot = Tbuf_gdp_pha_plot %>%
+  left_join(C1buf_gdp_pha_plot, by = c("ID", "time")) %>%
+  left_join(C2buf_gdp_pha_plot, by = c("ID", "time")) %>%
+  left_join(C3buf_gdp_pha_plot, by = c("ID", "time")) %>%
+  left_join(select(data_info, c(ID, year_cont, year_impl, year_aban, sub_region, country)), by = "ID") %>%
+  subset(year_impl %in% c(2000:2015) | (year_impl %in% c("") & year_cont %in% c(2000:2015))) %>%
+  subset(year_aban > 2015 | year_aban == "null") %>%
+  subset(T != 0) %>%
+  mutate(year_T = as.numeric(ifelse(year_impl != "", yes = year_impl, no = year_cont)),
+         .after = year_aban)
+#"null", "" values are replaced by NA for the plotting
+df_gdp_pha_plot[df_gdp_pha_plot$year_cont %in% c("null", "") | is.na(df_gdp_pha_plot$year_cont %in% c("null", "")),]$year_cont = NA
+df_gdp_pha_plot[df_gdp_pha_plot$year_impl %in% c("null", "") | is.na(df_gdp_pha_plot$year_impl %in% c("null", "")),]$year_impl = NA
+
+rm(Tbuf_gdp_pha_plot, C1buf_gdp_pha_plot, C2buf_gdp_pha_plot, C3buf_gdp_pha_plot)
+
+#Choose log or level and change title/path/name
+for (i in unique(df_gdp_pha_plot$ID))
+{
+  cont_i = as.numeric(subset(df_gdp_pha_plot, ID == i)$year_cont[1])
+  impl_i = as.numeric(subset(df_gdp_pha_plot, ID == i)$year_impl[1])
+  T_i = as.numeric(subset(df_gdp_pha_plot, ID == i)$year_T[1])
+  fig_i = ggplot(data = subset(df_gdp_pha_plot, ID == i)) %>%
+  + geom_line(aes(x = time, y = log(T), color = "T")) %>%
+  + geom_point(aes(x = time, y = log(T), color = "T")) %>%
+  + geom_line(aes(x = time, y = log(C1), color = "C1")) %>%
+  + geom_point(aes(x = time, y = log(C1), color = "C1")) %>%
+  + geom_vline(aes_(xintercept = cont_i, color = "Contract"), linewidth = 1) %>%
+  + geom_vline(aes_(xintercept = impl_i, color = "Implementation"), linewidth = 1) %>%
+  + geom_vline(aes_(xintercept = T_i, color = "Treatment"), linewidth = 1) %>%
+  + labs(title = "Evolution of log GDP per hectare for treated and control areas",
+         subtitle = paste0("Parcel #", subset(df_gdp_pha_plot, ID == i)$ID[1],
+                           " located in ", subset(df_gdp_pha_plot, ID == i)$country[1],
+                           " (",  subset(df_gdp_pha_plot, ID == i)$sub_region[1], ")"),
+         x = "Year", y = "log GDP PPP per ha \n(in constant 2011 international US dollars)") %>%
+  + scale_color_manual(name = "",
+                       values = c("T" = "#08519C", "C1" = "#6BAED6",
+                                  "Contract" = "grey50", "Implementation" = "grey20", "Treatment" = "red")) %>%
+  + theme(legend.position = "bottom",
+        legend.key = element_rect(fill = "white"),
+        plot.title = element_text(hjust = 0),
+        axis.text.x = element_text(angle = 90),
+        panel.background = element_rect(fill = 'white', colour = 'white',
+                                        linewidth = 0.5, linetype = 'solid'),
+        panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+        panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+        plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+        )
+    ggsave(plot = fig_i,
+           filename = paste0("fig_gdp_5am_pha_log_ID", subset(df_gdp_pha_plot, ID == i)$ID[1], ".jpeg"),
+           path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/GDP/ID/log',
+     width = 7.5, height = 5
+           )
+}
+
+````
+
+##~~~~~~~~~~~~~~
+##  ~ NDVI  ----
+##~~~~~~~~~~~~~~
+
+````{r}
+
+#For each parcel we want the evolution of NDVI annual max and mean in T and C1 (at least)
+#with an indication of the year of contract/implementation
+#We built a relevant dataset to do that
+
+df_ndvi_plot = Tbuf_ndvi %>%
+  left_join(C1buf_ndvi, by = c("ID", "year")) %>%
+  left_join(C2buf_ndvi, by = c("ID", "year")) %>%
+  # left_join(C3buf_ndvi, by = c("ID", "year")) %>%
+  left_join(select(data_info, c(ID, year_cont, year_impl, year_aban, sub_region, country)), by = "ID") %>%
+  subset(year_impl %in% c(2000:2022) | (year_impl %in% c("") & year_cont %in% c(2000:2022))) %>%
+  subset(year_aban > 2022 | year_aban == "null") %>%
+  subset(is.na(Tndvi_mean) == FALSE) %>%
+  mutate(year_T = as.numeric(ifelse(year_impl != "", yes = year_impl, no = year_cont)),
+         .after = year_aban)
+#"null", "" values are replaced by NA for the plotting
+df_ndvi_plot[df_ndvi_plot$year_cont %in% c("null", "") | is.na(df_ndvi_plot$year_cont %in% c("null", "")),]$year_cont = NA
+df_ndvi_plot[df_ndvi_plot$year_impl %in% c("null", "") | is.na(df_ndvi_plot$year_impl %in% c("null", "")),]$year_impl = NA
+
+
+for (i in unique(df_ndvi_plot$ID))
+{
+  cont_i = as.numeric(subset(df_ndvi_plot, ID == i)$year_cont[1])
+  impl_i = as.numeric(subset(df_ndvi_plot, ID == i)$year_impl[1])
+  T_i = as.numeric(subset(df_ndvi_plot, ID == i)$year_T[1])
+  
+  fig_avg_i = ggplot(data = subset(df_ndvi_plot, ID == i)) %>%
+  + geom_line(aes(x = year, y = Tndvi_mean, color = "T")) %>%
+  + geom_point(aes(x = year, y = Tndvi_mean, color = "T")) %>%
+  + geom_line(aes(x = year, y = C1ndvi_mean, color = "C1")) %>%
+  + geom_point(aes(x = year, y = C1ndvi_mean, color = "C1")) %>%
+  + geom_vline(aes_(xintercept = cont_i, color = "Contract"), linewidth = 1) %>%
+  + geom_vline(aes_(xintercept = impl_i, color = "Implementation"), linewidth = 1) %>%
+  + geom_vline(aes_(xintercept = T_i, color = "Treatment"), linewidth = 1) %>%
+  + labs(title = "Evolution of average annual NDVI for treated and control areas",
+         subtitle = paste0("Parcel #", subset(df_ndvi_plot, ID == i)$ID[1],
+                           " located in ", subset(df_ndvi_plot, ID == i)$country[1],
+                           " (",  subset(df_ndvi_plot, ID == i)$sub_region[1], ")"),
+         x = "Year", y = "Average annual NDVI") %>%
+  + scale_color_manual(name = "",
+                       values = c("T" = "#08519C", "C1" = "#6BAED6",
+                                  "Contract" = "grey50", "Implementation" = "grey20", "Treatment" = "red")) %>%
+  + theme(legend.position = "bottom",
+        legend.key = element_rect(fill = "white"),
+        plot.title = element_text(hjust = 0),
+        axis.text.x = element_text(angle = 90),
+        panel.background = element_rect(fill = 'white', colour = 'white',
+                                        linewidth = 0.5, linetype = 'solid'),
+        panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+        panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+        plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+        )
+  
+  fig_max_i = ggplot(data = subset(df_ndvi_plot, ID == i)) %>%
+  + geom_line(aes(x = year, y = Tndvi_max, color = "T")) %>%
+  + geom_point(aes(x = year, y = Tndvi_max, color = "T")) %>%
+  + geom_line(aes(x = year, y = C1ndvi_max, color = "C1")) %>%
+  + geom_point(aes(x = year, y = C1ndvi_max, color = "C1")) %>%
+  + geom_vline(aes_(xintercept = cont_i, color = "Contract"), linewidth = 1) %>%
+  + geom_vline(aes_(xintercept = impl_i, color = "Implementation"), linewidth = 1) %>%
+  + geom_vline(aes_(xintercept = T_i, color = "Treatment"), linewidth = 1) %>%
+  + labs(title = "Evolution of max annual NDVI for treated and control areas",
+         subtitle = paste0("Parcel #", subset(df_ndvi_plot, ID == i)$ID[1],
+                           " located in ", subset(df_ndvi_plot, ID == i)$country[1],
+                           " (",  subset(df_ndvi_plot, ID == i)$sub_region[1], ")"),
+         x = "Year", y = "Max annual NDVI") %>%
+  + scale_color_manual(name = "",
+                       values = c("T" = "#08519C", "C1" = "#6BAED6",
+                                  "Contract" = "grey50", "Implementation" = "grey20", "Treatment" = "red")) %>%
+  + theme(legend.position = "bottom",
+        legend.key = element_rect(fill = "white"),
+        plot.title = element_text(hjust = 0),
+        axis.text.x = element_text(angle = 90),
+        panel.background = element_rect(fill = 'white', colour = 'white',
+                                        linewidth = 0.5, linetype = 'solid'),
+        panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+        panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+        plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+        )
+
+    ggsave(plot = fig_avg_i,
+           filename = paste0("fig_ndvi_avg_ID", subset(df_ndvi_plot, ID == i)$ID[1], ".jpeg"),
+           path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/NDVI/ID/avg',
+     width = 7.5, height = 5
+           )
+    ggsave(plot = fig_max_i,
+           filename = paste0("fig_ndvi_max_ID", subset(df_ndvi_plot, ID == i)$ID[1], ".jpeg"),
+           path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/NDVI/ID/max',
+     width = 7.5, height = 5
+           )
+}
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Land use change  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+#Defining plotting dataset
+
+df_land_plot = Tbuf_land_ipcc %>%
+  left_join(C1buf_land_ipcc, by = c("ID", "year")) %>%
+  left_join(Tbuf_land_agri, by = c("ID", "year")) %>%
+  left_join(C1buf_land_agri, by = c("ID", "year")) %>%
+  left_join(Tbuf_land_TrueAgri, by = c("ID", "year")) %>%
+  left_join(C1buf_land_TrueAgri, by = c("ID", "year")) %>%
+  left_join(select(data_info, c(ID, year_cont, year_impl, year_aban, sub_region, country)), by = "ID") %>%
+  subset(year_impl %in% c(2000:2020) | (year_impl %in% c("") & year_cont %in% c(2000:2020))) %>%
+  subset(year_aban > 2020 | year_aban == "null") %>%
+  mutate(year_T = as.numeric(ifelse(year_impl != "", yes = year_impl, no = year_cont)),
+         .after = year_aban)
+#"null", "" values are replaced by NA for the plotting
+df_land_plot[df_land_plot$year_cont %in% c("null", "") | is.na(df_land_plot$year_cont %in% c("null", "")),]$year_cont = NA
+df_land_plot[df_land_plot$year_impl %in% c("null", "") | is.na(df_land_plot$year_impl %in% c("null", "")),]$year_impl = NA
+
+#plotting
+
+fun_land_plot_ID = function(df, title, xlab, ylab, name, path)
+{
+  for (i in unique(df$ID))
+{
+  cont_i = as.numeric(subset(df, ID == i)$year_cont[1])
+  impl_i = as.numeric(subset(df, ID == i)$year_impl[1])
+  T_i = as.numeric(subset(df, ID == i)$year_T[1])
+  
+  fig_i = ggplot(data = subset(df, ID == i)) %>%
+  + geom_line(aes(x = year, y = T_TrueAgri*100, color = "T")) %>%
+  + geom_point(aes(x = year, y = T_TrueAgri*100, color = "T")) %>%
+  + geom_line(aes(x = year, y = C1_TrueAgri*100, color = "C1")) %>%
+  + geom_point(aes(x = year, y = C1_TrueAgri*100, color = "C1")) %>%
+  + geom_vline(aes_(xintercept = cont_i, color = "Contract"), linewidth = 1) %>%
+  + geom_vline(aes_(xintercept = impl_i, color = "Implementation"), linewidth = 1) %>%
+  + geom_vline(aes_(xintercept = T_i, color = "Treatment"), linewidth = 1) %>%
+  + labs(title = title, x = xlab, y = ylab,
+         subtitle = paste0("Parcel #", subset(df, ID == i)$ID[1],
+                           " located in ", subset(df, ID == i)$country[1],
+                           " (",  subset(df, ID == i)$sub_region[1], ")")) %>%
+  + scale_color_manual(name = "",
+                       values = c("T" = "#08519C", "C1" = "#6BAED6",
+                                  "Contract" = "grey50", "Implementation" = "grey20", "Treatment" = "red")) %>%
+  + theme(legend.position = "bottom",
+        legend.key = element_rect(fill = "white"),
+        plot.title = element_text(hjust = 0),
+        axis.text.x = element_text(angle = 90),
+        panel.background = element_rect(fill = 'white', colour = 'white',
+                                        linewidth = 0.5, linetype = 'solid'),
+        panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+        panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+        plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+        )
+
+    ggsave(plot = fig_i,
+           filename = paste0(name, subset(df, ID == i)$ID[1], ".jpeg"),
+           path = path,
+     width = 7.5, height = 5
+           )
+}
+
+}
+
+#Need to change the outcome to plot in the function !!
+plot_land_ipcc = fun_land_plot_ID(df = df_land_plot, 
+                                  title = "Evolution of agricultural land share for treated and control areas",
+                                  xlab = "Year",
+                                  ylab = "Area covered (%)",
+                                  path = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/LandUseChange/ID/ipcc_TrueAgri",
+                                  name = "fig_land_TrueAgri_ID")
+
+````
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##------------------------- DIFFERENCE-IN-DIFFERENCE----------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                         Creating relevant functions                      ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+#We derive quantiles of student law for a given number of observations. 
+#Makes it possible to compute confidence interval
+df_stud = data.frame(n = c(1:500)) %>%
+  #compute quantile at 95% confidence (two-sided interval) for number of observations n
+  #so number of degrees of liberty n-1
+  mutate(t95 = qt(p = 0.975, df= n-1))
+
+#Function to extract the outcome around treatment years
+extract_did <- function(df, treatment_col, year_Tmin, year_Tmax, dt_start, dt_end) 
+  {
+  # Create an empty dataset to store the values for each parcel
+  df_did = data.frame()
+  # Loop over each parcel in the dataset
+  for (i in 1:nrow(df)) {
+    print(i)
+    # Get the treatment year for the current parcel and its ID
+    treatment_year = df[i, treatment_col]
+    ID = df[i, "ID"]
+    # Define the number of periods we can extract before and after treatment regarding 
+    #time period covered by the dataset [dt_start, dt_end]
+    nper_before = treatment_year - dt_start
+    nper_after = dt_end - treatment_year
+    #Creating relevant name for the variables (outcome before and after treatment in T and C1)
+    ##For T
+    Tname_before = paste0("Tyear_", c((year_Tmax-dt_start):1))
+    Tname_inst = "Tyear0"
+    Tname_after = paste0("Tyear", c(1:(dt_end-year_Tmin)))
+    Tname = c(Tname_before, Tname_inst, Tname_after)
+    ##For C1
+    C1name_before = paste0("C1year_", c((year_Tmax-dt_start):1))
+    C1name_inst = "C1year0"
+    C1name_after = paste0("C1year", c(1:(dt_end-year_Tmin)))
+    C1name = c(C1name_before, C1name_inst, C1name_after)
+    #Get the outcome for the years before and after the treatment year
+    #The sooner treatment period is year_Tmin, the later is year_Tmax. Then there are at most 
+    #year_Tmax-dt_start pre-treatment period, or year_Tmax-dt_start-nper_before for a given deal. 
+    #The same way, there at most dt_end-year_Tmin post treatment periods, and
+    #dt_end-year_Tmin-nper_after for a given deal. 
+    #So that all rows have the same number of columns, pre- and post-treatment period with no data
+    #are filled with NA
+    ##T
+    if(treatment_year != dt_start)
+    {
+      Tgdp_before = cbind(data.frame(matrix(NA, nrow = 1, ncol = year_Tmax-dt_start-nper_before)), df[i, paste0("T_", (dt_start):(treatment_year - 1))])
+      C1gdp_before = cbind(data.frame(matrix(NA, nrow = 1, ncol = year_Tmax-dt_start-nper_before)), df[i, paste0("C1_", (treatment_year - nper_before):(treatment_year - 1))])
+
+    }
+    if(treatment_year == dt_start)
+    {
+      Tgdp_before = data.frame(matrix(NA, nrow = 1, ncol = year_Tmax-dt_start-nper_before))
+      C1gdp_before = data.frame(matrix(NA, nrow = 1, ncol = year_Tmax-dt_start-nper_before))
+    }
+    if(treatment_year != dt_end)
+    {
+      Tgdp_after = cbind(df[i, paste0("T_", (treatment_year + 1):(dt_end))], data.frame(matrix(NA, nrow = 1, ncol = dt_end-year_Tmin-nper_after)))
+      C1gdp_after = cbind(df[i, paste0("C1_", (treatment_year + 1):(treatment_year + nper_after))], data.frame(matrix(NA, nrow = 1, ncol = dt_end-year_Tmin-nper_after)))
+    }
+    if(treatment_year == dt_end)
+    {
+      Tgdp_after = data.frame(matrix(NA, nrow = 1, ncol = dt_end-year_Tmin-nper_after))
+      C1gdp_after = data.frame(matrix(NA, nrow = 1, ncol = dt_end-year_Tmin-nper_after))
+    }
+
+    # Tgdp_before = ifelse(treatment_year == dt_start,
+    #                      yes = data.frame(matrix(NA, nrow = 1, ncol = year_Tmax-dt_start-nper_before)),
+    #                      no = cbind(data.frame(matrix(NA, nrow = 1, ncol = year_Tmax-dt_start-nper_before)), df[i, paste0("T_", (dt_start):(treatment_year - 1))]))
+    Tgdp_inst =  df[i, paste0("T_", treatment_year)]
+    # Tgdp_after = ifelse(treatment_year == dt_end,
+    #                     yes = data.frame(matrix(NA, nrow = 1, ncol = dt_end-year_Tmin-nper_after)),
+    #                     no = cbind(df[i, paste0("T_", (treatment_year + 1):(dt_end))], data.frame(matrix(NA, nrow = 1, ncol = dt_end-year_Tmin-nper_after))))
+    ##C1
+    # C1gdp_before = ifelse(treatment_year == dt_start,
+    #                       yes = data.frame(matrix(NA, nrow = 1, ncol = year_Tmax-dt_start-nper_before)),
+    #                       no = cbind(data.frame(matrix(NA, nrow = 1, ncol = year_Tmax-dt_start-nper_before)), df[i, paste0("C1_", (treatment_year - nper_before):(treatment_year - 1))]))
+    C1gdp_inst =  df[i, paste0("C1_", treatment_year)]
+    # C1gdp_after = ifelse(treatment_year == dt_end,
+    #                     yes = data.frame(matrix(NA, nrow = 1, ncol = dt_end-year_Tmin-nper_after)),
+    #                     no = cbind(df[i, paste0("C1_", (treatment_year + 1):(treatment_year + nper_after))], data.frame(matrix(NA, nrow = 1, ncol = dt_end-year_Tmin-nper_after))))
+    # Combine the outcome for T and C1 before and after treatment
+    df_did_temp <- cbind("ID" = ID,
+                      Tgdp_before, Tgdp_inst, Tgdp_after, 
+                      C1gdp_before, C1gdp_inst, C1gdp_after)
+    #Modify the names with pre- and post-treatment periods info
+    names(df_did_temp) = c("ID", Tname, C1name)
+    # Add the outcome of parcel i to the outcome computed for previous parcels
+    df_did = rbind(df_did, df_did_temp)
+  }
+  # Combine the list into a data frame and return it
+  return(df_did)
+}
+
+#function to compute DiD for each parcel at different period before AND after treatment
+fun_did_TE = function(df_did, tmax, tmin)
+{
+  df_TE = data.frame()
+  for (i in 1:nrow(df_did))
+  {
+    #Get the ID of parcel i and create a temporary dataframe to store TE for i
+    ID_i = df_did[i, "ID"]
+    df_TE_i = data.frame("ID" = ID_i)
+    #First, check for parallel trends
+    ##Comparing trends for each pre-treatment periods
+    for (j in 1:(tmin-1))
+    {
+      var_TE_jp = paste0("TE_", j, "p")
+      var_TE_jwr5 = paste0("TE_", j, "wr5")
+      Tyear_j = paste0("Tyear_", j)
+      Tyear_j_1 = paste0("Tyear_", j+1)
+      C1year_j = paste0("C1year_", j)
+      C1year_j_1 = paste0("C1year_", j+1)
+      df_TE_i[1, var_TE_jp] = (df_did[i, Tyear_j]-df_did[i, Tyear_j_1]) - (df_did[i, C1year_j]-df_did[i, C1year_j_1])
+    }
+    #Comparing trends of period -1 with periods -2 to -5 (less strong condition) 
+    for (j in 2:5)
+    {
+      var_TE_1wr_j = paste0("TE_1wr_", j)
+      Tyear_1_j = paste0("Tyear_", j)
+      C1year_1_j = paste0("C1year_", j)
+      df_TE_i[1, var_TE_1wr_j] = (df_did[i, "Tyear_1"]-df_did[i, Tyear_1_j]) - (df_did[i, "C1year_1"]-df_did[i, C1year_1_j])
+    }
+    #Then, compute TE after the treatment (from year 0 to tmax)
+    for (j in 1:(tmax+1))
+    {
+      var_TEj = paste0("TE", j-1)
+      Tyearj = paste0("Tyear", j-1)
+      C1yearj = paste0("C1year", j-1)
+      df_TE_i[1, var_TEj] = (df_did[i, Tyearj] - df_did[i, "Tyear_1"]) - (df_did[i, C1yearj] - df_did[i, "C1year_1"])
+    }
+    df_TE = rbind(df_TE, df_TE_i)
+  }
+  return(df_TE)
+}
+
+#Compute TE at sub-regional or world level
+fun_did_TE_reg = function(df_TE, region)
+{
+  if (region == "sub-region")
+  {
+  df_TE_subreg = df_TE %>%
+  group_by(sub_region) %>%
+  #For each sub-region, the average and sd of each TE and the number of parcels included for the
+  #computation (necessary to compute confidence intervals)
+  summarise(ndeal_subreg, npar_subreg,
+            across(.cols = starts_with("TE"),
+                   .fn = list(n = ~sum(is.na(.x) == FALSE),
+                              avg = ~mean(.x, na.rm = TRUE),
+                              sd = ~ sd(.x, na.rm = TRUE)
+                              ) 
+                )
+            )  %>%
+  #keep only one observation by sub-region
+  slice(1) %>%
+  ungroup() %>%
+  #Pivot the dataset to compute confidence intervals (need the sd, mean and number of obs. for each   #TE)
+  pivot_longer(cols = c(ends_with("_n"), ends_with("avg"), ends_with("sd")),
+             names_to = c("period", ".value"),
+             names_pattern = "(TE.*)_(n|avg|sd)") %>%
+  #Add the student law quantiles to compute CI
+  left_join(df_stud, by = "n") %>%
+  #Compute CI and add an index to identify the type of TE : pre- and post-treatment (pbo_p and TE),
+  #parallel trend test for periods -5 to -2 with respect to -1 (wr)
+  mutate(ci = sd*t95/sqrt(n),
+         type_TE = ifelse(grepl("(p|wr|_)", period) == FALSE, 
+                          yes = "TE",
+                          no = ifelse(grepl("p", period), 
+                                      yes = "pbo_p",
+                                      no = ifelse(grepl("wr", period),
+                                                  yes = "wr",
+                                                  no = "")
+                                      )
+                          ),
+         period = ifelse(type_TE == "TE",
+                         yes = as.numeric(sub("TE", "", period)),
+                         no = ifelse(type_TE == "pbo_p",
+                                     yes = -as.numeric(gsub("[TE_p]", "\\1", period)),
+                                     no = -as.numeric(sub("TE_1wr_", "", period))
+                                     )
+                         )
+         )
+  return(df_TE_subreg)
+  }
+  
+  if(region == "world")
+  {
+  df_TE_wld = df_TE %>%
+  select(c(deal_id, ID, starts_with("TE"))) %>%
+  mutate(ndeal_wld = length(unique(deal_id)), npar_wld = length(unique(ID)), .before = deal_id) %>%
+  #For each sub-region, the average and sd of each TE and the number of parcels included for the
+  #computation (necessary to compute confidence intervals)
+  summarise(ndeal_wld, npar_wld,
+            across(.cols = starts_with("TE"),
+                   .fn = list(n = ~sum(is.na(.x) == FALSE),
+                              avg = ~mean(.x, na.rm = TRUE),
+                              sd = ~ sd(.x, na.rm = TRUE)
+                              ) 
+                )
+            )  %>%
+  slice(1) %>%
+  #Pivot the dataset to compute confidence intervals (need the sd, mean and number of obs. for each   #TE)
+  pivot_longer(cols = c(ends_with("_n"), ends_with("avg"), ends_with("sd")),
+             names_to = c("period", ".value"),
+             names_pattern = "(TE.*)_(n|avg|sd)") %>%
+  #Add the student law quantiles to compute CI
+  left_join(df_stud, by = "n") %>%
+  #Compute CI and add an index to identify the type of TE : pre- and post-treatment TE,
+  #parallel trend test for periods -5 to -2 with respect to -1
+  mutate(ci = sd*t95/sqrt(n),
+         type_TE = ifelse(grepl("(p|wr|_)", period) == FALSE, 
+                          yes = "TE",
+                          no = ifelse(grepl("p", period), 
+                                      yes = "pbo_p",
+                                      no = ifelse(grepl("wr", period),
+                                                  yes = "wr",
+                                                  no = "")
+                                      )
+                          ),
+         period = ifelse(type_TE == "TE",
+                         yes = as.numeric(sub("TE", "", period)),
+                         no = ifelse(type_TE == "pbo_p",
+                                     yes = -as.numeric(gsub("[TE_p]", "\\1", period)),
+                                     no = -as.numeric(sub("TE_1wr_", "", period))
+                                     )
+                         )
+         )
+  return(df_TE_wld)
+  }
+  
+}
+
+#Function to plot gdp TE at sub-regional and world-level, in one or several figures
+fun_gdp_TE_plot = function(df_subreg, df_wld, tmin, tmax)
+{
+  list_fig_subreg = list()
+  list_sub_region = unique(df_subreg$sub_region)
+  list_accro = c("EE", "LA", "Mel", "NA", "SEAs", "SE", "SSA", "WLD")
+  for(i in 1:length(list_sub_region))
+  {
+  fig_TE_subreg = ggplot() %>%
+  + geom_line(data = subset(df_subreg, 
+                            sub_region == list_sub_region[i]
+                            & period >= -tmin & period <= tmax
+                            & type_TE %in% c("TE", "pbo_p")),
+              aes(x = period, y = avg), color = "#08519C", linewidth = 1) %>%
+  + geom_ribbon(data = subset(df_subreg, 
+                            sub_region == list_sub_region[i]
+                            & period >= -tmin & period <= tmax
+                            & type_TE %in% c("TE", "pbo_p")),
+                  aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+                  alpha=0.1, fill = "#FB6A4A", color = "black", linetype = "dotted") %>%
+  # + geom_ribbon(data = subset(df_subreg, 
+  #                           sub_region == list_sub_region[i]
+  #                           & period >= -tmin & period <= tmax
+  #                           & type_TE %in% c("TE", "pbo_p")),
+  #                 aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+  #                 color = "#DE2D26", linewidth = 0.7, width = 0.2, alpha = .8) %>%
+  # + geom_errorbar(data = subset(df_subreg, 
+  #                           sub_region == list_sub_region[i]
+  #                         & period >= -tmin & period <= tmax
+  #                         & type_TE == "wr"),
+  #               aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+  #               color = "grey30", linewidth = 0.7, width = 0.2, alpha = .8) %>%
+  #   + geom_point(data = subset(df_subreg, 
+  #                         sub_region == list_sub_region[i]
+  #                         & period >= -tmin & period <= tmax
+  #                         & type_TE == "wr"),
+  #                aes(x = period, y = avg), color = "grey30", size = 2, shape = 19) %>%
+  + geom_point(data = subset(df_subreg, 
+                            sub_region == list_sub_region[i]
+                            & period >= -tmin & period <= tmax
+                            & type_TE %in% c("TE", "pbo_p")),
+               aes(x = period, y = avg), color = "#08519C", size = 2, shape = 19) %>%
+  + scale_x_continuous(breaks = scales::pretty_breaks(n = tmax+tmin)) %>%
+  + labs(x = "Year after treatment",
+         y = "ATT in GDP PPP per ha\n(constant international 2011 USD)",
+         title = "Average treatment effect on the treated of LSLA",
+         subtitle = list_sub_region[i],
+         caption = paste0("Computation from ", subset(df_subreg, sub_region == list_sub_region[i])$npar_subreg, " parcels in ", subset(df_subreg, sub_region == list_sub_region[i])$ndeal_subreg, " deals. Uncertainty represented by 95% \nconfidence intervals and increases over time due to fewer parcels with \ndata to compute treatment effect")) %>%
+  + theme(legend.position = "bottom",
+        legend.key = element_rect(fill = "white"),
+        plot.title = element_text(hjust = 0), 
+        axis.text.x = element_text(angle = 0),
+        panel.background = element_rect(fill = 'white', colour = 'white', 
+                                        linewidth = 0.5, linetype = 'solid'),
+        panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+        panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+        plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+        ) 
+  list_fig_subreg[[i]] = fig_TE_subreg
+  }
+#Store figs of sub-regions in a list
+list_fig = list_fig_subreg
+
+#Plot world level figure
+
+fig_TE_wld = ggplot() %>%
++ geom_line(data = subset(df_wld, 
+                          period >= -tmin & period <= tmax & type_TE %in% c("TE", "pbo_p")),
+            aes(x = period, y = avg), color = "#3182BD", linewidth = 1) %>%
+  + geom_ribbon(data = subset(df_wld,
+                            period >= -tmin & period <= tmax
+                            & type_TE %in% c("TE", "pbo_p")),
+                  aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+                  alpha=0.1, fill = "#FB6A4A", color = "black", linetype = "dotted") %>%
+# + geom_errorbar(data = subset(df_wld, 
+#                               period >= -tmin & period <= tmax & type_TE %in% c("TE", "pbo_p")),
+#                 aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+#                 color = "#DE2D26", linewidth = 0.7, width = 0.2, alpha = .8) %>%
+# + geom_errorbar(data = subset(df_wld, 
+#                           period >= -tmin & period <= tmax
+#                         & type_TE == "wr"),
+#               aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+#               color = "grey30", linewidth = 0.7, width = 0.2, alpha = .8) %>%
+# + geom_point(data = subset(df_wld, 
+#                             period >= -tmin & period <= tmax
+#                             & type_TE == "wr"),
+#            aes(x = period, y = avg), color = "grey30", size = 2, shape = 19) %>%
++ geom_point(data = subset(df_wld, 
+                           period >= -tmin & period <= tmax
+                          & type_TE %in% c("TE", "pbo_p")),
+             aes(x = period, y = avg), color = "#3182BD", size = 2, shape = 19) %>%
++ scale_x_continuous(breaks = scales::pretty_breaks(n = tmax+tmin)) %>%
++ labs(x = "Year after treatment",
+       y = "ATT in GDP PPP per ha\n(constant international 2011 USD)",
+       title = "Average treatment effect on the treated of LSLA",
+       subtitle = "World",
+       caption = paste0("Computation from ", df_wld$npar_wld, " parcels in ", df_wld$ndeal_wld, " deals. Uncertainty represented by 95% \nconfidence intervals and increases over time due to fewer parcels with \ndata to compute treatment effect")) %>%
++ theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(hjust = 0), 
+      axis.text.x = element_text(angle = 0),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+      ) 
+
+#Storing the world level TE with the sub-regional ones
+list_fig[[length(list_sub_region)+1]] = fig_TE_wld
+
+#Saving either figure by figure ...
+# for (i in 1:length(list_fig))
+# {
+#  ggsave(plot = list_fig[[i]],
+#        filename =  paste0("fig_gdp_5am_perha_TE_", tmin, tmax, "_", list_accro[i], "_2.jpeg"),
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/GDP/ATT/level',
+#        width = 7.5, height = 5)
+# }
+
+# Or all figures in one plot
+# Then a multi plot is created from the list
+mplot = plot_grid(plotlist = list_fig,
+                        align = "hv",
+                        nrow = 4,
+                        ncol = 2,
+                        labels = "AUTO"
+                        )
+# 
+# #Adding a common x and y axis
+# 
+y.grob <- textGrob("ATT in GDP PPP per ha\n(constant international 2011 USD)",
+                 gp=gpar(fontface = "bold", fontsize=15), rot=90)
+x.grob <- textGrob("Year after treatment",
+                 gp=gpar(fontface = "bold", fontsize=15))
+title.grob <- textGrob("Average treatment effect on the treated of LSLA",
+                 gp=gpar(fontface = "bold", fontsize=17))
+# 
+# #Building the final figure
+fig = grid.arrange(arrangeGrob(mplot, left = y.grob, bottom = x.grob, top = title.grob))
+
+ggsave(plot = fig,
+       filename = paste0("fig_gdp_5am_perha_TE_", tmin, tmax, ".jpeg"),
+       path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/GDP/ATT/level',
+       width = 15, height = 10)
+# 
+# return(list_fig)
+# 
+}
+
+fun_gdp_TE_log_plot = function(df_subreg, df_wld, tmin, tmax)
+{
+  list_fig_subreg = list()
+  list_sub_region = unique(df_subreg$sub_region)
+  list_accro = c("EE", "LA", "Mel", "NA", "SEAs", "SE", "SSA", "WLD")
+  for(i in 1:length(list_sub_region))
+  {
+  fig_TE_subreg = ggplot() %>%
+  + geom_line(data = subset(df_subreg, 
+                            sub_region == list_sub_region[i]
+                            & period >= -tmin & period <= tmax
+                            & type_TE %in% c("TE", "pbo_p")),
+              aes(x = period, y = avg), color = "#3182BD", linewidth = 1) %>%
+  + geom_ribbon(data = subset(df_subreg, 
+                            sub_region == list_sub_region[i]
+                            & period >= -tmin & period <= tmax
+                            & type_TE %in% c("TE", "pbo_p")),
+                  aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+                  alpha=0.1, fill = "#FB6A4A", color = "black", linetype = "dotted") %>%
+  # + geom_errorbar(data = subset(df_subreg, 
+  #                           sub_region == list_sub_region[i]
+  #                           & period >= -tmin & period <= tmax
+  #                           & type_TE %in% c("TE", "pbo_p")),
+  #                 aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+  #                 color = "#DE2D26", linewidth = 0.7, width = 0.2, alpha = .8) %>%
+  # + geom_errorbar(data = subset(df_subreg, 
+  #                           sub_region == list_sub_region[i]
+  #                         & period >= -tmin & period <= tmax
+  #                         & type_TE == "wr"),
+  #               aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+  #               color = "grey30", linewidth = 0.7, width = 0.2, alpha = .8) %>%
+  #   + geom_point(data = subset(df_subreg, 
+  #                         sub_region == list_sub_region[i]
+  #                         & period >= -tmin & period <= tmax
+  #                         & type_TE == "wr"),
+  #                aes(x = period, y = avg), color = "grey30", size = 2, shape = 19) %>%
+  + geom_point(data = subset(df_subreg, 
+                            sub_region == list_sub_region[i]
+                            & period >= -tmin & period <= tmax
+                            & type_TE %in% c("TE", "pbo_p")),
+               aes(x = period, y = avg), color = "#3182BD", size = 2, shape = 19) %>%
+  + scale_x_continuous(breaks = scales::pretty_breaks(n = tmax+tmin)) %>%
+  + labs(x = "Year after treatment",
+         y = "ATT in log of GDP PPP per ha\n(constant international 2011 USD)",
+         title = "Average treatment effect on the treated of LSLA",
+         subtitle = list_sub_region[i],
+         caption = paste0("Computation from ", subset(df_subreg, sub_region == list_sub_region[i])$npar_subreg, " parcels in ", subset(df_subreg, sub_region == list_sub_region[i])$ndeal_subreg, " deals. Uncertainty represented by 95% \nconfidence intervals and increases over time due to fewer parcels with \ndata to compute treatment effect")) %>%
+  + theme(legend.position = "bottom",
+        legend.key = element_rect(fill = "white"),
+        plot.title = element_text(hjust = 0), 
+        axis.text.x = element_text(angle = 0),
+        panel.background = element_rect(fill = 'white', colour = 'white', 
+                                        linewidth = 0.5, linetype = 'solid'),
+        panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+        panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+        plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+        ) 
+  list_fig_subreg[[i]] = fig_TE_subreg
+  }
+#Store figs of sub-regions in a list
+list_fig = list_fig_subreg
+
+#Plot world level figure
+
+fig_TE_wld = ggplot() %>%
++ geom_line(data = subset(df_wld, 
+                          period >= -tmin & period <= tmax & type_TE %in% c("TE", "pbo_p")),
+            aes(x = period, y = avg), color = "#3182BD", linewidth = 1) %>%
+  + geom_ribbon(data = subset(df_wld, 
+                            period >= -tmin & period <= tmax
+                            & type_TE %in% c("TE", "pbo_p")),
+                  aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+                  alpha=0.1, fill = "#FB6A4A", color = "black", linetype = "dotted") %>%
+# + geom_errorbar(data = subset(df_wld, 
+#                               period >= -tmin & period <= tmax & type_TE %in% c("TE", "pbo_p")),
+#                 aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+#                 color = "#DE2D26", linewidth = 0.7, width = 0.2, alpha = .8) %>%
+# + geom_errorbar(data = subset(df_wld, 
+#                           period >= -tmin & period <= tmax
+#                         & type_TE == "wr"),
+#               aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+#               color = "grey30", linewidth = 0.7, width = 0.2, alpha = .8) %>%
+# + geom_point(data = subset(df_wld, 
+#                             period >= -tmin & period <= tmax
+#                             & type_TE == "wr"),
+#            aes(x = period, y = avg), color = "grey30", size = 2, shape = 19) %>%
++ geom_point(data = subset(df_wld, 
+                           period >= -tmin & period <= tmax
+                          & type_TE %in% c("TE", "pbo_p")),
+             aes(x = period, y = avg), color = "#3182BD", size = 2, shape = 19) %>%
++ scale_x_continuous(breaks = scales::pretty_breaks(n = tmax+tmin)) %>%
++ labs(x = "Year after treatment",
+       y = "ATT in log of GDP PPP per ha\n(constant international 2011 USD)",
+       title = "Average treatment effect on the treated of LSLA",
+       subtitle = "World",
+       caption = paste0("Computation from ", df_wld$npar_wld, " parcels in ", df_wld$ndeal_wld, " deals. Uncertainty represented by 95% \nconfidence intervals and increases over time due to fewer parcels with \ndata to compute treatment effect")) %>%
++ theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(hjust = 0), 
+      axis.text.x = element_text(angle = 0),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0)
+      ) 
+
+#Storing the world level TE with the sub-regional ones
+list_fig[[length(list_sub_region)+1]] = fig_TE_wld
+
+#Saving either figure by figure ...
+for (i in 1:length(list_fig))
+{
+ ggsave(plot = list_fig[[i]],
+       filename =  paste0("fig_gdp_5am_perha_TE_log_", tmin, tmax, "_", list_accro[i], "_2.jpeg"),
+       path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/GDP/ATT/log',
+       width = 7.5, height = 5)
+}
+
+#Or all figures in one plot
+#Then a multi plot is created from the list
+# mplot = plot_grid(plotlist = list_fig,
+#                         align = "hv",
+#                         nrow = 3,
+#                         ncol = 3,
+#                         labels = "AUTO"
+#                         )
+# 
+# #Adding a common x and y axis
+# 
+# y.grob <- textGrob("ATT in log of GDP PPP per ha\n(constant international 2011 USD)",
+#                  gp=gpar(fontface = "bold", fontsize=15), rot=90)
+# x.grob <- textGrob("Year after treatment",
+#                  gp=gpar(fontface = "bold", fontsize=15))
+# title.grob <- textGrob("Average treatment effect on the treated of LSLA",
+#                  gp=gpar(fontface = "bold", fontsize=17))
+# # #Building the final figure
+# fig = grid.arrange(arrangeGrob(mplot, left = y.grob, bottom = x.grob, top = title.grob))
+# 
+# ggsave(plot = fig,
+#        filename = paste0("fig_gdp_5am_perha_TE_log_", tmin, tmax, "2.jpeg"),
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/GDP/ATT/log',
+#        width = 15, height = 10)
+
+return(list_fig)
+
+}
+
+#Function to plot ndvi TE at sub-regional and world-level, in one or several figures
+fun_ndvi_mean_TE_plot = function(df_subreg, df_wld, tmin, tmax)
+{
+  list_fig_subreg = list()
+  list_sub_region = sort(unique(df_subreg$sub_region))
+  list_accro = c("EE", "LA", "NA", "SEAs", "SE", "SSA", "WLD")
+  for(i in 1:length(list_sub_region))
+  {
+  fig_TE_subreg = ggplot() %>%
+  + geom_line(data = subset(df_subreg, 
+                            sub_region == list_sub_region[i]
+                            & period >= -tmin & period <= tmax
+                            & type_TE %in% c("TE", "pbo_p")),
+              aes(x = period, y = avg), color = "#3182BD", linewidth = 1) %>%
+  + geom_ribbon(data = subset(df_subreg, 
+                            sub_region == list_sub_region[i]
+                            & period >= -tmin & period <= tmax
+                            & type_TE %in% c("TE", "pbo_p")),
+                  aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+                  alpha=0.1, fill = "#FB6A4A", color = "black", linetype = "dotted") %>%
+  # + geom_errorbar(data = subset(df_subreg, 
+  #                           sub_region == list_sub_region[i]
+  #                           & period >= -tmin & period <= tmax
+  #                           & type_TE %in% c("TE", "pbo_p")),
+  #                 aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+  #                 color = "#DE2D26", linewidth = 0.7, width = 0.2, alpha = .8) %>%
+  # + geom_errorbar(data = subset(df_subreg, 
+  #                           sub_region == list_sub_region[i]
+  #                         & period >= -tmin & period <= tmax
+  #                         & type_TE == "wr"),
+  #               aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+  #               color = "grey30", linewidth = 0.7, width = 0.2, alpha = .8) %>%
+  #   + geom_point(data = subset(df_subreg, 
+  #                         sub_region == list_sub_region[i]
+  #                         & period >= -tmin & period <= tmax
+  #                         & type_TE == "wr"),
+  #                aes(x = period, y = avg), color = "grey30", size = 2, shape = 19) %>%
+  + geom_point(data = subset(df_subreg, 
+                            sub_region == list_sub_region[i]
+                            & period >= -tmin & period <= tmax
+                            & type_TE %in% c("TE", "pbo_p")),
+               aes(x = period, y = avg), color = "#3182BD", size = 2, shape = 19) %>%
+  + scale_x_continuous(breaks = scales::pretty_breaks(n = tmax+tmin)) %>%
+  + labs(x = "",
+         y = "",
+         title = "",
+         subtitle = list_sub_region[i],
+         caption = paste0("Computation from ", subset(df_subreg, sub_region == list_sub_region[i])$npar_subreg, " parcels in ", subset(df_subreg, sub_region == list_sub_region[i])$ndeal_subreg, " deals. Uncertainty represented by 95% \nconfidence intervals and increases over time due to fewer parcels with \ndata to compute treatment effect")) %>%
+  + theme(legend.position = "bottom",
+        legend.key = element_rect(fill = "white"),
+        plot.title = element_text(hjust = 0), 
+        axis.text.x = element_text(angle = 0),
+        panel.background = element_rect(fill = 'white', colour = 'white', 
+                                        linewidth = 0.5, linetype = 'solid'),
+        panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+        panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+        plot.caption = element_text(color = 'grey50', size = 12, face = 'plain', hjust = 0),
+        plot.subtitle = element_text(size = 15, hjust = 0)
+        ) 
+  list_fig_subreg[[i]] = fig_TE_subreg
+  }
+#Store figs of sub-regions in a list
+list_fig = list_fig_subreg
+
+#Plot world level figure
+
+fig_TE_wld = ggplot() %>%
++ geom_line(data = subset(df_wld, 
+                          period >= -tmin & period <= tmax & type_TE %in% c("TE", "pbo_p")),
+            aes(x = period, y = avg), color = "#3182BD", linewidth = 1) %>%
+  + geom_ribbon(data = subset(df_wld, 
+                            period >= -tmin & period <= tmax
+                            & type_TE %in% c("TE", "pbo_p")),
+                  aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+                  alpha=0.1, fill = "#FB6A4A", color = "black", linetype = "dotted") %>%
+# + geom_errorbar(data = subset(df_wld, 
+#                               period >= -tmin & period <= tmax & type_TE %in% c("TE", "pbo_p")),
+#                 aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+#                 color = "#DE2D26", linewidth = 0.7, width = 0.2, alpha = .8) %>%
+# + geom_errorbar(data = subset(df_wld, 
+#                           period >= -tmin & period <= tmax
+#                         & type_TE == "wr"),
+#               aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+#               color = "grey30", linewidth = 0.7, width = 0.2, alpha = .8) %>%
+# + geom_point(data = subset(df_wld, 
+#                             period >= -tmin & period <= tmax
+#                             & type_TE == "wr"),
+#            aes(x = period, y = avg), color = "grey30", size = 2, shape = 19) %>%
++ geom_point(data = subset(df_wld, 
+                           period >= -tmin & period <= tmax
+                          & type_TE %in% c("TE", "pbo_p")),
+             aes(x = period, y = avg), color = "#3182BD", size = 2, shape = 19) %>%
++ scale_x_continuous(breaks = scales::pretty_breaks(n = tmax+tmin)) %>%
++ labs(x = "" ,
+       y = "",
+       title = "",
+       subtitle = "World",
+       caption = paste0("Computation from ", df_wld$npar_wld, " parcels in ", df_wld$ndeal_wld, " deals. Uncertainty represented by 95% \nconfidence intervals and increases over time due to fewer parcels with \ndata to compute treatment effect")) %>%
++ theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(hjust = 0), 
+      axis.text.x = element_text(angle = 0),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 12, face = 'plain', hjust = 0),
+      plot.subtitle = element_text(size = 15, hjust = 0)
+      ) 
+
+#Storing the world level TE with the sub-regional ones
+list_fig[[length(list_sub_region)+1]] = fig_TE_wld
+
+#Saving either figure by figure ...
+# for (i in 1:length(list_fig))
+# {
+#  ggsave(plot = list_fig[[i]],
+#        filename =  paste0("fig_ndvi_mean_TE_", tmin, tmax, "_", list_accro[i], "_2.jpeg"),
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/NDVI/ATT/avg',
+#        width = 7.5, height = 5)
+# }
+
+#Or all figures in one plot
+#Then a multi plot is created from the list
+mplot = plot_grid(plotlist = list_fig,
+                        align = "hv",
+                        nrow = 4,
+                        ncol = 2,
+                        labels = "AUTO"
+                        )
+# 
+# #Adding a common x and y axis
+# 
+y.grob <- textGrob("ATT in average annual NDVI",
+                 gp=gpar(fontface = "bold", fontsize=18), rot=90)
+x.grob <- textGrob("Year after treatment",
+                 gp=gpar(fontface = "bold", fontsize=18))
+title.grob <- textGrob("Average treatment effect on the treated of TALSLAs",
+                 gp=gpar(fontface = "bold", fontsize=20))
+# #
+# # #Building the final figure
+fig = grid.arrange(arrangeGrob(mplot, left = y.grob, bottom = x.grob, top = title.grob))
+
+ggsave(plot = fig,
+       filename = paste0("fig_ndvi_mean_TE_", tmin, tmax, "2.jpeg"),
+       path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/NDVI/ATT/avg',
+       width = 16, height = 20)
+
+return(list_fig)
+
+}
+
+fun_ndvi_max_TE_plot = function(df_subreg, df_wld, tmin, tmax)
+{
+  list_fig_subreg = list()
+  list_sub_region = unique(df_subreg$sub_region)
+  list_accro = c("EE", "LA", "NA", "SEAs", "SE", "SSA", "WLD")
+  for(i in 1:length(list_sub_region))
+  {
+  fig_TE_subreg = ggplot() %>%
+  + geom_line(data = subset(df_subreg, 
+                            sub_region == list_sub_region[i]
+                            & period >= -tmin & period <= tmax
+                            & type_TE %in% c("TE", "pbo_p")),
+              aes(x = period, y = avg), color = "#3182BD", linewidth = 1) %>%
+  + geom_ribbon(data = subset(df_subreg, 
+                            sub_region == list_sub_region[i]
+                            & period >= -tmin & period <= tmax
+                            & type_TE %in% c("TE", "pbo_p")),
+                  aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+                  alpha=0.1, fill = "#FB6A4A", color = "black", linetype = "dotted") %>%
+  # + geom_errorbar(data = subset(df_subreg, 
+  #                           sub_region == list_sub_region[i]
+  #                           & period >= -tmin & period <= tmax
+  #                           & type_TE %in% c("TE", "pbo_p")),
+  #                 aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+  #                 color = "#DE2D26", linewidth = 0.7, width = 0.2, alpha = .8) %>%
+  # + geom_errorbar(data = subset(df_subreg, 
+  #                           sub_region == list_sub_region[i]
+  #                         & period >= -tmin & period <= tmax
+  #                         & type_TE == "wr"),
+  #               aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+  #               color = "grey30", linewidth = 0.7, width = 0.2, alpha = .8) %>%
+  #   + geom_point(data = subset(df_subreg, 
+  #                         sub_region == list_sub_region[i]
+  #                         & period >= -tmin & period <= tmax
+  #                         & type_TE == "wr"),
+  #                aes(x = period, y = avg), color = "grey30", size = 2, shape = 19) %>%
+  + geom_point(data = subset(df_subreg, 
+                            sub_region == list_sub_region[i]
+                            & period >= -tmin & period <= tmax
+                            & type_TE %in% c("TE", "pbo_p")),
+               aes(x = period, y = avg), color = "#3182BD", size = 2, shape = 19) %>%
+  + scale_x_continuous(breaks = scales::pretty_breaks(n = tmax+tmin)) %>%
+  + labs(x = "",
+         y = "",
+         title = "",
+         subtitle = list_sub_region[i],
+         caption = paste0("Computation from ", subset(df_subreg, sub_region == list_sub_region[i])$npar_subreg, " parcels in ", subset(df_subreg, sub_region == list_sub_region[i])$ndeal_subreg, " deals. Uncertainty represented by 95% \nconfidence intervals and increases over time due to fewer parcels with \ndata to compute treatment effect")) %>%
+  + theme(legend.position = "bottom",
+        legend.key = element_rect(fill = "white"),
+        plot.title = element_text(hjust = 0), 
+        axis.text.x = element_text(angle = 0),
+        panel.background = element_rect(fill = 'white', colour = 'white', 
+                                        linewidth = 0.5, linetype = 'solid'),
+        panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+        panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 12, face = 'plain', hjust = 0),
+      plot.subtitle = element_text(size = 15, hjust = 0)
+        ) 
+  list_fig_subreg[[i]] = fig_TE_subreg
+  }
+#Store figs of sub-regions in a list
+list_fig = list_fig_subreg
+
+#Plot world level figure
+
+fig_TE_wld = ggplot() %>%
++ geom_line(data = subset(df_wld, 
+                          period >= -tmin & period <= tmax & type_TE %in% c("TE", "pbo_p")),
+            aes(x = period, y = avg), color = "#3182BD", linewidth = 1) %>%
+  + geom_ribbon(data = subset(df_wld, 
+                            period >= -tmin & period <= tmax
+                            & type_TE %in% c("TE", "pbo_p")),
+                  aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+                  alpha=0.1, fill = "#FB6A4A", color = "black", linetype = "dotted") %>%
+# + geom_errorbar(data = subset(df_wld, 
+#                               period >= -tmin & period <= tmax & type_TE %in% c("TE", "pbo_p")),
+#                 aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+#                 color = "#DE2D26", linewidth = 0.7, width = 0.2, alpha = .8) %>%
+# + geom_errorbar(data = subset(df_wld, 
+#                           period >= -tmin & period <= tmax
+#                         & type_TE == "wr"),
+#               aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+#               color = "grey30", linewidth = 0.7, width = 0.2, alpha = .8) %>%
+# + geom_point(data = subset(df_wld, 
+#                             period >= -tmin & period <= tmax
+#                             & type_TE == "wr"),
+#            aes(x = period, y = avg), color = "grey30", size = 2, shape = 19) %>%
++ geom_point(data = subset(df_wld, 
+                           period >= -tmin & period <= tmax
+                          & type_TE %in% c("TE", "pbo_p")),
+             aes(x = period, y = avg), color = "#3182BD", size = 2, shape = 19) %>%
++ scale_x_continuous(breaks = scales::pretty_breaks(n = tmax+tmin)) %>%
++ labs(x = "",
+       y = "",
+       title = "",
+       subtitle = "World",
+       caption = paste0("Computation from ", df_wld$npar_wld, " parcels in ", df_wld$ndeal_wld, " deals. Uncertainty represented by 95% \nconfidence intervals and increases over time due to fewer parcels with \ndata to compute treatment effect")) %>%
++ theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(hjust = 0), 
+      axis.text.x = element_text(angle = 0),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 12, face = 'plain', hjust = 0),
+      plot.subtitle = element_text(size = 15, hjust = 0)
+      ) 
+
+#Storing the world level TE with the sub-regional ones
+list_fig[[length(list_sub_region)+1]] = fig_TE_wld
+
+#Saving either figure by figure ...
+# for (i in 1:length(list_fig))
+# {
+#  ggsave(plot = list_fig[[i]],
+#        filename =  paste0("fig_ndvi_max_TE_", tmin, tmax, "_", list_accro[i], "_2.jpeg"),
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/NDVI/ATT/max',
+#        width = 7.5, height = 5)
+# }
+
+#Or all figures in one plot
+#Then a multi plot is created from the list
+mplot = plot_grid(plotlist = list_fig,
+                        align = "hv",
+                        nrow = 4,
+                        ncol = 2,
+                        labels = "AUTO"
+                        )
+
+# #Adding a common x and y axis
+# 
+y.grob <- textGrob("ATT in max annual NDVI",
+                 gp=gpar(fontface = "bold", fontsize=16), rot=90)
+x.grob <- textGrob("Year after treatment",
+                 gp=gpar(fontface = "bold", fontsize=16))
+title.grob <- textGrob("Average treatment effect on the treated of LSLA",
+                 gp=gpar(fontface = "bold", fontsize=20))
+# 
+# #Building the final figure
+fig = grid.arrange(arrangeGrob(mplot, left = y.grob, bottom = x.grob, top = title.grob))
+
+ggsave(plot = fig,
+       filename = paste0("fig_ndvi_max_TE_", tmin, tmax, "_2.jpeg"),
+       path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/NDVI/ATT/max',
+       width = 16, height = 20)
+
+return(list_fig)
+
+}
+
+#Function to plot agricultural land
+#TE at sub-regional and world-level, in one or several figures
+
+fun_land_TrueAgri_TE_plot = function(df_subreg, df_wld, tmin, tmax)
+{
+  list_fig_subreg = list()
+  list_sub_region = sort(unique(df_subreg$sub_region))
+  list_accro = c("EE", "LA", "Mel", "NA", "SEAs", "SE", "SSA", "WLD")
+  for(i in 1:length(list_sub_region))
+  {
+  fig_TE_subreg = ggplot() %>%
+  + geom_line(data = subset(df_subreg, 
+                            sub_region == list_sub_region[i]
+                            & period >= -tmin & period <= tmax
+                            & type_TE %in% c("TE", "pbo_p")),
+              aes(x = period, y = avg), color = "#3182BD", linewidth = 1) %>%
+  + geom_ribbon(data = subset(df_subreg, 
+                            sub_region == list_sub_region[i]
+                            & period >= -tmin & period <= tmax
+                            & type_TE %in% c("TE", "pbo_p")),
+                  aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+                  alpha=0.1, fill = "#FB6A4A", color = "black", linetype = "dotted") %>%
+  # + geom_errorbar(data = subset(df_subreg, 
+  #                           sub_region == list_sub_region[i]
+  #                           & period >= -tmin & period <= tmax
+  #                           & type_TE %in% c("TE", "pbo_p")),
+  #                 aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+  #                 color = "#DE2D26", linewidth = 0.7, width = 0.2, alpha = .8) %>%
+  # + geom_errorbar(data = subset(df_subreg, 
+  #                           sub_region == list_sub_region[i]
+  #                         & period >= -tmin & period <= tmax
+  #                         & type_TE == "wr"),
+  #               aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+  #               color = "grey30", linewidth = 0.7, width = 0.2, alpha = .8) %>%
+  #   + geom_point(data = subset(df_subreg, 
+  #                         sub_region == list_sub_region[i]
+  #                         & period >= -tmin & period <= tmax
+  #                         & type_TE == "wr"),
+  #                aes(x = period, y = avg), color = "grey30", size = 2, shape = 19) %>%
+  + geom_point(data = subset(df_subreg, 
+                            sub_region == list_sub_region[i]
+                            & period >= -tmin & period <= tmax
+                            & type_TE %in% c("TE", "pbo_p")),
+               aes(x = period, y = avg), color = "#3182BD", size = 2, shape = 19) %>%
+  + scale_x_continuous(breaks = scales::pretty_breaks(n = tmax+tmin)) %>%
+  + labs(x = "",
+         y = "",
+         title = "",
+         subtitle = list_sub_region[i],
+         caption = paste0("Computation from ", subset(df_subreg, sub_region == list_sub_region[i])$npar_subreg, " parcels in ", subset(df_subreg, sub_region == list_sub_region[i])$ndeal_subreg, " deals. Uncertainty represented by 95% \nconfidence intervals and increases over time due to fewer parcels with \ndata to compute treatment effect")) %>%
+  + theme(legend.position = "bottom",
+        legend.key = element_rect(fill = "white"),
+        plot.title = element_text(hjust = 0), 
+        axis.text.x = element_text(angle = 0),
+        panel.background = element_rect(fill = 'white', colour = 'white', 
+                                        linewidth = 0.5, linetype = 'solid'),
+        panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+        panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 12, face = 'plain', hjust = 0),
+      plot.subtitle = element_text(size = 15, hjust = 0)
+        ) 
+  list_fig_subreg[[i]] = fig_TE_subreg
+  }
+#Store figs of sub-regions in a list
+list_fig = list_fig_subreg
+
+#Plot world level figure
+
+fig_TE_wld = ggplot() %>%
++ geom_line(data = subset(df_wld, 
+                          period >= -tmin & period <= tmax & type_TE %in% c("TE", "pbo_p")),
+            aes(x = period, y = avg), color = "#3182BD", linewidth = 1) %>%
+  + geom_ribbon(data = subset(df_wld, 
+                            period >= -tmin & period <= tmax
+                            & type_TE %in% c("TE", "pbo_p")),
+                  aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+                  alpha=0.1, fill = "#FB6A4A", color = "black", linetype = "dotted") %>%
+# + geom_errorbar(data = subset(df_wld, 
+#                               period >= -tmin & period <= tmax & type_TE %in% c("TE", "pbo_p")),
+#                 aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+#                 color = "#DE2D26", linewidth = 0.7, width = 0.2, alpha = .8) %>%
+# + geom_errorbar(data = subset(df_wld, 
+#                           period >= -tmin & period <= tmax
+#                         & type_TE == "wr"),
+#               aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+#               color = "grey30", linewidth = 0.7, width = 0.2, alpha = .8) %>%
+# + geom_point(data = subset(df_wld, 
+#                             period >= -tmin & period <= tmax
+#                             & type_TE == "wr"),
+#            aes(x = period, y = avg), color = "grey30", size = 2, shape = 19) %>%
++ geom_point(data = subset(df_wld, 
+                           period >= -tmin & period <= tmax
+                          & type_TE %in% c("TE", "pbo_p")),
+             aes(x = period, y = avg), color = "#3182BD", size = 2, shape = 19) %>%
++ scale_x_continuous(breaks = scales::pretty_breaks(n = tmax+tmin)) %>%
++ labs(x = "",
+       y = "",
+       title = "",
+       subtitle = "World",
+       caption = paste0("Computation from ", df_wld$npar_wld, " parcels in ", df_wld$ndeal_wld, " deals. Uncertainty represented by 95% \nconfidence intervals and increases over time due to fewer parcels with \ndata to compute treatment effect")) %>%
++ theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(hjust = 0), 
+      axis.text.x = element_text(angle = 0),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 12, face = 'plain', hjust = 0),
+      plot.subtitle = element_text(size = 15, hjust = 0)
+      ) 
+
+#Storing the world level TE with the sub-regional ones
+list_fig[[length(list_sub_region)+1]] = fig_TE_wld
+
+#Saving either figure by figure ...
+# for (i in 1:length(list_fig))
+# {
+#  ggsave(plot = list_fig[[i]],
+#        filename =  paste0("fig_land_TrueAgri_TE_", tmin, tmax, "_", list_accro[i], "_2.jpeg"),
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/LandUseChange/ATT/TrueAgri',
+#        width = 7.5, height = 5)
+# }
+
+#Or all figures in one plot
+#Then a multi plot is created from the list
+mplot = plot_grid(plotlist = list_fig,
+                        align = "hv",
+                        nrow = 4,
+                        ncol = 2,
+                        labels = "AUTO"
+                        )
+# 
+# #Adding a common x and y axis
+# 
+y.grob <- textGrob("ATT in agricultural land share",
+                 gp=gpar(fontface = "bold", fontsize=18), rot=90)
+x.grob <- textGrob("Year after treatment",
+                 gp=gpar(fontface = "bold", fontsize=18))
+title.grob <- textGrob("Average treatment effect on the treated of TALSLAs",
+                 gp=gpar(fontface = "bold", fontsize=20))
+# 
+# #Building the final figure
+fig = grid.arrange(arrangeGrob(mplot, left = y.grob, bottom = x.grob, top = title.grob))
+
+ggsave(plot = fig,
+       filename = paste0("fig_land_TrueAgri_TE_", tmin, tmax, "_2.jpeg"),
+       path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/LandUseChange/ATT/TrueAgri',
+       width = 16, height = 20)
+
+return(list_fig)
+
+}
+
+fun_land_for_TE_plot = function(df_subreg, df_wld, tmin, tmax)
+{
+  list_fig_subreg = list()
+  list_sub_region = sort(unique(df_subreg$sub_region))
+  list_accro = c("EE", "LA", "Mel", "NA", "SEAs", "SE", "SSA", "WLD")
+  for(i in 1:length(list_sub_region))
+  {
+  fig_TE_subreg = ggplot() %>%
+  + geom_line(data = subset(df_subreg, 
+                            sub_region == list_sub_region[i]
+                            & period >= -tmin & period <= tmax
+                            & type_TE %in% c("TE", "pbo_p")),
+              aes(x = period, y = avg), color = "#3182BD", linewidth = 1) %>%
+  + geom_ribbon(data = subset(df_subreg, 
+                            sub_region == list_sub_region[i]
+                            & period >= -tmin & period <= tmax
+                            & type_TE %in% c("TE", "pbo_p")),
+                  aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+                  alpha=0.1, fill = "#FB6A4A", color = "black", linetype = "dotted") %>%
+  # + geom_errorbar(data = subset(df_subreg, 
+  #                           sub_region == list_sub_region[i]
+  #                           & period >= -tmin & period <= tmax
+  #                           & type_TE %in% c("TE", "pbo_p")),
+  #                 aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+  #                 color = "#DE2D26", linewidth = 0.7, width = 0.2, alpha = .8) %>%
+  # + geom_errorbar(data = subset(df_subreg, 
+  #                           sub_region == list_sub_region[i]
+  #                         & period >= -tmin & period <= tmax
+  #                         & type_TE == "wr"),
+  #               aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+  #               color = "grey30", linewidth = 0.7, width = 0.2, alpha = .8) %>%
+  #   + geom_point(data = subset(df_subreg, 
+  #                         sub_region == list_sub_region[i]
+  #                         & period >= -tmin & period <= tmax
+  #                         & type_TE == "wr"),
+  #                aes(x = period, y = avg), color = "grey30", size = 2, shape = 19) %>%
+  + geom_point(data = subset(df_subreg, 
+                            sub_region == list_sub_region[i]
+                            & period >= -tmin & period <= tmax
+                            & type_TE %in% c("TE", "pbo_p")),
+               aes(x = period, y = avg), color = "#3182BD", size = 2, shape = 19) %>%
+  + scale_x_continuous(breaks = scales::pretty_breaks(n = tmax+tmin)) %>%
+  + labs(x = "",
+         y = "",
+         title = "",
+         subtitle = list_sub_region[i],
+         caption = paste0("Computation from ", subset(df_subreg, sub_region == list_sub_region[i])$npar_subreg, " parcels in ", subset(df_subreg, sub_region == list_sub_region[i])$ndeal_subreg, " deals. Uncertainty represented by 95% \nconfidence intervals and increases over time due to fewer parcels with \ndata to compute treatment effect")) %>%
+  + theme(legend.position = "bottom",
+        legend.key = element_rect(fill = "white"),
+        plot.title = element_text(hjust = 0), 
+        axis.text.x = element_text(angle = 0),
+        panel.background = element_rect(fill = 'white', colour = 'white', 
+                                        linewidth = 0.5, linetype = 'solid'),
+        panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+        panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 12, face = 'plain', hjust = 0),
+      plot.subtitle = element_text(size = 15, hjust = 0)
+        ) 
+  list_fig_subreg[[i]] = fig_TE_subreg
+  }
+#Store figs of sub-regions in a list
+list_fig = list_fig_subreg
+
+#Plot world level figure
+
+fig_TE_wld = ggplot() %>%
++ geom_line(data = subset(df_wld, 
+                          period >= -tmin & period <= tmax & type_TE %in% c("TE", "pbo_p")),
+            aes(x = period, y = avg), color = "#3182BD", linewidth = 1) %>%
+  + geom_ribbon(data = subset(df_wld, 
+                            period >= -tmin & period <= tmax
+                            & type_TE %in% c("TE", "pbo_p")),
+                  aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+                  alpha=0.1, fill = "#FB6A4A", color = "black", linetype = "dotted") %>%
+# + geom_errorbar(data = subset(df_wld, 
+#                               period >= -tmin & period <= tmax & type_TE %in% c("TE", "pbo_p")),
+#                 aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+#                 color = "#DE2D26", linewidth = 0.7, width = 0.2, alpha = .8) %>%
+# + geom_errorbar(data = subset(df_wld, 
+#                           period >= -tmin & period <= tmax
+#                         & type_TE == "wr"),
+#               aes(x = period, y = avg, ymin = avg-ci, ymax = avg+ci),
+#               color = "grey30", linewidth = 0.7, width = 0.2, alpha = .8) %>%
+# + geom_point(data = subset(df_wld, 
+#                             period >= -tmin & period <= tmax
+#                             & type_TE == "wr"),
+#            aes(x = period, y = avg), color = "grey30", size = 2, shape = 19) %>%
++ geom_point(data = subset(df_wld, 
+                           period >= -tmin & period <= tmax
+                          & type_TE %in% c("TE", "pbo_p")),
+             aes(x = period, y = avg), color = "#3182BD", size = 2, shape = 19) %>%
++ scale_x_continuous(breaks = scales::pretty_breaks(n = tmax+tmin)) %>%
++ labs(x = "",
+       y = "",
+       title = "",
+       subtitle = "World",
+       caption = paste0("Computation from ", df_wld$npar_wld, " parcels in ", df_wld$ndeal_wld, " deals. Uncertainty represented by 95% \nconfidence intervals and increases over time due to fewer parcels with \ndata to compute treatment effect")) %>%
++ theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(hjust = 0), 
+      axis.text.x = element_text(angle = 0),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 12, face = 'plain', hjust = 0),
+      plot.subtitle = element_text(size = 15, hjust = 0)
+      ) 
+
+#Storing the world level TE with the sub-regional ones
+list_fig[[length(list_sub_region)+1]] = fig_TE_wld
+
+#Saving either figure by figure ...
+# for (i in 1:length(list_fig))
+# {
+#  ggsave(plot = list_fig[[i]],
+#        filename =  paste0("fig_land_for_TE_", tmin, tmax, "_", list_accro[i], "_2.jpeg"),
+#        path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/LandUseChange/ATT/for',
+#        width = 7.5, height = 5)
+# }
+
+#Or all figures in one plot
+#Then a multi plot is created from the list
+mplot = plot_grid(plotlist = list_fig,
+                        align = "hv",
+                        nrow = 4,
+                        ncol = 2,
+                        labels = "AUTO"
+                        )
+# 
+# #Adding a common x and y axis
+# 
+y.grob <- textGrob("ATT in forest share",
+                 gp=gpar(fontface = "bold", fontsize=18), rot=90)
+x.grob <- textGrob("Year after treatment",
+                 gp=gpar(fontface = "bold", fontsize=18))
+title.grob <- textGrob("Average treatment effect on the treated of LSLA",
+                 gp=gpar(fontface = "bold", fontsize=20))
+# #
+# # #Building the final figure
+fig = grid.arrange(arrangeGrob(mplot, left = y.grob, bottom = x.grob, top = title.grob))
+
+ggsave(plot = fig,
+       filename = paste0("fig_land_for_TE_", tmin, tmax, "_2.jpeg"),
+       path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/outcome/LandUseChange/ATT/for',
+       width = 16, height = 20)
+
+return(list_fig)
+
+}
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                Computing ATT                             ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##~~~~~~~~~~~~~
+##  ~ GDP  ----
+##~~~~~~~~~~~~~
+
+````{r}
+
+#For GDP we have annual data for years 1990 to 2015
+#For relevant comparison, we consider GDP per hectare !!
+#We restrict the sample to deals implemented between 2000 and 2014, or contracted between 2000 and #2014 if the implementation date is unknown (but we know it is implemented).
+#We also remove deals abandoned before 2015 strictly.
+#Eventually we keep 259 deals out of 412.
+#We keep only T and C1 buffers values. Eventual spillovers can be assessed in a second time
+
+#Level
+df_gdp_wide = data_info %>%
+  left_join(Tbuf_gdp_pha, by = "ID") %>%
+  left_join(C1buf_gdp_pha, by = "ID") %>%
+  #Select only relevant deals regarding the treatment year and the time span of data
+  subset((year_impl %in% c(2000:2015) | (year_impl %in% c("") & year_cont %in% c(2000:2015))) 
+         & (year_aban > 2015 | year_aban == "null" )) %>%
+  #Remove deal with 0 GDP 
+  subset(T_2000 != 0) %>%
+  #Define a treatment year
+  #The year of implementation, or the contract year if we do know the deal is implemented but not
+  #when
+  mutate(year_T = as.numeric(ifelse(year_impl != "", yes = year_impl, no = year_cont)),
+         .after = year_aban) %>%
+  group_by(country) %>%
+  mutate(npar_ctry = n(), .after = iso_a3) %>%
+  ungroup() %>%
+  group_by(sub_region) %>%
+  mutate(npar_subreg = n(), .after = iso_a3) %>%
+  as.data.frame()
+
+#Log 
+df_gdp_wide_log = df_gdp_wide %>%
+  mutate(across(.cols = starts_with("T_"),
+                .fn = ~ log(.x))) %>%
+  mutate(across(.cols = starts_with("C1_"),
+                .fn = ~ log(.x))) 
+
+# Call the function to extract the GDP for the years before and after treatment
+##min and max treatment year
+year_Tmin = min(df_gdp_wide$year_T) 
+year_Tmax = max(df_gdp_wide$year_T)
+gdp_df_did <- extract_did(df = df_gdp_wide,
+                          treatment_col = "year_T",
+                          year_Tmin, year_Tmax,
+                          dt_start = 1990, dt_end = 2015)
+gdp_df_did_log <- extract_did(df = df_gdp_wide_log,
+                          treatment_col = "year_T",
+                          year_Tmin, year_Tmax,
+                          dt_start = 1990, dt_end = 2015)
+
+#Save this df in a longer format for future loess analysis
+df_gdp_log_loess_T = gdp_df_did_log %>%
+  #Select only T
+  select(c(ID, starts_with("T"))) %>%
+  #Renaming columns : be careful to the order !
+  rename_with(.cols = contains("Tyear_"), .fn = ~sub("Tyear_", "-", .x)) %>%
+  rename_with(.cols = contains("Tyear"), .fn = ~sub("Tyear", "", .x)) %>%
+  pivot_longer(cols = -ID, names_to = "period", values_to = "lgdp") %>%
+  mutate(period = as.integer(period))
+
+df_gdp_log_loess_C1 = gdp_df_did_log %>%
+  #Select only T
+  select(c(ID, starts_with("C1"))) %>%
+  #Renaming columns : be careful to the order !
+  rename_with(.cols = contains("C1year_"), .fn = ~sub("C1year_", "-", .x)) %>%
+  rename_with(.cols = contains("C1year"), .fn = ~sub("C1year", "", .x)) %>%
+  pivot_longer(cols = -ID, names_to = "period", values_to = "lgdp") %>%
+  mutate(period = as.integer(period))
+
+# fwrite(df_gdp_log_loess_T, 
+#        'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/GDP_HDI_gridded/df_log_gdp_pha_loess_T.csv')
+# fwrite(df_gdp_log_loess_C1, 
+#        'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/GDP_HDI_gridded/df_log_gdp_pha_loess_C1.csv')
+
+
+
+#Call the function to compute DiD for each parcel
+##Level
+gdp_TE = data_info %>%
+  inner_join(fun_did_TE(df_did = gdp_df_did, tmin = 24, tmax = 15), by = "ID") %>%
+  group_by(country) %>%
+  mutate(npar_ctry = n(), ndeal_ctry = length(unique(deal_id)), .after = iso_a3) %>%
+  ungroup() %>%
+  group_by(sub_region) %>%
+  mutate(npar_subreg = n(), ndeal_subreg = length(unique(deal_id)), .after = iso_a3) %>%
+  ungroup()
+##log
+gdp_TE_log = data_info %>%
+  inner_join(fun_did_TE(df_did = gdp_df_did_log, tmin = 24, tmax = 15), by = "ID") %>%
+  group_by(country) %>%
+  mutate(npar_ctry = n(), ndeal_ctry = length(unique(deal_id)), .after = iso_a3) %>%
+  ungroup() %>%
+  group_by(sub_region) %>%
+  mutate(npar_subreg = n(), ndeal_subreg = length(unique(deal_id)), .after = iso_a3) %>%
+  ungroup()
+
+
+
+#Compute average TE for each sub-region with confidence intervals
+##level
+gdp_TE_subreg = fun_did_TE_reg(df_TE = gdp_TE, region = "sub-region")
+##log
+gdp_TE_subreg_log = fun_did_TE_reg(df_TE = gdp_TE_log, region = "sub-region")
+
+#Compute average TE for world with confidence intervals
+##level
+gdp_TE_wld = fun_did_TE_reg(df_TE = gdp_TE, region = "world")
+##log
+gdp_TE_wld_log = fun_did_TE_reg(df_TE = gdp_TE_log, region = "world")
+
+#Plotting the average 
+##level
+
+# fig_gdp_TE_55 = fun_gdp_TE_plot(df_subreg = gdp_TE_subreg, df_wld = gdp_TE_wld,
+#                              tmin = 5, tmax = 5)
+# fig_gdp_TE_010 = fun_gdp_TE_plot(df_subreg = gdp_TE_subreg, df_wld = gdp_TE_wld,
+#                              tmin = 0, tmax = 10)
+# fig_gdp_TE_full = fun_gdp_TE_plot(df_subreg = gdp_TE_subreg, df_wld = gdp_TE_wld,
+#                              tmin = 24, tmax = 17)
+
+##log
+# fig_gdp_TE_log_55 = fun_gdp_TE_log_plot(df_subreg = gdp_TE_subreg_log, df_wld = gdp_TE_wld_log,
+#                              tmin = 5, tmax = 5)
+# fig_gdp_TE_log_010 = fun_gdp_TE_log_plot(df_subreg = gdp_TE_subreg_log, df_wld = gdp_TE_wld_log,
+#                              tmin = 0, tmax = 10)
+# fig_gdp_TE_log_full = fun_gdp_TE_log_plot(df_subreg = gdp_TE_subreg_log, df_wld = gdp_TE_wld_log,
+#                              tmin = 24, tmax = 17)
+
+````
+
+##~~~~~~~~~~~~~~
+##  ~ NDVI  ----
+##~~~~~~~~~~~~~~
+
+````{r}
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Creating dataset  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#full wide dataset
+df_ndvi_wide = Tbuf_ndvi %>%
+  left_join(C1buf_ndvi, by = c("ID", "year")) %>%
+  left_join(select(data_info, c(ID, year_cont, year_impl, year_aban, sub_region, country)), by = "ID") %>%
+  #Select only relevant deals regarding the treatment year and the time span of data
+  subset((year_impl %in% c(2000:2022) | (year_impl %in% c("") & year_cont %in% c(2000:2022))) 
+         & (year_aban > 2022 | year_aban == "null" )) %>%
+  #Remove deal with NA values in ndvi 
+  subset(is.na(Tndvi_mean) == FALSE) %>%
+  #Add the year of treatment 
+  mutate(year_T = as.numeric(ifelse(year_impl != "", yes = year_impl, no = year_cont)),
+         .after = year_aban) %>%
+  pivot_wider(names_from = year,
+              values_from =  c(Tndvi_mean, Tndvi_max, C1ndvi_mean, C1ndvi_max)) %>%
+  group_by(country) %>%
+  mutate(npar_ctry = n(), .after = country) %>%
+  ungroup() %>%
+  group_by(sub_region) %>%
+  mutate(npar_subreg = n(), .after = country) %>%
+  as.data.frame() %>%
+  select(c(sub_region, country, npar_subreg, npar_ctry, ID,
+           year_T,Tndvi_mean_2000:C1ndvi_max_2022))
+
+#with only annual max
+df_ndvi_max_wide = df_ndvi_wide %>%
+  select(-c(starts_with("Tndvi_mean"), starts_with("C1ndvi_mean"))) %>%
+  rename_with(.cols = contains("ndvi_max"), .fn = ~sub("ndvi_max", "", .x))
+#with only annual average
+df_ndvi_mean_wide = df_ndvi_wide %>%
+  select(-c(starts_with("Tndvi_max"), starts_with("C1ndvi_max"))) %>%
+  rename_with(.cols = contains("ndvi_mean"), .fn = ~sub("ndvi_mean", "", .x))
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Extract NDVI before and after treatment  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##min and max treatment year
+year_Tmin = min(df_ndvi_wide$year_T) 
+year_Tmax = max(df_ndvi_wide$year_T)
+
+df_ndvi_mean_did <- extract_did(df = df_ndvi_mean_wide,
+                          treatment_col = "year_T",
+                          year_Tmin, year_Tmax,
+                          dt_start = 2000, dt_end = 2022)
+df_ndvi_max_did <- extract_did(df = df_ndvi_max_wide,
+                          treatment_col = "year_T",
+                          year_Tmin, year_Tmax,
+                          dt_start = 2000, dt_end = 2022)
+
+#Save this df in a longer format for future loess analysis
+##Mean NDVI
+###T
+df_ndvi_mean_loess_T = df_ndvi_mean_did %>%
+  #Select only T
+  select(c(ID, starts_with("T"))) %>%
+  #Renaming columns : be careful to the order !
+  rename_with(.cols = contains("Tyear_"), .fn = ~sub("Tyear_", "-", .x)) %>%
+  rename_with(.cols = contains("Tyear"), .fn = ~sub("Tyear", "", .x)) %>%
+  pivot_longer(cols = -ID, names_to = "period", values_to = "ndvi") %>%
+  mutate(period = as.integer(period))
+###T
+df_ndvi_mean_loess_C1 = df_ndvi_mean_did %>%
+  #Select only T
+  select(c(ID, starts_with("C1"))) %>%
+  #Renaming columns : be careful to the order !
+  rename_with(.cols = contains("C1year_"), .fn = ~sub("C1year_", "-", .x)) %>%
+  rename_with(.cols = contains("C1year"), .fn = ~sub("C1year", "", .x)) %>%
+  pivot_longer(cols = -ID, names_to = "period", values_to = "ndvi") %>%
+  mutate(period = as.integer(period))
+
+# fwrite(df_ndvi_mean_loess_T,
+#        'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/df_ndvi_mean_loess_T.csv')
+# fwrite(df_ndvi_mean_loess_C1,
+#        'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/df_ndvi_mean_loess_C1.csv')
+
+##Max NDVI
+###T
+df_ndvi_max_loess_T = df_ndvi_max_did %>%
+  #Select only T
+  select(c(ID, starts_with("T"))) %>%
+  #Renaming columns : be careful to the order !
+  rename_with(.cols = contains("Tyear_"), .fn = ~sub("Tyear_", "-", .x)) %>%
+  rename_with(.cols = contains("Tyear"), .fn = ~sub("Tyear", "", .x)) %>%
+  pivot_longer(cols = -ID, names_to = "period", values_to = "ndvi") %>%
+  mutate(period = as.integer(period))
+###T
+df_ndvi_max_loess_C1 = df_ndvi_max_did %>%
+  #Select only T
+  select(c(ID, starts_with("C1"))) %>%
+  #Renaming columns : be careful to the order !
+  rename_with(.cols = contains("C1year_"), .fn = ~sub("C1year_", "-", .x)) %>%
+  rename_with(.cols = contains("C1year"), .fn = ~sub("C1year", "", .x)) %>%
+  pivot_longer(cols = -ID, names_to = "period", values_to = "ndvi") %>%
+  mutate(period = as.integer(period))
+
+# fwrite(df_ndvi_max_loess_T,
+#        'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/df_ndvi_max_loess_T.csv')
+# fwrite(df_ndvi_max_loess_C1,
+#        'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/df_ndvi_max_loess_C1.csv')
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Compute DiD for each parcel  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##mean annual
+ndvi_mean_TE = data_info %>%
+  inner_join(fun_did_TE(df_did = df_ndvi_mean_did, tmin = 21, tmax = 21), by = "ID") %>%
+  group_by(country) %>%
+  mutate(npar_ctry = n(), ndeal_ctry = length(unique(deal_id)), .after = iso_a3) %>%
+  ungroup() %>%
+  group_by(sub_region) %>%
+  mutate(npar_subreg = n(), ndeal_subreg = length(unique(deal_id)), .after = iso_a3) %>%
+  ungroup()
+
+#max annual
+ndvi_max_TE = data_info %>%
+  inner_join(fun_did_TE(df_did = df_ndvi_max_did, tmin = 21, tmax = 21), by = "ID") %>%
+  group_by(country) %>%
+  mutate(npar_ctry = n(), ndeal_ctry = length(unique(deal_id)), .after = iso_a3) %>%
+  ungroup() %>%
+  group_by(sub_region) %>%
+  mutate(npar_subreg = n(), ndeal_subreg = length(unique(deal_id)), .after = iso_a3) %>%
+  ungroup()
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Compute average DiD  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#subregion
+ndvi_mean_TE_subreg = fun_did_TE_reg(df_TE = ndvi_mean_TE, region = "sub-region")
+ndvi_max_TE_subreg = fun_did_TE_reg(df_TE = ndvi_max_TE, region = "sub-region")
+
+#world
+ndvi_mean_TE_wld = fun_did_TE_reg(df_TE = ndvi_mean_TE, region = "world")
+ndvi_max_TE_wld = fun_did_TE_reg(df_TE = ndvi_max_TE, region = "world")
+
+
+##~~~~~~~~~~~~~~~~~~
+##  ~ Plotting  ----
+##~~~~~~~~~~~~~~~~~~
+
+#Plotting the average (world and subregion)
+##Average annual
+# fig_ndvi_mean_TE_55 = fun_ndvi_mean_TE_plot(df_subreg = ndvi_mean_TE_subreg,
+#                                         df_wld = ndvi_mean_TE_wld,
+#                                         tmin = 5, tmax = 5)
+# fig_ndvi_mean_TE_010 = fun_ndvi_mean_TE_plot(df_subreg = ndvi_mean_TE_subreg,
+#                                         df_wld = ndvi_mean_TE_wld,
+#                                         tmin = 0, tmax = 10)
+# fig_ndvi_mean_TE_full = fun_ndvi_mean_TE_plot(df_subreg = ndvi_mean_TE_subreg,
+#                                         df_wld = ndvi_mean_TE_wld,
+#                                         tmin = 22, tmax = 12)
+
+##Max annual
+# fig_ndvi_max_TE_55 = fun_ndvi_max_TE_plot(df_subreg = ndvi_max_TE_subreg,
+#                                         df_wld = ndvi_max_TE_wld,
+#                                         tmin = 5, tmax = 5)
+# fig_ndvi_max_TE_010 = fun_ndvi_max_TE_plot(df_subreg = ndvi_max_TE_subreg,
+#                                         df_wld = ndvi_max_TE_wld,
+#                                         tmin = 0, tmax = 10)
+# fig_ndvi_max_TE_full = fun_ndvi_max_TE_plot(df_subreg = ndvi_max_TE_subreg,
+#                                         df_wld = ndvi_max_TE_wld,
+#                                         tmin = 22, tmax = 12)
+
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Land use change  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Creating datasets  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#for true agricultural lands
+df_land_TrueAgri_wide = Tbuf_land_TrueAgri %>%
+  left_join(C1buf_land_TrueAgri, by = c("ID", "year")) %>%
+  left_join(select(data_info, c(ID, year_cont, year_impl, year_aban, sub_region, country)), by = "ID") %>%
+  subset(year_impl %in% c(2000:2020) | (year_impl %in% c("") & year_cont %in% c(2000:2020))) %>%
+  subset(year_aban > 2020 | year_aban == "null") %>%
+  mutate(year_T = as.numeric(ifelse(year_impl != "", yes = year_impl, no = year_cont)),
+         .after = year_aban) %>%
+  select(c(sub_region, country, ID, year, year_T, T_TrueAgri, C1_TrueAgri)) %>%
+  pivot_wider(names_from = year,
+              values_from =  c(T_TrueAgri, C1_TrueAgri)) %>%
+  rename_with(.cols = contains("TrueAgri"), .fn = ~sub("TrueAgri_", "", .x)) %>%
+  group_by(country) %>%
+  mutate(npar_ctry = n(), .after = country) %>%
+  ungroup() %>%
+  group_by(sub_region) %>%
+  mutate(npar_subreg = n(), .after = country) %>%
+  ungroup() %>%
+  as.data.frame() 
+
+#for forest
+df_land_for_wide = Tbuf_land_ipcc %>%
+  left_join(C1buf_land_ipcc, by = c("ID", "year")) %>%
+  left_join(select(data_info, c(ID, year_cont, year_impl, year_aban, sub_region, country)), by = "ID") %>%
+  subset(year_impl %in% c(2000:2020) | (year_impl %in% c("") & year_cont %in% c(2000:2020))) %>%
+  subset(year_aban > 2020 | year_aban == "null") %>%
+  mutate(year_T = as.numeric(ifelse(year_impl != "", yes = year_impl, no = year_cont)),
+         .after = year_aban) %>%
+  select(c(sub_region, country, ID, year, year_T, T_ipcc_for, C1_ipcc_for)) %>%
+  pivot_wider(names_from = year,
+              values_from =  c(T_ipcc_for, C1_ipcc_for)) %>%
+  rename_with(.cols = contains("ipcc"), .fn = ~sub("ipcc_for_", "", .x)) %>%
+  group_by(country) %>%
+  mutate(npar_ctry = n(), .after = country) %>%
+  ungroup() %>%
+  group_by(sub_region) %>%
+  mutate(npar_subreg = n(), .after = country) %>%
+  as.data.frame() 
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Extract share before and after treatment  ---
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##min and max treatment year
+year_Tmin = min(df_land_TrueAgri_wide$year_T) 
+year_Tmax = max(df_land_TrueAgri_wide$year_T)
+
+df_land_TrueAgri_did <- extract_did(df = df_land_TrueAgri_wide,
+                          treatment_col = "year_T",
+                          year_Tmin, year_Tmax,
+                          dt_start = 2000, dt_end = 2020)
+df_land_for_did <- extract_did(df = df_land_for_wide,
+                          treatment_col = "year_T",
+                          year_Tmin, year_Tmax,
+                          dt_start = 2000, dt_end = 2020)
+
+##TrueAgri
+###T
+df_land_TrueAgri_loess_T = df_land_TrueAgri_did %>%
+  #Select only T
+  select(c(ID, starts_with("T"))) %>%
+  #Renaming columns : be careful to the order !
+  rename_with(.cols = contains("Tyear_"), .fn = ~sub("Tyear_", "-", .x)) %>%
+  rename_with(.cols = contains("Tyear"), .fn = ~sub("Tyear", "", .x)) %>%
+  pivot_longer(cols = -ID, names_to = "period", values_to = "share") %>%
+  mutate(period = as.integer(period))
+###T
+df_land_TrueAgri_loess_C1 = df_land_TrueAgri_did %>%
+  #Select only T
+  select(c(ID, starts_with("C1"))) %>%
+  #Renaming columns : be careful to the order !
+  rename_with(.cols = contains("C1year_"), .fn = ~sub("C1year_", "-", .x)) %>%
+  rename_with(.cols = contains("C1year"), .fn = ~sub("C1year", "", .x)) %>%
+  pivot_longer(cols = -ID, names_to = "period", values_to = "share") %>%
+  mutate(period = as.integer(period))
+
+# fwrite(df_land_TrueAgri_loess_T,
+#        'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/LandUseChange/df_land_TrueAgri_loess_T.csv')
+# fwrite(df_land_TrueAgri_loess_C1,
+#        'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/LandUseChange/df_land_TrueAgri_loess_C1.csv')
+
+##Forest
+###T
+df_land_for_loess_T = df_land_for_did %>%
+  #Select only T
+  select(c(ID, starts_with("T"))) %>%
+  #Renaming columns : be careful to the order !
+  rename_with(.cols = contains("Tyear_"), .fn = ~sub("Tyear_", "-", .x)) %>%
+  rename_with(.cols = contains("Tyear"), .fn = ~sub("Tyear", "", .x)) %>%
+  pivot_longer(cols = -ID, names_to = "period", values_to = "share") %>%
+  mutate(period = as.integer(period))
+###T
+df_land_for_loess_C1 = df_land_for_did %>%
+  #Select only T
+  select(c(ID, starts_with("C1"))) %>%
+  #Renaming columns : be careful to the order !
+  rename_with(.cols = contains("C1year_"), .fn = ~sub("C1year_", "-", .x)) %>%
+  rename_with(.cols = contains("C1year"), .fn = ~sub("C1year", "", .x)) %>%
+  pivot_longer(cols = -ID, names_to = "period", values_to = "share") %>%
+  mutate(period = as.integer(period))
+
+# fwrite(df_land_for_loess_T,
+#        'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/LandUseChange/df_land_for_loess_T.csv')
+# fwrite(df_land_for_loess_C1,
+#        'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/LandUseChange/df_land_for_loess_C1.csv')
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Compute DiD for each parcel  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#True agricultural land
+land_TrueAgri_TE = data_info %>%
+  inner_join(fun_did_TE(df_did = df_land_TrueAgri_did, tmin = 20, tmax = 20), by = "ID") %>%
+  group_by(country) %>%
+  mutate(npar_ctry = n(), ndeal_ctry = length(unique(deal_id)), .after = iso_a3) %>%
+  ungroup() %>%
+  group_by(sub_region) %>%
+  mutate(npar_subreg = n(), ndeal_subreg = length(unique(deal_id)), .after = iso_a3) %>%
+  ungroup()
+
+#Forest
+land_for_TE = data_info %>%
+  inner_join(fun_did_TE(df_did = df_land_for_did, tmin = 20, tmax = 20), by = "ID") %>%
+  group_by(country) %>%
+  mutate(npar_ctry = n(), ndeal_ctry = length(unique(deal_id)), .after = iso_a3) %>%
+  ungroup() %>%
+  group_by(sub_region) %>%
+  mutate(npar_subreg = n(), ndeal_subreg = length(unique(deal_id)), .after = iso_a3) %>%
+  ungroup()
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Compute average DiD  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#subregion
+land_TrueAgri_TE_subreg = fun_did_TE_reg(df_TE = land_TrueAgri_TE, region = "sub-region")
+land_for_TE_subreg = fun_did_TE_reg(df_TE = land_for_TE, region = "sub-region")
+
+#world
+land_TrueAgri_TE_wld = fun_did_TE_reg(df_TE = land_TrueAgri_TE, region = "world")
+land_for_TE_wld = fun_did_TE_reg(df_TE = land_for_TE, region = "world")
+
+##~~~~~~~~~~~~~~~~~~
+##  ~ Plotting  ----
+##~~~~~~~~~~~~~~~~~~
+
+#Plotting the average (world and subregion)
+##True agricultural land
+fig_land_agri_TE_55 = fun_land_TrueAgri_TE_plot(df_subreg = land_TrueAgri_TE_subreg,
+                                        df_wld = land_TrueAgri_TE_wld,
+                                        tmin = 5, tmax = 5)
+fig_land_agri_TE_010 = fun_land_TrueAgri_TE_plot(df_subreg = land_TrueAgri_TE_subreg,
+                                        df_wld = land_TrueAgri_TE_wld,
+                                        tmin = 0, tmax = 10)
+fig_land_agri_TE_full = fun_land_TrueAgri_TE_plot(df_subreg = land_TrueAgri_TE_subreg,
+                                        df_wld = land_TrueAgri_TE_wld,
+                                        tmin = 19, tmax = 20)
+
+##Forest
+fig_land_for_TE_55 = fun_land_for_TE_plot(df_subreg = land_for_TE_subreg,
+                                        df_wld = land_for_TE_wld,
+                                        tmin = 5, tmax = 5)
+fig_land_for_TE_010 = fun_land_for_TE_plot(df_subreg = land_for_TE_subreg,
+                                        df_wld = land_for_TE_wld,
+                                        tmin = 0, tmax = 10)
+fig_land_for_TE_full = fun_land_for_TE_plot(df_subreg = land_for_TE_subreg,
+                                        df_wld = land_for_TE_wld,
+                                        tmin = 19, tmax = 20)
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##------------------------------ LOESS ANALYSIS---------------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                               Importing data                             ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+##~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ log GDP per ha  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~
+
+#info on sub_region, country are added
+
+df_gdp_log_loess_T = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/GDP_HDI_gridded/df_log_gdp_pha_loess_T.csv') %>%
+  left_join(select(data_info, c(sub_region, country, deal_id, ID))) %>%
+  select(c(sub_region, country, deal_id, ID, period, lgdp)) %>%
+  rename("value" = "lgdp")
+df_gdp_log_loess_C1 = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/GDP_HDI_gridded/df_log_gdp_pha_loess_C1.csv') %>%
+  left_join(select(data_info, c(sub_region, country, deal_id, ID))) %>%
+  select(c(sub_region, country, deal_id, ID, period, lgdp)) %>%
+  rename("value" = "lgdp")
+
+##~~~~~~~~~~~~~~
+##  ~ NDVI  ----
+##~~~~~~~~~~~~~~
+
+#Mean annual
+df_ndvi_mean_loess_T = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/df_ndvi_mean_loess_T.csv') %>%
+  left_join(select(data_info, c(sub_region, country, deal_id, ID))) %>%
+  select(c(sub_region, country, deal_id, ID, period, ndvi)) %>%
+  rename("value" = "ndvi")
+df_ndvi_mean_loess_C1 = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/df_ndvi_mean_loess_C1.csv') %>%
+  left_join(select(data_info, c(sub_region, country, deal_id, ID))) %>%
+  select(c(sub_region, country, deal_id, ID, period, ndvi))%>%
+  rename("value" = "ndvi")
+#Max annual
+df_ndvi_max_loess_T = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/df_ndvi_max_loess_T.csv') %>%
+  left_join(select(data_info, c(sub_region, country, deal_id, ID))) %>%
+  select(c(sub_region, country, deal_id, ID, period, ndvi)) %>%
+  rename("value" = "ndvi")
+df_ndvi_max_loess_C1 = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/df_ndvi_max_loess_C1.csv') %>%
+  left_join(select(data_info, c(sub_region, country, deal_id, ID))) %>%
+  select(c(sub_region, country, deal_id, ID, period, ndvi)) %>%
+  rename("value" = "ndvi")
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Land use change  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#True agricultural land
+df_land_TrueAgri_loess_T = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/LandUseChange/df_land_TrueAgri_loess_T.csv') %>%
+  left_join(select(data_info, c(sub_region, country, deal_id, ID))) %>%
+  select(c(sub_region, country, deal_id, ID, period, share)) %>%
+  #transform into percentages
+  mutate(share = share*100) %>%
+  rename("value" = "share")
+df_land_TrueAgri_loess_C1 = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/LandUseChange/df_land_TrueAgri_loess_C1.csv') %>%
+  left_join(select(data_info, c(sub_region, country, deal_id, ID))) %>%
+  select(c(sub_region, country, deal_id, ID, period, share)) %>%
+  #transform into percentages
+  mutate(share = share*100) %>%
+  rename("value" = "share")
+#Forest
+df_land_for_loess_T = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/LandUseChange/df_land_for_loess_T.csv') %>%
+  left_join(select(data_info, c(sub_region, country, deal_id, ID))) %>%
+  select(c(sub_region, country, deal_id, ID, period, share)) %>%
+  #transform into percentages
+  mutate(share = share*100) %>%
+  rename("value" = "share")
+df_land_for_loess_C1 = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/LandUseChange/df_land_for_loess_C1.csv') %>%
+  left_join(select(data_info, c(sub_region, country, deal_id, ID))) %>%
+  select(c(sub_region, country, deal_id, ID, period, share))  %>%
+  #transform into percentages
+  mutate(share = share*100) %>%
+  rename("value" = "share")
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Computing and plotting loess analysis  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+#CAreful : choose to plot each sub-sample or all fig in the same plot
+fun_loess = function(df_T, df_C1, list_subreg, t_pre, t_post, ylab, title, outcome, path)
+{
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Define datasets  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+  #Initialize a list of fig
+  list_fig = list()
+  #Gather T and C1 in one dataframe
+df_TC1 = df_T %>%
+  rename("T_value" = "value") %>%
+  left_join(df_C1, by = join_by(sub_region, country, deal_id, ID, period)) %>%
+  rename("C1_value" = "value")
+#Two dataframes : for years up to t_post after treatment, and years up to t_pre before treatement
+#Year treatment (0) not included as we want to show discontinuity
+df_pre = df_TC1 %>%
+  subset(period >= -t_pre & period <= 0)
+df_post = df_TC1 %>%
+  subset(period >= 0 & period <= t_post)
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Figure for each sub-region  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#Run the loess for pre- and post-treatment, for C1 and T
+for (i in 1:length(list_subreg))
+{
+mod_T_pre_i = loess(T_value ~ period, 
+                    span = .75, 
+                    data = subset(df_pre, sub_region == list_subreg[i]))
+mod_C1_pre_i = loess(C1_value ~ period, 
+                     span = .75, 
+                     data = subset(df_pre, sub_region == list_subreg[i]))
+mod_T_post_i = loess(T_value ~ period, 
+                     span = .75, 
+                     data = subset(df_post, sub_region == list_subreg[i]))
+mod_C1_post_i = loess(C1_value ~ period, 
+                      span = .75, 
+                      data = subset(df_post, sub_region == list_subreg[i]))
+#Get the models points coordinates for plotting
+yfit_T_pre_i = predict(mod_T_pre_i, newdata = c((-t_pre):0), se = TRUE)$fit
+yfit_C1_pre_i = predict(mod_C1_pre_i, newdata = c((-t_pre):0), se = TRUE)$fit
+yfit_T_post_i = predict(mod_T_post_i, newdata = c(0:t_post), se = TRUE)$fit
+yfit_C1_post_i = predict(mod_C1_post_i, newdata = c(0:t_post), se = TRUE)$fit
+#Get the standard errors
+yse_T_pre_i = predict(mod_T_pre_i, newdata = c((-t_pre):0), se = TRUE)$se
+yse_C1_pre_i = predict(mod_C1_pre_i, newdata = c((-t_pre):0), se = TRUE)$se
+yse_T_post_i = predict(mod_T_post_i, newdata = c(0:t_post), se = TRUE)$se
+yse_C1_post_i = predict(mod_C1_post_i, newdata = c(0:t_post), se = TRUE)$se
+
+fig_i = ggplot() %>%
+  #T
+  ##Pre
+  + geom_line(aes(x =  c((-t_pre):0), y = yfit_T_pre_i, color = "T"), linewidth = 1) %>%
+  + geom_point(aes(x =  c((-t_pre):0), y = yfit_T_pre_i, color = "T"), shape = "|", size = 3) %>%
+  + geom_ribbon(aes(x =  c((-t_pre):0), 
+                    ymin=yfit_T_pre_i+1.96*yse_T_pre_i, ymax=yfit_T_pre_i-1.96*yse_T_pre_i),
+                alpha=0.1, fill = "#3182BD", color = "black", linetype = "dotted") %>%
+  #Post
+  + geom_line(aes(x =  c(0:t_post), y = yfit_T_post_i, color = "T"), linewidth = 1) %>%
+  + geom_point(aes(x =  c(0:t_post), y = yfit_T_post_i, color = "T"), shape = "|", size = 3) %>%
+  + geom_ribbon(aes(x =  c(0:t_post), 
+                  ymin=yfit_T_post_i+1.96*yse_T_post_i, ymax=yfit_T_post_i-1.96*yse_T_post_i),
+              alpha=0.1, fill = "#3182BD", color = "black", linetype = "dotted") %>%
+  #C1
+  ##Pre
+  + geom_line(aes(x =  c((-t_pre):0), y = yfit_C1_pre_i, color = "C"), linewidth = 1) %>%
+  + geom_point(aes(x =  c((-t_pre):0), y = yfit_C1_pre_i, color = "C"), shape = "|", size = 3) %>%
+  + geom_ribbon(aes(x =  c((-t_pre):0), 
+                    ymin=yfit_C1_pre_i+1.96*yse_C1_pre_i, ymax=yfit_C1_pre_i-1.96*yse_C1_pre_i),
+                alpha=0.1, fill = "#FB6A4A", color = "black", linetype = "dotted") %>%
+  ##Post
+  + geom_line(aes(x =  c(0:t_post), y = yfit_C1_post_i, color = "C"), linewidth = 1) %>%
+  + geom_point(aes(x =  c(0:t_post), y = yfit_C1_post_i, color = "C"), shape = "|", size = 3) %>%
+  + geom_ribbon(aes(x =  c(0:t_post), 
+                  ymin=yfit_C1_post_i+1.96*yse_C1_post_i, ymax=yfit_C1_post_i-1.96*yse_C1_post_i),
+              alpha=0.1, fill = "#FB6A4A", color = "black", linetype = "dotted") %>%
+  #Mark the 0 line
+  + geom_vline(xintercept = 0, linewidth = 1) %>%
+  + scale_x_continuous(breaks= pretty_breaks()) %>%
+  + scale_color_manual(name = "", values = c("T" =  "#3182BD", "C" = "#FB6A4A")) %>%
+  + labs(x = "Year relative to treatment", y = ylab,
+         title = "",
+        subtitle = list_subreg[i],
+        caption = paste0(length(unique(subset(df_TC1, sub_region == list_subreg[i])$ID)), " parcels in ", length(unique(subset(df_TC1, sub_region == list_subreg[i])$deal_id)), " deals.")) %>%
+  + theme(legend.position = "bottom",
+          legend.key = element_rect(fill = "white"),
+          plot.title = element_text(hjust = 0), 
+          axis.text.x = element_text(angle = 0),
+          panel.background = element_rect(fill = 'white', colour = 'white', 
+                                          linewidth = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 12, face = 'plain', hjust = 0),
+      plot.subtitle = element_text(size = 15, hjust = 0)
+          ) 
+  name_i = gsub(" ", "", list_subreg[i])
+  ggsave(plot = fig_i,
+       filename = paste0("fig_", outcome, "_loess_", name_i, ".jpeg"),
+       path = path,
+       width = 7, height = 5)
+
+  list_fig[[i]] = fig_i
+}
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Figure for the whole sample  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+mod_T_pre = loess(T_value ~ period, 
+                    span = .75, 
+                    data = df_pre)
+mod_C1_pre = loess(C1_value ~ period, 
+                     span = .75, 
+                     data = df_pre)
+mod_T_post = loess(T_value ~ period, 
+                     span = .75, 
+                     data = df_post)
+mod_C1_post = loess(C1_value ~ period, 
+                      span = .75, 
+                      data = df_post)
+#Get the models points coordinates for plotting
+yfit_T_pre = predict(mod_T_pre, newdata = c((-t_pre):0), se = TRUE)$fit
+yfit_C1_pre = predict(mod_C1_pre, newdata = c((-t_pre):0), se = TRUE)$fit
+yfit_T_post = predict(mod_T_post, newdata = c(0:t_post), se = TRUE)$fit
+yfit_C1_post = predict(mod_C1_post, newdata = c(0:t_post), se = TRUE)$fit
+#Get the standard errors
+yse_T_pre = predict(mod_T_pre, newdata = c((-t_pre):0), se = TRUE)$se
+yse_C1_pre = predict(mod_C1_pre, newdata = c((-t_pre):0), se = TRUE)$se
+yse_T_post = predict(mod_T_post, newdata = c(0:t_post), se = TRUE)$se
+yse_C1_post = predict(mod_C1_post, newdata = c(0:t_post), se = TRUE)$se
+
+#Add the figure to the list of figures
+fig = ggplot() %>%
+    #T
+  ##Pre
+  + geom_line(aes(x =  c((-t_pre):0), y = yfit_T_pre, color = "T"), linewidth = 1) %>%
+  + geom_point(aes(x =  c((-t_pre):0), y = yfit_T_pre, color = "T"), shape = "|", size = 3) %>%
+  + geom_ribbon(aes(x =  c((-t_pre):0), 
+                    ymin=yfit_T_pre+1.96*yse_T_pre, ymax=yfit_T_pre-1.96*yse_T_pre),
+                alpha=0.1, fill = "#3182BD", color = "black", linetype = "dotted") %>%
+  #Post
+  + geom_line(aes(x =  c(0:t_post), y = yfit_T_post, color = "T"), linewidth = 1) %>%
+  + geom_point(aes(x =  c(0:t_post), y = yfit_T_post, color = "T"), shape = "|", size = 3) %>%
+  + geom_ribbon(aes(x =  c(0:t_post), 
+                  ymin=yfit_T_post+1.96*yse_T_post, ymax=yfit_T_post-1.96*yse_T_post),
+              alpha=0.1, fill = "#3182BD", color = "black", linetype = "dotted") %>%
+  #C1
+  ##Pre
+  + geom_line(aes(x =  c((-t_pre):0), y = yfit_C1_pre, color = "C"), linewidth = 1) %>%
+  + geom_point(aes(x =  c((-t_pre):0), y = yfit_C1_pre, color = "C"), shape = "|", size = 3) %>%
+  + geom_ribbon(aes(x =  c((-t_pre):0), 
+                    ymin=yfit_C1_pre+1.96*yse_C1_pre, ymax=yfit_C1_pre-1.96*yse_C1_pre),
+                alpha=0.1, fill = "#FB6A4A", color = "black", linetype = "dotted") %>%
+  ##Post
+  + geom_line(aes(x =  c(0:t_post), y = yfit_C1_post, color = "C"), linewidth = 1) %>%
+  + geom_point(aes(x =  c(0:t_post), y = yfit_C1_post, color = "C"), shape = "|", size = 3) %>%
+  + geom_ribbon(aes(x =  c(0:t_post), 
+                  ymin=yfit_C1_post+1.96*yse_C1_post, ymax=yfit_C1_post-1.96*yse_C1_post),
+              alpha=0.1, fill = "#FB6A4A", color = "black", linetype = "dotted") %>%
+  #Mark the 0 line
+  + geom_vline(xintercept = 0, linewidth = 1) %>%
+  + scale_x_continuous(breaks= pretty_breaks()) %>%
+  + scale_color_manual(name = "", values = c("T" =  "#3182BD", "C" = "#FB6A4A")) %>%
+  + labs(x = "Year relative to treatment", y = ylab,
+         title = "",
+        subtitle = "World",
+        caption = paste0(length(unique(df_TC1$ID)), " parcels in ", length(unique(df_TC1$deal_id)), " deals.")) %>%
+  + theme(legend.position = "bottom",
+          legend.key = element_rect(fill = "white"),
+          plot.title = element_text(hjust = 0), 
+          axis.text.x = element_text(angle = 0),
+          panel.background = element_rect(fill = 'white', colour = 'white', 
+                                          linewidth = 0.5, linetype = 'solid'),
+          panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+          panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 12, face = 'plain', hjust = 0),
+      plot.subtitle = element_text(size = 15, hjust = 0)
+          ) 
+
+# ggsave(plot = fig,
+#        filename = paste0("fig_", outcome, "_loess_world.jpeg"),
+#        path = path,
+#        width = 7, height = 5)
+
+list_fig[[length(list_subreg)+1]] = fig
+
+mplot = plot_grid(plotlist = list_fig,
+                        align = "hv",
+                        nrow = 4,
+                        ncol = 2,
+                        labels = "AUTO"
+                        )
+y.grob <- textGrob(ylab,
+                   gp=gpar(fontface = "bold", fontsize=16), rot=90)
+x.grob <- textGrob("Year relative to treatment",
+                   gp=gpar(fontface = "bold", fontsize=16))
+title.grob = textGrob("Temporal discontinuity analysis in T and C",
+                      gp=gpar(fontface = "bold", fontsize=20))
+mfig = grid.arrange(arrangeGrob(mplot, left = y.grob, bottom = x.grob, top = title.grob))
+ggsave(plot = mfig,
+       filename = paste0("fig_", outcome, "_loess.jpeg"),
+       path = path,
+       width = 16, height = 20)
+
+
+}
+
+list_sub_lgdp_pha = sort(unique(df_gdp_log_loess_T$sub_region))
+# loess_lgdp_perha = fun_loess(df_T = df_gdp_log_loess_T, df_C1 = df_gdp_log_loess_C1,
+#                              list_subreg = list_sub_lgdp_pha,
+#                             t_pre = 5, t_post = 5,
+#                             ylab = "Log of GDP per ha",
+#                             title = "Temporal discontinuity analysis in T and C1",
+#                             outcome = "lgdp_perha",
+#                             path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/LOESS/GDP')
+
+list_sub_ndvi_max = sort(unique(df_ndvi_max_loess_T$sub_region))
+loess_ndvi_max = fun_loess(df_T = df_ndvi_max_loess_T, df_C1 = df_ndvi_max_loess_C1,
+                           list_subreg = list_sub_ndvi_max,
+                            t_pre = 5, t_post = 5,
+                            ylab = "Max annual NDVI",
+                            title = "Temporal discontinuity analysis in T and C1",
+                           outcome = "ndvi_max",
+                           path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/LOESS/NDVI/max')
+
+list_sub_ndvi_mean = sort(unique(df_ndvi_mean_loess_T$sub_region))
+loess_ndvi_mean = fun_loess(df_T = df_ndvi_mean_loess_T, df_C1 = df_ndvi_mean_loess_C1,
+                            list_subreg = list_sub_ndvi_mean,
+                            t_pre = 5, t_post = 5,
+                            ylab = "Average annual NDVI",
+                            title = "Temporal discontinuity analysis in T and C1",
+                           outcome = "ndvi_mean",
+                           path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/LOESS/NDVI/avg')
+
+list_sub_TrueAgri = sort(unique(df_land_TrueAgri_loess_T$sub_region))
+loess_land_TrueAgri = fun_loess(df_T = df_land_TrueAgri_loess_T,
+                                df_C1 = df_land_TrueAgri_loess_C1,
+                                list_subreg = list_sub_TrueAgri,
+                            t_pre = 5, t_post = 5,
+                            ylab = "Share of agricultural land (%)",
+                            title = "Temporal discontinuity analysis in T and C1",
+                           outcome = "land_TrueAgri",
+                           path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/LOESS/LandUseChange/TrueAgri')
+
+list_sub_for = c("Eastern Europe", "Latin America and the Caribbean", "Melanesia",
+                 "South-eastern Asia", "Southern Europe", "Sub-Saharan Africa")
+loess_land_for = fun_loess(df_T = df_land_for_loess_T, df_C1 = df_land_for_loess_C1,
+                           list_sub = list_sub_for,
+                            t_pre = 5, t_post = 5,
+                            ylab = "Share of forest (%)",
+                            title = "Temporal discontinuity analysis in T and C1",
+                            outcome = "land_for",
+                            path = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/figures/LOESS/LandUseChange/for')
+
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##--------------------------- TWO-WAY FIXED EFFECTS-----------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                     Creating relevant df and functions                   ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+#A general function to estimate a linear model
+##df : dataframe
+##outcome : the dependant variable
+##list_subreg : list of subregions to run the model on sub-samples
+##n_pbo/n_treat : number of lags/leads
+##dummy_pre5/10 : TRUE or FALSE whether one wants to add a dummy for years <-5/-10
+##dummy_post5/10 : same for >5/10
+##var_clust : the variable to cluster on
+
+fun_lm_twfe = function(df, outcome, list_subreg, 
+                       n_pbo, n_treat, 
+                       dummy_pre5, dummy_post5, dummy_pre10, dummy_post10,
+                       var_clust)
+{
+  #Initialize a list to store models in each sub-region and world
+  list_lm = list()
+  #List of covariates for pre and post treatment (leads and lags)
+  ##For lags, period -1 not taken (https://cran.r-project.org/web/packages/did/vignettes/TWFE.html)
+  cov_pre = ifelse(n_pbo == 0, yes = "", no = paste0("rel_year_m", n_pbo:2, collapse = "+"))
+  cov_post = paste0("rel_year_", 0:n_treat, collapse = "+")
+  #List of clusters
+  cluster = paste0(var_clust, collapse = "+")
+  #Depending on the dummies, add or not a dummy for pre/post 5/10 years
+  if (dummy_pre5 == TRUE) {cov_pre = paste0("Pre5+", cov_pre)}
+  if (dummy_pre10 == TRUE) {cov_pre = paste0("Pre10+", cov_pre)}
+  if (dummy_post5 == TRUE) {cov_post = paste0(cov_post, "+Post5")}
+  if (dummy_post10 == TRUE) {cov_post = paste0(cov_post, "+Post10")}
+  #Define the formula
+  fm = as.formula(paste0(outcome, "~", cov_pre, "+", cov_post, "| ID + year | 0 | ", cluster))
+  
+  #In a loop estimate the model (formula fm) for each sub-sample
+  for (i in 1:length(list_subreg))
+  {
+   lm_i = lfe::felm(formula = fm,
+                    data = subset(df, sub_region == list_subreg[i]),
+                    exactDOF = TRUE)
+  list_lm[[i]] = lm_i
+  }
+  #Then estimate for whole sample (world)
+  lm_wld = lfe::felm(formula = fm,
+                     data = df,
+                     exactDOF = TRUE)
+  list_lm[[length(list_subreg)+1]] = lm_wld
+  #Return the list of models estimated
+  return(list_lm)
+}
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                               Computing TWFE                             ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##~~~~~~~~~~~~~
+##  ~ GDP  ----
+##~~~~~~~~~~~~~
+
+````{r}
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Creating the dataset  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+df_gdp_pha_twfe = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/GDP_HDI_gridded/data_gdp_pha_twfe.csv')
+
+#Creating a panel dataset with the GDP in the treated area
+##First pivot the dataset of GDP per hectare in T
+# Tbuf_gdp_pha_long = Tbuf_gdp_pha %>%
+#   pivot_longer(cols = starts_with("T_"),
+#                names_to = "time",
+#                values_to = "T") %>%
+#   mutate(time = as.numeric(sub("T_", "", time)))
+
+##Then add information about treatment year, sub-region and country
+##in level
+# df_gdp_pha_twfe = Tbuf_gdp_pha_long %>%
+#   left_join(select(data_info, c(ID, year_cont, year_impl, year_aban, sub_region, country)), by = "ID") %>%
+#   subset(year_impl %in% c(2000:2014) | (year_impl %in% c("") & year_cont %in% c(2000:2014))) %>%
+#   subset(year_aban > 2015 | year_aban == "null") %>%
+#   subset(T != 0) %>%
+#   rename("year" = "time",
+#        "gdp_pha" = "T") %>%
+#   #Add the year of treatment and relative time since treatment for each parcel
+#   mutate(year_T = as.numeric(ifelse(year_impl != "", yes = year_impl, no = year_cont)),
+#          rel_year = year - year_T,
+#          lgdp_pha = log(gdp_pha),
+#          .after = year_aban) %>%
+#   #Create dummies Dk : 1 if the parcel is treated since k periods (k>0), 1 if the parcel will be      #treated in k period (k<0)
+#   dummy_cols(select_columns = "rel_year") %>%
+#   #Rename : rel_year_-X -> rel_year_mX to ease definition of the function to estimate TWFE
+#   rename_with(.cols = contains("rel_year_-"),
+#               .fn = ~sub("_-", "_m", .x)) %>%
+#   #Finally add a term capturing treatment effect after/before some time relative to treatment
+#   mutate(Pre5 = ifelse(rel_year < -5, 1, 0),
+#          Post5 = ifelse(rel_year > 5, 1, 0),
+#          Pre10 = ifelse(rel_year < -10, 1, 0),
+#          Post10 = ifelse(rel_year > 10, 1, 0)) %>%
+#   select(c(sub_region, country, ID, year_T, year, rel_year, 
+#            gdp_pha, lgdp_pha, `rel_year_m1`:`rel_year_15`, Pre5, Post5, Pre10, Post10))
+
+# fwrite(df_gdp_pha_twfe,
+#        'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/GDP_HDI_gridded/data_gdp_pha_twfe.csv')
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Estimating TWFE  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#We perform it with different specifications : 5 years of lags/leads, 10 years, or full
+#the formula is composed of four parts : the covariates | factors to be projected out | IV | 
+#clusters for the standard errors. 0 -> part not used (IV here)
+
+
+#Creating the list of sub-region where the model is estimated
+#No Melanesia or South-eastern Europe (one observation only)
+list_subreg = c("Latin America and the Caribbean", "Eastern Europe", "South-eastern Asia",
+                "Sub-Saharan Africa", "Northern Africa")
+
+
+#in level
+##I have found no model suiting DiD results. The less worse is +/-5 with Post5 but no Pre5 (test on world level results)
+
+lm_gdp_twfe_55_no_pre_post = fun_lm_twfe(df = df_gdp_pha_twfe, outcome = "lgdp_pha",
+                                  list_subreg = list_subreg,
+                                  n_pbo = 5, n_treat = 5, 
+                                  dummy_pre5 = FALSE, dummy_post5 = TRUE, 
+                                  dummy_pre10 = FALSE, dummy_post10 = FALSE,
+                                  var_clust = c("country", "ID"))
+
+
+stargazer(lm_gdp_twfe_55_no_pre_post,
+          type = "latex",
+          title = "Estimating the ATT of LSLA on log GDP with dynamic TWFE model",
+          style = "default",
+          covariate.labels = c(paste0("-", 5:2, " years"),
+                               "Treatment year", paste0("+", 1:5, " years"), 
+                               "> 5 years"),
+          dep.var.labels = "log GDP per hectare",
+          dep.var.caption = "",
+          column.labels = c("Latin America + Caribbean", "East. Europe",
+                            "South-east. Asia", "SS. Africa", 
+                            "North. Africa", "World"),
+          notes = "Standard errors are indicated in parentheses",
+          notes.align = "r",
+          notes.append = TRUE,
+          df = FALSE,
+          align = TRUE,
+          digits = 2,
+          initial.zero = TRUE,
+          no.space = FALSE,
+          out = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/tables/GDP/lm_gdp_twfe_55_no_pre_post.tex',
+          out.header = FALSE)
+
+
+
+````
+
+
+##~~~~~~~~~~~~~~
+##  ~ NDVI  ----
+##~~~~~~~~~~~~~~
+
+````{r}
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Creating dataset  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#For each parcel we want the evolution of NDVI annual max and mean in T and C1 (at least)
+#with an indication of the year of contract/implementation
+#We built a relevant dataset to do that
+
+df_ndvi_twfe = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/data_ndvi_twfe.csv')
+
+# df_ndvi_twfe = Tbuf_ndvi %>%
+#   left_join(select(data_info, c(ID, year_cont, year_impl, year_aban, sub_region, country)), by = "ID") %>%
+#   subset(year_impl %in% c(2000:2022) | (year_impl %in% c("") & year_cont %in% c(2000:2022))) %>%
+#   subset(year_aban > 2022 | year_aban == "null") %>%
+#   subset(is.na(Tndvi_mean) == FALSE) %>%
+#   #Add the year of treatment and relative time since treatment for each parcel
+#   mutate(year_T = as.numeric(ifelse(year_impl != "", yes = year_impl, no = year_cont)),
+#          rel_year = year - year_T,
+#          .after = year_aban) %>%
+#   #Create dummies Dk : 1 if the parcel is treated since k periods (k>0), 1 if the parcel will be      #treated in k period (k<0)
+#   dummy_cols(select_columns = "rel_year") %>%
+#   #Rename : rel_year_-X -> rel_year_mX to ease definition of the function to estimate TWFE
+#   rename_with(.cols = contains("rel_year_-"),
+#               .fn = ~sub("_-", "_m", .x)) %>%
+#   #Finally add a term capturing treatment effect after/before some time relative to treatment
+#   mutate(Pre5 = ifelse(rel_year < -5, 1, 0),
+#          Post5 = ifelse(rel_year > 5, 1, 0),
+#          Pre10 = ifelse(rel_year < -10, 1, 0),
+#          Post10 = ifelse(rel_year > 10, 1, 0)) %>%
+#   select(c(sub_region, country, ID, year_T, year, rel_year, 
+#            Tndvi_mean, Tndvi_max, `rel_year_m1`:`rel_year_21`, Pre5, Post5, Pre10, Post10))
+
+# fwrite(df_ndvi_twfe,
+#        'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/data_ndvi_twfe.csv')
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Estimating TWFE  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#We perform it with different specifications : 5 years of lags/leads, 10 years, or full
+#the formula is composed of four parts : the covariates | factors to be projected out | IV | 
+#clusters for the standard errors. 0 -> part not used (IV here)
+
+
+#Creating the list of sub-region where the model is estimated
+#No Melanesia or South-eastern Europe (one parcel only)
+#No Northern Africa : cannot cluster ID and country
+
+#Average annual NDVI
+##Meilleur niveau signe/tendance post : +/-5 ni pre ni post dummies
+list_subreg = c("Latin America and the Caribbean", "Eastern Europe", "South-eastern Asia", "Sub-Saharan Africa")
+
+lm_ndvi_mean_twfe_55_no_pre_no_post = fun_lm_twfe(df = df_ndvi_twfe, outcome = "Tndvi_mean",
+                                               list_subreg = list_subreg,
+                                               n_pbo = 5, n_treat = 5, 
+                                               dummy_pre5 = FALSE, dummy_post5 = TRUE, 
+                                               dummy_pre10 = FALSE, dummy_post10 = FALSE,
+                                               var_clust = c("country", "ID"))
+#NA alone with only cluster at ID level (three IDs from three different countries : no need to double cluster !)
+lm_ndvi_mean_twfe_55_no_pre_no_post_NA = fun_lm_twfe(df = df_ndvi_twfe,
+                                                     outcome = "Tndvi_mean",
+                                                     list_subreg = "Northern Africa",
+                                                     n_pbo = 5, n_treat = 5, 
+                                                     dummy_pre5 = FALSE, dummy_post5 = TRUE, 
+                                                     dummy_pre10 = FALSE, dummy_post10 = FALSE,
+                                                     var_clust = "ID")
+
+#CAREFUL : take only first table in NA (NA plus world due to the definition of the function)
+# stargazer(list(lm_ndvi_mean_twfe_55_no_pre_no_post_NA[[1]], lm_ndvi_mean_twfe_55_no_pre_no_post),
+#           type = "latex",
+#           title = "Estimating the ATT of LSLA on average annual NDVI with dynamic TWFE model",
+#           style = "default",
+#           covariate.labels = c(paste0("-", 5:2, " years"),
+#                                "Treatment year", paste0("+", 1:5, " years")),
+#           dep.var.labels = "Average annual NDVI",
+#           dep.var.caption = "",
+#           column.labels = c("Northern Africa", "Latin America + Caribbean", "East. Europe",
+#                             "South-east. Asia", "SS. Africa", "World"),
+#           notes = "Standard errors are indicated in parentheses",
+#           notes.align = "r",
+#           notes.append = TRUE,
+#           df = FALSE,
+#           align = TRUE,
+#           digits = 2,
+#           initial.zero = TRUE,
+#           no.space = FALSE,
+#           out = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/tables/NDVI/lm_ndvi_mean_twfe_55_no_pre_no_post.tex',
+#           out.header = FALSE)
+
+#Max annual NDVI
+
+lm_ndvi_max_twfe_55_no_pre_no_post = fun_lm_twfe(df = df_ndvi_twfe, outcome = "Tndvi_max",
+                                               list_subreg = list_subreg,
+                                               n_pbo = 5, n_treat = 5, 
+                                               dummy_pre5 = FALSE, dummy_post5 = FALSE, 
+                                               dummy_pre10 = FALSE, dummy_post10 = FALSE,
+                                               var_clust = c("country", "ID"))
+#NA alone with only cluster at ID level (three IDs from three different countries : no need to double cluster !)
+lm_ndvi_max_twfe_55_no_pre_no_post_NA = fun_lm_twfe(df = df_ndvi_twfe, outcome = "Tndvi_max",
+                                               list_subreg = "Northern Africa",
+                                               n_pbo = 5, n_treat = 5, 
+                                               dummy_pre5 = FALSE, dummy_post5 = FALSE, 
+                                               dummy_pre10 = FALSE, dummy_post10 = FALSE,
+                                               var_clust = "ID")
+
+
+#CAREFUL : take only first table in NA (NA plus world due to the definition of the function)
+# stargazer(list(lm_ndvi_max_twfe_55_no_pre_no_post_NA[[1]], lm_ndvi_max_twfe_55_no_pre_no_post),
+#           type = "latex",
+#           title = "Estimating the ATT of LSLA on max annual NDVI with dynamic TWFE model",
+#           style = "default",
+#           covariate.labels = c(paste0("-", 5:2, " years"),
+#                                "Treatment year", paste0("+", 1:5, " years")),
+#           dep.var.labels = "Average annual NDVI",
+#           dep.var.caption = "",
+#           column.labels = c("Northern Africa", "Latin America + Caribbean", "East. Europe",
+#                             "South-east. Asia", "SS. Africa", "World"),
+#           notes = "Standard errors are indicated in parentheses",
+#           notes.align = "r",
+#           notes.append = TRUE,
+#           df = FALSE,
+#           align = TRUE,
+#           digits = 2,
+#           initial.zero = TRUE,
+#           no.space = FALSE,
+#           out = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/tables/NDVI/lm_ndvi_max_twfe_55_no_pre_no_post.tex',
+#           out.header = FALSE)
+
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Land use change  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Creating dataset  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+df_land_twfe = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/LandUseChange/data_land_twfe.csv')
+
+# df_land_twfe = Tbuf_land_ipcc %>%
+#   left_join(C1buf_land_ipcc, by = c("ID", "year")) %>%
+#   left_join(Tbuf_land_agri, by = c("ID", "year")) %>%
+#   left_join(C1buf_land_agri, by = c("ID", "year")) %>%
+#   left_join(Tbuf_land_TrueAgri, by = c("ID", "year")) %>%
+#   left_join(C1buf_land_TrueAgri, by = c("ID", "year")) %>%
+#   left_join(select(data_info, c(ID, year_cont, year_impl, year_aban, sub_region, country)), by = "ID") %>%
+#   subset(year_impl %in% c(2000:2020) | (year_impl %in% c("") & year_cont %in% c(2000:2020))) %>%
+#   subset(year_aban > 2020 | year_aban == "null") %>%
+#   mutate(year_T = as.numeric(ifelse(year_impl != "", yes = year_impl, no = year_cont)),
+#          rel_year = year - year_T,
+#          .after = year_aban) %>%
+#   #Create dummies Dk : 1 if the parcel is treated since k periods (k>0), 1 if the parcel will be      #treated in k period (k<0)
+#   dummy_cols(select_columns = "rel_year") %>%
+#   #Rename : rel_year_-X -> rel_year_mX to ease definition of the function to estimate TWFE
+#   rename_with(.cols = contains("rel_year_-"),
+#               .fn = ~sub("_-", "_m", .x)) %>%
+#   #Finally add a term capturing treatment effect after/before some time relative to treatment
+#   mutate(Pre5 = ifelse(rel_year < -5, 1, 0),
+#          Post5 = ifelse(rel_year > 5, 1, 0),
+#          Pre10 = ifelse(rel_year < -10, 1, 0),
+#          Post10 = ifelse(rel_year > 10, 1, 0)) %>%
+#   select(c(sub_region, country, ID, year_T, year, rel_year, 
+#            T_ipcc_for:C1_TrueAgri, `rel_year_m1`:`rel_year_20`, Pre5, Post5, Pre10, Post10))
+
+# fwrite(df_land_twfe,
+#        'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/LandUseChange/data_land_twfe.csv')
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Estimating TWFE  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#We perform it with different specifications : 5 years of lags/leads, 10 years, or full
+#the formula is composed of four parts : the covariates | factors to be projected out | IV | 
+#clusters for the standard errors. 0 -> part not used (IV here)
+
+
+#Creating the list of sub-region where the model is estimated
+#No Melanesia or South-eastern Europe (one parcel only)
+list_subreg_agri = c("Latin America and the Caribbean", "Eastern Europe", "South-eastern Asia",
+                "Sub-Saharan Africa", "Northern Africa")
+
+#Agricultural land
+#+/-5 avec post le moins pire : signe ok, amplitude non (un OdG au dessu) et on a pas de significance
+df_land_test = df_land_twfe %>%
+  mutate(T_TrueAgri_1e3 = T_TrueAgri*1e3,
+         T_ipcc_for_1e3 = T_ipcc_for,
+         .after = T_TrueAgri)
+
+lm_TrueAgri_twfe_55_felm_no_pre_post = fun_lm_twfe(df = df_land_twfe, outcome = "T_TrueAgri", 
+                                       list_subreg = list_subreg_agri, 
+                                       n_pbo = 5, n_treat = 5, 
+                                       dummy_pre5 = FALSE, dummy_post5 = TRUE, 
+                                       dummy_pre10 = FALSE, dummy_post10 = FALSE,
+                                       var_clust = c("country", "ID"))
+
+# stargazer(lm_TrueAgri_twfe_55_felm_no_pre_post,
+#           type = "latex",
+#           title = "Estimating the ATT of LSLA on agricultural land share with dynamic TWFE model",
+#           style = "default",
+#           covariate.labels = c(paste0("-", 5:2, " years"),
+#                                "Treatment year", paste0("+", 1:5, " years"),
+#                                "> 5 years"),
+#           dep.var.labels = "Agricultural land share",
+#           dep.var.caption = "",
+#           column.labels = c("Latin America + Caribbean", "East. Europe",
+#                             "South-east. Asia", "SS. Africa",
+#                             "North. Africa", "World"),
+#           notes = "Standard errors are indicated in parentheses",
+#           notes.align = "r",
+#           notes.append = TRUE,
+#           df = FALSE,
+#           align = TRUE,
+#           digits = 2,
+#           initial.zero = TRUE,
+#           no.space = FALSE,
+#           out = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/tables/LandUseChange/lm_TrueAgri_twfe_55_felm_no_pre_post.tex',
+#           out.header = FALSE)
+
+#Forest
+#No Northern Africa : no forest so no regression possible 
+#Best model (only non significance ..) : +/-5 pre and post
+list_subreg_for = c("Latin America and the Caribbean", "Eastern Europe", "South-eastern Asia",
+                "Sub-Saharan Africa")
+lm_for_twfe_55_felm_pre_post = fun_lm_twfe(df = df_land_twfe, outcome = "T_ipcc_for", 
+                                       list_subreg = list_subreg_for, 
+                                       n_pbo = 5, n_treat = 5, 
+                                       dummy_pre5 = TRUE, dummy_post5 = TRUE, 
+                                       dummy_pre10 = FALSE, dummy_post10 = FALSE,
+                                       var_clust = c("country", "ID"))
+
+# stargazer(lm_for_twfe_55_felm_pre_post,
+#           type = "latex",
+#           title = "Estimating the ATT of LSLA on forest share with dynamic TWFE model",
+#           style = "default",
+#           covariate.labels = c("< -5 years", paste0("-", 5:2, " years"),
+#                                "Treatment year", paste0("+", 1:5, " years"),
+#                                "> 5 years"),
+#           dep.var.labels = "Forest share",
+#           dep.var.caption = "",
+#           column.labels = c("Latin America + Caribbean", "East. Europe",
+#                             "South-east. Asia", "SS. Africa", "World"),
+#           notes = "Standard errors are indicated in parentheses",
+#           notes.align = "r",
+#           notes.append = TRUE,
+#           df = FALSE,
+#           align = TRUE,
+#           digits = 2,
+#           initial.zero = TRUE,
+#           no.space = FALSE,
+#           out = 'D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/tables/LandUseChange/lm_for_twfe_55_felm_pre_post.tex',
+#           out.header = FALSE)
+
+````
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##--------------------------------- OLD CODE------------------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+df_gdp_tempT = Tbuf_gdp %>%
+  pivot_longer(cols = c(T_1990:T_2015),
+             names_to = "year",
+             values_to = c("T")) %>%
+  mutate(year = as.numeric(sub("T_", "", year))) 
+df_gdp_tempC1 = C1buf_gdp %>%
+  pivot_longer(cols = c(C1_1990:C1_2015),
+             names_to = "year",
+             values_to = c("C1")) %>%
+  mutate(year = as.numeric(sub("C1_", "", year))) %>%
+  select(c(ID, year, C1))
+
+df_gdp = left_join(df_gdp_tempT, df_gdp_tempC1, by = c("ID", "year")) %>%
+  left_join(data_info, by = "ID") %>%
+  subset(year_impl %in% c(2000:2014) | (year_impl %in% c("") & year_cont %in% c(2000:2014))) %>%
+  subset(year_aban > 2015 | year_aban == "null") %>%
+  #Define a treatment year
+  #The year of implementation, or the contract year if we do know the deal is implemented but not
+  #when
+  mutate(year_T = as.numeric(ifelse(year_impl != "", yes = year_impl, no = year_cont)),
+         .after = year_aban) %>%
+  group_by(ID) %>%
+  mutate(dummy_T = year %in% c(year_T-5, year_T-4, year_T-3, year_T-2, year_T-1, year_T,
+                               year_T+1, year_T+2, year_T+3, year_T+4, year_T+5)) %>%
+  ungroup() %>%
+  subset(dummy_T == TRUE)
+
+test = df_gdp %>%
+  group_by(ID) %>%
+  subset(year %in% c((year_T-5):(year_T+5)))
+
+
+
+ 
+
+df_gdp = data.frame()
+for (i in 1:nrow(df_gdp3))
+{
+  year_Ti = df_gdp3[i,]$year_T
+  temp = df_gdp3[i,] %>%
+    select(c(ID, contains(as.character((year_Ti-5):(year_Ti+5)))))
+  #if T_... does not exist, create the column and fill with NA !
+  test = select(temp, paste0("T_", year_Ti+3))
+  names(temp) = c("ID", "yearT_5", "yearT_4", "yearT_3", "yearT_2", "yearT_1",
+                  "yearT0", "yearT1", "yearT2", "yearT3", "yearT4", "yearT5")
+  df_gdp = rbind(df_gdp, temp)
+}
+
+df_gdp2 = data_info %>%
+  left_join(Tbuf_gdp, by = "ID") %>%
+  left_join(C1buf_gdp, by = "ID") %>%
+  #Select only relevant deals regarding the treatment year and the time span of data
+  subset(year_impl %in% c(2000:2014) | (year_impl %in% c("") & year_cont %in% c(2000:2014))) %>%
+  subset(year_aban > 2015 | year_aban == "null") %>%
+  #Define a treatment year
+  #The year of implementation, or the contract year if we do know the deal is implemented but not
+  #when
+  mutate(year_T = as.numeric(ifelse(year_impl != "", yes = year_impl, no = year_cont)),
+         .after = year_aban) %>%
+  #We create variable to store GDP +/- 5 years after treatement
+  mutate(T_year_5 = NA,
+         T_year_4 = NA,
+         T_year_3 = NA,
+         T_year_2 = NA,
+         T_year_1 = NA,
+         T_year0 = NA,
+         T_year1 = NA,
+         T_year2 = NA,
+         T_year3 = NA,
+         T_year4 = NA,
+         T_year5 = NA,
+         C1_year_5 = NA,
+         C1_year_4 = NA,
+         C1_year_3 = NA,
+         C1_year_2 = NA,
+         C1_year_1 = NA,
+         C1_year0 = NA,
+         C1_year1 = NA,
+         C1_year2 = NA,
+         C1_year3 = NA,
+         C1_year4 = NA,
+         C1_year5 = NA
+         ) 
+
+#Then we fill these created variables with proper values
+for (i in 1:nrow(df_gdp))
+{
+  try(
+  #For parcel i, gets the year of treatment
+  year_Ti = as.numeric(df_gdp[i, "year_T"]$year_T)
+  #Create the variables corresponding to the interval -5,+5 years relative to treatment
+  ##for T
+  Tvar_5 = paste0("T_", year_Ti-5)
+  Tvar_4 = paste0("T_", year_Ti-4)
+  Tvar_3 = paste0("T_", year_Ti-3)
+  Tvar_2 = paste0("T_", year_Ti-2)
+  Tvar_1 = paste0("T_", year_Ti-1)
+  Tvar0 = paste0("T_", year_Ti)
+  Tvar1 = paste0("T_", year_Ti+1)
+  Tvar2 = paste0("T_", year_Ti+2)
+  Tvar3 = paste0("T_", year_Ti+3)
+  Tvar4 = paste0("T_", year_Ti+4)
+  Tvar5 = paste0("T_", year_Ti+5)
+  df_gdp$T_year_5[i] = df_gdp[i, ..Tvar_5][[1]]
+  df_gdp$T_year_4[i] = df_gdp[i, ..Tvar_4][[1]]
+  df_gdp$T_year_3[i] = df_gdp[i, ..Tvar_3][[1]]
+  df_gdp$T_year_2[i] = df_gdp[i, ..Tvar_2][[1]]
+  df_gdp$T_year_1[i] = df_gdp[i, ..Tvar_1][[1]]
+  df_gdp$T_year0[i] = df_gdp[i, ..Tvar0][[1]]
+  df_gdp$T_year1[i] = df_gdp[i, ..Tvar1][[1]]
+  df_gdp$T_year2[i] = df_gdp[i, ..Tvar2][[1]]
+  df_gdp$T_year3[i] = df_gdp[i, ..Tvar3][[1]]
+  df_gdp$T_year4[i] = df_gdp[i, ..Tvar4][[1]]
+  df_gdp$T_year5[i] = df_gdp[i, ..Tvar5][[1]]
+  ##For C1
+  C1var_5 = paste0("C1_", year_Ti-5)
+  C1var_4 = paste0("C1_", year_Ti-4)
+  C1var_3 = paste0("C1_", year_Ti-3)
+  C1var_2 = paste0("C1_", year_Ti-2)
+  C1var_1 = paste0("C1_", year_Ti-1)
+  C1var0 = paste0("C1_", year_Ti)
+  C1var1 = paste0("C1_", year_Ti+1)
+  C1var2 = paste0("C1_", year_Ti+2)
+  C1var3 = paste0("C1_", year_Ti+3)
+  C1var4 = paste0("C1_", year_Ti+4)
+  C1var5 = paste0("C1_", year_Ti+5)
+  df_gdp$C1_year_5[i] = df_gdp[i, ..C1var_5][[1]]
+  df_gdp$C1_year_4[i] = df_gdp[i, ..C1var_4][[1]]
+  df_gdp$C1_year_3[i] = df_gdp[i, ..C1var_3][[1]]
+  df_gdp$C1_year_2[i] = df_gdp[i, ..C1var_2][[1]]
+  df_gdp$C1_year_1[i] = df_gdp[i, ..C1var_1][[1]]
+  df_gdp$C1_year0[i] = df_gdp[i, ..C1var0][[1]]
+  df_gdp$C1_year1[i] = df_gdp[i, ..C1var1][[1]]
+  df_gdp$C1_year2[i] = df_gdp[i, ..C1var2][[1]]
+  df_gdp$C1_year3[i] = df_gdp[i, ..C1var3][[1]]
+  df_gdp$C1_year4[i] = df_gdp[i, ..C1var4][[1]]
+  df_gdp$C1_year5[i] = df_gdp[i, ..C1var5][[1]]
+  )
+}
+
+
+
+````

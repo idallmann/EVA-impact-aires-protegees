@@ -1,0 +1,803 @@
+---
+title: "ScriptMT_estim_LSLA+CS"
+author: "Antoine Vuillot"
+date: "2023-05-09"
+output: html_document
+---
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##--------------------------------- PACKAGES------------------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(tidyverse)
+library(data.table)
+library(xlsx)
+library(stringr)
+library(ARTofR)
+library(geojsonsf)
+library(sf)
+library(RColorBrewer)
+library(dplyr)
+library(terra)
+library(raster)
+library(tidyterra)
+library(gridExtra)
+library(grid)
+library(cowplot)
+library(scales)
+
+#For TWFE
+library(estimatr)
+library(lfe)
+library(fastDummies)
+library(stargazer)
+```
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##---------------------------- IMPORTING DATASETS-------------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+##~~~~~~~~~~~~~~~~~~~
+##  ~ ISO codes  ----
+##~~~~~~~~~~~~~~~~~~~
+
+country_iso = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/02_2023/ctry_regions.csv', encoding = 'UTF-8') %>%
+  dplyr::select(c('name', 'alpha-3')) %>%
+  rename('iso_a3' = 'alpha-3',
+         "country" = "name")
+
+country_iso[country_iso$country == "Lao People's Democratic Republic",]$country = 'Lao PDR'
+country_iso[country_iso$country == 'Bolivia (Plurinational State of)',]$country = 'Bolivia'
+country_iso[country_iso$country == "Viet Nam",]$country = 'Vietnam'
+country_iso[country_iso$country == "Yemen",]$country = "Yemen, Rep."
+country_iso[country_iso$country == "Venezuela (Bolivarian Republic of)",]$country = "Venezuela, RB"
+country_iso[country_iso$country == "Congo",]$country = "Congo, Rep."
+country_iso[country_iso$country == "Egypt",]$country = "Egypt, Arab Rep."
+country_iso[country_iso$country == "Eswatini",]$country = 'Swaziland'
+country_iso[country_iso$country == "Tanzania, United Republic of",]$country = "Tanzania"
+country_iso[country_iso$country == "Congo, Democratic Republic of the",]$country = "Congo, Dem. Rep."
+country_iso[country_iso$country == "Gambia",]$country = "Gambia, The"
+country_iso[country_iso$country ==  "Sao Tome and Principe",]$country = "São Tomé and Principe"
+country_iso[country_iso$country ==  "Moldova, Republic of",]$country = "Moldova"
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Data of parcels  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#Loading ID and loc_id
+data_loc = st_read('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/filt_crop/Tbuf_muller_filt_crop.geojson') %>%
+  mutate(ID = as.numeric(rownames(.))) %>%
+  st_as_sf() %>%
+  st_drop_geometry() %>%
+  select(c(loc_id, ID))
+
+#loading info on deals identified by loc_id
+data = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/LMD/filt_crop/data_muller_filt_crop.csv') %>%
+  left_join(country_iso, by = "country") %>%
+  left_join(data_loc, by = "loc_id") %>%
+  dplyr::select(c(region:country, iso_a3, deal_id, loc_id, ID, n_par:livestock_com)) 
+
+#Final informative dataset
+data_info = data %>%
+  select(region:country, iso_a3, deal_id, loc_id, ID, 
+         year_cont:year_aban, size_max_deal, size_max_par)
+
+##~~~~~~~~~~~~~~
+##  ~ NDVI  ----
+##~~~~~~~~~~~~~~
+
+Tbuf_ndvi = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/Tbuf_muller_ndvi_yr.csv') %>%
+  rename_with(.cols = starts_with("ndvi"), .fn = ~sub("ndvi", "Tndvi", .x))
+C1buf_ndvi = fread('D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/outcome/NDVI/C1buf_muller_ndvi_yr.csv') %>%
+  rename_with(.cols = starts_with("ndvi"), .fn = ~sub("ndvi", "C1ndvi", .x))
+
+##~~~~~~~~~~~~~~
+##  ~ SPEI  ----
+##~~~~~~~~~~~~~~
+
+Tbuf_spei12_shock = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/SPEI/Tbuf_muller_spei12_shock.csv") %>%
+  select(-spei)
+C1buf_spei12_shock = fread("D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/SPEI/C1buf_muller_spei12_shock.csv") %>%
+  select(-spei)
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##----------------------------------- TWFE--------------------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                              Creating functions                         ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+fun_starg = function(lm, title, cov_lab, dep_var_lab, out_type, out_path, out_name)
+{
+  stargazer(lm,
+          type = "latex",
+          title = title,
+          style = "default",
+          covariate.labels = cov_lab,
+          dep.var.labels = dep_var_lab,
+          dep.var.caption = "",
+          notes = "Standard errors are indicated in parentheses",
+          notes.align = "r",
+          notes.append = TRUE,
+          df = FALSE,
+          align = TRUE,
+          digits = 3,
+          initial.zero = TRUE,
+          no.space = FALSE,
+          out = paste0(out_path, out_name, out_type),
+          out.header = FALSE)
+}
+
+````
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                              Creating datasets                           ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ NDVI and LSLA  ----
+##~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+df_ndvi_lsla = Tbuf_ndvi %>%
+  left_join(select(data_info, c(ID, year_cont, year_impl, year_aban, sub_region, country)), by = "ID") %>%
+  subset(year_impl %in% c(2000:2022) | (year_impl %in% c("") & year_cont %in% c(2000:2022))) %>%
+  subset(year_aban > 2022 | year_aban == "null") %>%
+  subset(is.na(Tndvi_mean) == FALSE) %>%
+  #Add the year of treatment and relative time since treatment for each parcel
+  mutate(year_T = as.numeric(ifelse(year_impl != "", yes = year_impl, no = year_cont)),
+         rel_lsla = year - year_T,
+         .after = year_aban) %>%
+  #Create dummies Dk : 1 if the parcel is treated since k periods (k>0), 1 if the parcel will be      #treated in k period (k<0)
+  dummy_cols(select_columns = "rel_lsla") %>%
+  #Rename : rel_year_-X -> rel_year_mX to ease definition of the function to estimate TWFE
+  rename_with(.cols = contains("rel_lsla_-"),
+              .fn = ~sub("_-", "_m", .x)) %>%
+  #Finally add a term capturing treatment effect after/before some time relative to treatment
+  mutate(Pre5 = ifelse(rel_lsla < -5, 1, 0),
+         Post5 = ifelse(rel_lsla > 5, 1, 0),
+         Pre10 = ifelse(rel_lsla < -10, 1, 0),
+         Post10 = ifelse(rel_lsla > 10, 1, 0)) %>%
+  select(c(sub_region, country, ID, year_T, year, rel_lsla, 
+           Tndvi_mean, Tndvi_max, `rel_lsla_m1`:`rel_lsla_21`, Pre5, Post5, Pre10, Post10))
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Climate shock in each parcel  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+df_twfe = df_ndvi_lsla %>%
+  left_join(subset(Tbuf_spei12_shock, year >= 2000 & year <= 2022)
+            ,by = c("ID", "year")) %>%
+  mutate(Tdry_year = as.numeric(Tdry_year),
+         Tintdry_year = as.numeric(Tintdry_year)) %>%
+  rename("year_lsla" = "year_T") %>%
+  select(c(sub_region, country, ID, year, year_lsla, Tdry_year, Tintdry_year, Tndvi_mean, Tndvi_max, `rel_lsla_m1`:`rel_lsla_21`, Pre5, Post5, Pre10, Post10)) %>%
+  mutate(dummy_lsla = as.numeric(year >= year_lsla),
+         dummy_dry_lsla = as.numeric(Tdry_year == 1 & dummy_lsla == 1),
+         dummy_intdry_lsla = as.numeric(Tintdry_year == 1 & dummy_lsla == 1),
+         .after = Tintdry_year)
+
+````
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##              Identify ID where T and C face != climate shocks            ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+#Create a dataset with shock dummies for each buffers of each ID-year
+spei12_shock = Tbuf_spei12_shock %>%
+  left_join(C1buf_spei12_shock, by = c("ID", "year")) %>%
+  #Dummies to assess whether T and controls face same situation
+  mutate(TC1_dry = Tdry_year == C1dry_year,
+         TC1_intdry = Tintdry_year == C1intdry_year)
+
+#Subset to ID where C1 and T do not face the same shock at least once
+df_spei12_rm = spei12_shock %>%
+  subset(TC1_dry == FALSE | TC1_intdry == FALSE)
+#List of such ID
+list_spei12_rm = sort(unique(df_spei12_rm$ID))
+
+df_twfe_2 = df_twfe %>%
+  subset(!(ID %in% list_spei12_rm))
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                              Estimating TWFE                             ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Estimation of model 1  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#LSLA on NDVI 
+
+````{r}
+
+##Mean annual NDVI
+lm1_ndvi_mean_lsla = lfe::felm(Tndvi_mean ~ dummy_lsla 
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+##Max annual NDVI
+lm1_ndvi_max_lsla = lfe::felm(Tndvi_max ~ dummy_lsla 
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+
+
+##~~~~~~~~~~~~~~~
+##  ~ Table  ----
+##~~~~~~~~~~~~~~~
+
+list_lm1 = list(lm1_ndvi_max_lsla, lm1_ndvi_mean_lsla)
+# tbl_lm1_twfe = fun_starg(lm = list_lm1, 
+#                      title = "ATT of LSLA on NDVI",
+#                      cov_lab = c("LSLA"),
+#                      dep_var_lab = c("Max. NDVI", "Avg. NDVI"),
+#                      out_type = ".tex",
+#                      out_name = "lm1_twfe_lsla_cs",
+#                      out_path = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/tables/LSLA_CS/"
+# )
+
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Estimation of model 2  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#Drought on NDVI
+
+````{r}
+
+#Moderate drought
+##Mean annual NDVI
+lm2_ndvi_mean_dry = lfe::felm(Tndvi_mean ~ Tdry_year
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+
+##Max annual NDVI
+lm2_ndvi_max_dry = lfe::felm(Tndvi_max ~ Tdry_year
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+
+
+#Severe drought
+##Mean annual NDVI
+lm2_ndvi_mean_intdry = lfe::felm(Tndvi_mean ~ Tintdry_year
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+##Max annual NDVI
+lm2_ndvi_max_intdry = lfe::felm(Tndvi_max ~ Tintdry_year
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+
+##~~~~~~~~~~~~~~~
+##  ~ Table  ----
+##~~~~~~~~~~~~~~~
+
+list_lm2 = list(lm2_ndvi_max_dry, lm2_ndvi_max_intdry, lm2_ndvi_mean_dry, lm2_ndvi_mean_intdry)
+# tbl_lm2_twfe_dry = fun_starg(lm = list(lm2_ndvi_max_dry, lm2_ndvi_mean_dry), 
+#                      title = "ATT of LSLA on NDVI",
+#                      cov_lab = c("Mod. drought"),
+#                      dep_var_lab = c("Max. NDVI", "Avg. NDVI"),
+#                      out_type = ".tex",
+#                      out_name = "lm2_twfe_cs_dry",
+#                      out_path = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/tables/LSLA_CS/"
+# )
+# 
+# tbl_lm2_twfe_intdry = fun_starg(lm = list(lm2_ndvi_max_intdry, lm2_ndvi_mean_intdry), 
+#                      title = "ATT of LSLA on NDVI",
+#                      cov_lab = c("Sev. drought"),
+#                      dep_var_lab = c("Max. NDVI", "Avg. NDVI"),
+#                      out_type = ".tex",
+#                      out_name = "lm2_twfe_cs_intdry",
+#                      out_path = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/tables/LSLA_CS/"
+# )
+# 
+# tbl_lm2_twfe = fun_starg(lm = list_lm2, 
+#                      title = "ATT of LSLA on NDVI",
+#                      cov_lab = c("Mod. drought", "Sev. drought"),
+#                      dep_var_lab = c("Max. NDVI", "Avg. NDVI"),
+#                      out_type = ".txt",
+#                      out_name = "lm2_twfe",
+#                      out_path = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/tables/LSLA_CS/"
+# )
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Estimation of model 3  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#LSLA on vulnerability of NDVI to climate shock
+
+````{r}
+
+#Moderate drought
+##Mean annual NDVI
+lm3_ndvi_mean_lsla_dry = lfe::felm(Tndvi_mean ~ Tdry_year*dummy_lsla 
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+##Max annual NDVI
+lm3_ndvi_max_lsla_dry = lfe::felm(Tndvi_max ~ Tdry_year*dummy_lsla 
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+summary(lm3_ndvi_max_lsla_dry)
+lm3_ndvi_max_lsla_dry_reg = lfe::felm(Tndvi_max ~ Tdry_year*dummy_lsla 
+                                  | ID + year | 0 | country + ID,
+                                  data = subset(df_twfe, sub_region == "South-eastern Asia"),
+                                  exactDOF = TRUE)
+summary(lm3_ndvi_max_lsla_dry_reg)
+
+#Severe drought
+##Mean annual NDVI
+lm3_ndvi_mean_lsla_intdry = lfe::felm(Tndvi_mean ~ Tintdry_year*dummy_lsla 
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+##Max annual NDVI
+###World
+lm3_ndvi_max_lsla_intdry = lfe::felm(Tndvi_max ~ Tintdry_year*dummy_lsla 
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+summary(lm3_ndvi_max_lsla_intdry)
+
+lm3_ndvi_max_lsla_intdry_reg = lfe::felm(Tndvi_max ~ Tintdry_year*dummy_lsla 
+                                  | ID + year | 0 |  ID,
+                                  data = subset(df_twfe, sub_region == "South-eastern Asia"),
+                                  exactDOF = TRUE)
+summary(lm3_ndvi_max_lsla_intdry_reg)
+
+##~~~~~~~~~~~~~~~
+##  ~ Table  ----
+##~~~~~~~~~~~~~~~
+
+list_lm3 = list(lm3_ndvi_max_lsla_dry, lm3_ndvi_max_lsla_intdry, lm3_ndvi_mean_lsla_dry, lm3_ndvi_mean_lsla_intdry)
+tbl_lm3_twfe = fun_starg(lm = list_lm3, 
+                     title = "ATT of LSLA on the vulnerability of NDVI to climate shock",
+                     cov_lab = c("Mod. drought", "Sev. drought", "LSLA", 
+                                 "Mod.dr.*LSLA", "Sev.dr.*LSLA"),
+                     dep_var_lab = c("Max. NDVI", "Avg. NDVI"),
+                     out_type = ".tex",
+                     out_name = "lm3_twfe_lsla_cs",
+                     out_path = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/tables/LSLA_CS/"
+)
+
+tbl_lm3_max_twfe = fun_starg(lm = list(lm3_ndvi_max_lsla_dry, lm3_ndvi_max_lsla_intdry), 
+                     title = "TALSLA and vulnerability of NDVI to droughts",
+                     cov_lab = c("Mod. drought", "Sev. drought", "LSLA", 
+                                 "Mod.dr.*LSLA", "Sev.dr.*LSLA"),
+                     dep_var_lab = c("Max. NDVI"),
+                     out_type = ".txt",
+                     out_name = "lm3_twfe_max_lsla_cs",
+                     out_path = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/tables/LSLA_CS/"
+)
+
+
+````
+
+#Same in log 
+
+
+````{r}
+
+#Moderate drought
+##Mean annual NDVI
+lm3_logndvi_mean_lsla_dry = lfe::felm(log(Tndvi_mean) ~ Tdry_year*dummy_lsla 
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+##Max annual NDVI
+lm3_logndvi_max_lsla_dry = lfe::felm(log(Tndvi_max) ~ Tdry_year*dummy_lsla 
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+
+#Severe drought
+##Mean annual NDVI
+lm3_logndvi_mean_lsla_intdry = lfe::felm(log(Tndvi_mean) ~ Tintdry_year*dummy_lsla 
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+##Max annual NDVI
+lm3_logndvi_max_lsla_intdry = lfe::felm(log(Tndvi_max) ~ Tintdry_year*dummy_lsla 
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+
+
+##~~~~~~~~~~~~~~~
+##  ~ Table  ----
+##~~~~~~~~~~~~~~~
+
+list_lm3_log = list(lm3_logndvi_max_lsla_dry, lm3_logndvi_max_lsla_intdry, lm3_logndvi_mean_lsla_dry, lm3_logndvi_mean_lsla_intdry)
+tbl_lm3_twfe_log = fun_starg(lm = list_lm3_log, 
+                     title = "ATT of LSLA on the vulnerability of NDVI to climate shock",
+                     cov_lab = c("Mod. drought", "Sev. drought", "LSLA", 
+                                 "Mod.dr.*LSLA", "Sev.dr.*LSLA"),
+                     dep_var_lab = c("Max. NDVI", "Avg. NDVI"),
+                     out_type = ".txt",
+                     out_name = "lm3_log_twfe_lsla_cs",
+                     out_path = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/tables/LSLA_CS/"
+)
+tbl_lm3_twfe_log_max = fun_starg(lm = list(lm3_logndvi_max_lsla_dry, lm3_logndvi_max_lsla_intdry), 
+                     title = "ATT of LSLA on the vulnerability of NDVI to climate shock",
+                     cov_lab = c("Mod. drought", "Sev. drought", "LSLA", 
+                                 "Mod.dr.*LSLA", "Sev.dr.*LSLA"),
+                     dep_var_lab = c("Max. NDVI"),
+                     out_type = ".tex",
+                     out_name = "lm3_log_max_twfe_lsla_cs",
+                     out_path = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/tables/LSLA_CS/"
+)
+
+
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Estimation of model 4  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#LSLA on vulnerability of NDVI to climate shock, add 5 leads/lags to LSLA and interaction term
+
+````{r}
+
+#Moderate drought
+##Mean annual NDVI
+lm4_ndvi_mean_lsla_dry = lfe::felm(Tndvi_mean ~ 
+                                     rel_lsla_m5 + rel_lsla_m4 + rel_lsla_m3 + rel_lsla_m2 
+                                   + rel_lsla_0*Tdry_year + rel_lsla_1*Tdry_year 
+                                   + rel_lsla_2*Tdry_year + rel_lsla_3*Tdry_year
+                                   + rel_lsla_4*Tdry_year + rel_lsla_5*Tdry_year
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+##Max annual NDVI
+lm4_ndvi_max_lsla_dry = lfe::felm(Tndvi_max ~ 
+                                     rel_lsla_m5 + rel_lsla_m4 + rel_lsla_m3 + rel_lsla_m2 
+                                   + rel_lsla_0*Tdry_year + rel_lsla_1*Tdry_year 
+                                   + rel_lsla_2*Tdry_year + rel_lsla_3*Tdry_year
+                                   + rel_lsla_4*Tdry_year + rel_lsla_5*Tdry_year
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+
+#Severe drought
+##Mean annual NDVI
+lm4_ndvi_mean_lsla_intdry = lfe::felm(Tndvi_mean ~ 
+                                     rel_lsla_m5 + rel_lsla_m4 + rel_lsla_m3 + rel_lsla_m2 
+                                   + rel_lsla_0*Tintdry_year + rel_lsla_1*Tintdry_year 
+                                   + rel_lsla_2*Tintdry_year + rel_lsla_3*Tintdry_year
+                                   + rel_lsla_4*Tintdry_year + rel_lsla_5*Tintdry_year
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+##Max annual NDVI
+lm4_ndvi_max_lsla_intdry = lfe::felm(Tndvi_max ~ 
+                                     rel_lsla_m5 + rel_lsla_m4 + rel_lsla_m3 + rel_lsla_m2 
+                                   + rel_lsla_0*Tintdry_year + rel_lsla_1*Tintdry_year 
+                                   + rel_lsla_2*Tintdry_year + rel_lsla_3*Tintdry_year
+                                   + rel_lsla_4*Tintdry_year + rel_lsla_5*Tintdry_year
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+
+
+##~~~~~~~~~~~~~~~
+##  ~ Table  ----
+##~~~~~~~~~~~~~~~
+
+list_lm4 = list(lm4_ndvi_max_lsla_dry, lm4_ndvi_max_lsla_intdry, lm4_ndvi_mean_lsla_dry, lm4_ndvi_mean_lsla_intdry)
+tbl_lm4_twfe_dry = fun_starg(lm = list(lm4_ndvi_max_lsla_dry, lm4_ndvi_mean_lsla_dry), 
+                     title = "ATT of LSLA on the vulnerability of NDVI to climate shock",
+                     cov_lab = c(paste0("LSLA-", 5:2), "LSLA+0", "Mod. drought",
+                                 paste0("LSLA+", 1:5), "Mod. dr.*LSLA+0", 
+                                 paste0("Mod. dr.*LSLA+", 1:5)),
+                     dep_var_lab = c("Max. NDVI", "Avg. NDVI"),
+                     out_type = ".tex",
+                     out_name = "lm4_twfe_dry",
+                     out_path = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/tables/LSLA_CS/"
+)
+tbl_lm4_twfe_intdry = fun_starg(lm = list(lm4_ndvi_max_lsla_intdry, lm4_ndvi_mean_lsla_intdry), 
+                     title = "ATT of LSLA on the vulnerability of NDVI to climate shock",
+                     cov_lab = c(paste0("LSLA-", 5:2), "LSLA+0", "Sev. drought",
+                                 paste0("LSLA+", 1:5), "Sev. dr.*LSLA+0", 
+                                 paste0("Sev. dr.*LSLA+", 1:5)),
+                     dep_var_lab = c("Max. NDVI", "Avg. NDVI"),
+                     out_type = ".tex",
+                     out_name = "lm4_twfe_intdry",
+                     out_path = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/tables/LSLA_CS/"
+)
+
+
+
+````
+
+#Same in log
+
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Estimation of model 4  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#LSLA on vulnerability of NDVI to climate shock, add 5 leads/lags to LSLA and interaction term
+
+````{r}
+
+#Moderate drought
+##Mean annual NDVI
+lm4_logndvi_mean_lsla_dry = lfe::felm(log(Tndvi_mean) ~ 
+                                     rel_lsla_m5 + rel_lsla_m4 + rel_lsla_m3 + rel_lsla_m2 
+                                   + rel_lsla_0*Tdry_year + rel_lsla_1*Tdry_year 
+                                   + rel_lsla_2*Tdry_year + rel_lsla_3*Tdry_year
+                                   + rel_lsla_4*Tdry_year + rel_lsla_5*Tdry_year
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+##Max annual NDVI
+lm4_logndvi_max_lsla_dry = lfe::felm(log(Tndvi_max) ~ 
+                                     rel_lsla_m5 + rel_lsla_m4 + rel_lsla_m3 + rel_lsla_m2 
+                                   + rel_lsla_0*Tdry_year + rel_lsla_1*Tdry_year 
+                                   + rel_lsla_2*Tdry_year + rel_lsla_3*Tdry_year
+                                   + rel_lsla_4*Tdry_year + rel_lsla_5*Tdry_year
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+
+#Severe drought
+##Mean annual NDVI
+lm4_logndvi_mean_lsla_intdry = lfe::felm(log(Tndvi_mean) ~ 
+                                     rel_lsla_m5 + rel_lsla_m4 + rel_lsla_m3 + rel_lsla_m2 
+                                   + rel_lsla_0*Tintdry_year + rel_lsla_1*Tintdry_year 
+                                   + rel_lsla_2*Tintdry_year + rel_lsla_3*Tintdry_year
+                                   + rel_lsla_4*Tintdry_year + rel_lsla_5*Tintdry_year
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+##Max annual NDVI
+lm4_logndvi_max_lsla_intdry = lfe::felm(log(Tndvi_max) ~ 
+                                     rel_lsla_m5 + rel_lsla_m4 + rel_lsla_m3 + rel_lsla_m2 
+                                   + rel_lsla_0*Tintdry_year + rel_lsla_1*Tintdry_year 
+                                   + rel_lsla_2*Tintdry_year + rel_lsla_3*Tintdry_year
+                                   + rel_lsla_4*Tintdry_year + rel_lsla_5*Tintdry_year
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+
+
+##~~~~~~~~~~~~~~~
+##  ~ Table  ----
+##~~~~~~~~~~~~~~~
+
+list_lm4_log = list(lm4_logndvi_max_lsla_dry, lm4_logndvi_max_lsla_intdry, lm4_logndvi_mean_lsla_dry, lm4_logndvi_mean_lsla_intdry)
+tbl_lm4_log_twfe_dry = fun_starg(lm = list(lm4_logndvi_max_lsla_dry, lm4_logndvi_mean_lsla_dry), 
+                     title = "TALSLAs and vulnerability of NDVI to moderate droughts",
+                     cov_lab = c(paste0("LSLA-", 5:2), "LSLA+0", "Mod. drought",
+                                 paste0("LSLA+", 1:5), "Mod. dr.*LSLA+0", 
+                                 paste0("Mod. dr.*LSLA+", 1:5)),
+                     dep_var_lab = c("log max. NDVI", "log avg. NDVI"),
+                     out_type = ".tex",
+                     out_name = "lm4_log_twfe_dry",
+                     out_path = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/tables/LSLA_CS/"
+)
+tbl_lm4_log_twfe_intdry = fun_starg(lm = list(lm4_logndvi_max_lsla_intdry, lm4_logndvi_mean_lsla_intdry), 
+                     title = "TALSLAs and vulnerability of NDVI to severe droughts",
+                     cov_lab = c(paste0("LSLA-", 5:2), "LSLA+0", "Sev. drought",
+                                 paste0("LSLA+", 1:5), "Sev. dr.*LSLA+0", 
+                                 paste0("Sev. dr.*LSLA+", 1:5)),
+                     dep_var_lab = c("log max. NDVI", "log avg. NDVI"),
+                     out_type = ".tex",
+                     out_name = "lm4_log_twfe_intdry",
+                     out_path = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/tables/LSLA_CS/"
+)
+
+
+
+````
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##  ~ Estimation of model 5  ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#LSLA on vulnerability of NDVI to climate shock, add 5 leads to LSLA and interaction term
+
+````{r}
+
+#Moderate drought
+##Mean annual NDVI
+lm5_ndvi_mean_lsla_dry = lfe::felm(Tndvi_mean ~ 
+                                      rel_lsla_0*Tdry_year + rel_lsla_1*Tdry_year 
+                                   + rel_lsla_2*Tdry_year + rel_lsla_3*Tdry_year
+                                   + rel_lsla_4*Tdry_year + rel_lsla_5*Tdry_year
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+##Max annual NDVI
+lm5_ndvi_max_lsla_dry = lfe::felm(Tndvi_max ~ 
+                                     rel_lsla_0*Tdry_year + rel_lsla_1*Tdry_year 
+                                   + rel_lsla_2*Tdry_year + rel_lsla_3*Tdry_year
+                                   + rel_lsla_4*Tdry_year + rel_lsla_5*Tdry_year
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+
+#Severe drought
+##Mean annual NDVI
+lm5_ndvi_mean_lsla_intdry = lfe::felm(Tndvi_mean ~ 
+                                     rel_lsla_0*Tintdry_year + rel_lsla_1*Tintdry_year 
+                                   + rel_lsla_2*Tintdry_year + rel_lsla_3*Tintdry_year
+                                   + rel_lsla_4*Tintdry_year + rel_lsla_5*Tintdry_year
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+##Max annual NDVI
+lm5_ndvi_max_lsla_intdry = lfe::felm(Tndvi_max ~ 
+                                     rel_lsla_0*Tintdry_year + rel_lsla_1*Tintdry_year 
+                                   + rel_lsla_2*Tintdry_year + rel_lsla_3*Tintdry_year
+                                   + rel_lsla_4*Tintdry_year + rel_lsla_5*Tintdry_year
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+
+
+##~~~~~~~~~~~~~~~
+##  ~ Table  ----
+##~~~~~~~~~~~~~~~
+
+list_lm5 = list(lm5_ndvi_max_lsla_dry, lm5_ndvi_max_lsla_intdry, lm5_ndvi_mean_lsla_dry, lm5_ndvi_mean_lsla_intdry)
+tbl_lm5_twfe_dry = fun_starg(lm = list(lm5_ndvi_max_lsla_dry, lm5_ndvi_mean_lsla_dry), 
+                     title = "ATT of LSLA on the vulnerability of NDVI to climate shock",
+                     cov_lab = c("LSLA+0", "Mod. drought",  
+                                 paste0("LSLA+", 1:5), "Mod. dr.*LSLA+0", 
+                                 paste0("Mod. dr.*LSLA+", 1:5)),
+                     dep_var_lab = c("Max. NDVI", "Avg. NDVI"),
+                     out_type = ".txt",
+                     out_name = "lm5_twfe_dry",
+                     out_path = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/tables/LSLA_CS/"
+)
+tbl_lm5_twfe_intdry = fun_starg(lm = list(lm5_ndvi_max_lsla_intdry, lm5_ndvi_mean_lsla_intdry), 
+                     title = "ATT of LSLA on the vulnerability of NDVI to climate shock",
+                     cov_lab = c("LSLA+0", "Sev. drought",  
+                                 paste0("LSLA+", 1:5), "Sev. dr.*LSLA+0", 
+                                 paste0("Sev. dr.*LSLA+", 1:5)),
+                     dep_var_lab = c("Max. NDVI", "Avg. NDVI"),
+                     out_type = ".txt",
+                     out_name = "lm5_twfe_intdry",
+                     out_path = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/tables/LSLA_CS/"
+)
+
+
+
+````
+
+#Same in log
+
+
+````{r}
+
+#Moderate drought
+##Mean annual NDVI
+lm5_logndvi_mean_lsla_dry = lfe::felm(log(Tndvi_mean) ~ 
+                                      rel_lsla_0*Tdry_year + rel_lsla_1*Tdry_year 
+                                   + rel_lsla_2*Tdry_year + rel_lsla_3*Tdry_year
+                                   + rel_lsla_4*Tdry_year + rel_lsla_5*Tdry_year
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+##Max annual NDVI
+lm5_logndvi_max_lsla_dry = lfe::felm(log(Tndvi_max) ~ 
+                                     rel_lsla_0*Tdry_year + rel_lsla_1*Tdry_year 
+                                   + rel_lsla_2*Tdry_year + rel_lsla_3*Tdry_year
+                                   + rel_lsla_4*Tdry_year + rel_lsla_5*Tdry_year
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+
+#Severe drought
+##Mean annual NDVI
+lm5_logndvi_mean_lsla_intdry = lfe::felm(log(Tndvi_mean) ~ 
+                                     rel_lsla_0*Tintdry_year + rel_lsla_1*Tintdry_year 
+                                   + rel_lsla_2*Tintdry_year + rel_lsla_3*Tintdry_year
+                                   + rel_lsla_4*Tintdry_year + rel_lsla_5*Tintdry_year
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+##Max annual NDVI
+lm5_logndvi_max_lsla_intdry = lfe::felm(log(Tndvi_max) ~ 
+                                     rel_lsla_0*Tintdry_year + rel_lsla_1*Tintdry_year 
+                                   + rel_lsla_2*Tintdry_year + rel_lsla_3*Tintdry_year
+                                   + rel_lsla_4*Tintdry_year + rel_lsla_5*Tintdry_year
+                                  | ID + year | 0 | country + ID,
+                                  data = df_twfe,
+                                  exactDOF = TRUE)
+
+
+##~~~~~~~~~~~~~~~
+##  ~ Table  ----
+##~~~~~~~~~~~~~~~
+
+list_lm5_log = list(lm5_logndvi_max_lsla_dry, lm5_logndvi_max_lsla_intdry, lm5_logndvi_mean_lsla_dry, lm5_logndvi_mean_lsla_intdry)
+tbl_lm5_log_twfe_dry = fun_starg(lm = list(lm5_logndvi_max_lsla_dry, lm5_logndvi_mean_lsla_dry), 
+                     title = "TALSLAs and vulnerability of NDVI to moderate droughts",
+                     cov_lab = c("LSLA+0", "Mod. drought",  
+                                 paste0("LSLA+", 1:5), "Mod. dr.*LSLA+0", 
+                                 paste0("Mod. dr.*LSLA+", 1:5)),
+                     dep_var_lab = c("Max. NDVI", "Avg. NDVI"),
+                     out_type = ".txt",
+                     out_name = "lm5_log_twfe_dry",
+                     out_path = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/tables/LSLA_CS/"
+)
+tbl_lm5_log_twfe_intdry = fun_starg(lm = list(lm5_logndvi_max_lsla_intdry, lm5_logndvi_mean_lsla_intdry), 
+                     title = "TALSLAs and vulnerability of NDVI to severe droughts",
+                     cov_lab = c("LSLA+0", "Sev. drought",  
+                                 paste0("LSLA+", 1:5), "Sev. dr.*LSLA+0", 
+                                 paste0("Sev. dr.*LSLA+", 1:5)),
+                     dep_var_lab = c("Max. NDVI", "Avg. NDVI"),
+                     out_type = ".tex",
+                     out_name = "lm5_log_twfe_intdry",
+                     out_path = "D:/Documents/Cours/M2_ENS/Cours/MasterThesis/CommonsVulnerabilityCC/data/tables/LSLA_CS/"
+)
+
+
+
+````
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                                                            --
+##------------------------------- FURTHER IDEAS---------------------------------
+##                                                                            --
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                  Old code                                ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+````{r}
+
+# df_twfe = subset(Tbuf_spei12_shock, year >= 2000 & year <= 2022) %>%
+#   left_join(df_ndvi_lsla, by = c("ID", "year")) %>%
+#   mutate(Tdry_year = as.numeric(Tdry_year),
+#          Tintdry_year = as.numeric(Tintdry_year)) %>%
+#   rename("year_lsla" = "year_T") %>%
+#   select(c(sub_region, country, ID, year, year_lsla, Tdry_year, Tintdry_year, Tndvi_mean, Tndvi_max, `rel_lsla_m1`:`rel_lsla_21`, Pre5, Post5, Pre10, Post10)) %>%
+#   mutate(dummy_lsla = as.numeric(year >= year_lsla),
+#          dummy_dry_lsla = as.numeric(Tdry_year == 1 & dummy_lsla == 1),
+#          dummy_intdry_lsla = as.numeric(Tintdry_year == 1 & dummy_lsla == 1),
+#          .after = Tintdry_year)
+
+````
