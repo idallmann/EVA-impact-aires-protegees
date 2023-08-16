@@ -103,6 +103,14 @@ data_pa_afd = rbind(data_pa_eva, data_pa_arb)
 ### Import and merge raw datasets
 
 ```{r, eval = FALSE}
+
+#Function to TEST -> Test
+simpleCap <- function(x) {
+    s <- strsplit(x, " ")[[1]]
+    paste(substring(s, 1, 1), tolower(substring(s, 2)),
+          sep = "", collapse = " ")
+}
+
 #import a dataset with country names and corresponding ISO3 code
 data_iso = fread("data_raw/liste-197-etats-2020.csv") %>%
   rename("iso3" = "CODE",
@@ -134,11 +142,14 @@ data_siop = read_excel("data_raw/BO_AP_16082023.xlsx") %>%
            pays_de_realisation, autres_pays_de_realisation,
            mt_fin_global_af_d_prevu_devise,
            montant_prevu_concours_euro_octroi,
+           mt_global_projet_prevu_devise,
            cofinancier,
            mt_part_cofinancier_prevu_euro,
            libelle_produit,
            date_doctroi_projet, annee_doctroi_projet)) %>%
-  rename("cofinanciers_siop" = "cofinancier")
+  rename("cofinanciers_siop" = "cofinancier") %>%
+  mutate(pays_de_realisation = simpleCap(pays_de_realisation),
+         autres_pays_de_realisation = simpleCap(autres_pays_de_realisation))
 
 #Import WDPA data
 # data_wdpa = wdpa_fetch(x = "global", wait = TRUE, download_dir = "data_raw",
@@ -154,7 +165,7 @@ data_raw = data_pa_afd %>%
   #Add the ISO3 code corresponding to the country hosting the PA.             #Facilitate future mergings
   #left_join(data_iso, by = c("pays" = "nom_alpha2")) %>%
   #Add information from WDPA to PAs funded and with WDPAID
-  left_join(data_wdpa, by = "wdpaid") %>%
+  left_join(data_wdpa, by = "wdpaid")
   #Add information from SIOP
   left_join(data_siop, by = c("id_projet", "id_concours"))
 ```
