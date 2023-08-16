@@ -16,29 +16,91 @@ library(splitstackshape)
 library(janitor)
 library(stringi)
 library(sf)
+library(terra)
 library(mapview)
 library(wdpar)
 
 #Install webdriver to download WDPA data
-webdriver::install_phantomjs()
+#webdriver::install_phantomjs()
 
 ```
 
-This script builds the different datasets for the analysis. Data on PAs funded by the AFD are combined with the WDPA. A confidential dataset is created to perform descriptive statistics on fundings. Also, datasets on PAs aggregated size at country and regional level are created.
+This script builds the different datasets for the analysis. Protected areas (PAs) reported by AFD employees are combined, merged with AFD project database ("SIOP") and the World Database on Protected Areas (WDPA). A confidential dataset is created to perform descriptive statistics on fundings. Also, datasets on PAs aggregated size at country and regional level are created.
 
-Note that the raw dataset is not made publicly available, as it contains confidential data. Apart from the dataset on funding, all datasets created here can be provided upon request.
+Note that not all datasets are made publicly available, as some contain confidential data. Please contact authors for special requests.
 
 ## Datasets for analysis
 
-The datasets are built from the raw BDD_joint.xlsx file. The latter comes from the merging of AFD project data (SIOP), and information on PAs reported ARB and covering 2000-2017 period. Information on the PAs is also found on the WDPA database (polygon, year of implementation, IUCN category, etc.). Majority of PAs reported by ARB had no WDPA ID, so it was found and reported manually on WDPA website.
+The datasets are built from the list of PAs funded by the AFD, provided by AFD employees. For each PA, further information are gathered from the SIOP and the WDPA.
 
-Different datasets are built. First a dataset (data_PA_tidy) enriched of information on co-investors and ISO codes for the countries hosting the PA.
+Then, several datasets are built : (1) a dataset with only project related variables from the AFD, to facilitate merging with datasets other than WDPA; (2) a dataset to perform most analysis, except confidential statistics related to funding; (3) a confidential dataset with funding data.
 
-From this dataset are extracted : (1) a dataset with only project related variables from the AFD, to facilitate merging with datasets other than WDPA; (2) a dataset to perform most analysis, except confidential statistics related to funding; (3) a confidential dataset with funding data.
+### Merge PAs reporting (ARB, EVA ...)
 
-Then a dataset of PAs polygons is imported from the WDPA, and confidential data are also removed.
+A first step has been to collect information on the PAs funded by the AFD. A first bunch was collected by Léa Poulin, Ingrid Dallmann and Pierre-Yves Durand (form EVA department). Others was reported to us by the ARB department. These datasets are combined with only relevant variables for future merging with WDPA and SIOP databases.
 
-### Cleaning the raw dataset
+```{r}
+
+#PAs gathered by EVA
+##BDD_joint created by Léa Poulin. 
+##Create a dataset with a merged column for cofunders, instead of a variable ##for each. Only relevant variables are kept, and the date/author of the report are added.
+data_pa_eva = read_excel("data_raw/BDD_joint.xlsx") %>%
+  as.data.frame() %>%
+  unite(cofinanciers, starts_with("cofinancier"),
+        sep=",", remove = TRUE, na.rm = TRUE) %>%
+  select(c(id_projet, id_concours, cofinanciers, 
+           nom_ap, wdpaid, superficie)) %>%
+  rename("superficie_km2" = "superficie") %>%
+  mutate(superficie_km2 = as.numeric(superficie_km2),
+         wdpaid = as.numeric(wdpaid),
+         date_entree = "2022-12-06",
+         auteur_entree = "Léa Poulin,Pierre-Yves Durand,Ingrid Dallmann") %>%
+  # Change encoding of characters
+  mutate(across(.cols = !c(wdpaid, superficie_km2),
+                .fns = ~stri_enc_toutf8(.x)))
+
+#PAs gathered by ARB (10-08-2023)
+data_pa_arb = read_excel("data_raw/BDD_ARB_10082023.xlsx") %>%
+  as.data.frame() %>%
+  clean_names() %>%
+  select(c(id_projet, id_concours, nom_cofinanciers,
+           nom_de_laire_protegee, id_wdpa, superficie_km2)) %>%
+  rename("cofinanciers" = "nom_cofinanciers",
+         "nom_ap" = "nom_de_laire_protegee",
+         "wdpaid" = "id_wdpa",
+         "superficie_raw" = "superficie_km2") %>%
+  #Create variables:
+  ## Replace "NA" by NA values in wdpaid
+  ## Check unit of area given reported by ARB
+  ## Convert the area reported in km2, controlling for NA values, unreported values ("Non requis (information délivrée par la WDPA)"), values in hectares or km2. Note in some rows, unit must be removed and "," replaced by "." for the numeric conversion
+  mutate(wdpaid = as.numeric(case_when(wdpaid == "NA" ~ NA,
+                            TRUE ~ wdpaid)),
+         date_entree = "2023-08-10",
+         auteur_entree = "ARB",
+         superficie_unit = case_when(grepl("km2", superficie_raw) ~ "km2",
+                                     grepl("ha|Ha", superficie_raw) ~ "ha",
+                                     TRUE ~ "km2"),
+         superficie_km2 = case_when(grepl("Non", superficie_raw) ~ NA,
+                                is.na(superficie_raw) ~ NA,
+                                superficie_unit == "ha" ~ as.numeric(gsub(",", ".", gsub("ha|Ha", "", superficie_raw)))/1e2,
+                                superficie_unit == "km2" ~ as.numeric(gsub(",", ".", gsub("km2", "", superficie_raw))),
+                                TRUE ~ as.numeric(superficie_raw))) %>%
+  # Change encoding of characters
+  mutate(across(.cols = !c(wdpaid, superficie_km2),
+                .fns = ~stri_enc_toutf8(.x))) %>%
+  select(c("id_projet", "id_concours", "cofinanciers", "nom_ap",
+           "wdpaid", "superficie_km2", "date_entree", "auteur_entree"))
+  
+#Create a dataset gathering EVA and ARB datasets
+data_pa_afd = rbind(data_pa_eva, data_pa_arb)
+
+#Finally, writing the dataset in csv file. Careful to the delimiter : ";" used as "," present in some variables values.
+# write_delim(data_pa_afd, "data_raw/BDD_PA_AFD.csv",
+#             delim = ";",
+#             na = "NA")
+```
+
+### Import and merge raw datasets
 
 ```{r, eval = FALSE}
 #import a dataset with country names and corresponding ISO3 code
@@ -58,36 +120,25 @@ data_iso = fread("data_raw/liste-197-etats-2020.csv") %>%
                               "Palaos", "Guinée-Bissao")) ~ nom_alpha2
          ))
 
-#Import the manually reported dataset
-data_pa = read_excel("data_raw/BDD_PA_AFD.xlsx") %>%
-  as.data.frame() %>%
-  rename("wdpaid" = "ID_WDPA",
-         "name_pa" = "Nom de l'aire protégée") %>%
-  clean_names() %>%
-  # Change encoding of characters
-  mutate(across(.cols = names(.),
-                .fns = ~stri_enc_toutf8(.x))) %>%
-  # Convert WDPAID to numeric, with NA values for unknown WDPAID
-  mutate(wdpaid = case_when(wdpaid %in% c("NA", "") ~ NA,
-                          TRUE ~ wdpaid)) %>%
-  mutate(wdpaid = as.numeric(wdpaid)) 
+
+#Import the manually reported dataset (merge from ARB, EVA reports)
+#Careful to the delimiter choice
+#data_pa_afd = read_delim("data_raw/BDD_PA_AFD.csv", delim = ";")
 
 #Import SIOP extract
 #/!\ Attention need a more recent verison
-data_siop = read_excel("data_raw/AP_BO_2000-2017_V3.xlsx") %>%
+data_siop = read_excel("data_raw/BO_AP_16082023.xlsx") %>%
   clean_names() %>%
-  rename("id_projet" = "idprojet") %>%
-  select(c(id_projet, id_concours, 
-           montant_prevu_concours_euro_octroi, 
-           mt_global_projet_prevu_devise, 
-           engagements_nets_euro_octroi, 
-           montant_total_projet, 
-           produit, libelle_produit, 
+  select(c(id_projet, id_concours,
+           libelle_court_direction_regionale,
+           pays_de_realisation, autres_pays_de_realisation,
+           mt_fin_global_af_d_prevu_devise,
+           montant_prevu_concours_euro_octroi,
            cofinancier,
-           division_technique, 
-           agence, libelle_agence, 
-           date_octroi, annee_octroi,
-           pays_de_realisation, direction_regionale))
+           mt_part_cofinancier_prevu_euro,
+           libelle_produit,
+           date_doctroi_projet, annee_doctroi_projet)) %>%
+  rename("cofinanciers_siop" = "cofinancier")
 
 #Import WDPA data
 # data_wdpa = wdpa_fetch(x = "global", wait = TRUE, download_dir = "data_raw",
@@ -95,12 +146,13 @@ data_siop = read_excel("data_raw/AP_BO_2000-2017_V3.xlsx") %>%
 # st_write(wdpa,
 #          dsn = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
 #          delete_dsn = TRUE)
-data_wdpa = st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg")
+data_wdpa = st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
+  clean_names()
 
 #Merge the datasets
-data_raw = data_pa %>%
+data_raw = data_pa_afd %>%
   #Add the ISO3 code corresponding to the country hosting the PA.             #Facilitate future mergings
-  left_join(data_iso, by = c("pays" = "nom_alpha2")) %>%
+  #left_join(data_iso, by = c("pays" = "nom_alpha2")) %>%
   #Add information from WDPA to PAs funded and with WDPAID
   left_join(data_wdpa, by = "wdpaid") %>%
   #Add information from SIOP
