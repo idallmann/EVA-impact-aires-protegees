@@ -45,7 +45,7 @@ data_pa =
   aws.s3::s3read_using(
   FUN = data.table::fread,
   encoding = "UTF-8",
-  object = "data_tidy/BDD_DesStat_nofund_nodupl.csv",
+  object = "data_tidy/BDD_nofund_nodupl.csv",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = "")) 
 
@@ -69,13 +69,27 @@ for (i in list_iso)
   print(paste0(i, " : country ", count_i, "/", max_i))
   
   #Load the matching frame
-  print("--Loading the matching frame")
+  print("--Loading the list of PAs in the country considered")
   df_pa_i = fn_did_list_pa(iso = i)
   list_pa_i = df_pa_i$wdpaid
   
+  count_j = 0
+  max_j = length(list_pa_i)
+  
   for(j in list_pa_i)
   {
-    matched_wide_j = fn_did_load_df_matched_wide(iso = i, wdpaid = j, ext_output = ".csv")
+    
+    count_j = count_j+1
+    print(paste0("WDPA ID ", j, " : ", count_j, "/", max_j))
+    
+    #Load the datasets
+    print("--Loading the working datasets")
+    df_j = fn_did_load_df(iso = i,
+                          wdpaid = j, 
+                          ext_output = ".csv")
+    
+    df_wide_m_j = df_j$df_matched_wide
+    df_wide_unm_j = df_j$df_unmatched_wide
     
     #Ensuite :
     ## Mettre sous une forme pre/post traitement
