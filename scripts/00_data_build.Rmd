@@ -198,6 +198,18 @@ data_raw = data_pa_afd %>%
   mutate(iso3 = iso3_wdpa,
          iso3 = case_when(is.na(iso3) == TRUE ~ iso3_siop,
                           TRUE ~ iso3),
+         region = countrycode(sourcevar = iso3,
+                              origin = "iso3c",
+                              destination = "un.region.name"),
+         sub_region = countrycode(sourcevar = iso3,
+                              origin = "iso3c",
+                              destination = "un.regionsub.name"),
+         country_en = countrycode(sourcevar = iso3,
+                              origin = "iso3c",
+                              destination = "un.name.en"),
+         country_fr = countrycode(sourcevar = iso3,
+                              origin = "iso3c",
+                              destination = "un.name.fr"),
          .after = "iso3_wdpa") %>%
   select(!c(geom))
   
