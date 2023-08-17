@@ -65,20 +65,19 @@ data_wdpa =
   s3read_using(sf::st_read,
               object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
               bucket = "projet-afd-eva-ap",
-              opts = list("region" = ""))
+              opts = list("region" = "")) %>%
+  clean_names() %>%
+  select(c(wdpaid, wdpa_pid, geom))
 
 
 #Polygons from WDPA are added to the PAs funded
-pa_shp = read_sf("data_raw/WDPA_SHP/BDD_SHP_nodupl.shp") %>%
-  select(c(WDPAID, WDPA_PID, GEOMETRY)) %>%
-  clean_names()
-
 data_pa_shp = data_pa_afd %>%
-  left_join(pa_shp, by = "wdpaid")
+  left_join(data_wdpa, by = c("wdpaid", "wdpa_pid"))
 
-st_write(pa_shp,
-         dsn = "data_tidy/BDD_pa_afd_shp_pub.gpkg",
-         delete_dsn = TRUE)
+# s3write_using(x = data_pa_shp,
+#               FUN = sf::st_write,
+#               object = "data_tidy/BDD_PA_AFD_shp.gpkg",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
 
-rm(pa_shp)
 ```
