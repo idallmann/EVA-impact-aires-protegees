@@ -30,17 +30,20 @@ library(countrycode)
 
 ```{r, eval = FALSE}
 
-#Import dataset of funded PAs (1 row = 1 PA)
-data_pa_afd = 
-  #fread("data_raw/BDD_PA_AFD_nofund_nodupl.csv")
+#Import dataset of PAs (1 row = 1 PA)
+data_pa_fund_nodupl = 
+  #fread("data_raw/BDD_PA_AFD_fund_nodupl.csv")
   s3read_using(readr::read_delim,
                delim = ";",
                show_col_types = FALSE,
-               object = "data_tidy/BDD_PA_AFD_nofund_nodupl.csv",
+               object = "data_tidy/BDD_PA_AFD_fund_nodupl.csv",
               bucket = "projet-afd-eva-ap",
               opts = list("region" = ""))
+
+data_pa_fund_wdpa = data_pa_fund_nodupl %>%
+  filter(is.na(wdpaid) == FALSE)
 #Define a list of iso to download WDPA data
-list_iso = data_pa_afd %>%
+list_iso = data_pa_fund_wdpa %>%
   filter(!(iso3 %in% c("COG;CMR;CAF", "ZZ") | is.na(iso3))) %>%
   select(iso3) %>%
   unique() 
@@ -67,16 +70,17 @@ data_wdpa =
               bucket = "projet-afd-eva-ap",
               opts = list("region" = "")) %>%
   clean_names() %>%
-  select(c(wdpaid, wdpa_pid, geom))
+  select(c(wdpaid, wdpa_pid, geom)) %>%
+  mutate(geom_type = st_geometry_type(geom))
 
 
 #Polygons from WDPA are added to the PAs funded
-data_pa_shp = data_pa_afd %>%
+data_pa_fund_shp = data_pa_fund_wdpa %>%
   left_join(data_wdpa, by = c("wdpaid", "wdpa_pid"))
 
-# s3write_using(x = data_pa_shp,
+# s3write_using(x = data_pa_fund_shp,
 #               FUN = sf::st_write,
-#               object = "data_tidy/BDD_PA_AFD_shp.gpkg",
+#               object = "data_tidy/BDD_PA_AFD_fund_shp.gpkg",
 #               bucket = "projet-afd-eva-ap",
 #               opts = list("region" = ""))
 

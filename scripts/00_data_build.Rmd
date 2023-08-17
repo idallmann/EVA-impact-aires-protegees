@@ -304,6 +304,7 @@ data_tidy = data_raw_corr %>%
   #AFD is always funder, so no need of a dummy. 
   mutate(kfw_bin = grepl("KFW|kfw|KfW", cofinanciers),
          ffem_bin = grepl("ffem|FFEM", cofinanciers),
+         cof_bin = is.na(cofinanciers) == FALSE & !(cofinanciers %in% c("AFD", "afd")),
          .after = "cofinanciers") %>%
   #Nouvelle-Calédonie is divided in two provinces : north and south. 
   #This subdivision is irrelevant in our analysis so we keep 
@@ -353,8 +354,6 @@ data_tidy = data_raw_corr %>%
          "year_funding" = "annee_doctroi_projet",
          "area_km2" = "superficie_km2")
 ```
-
-### 
 
 ### Dataset with only SIOP variables
 
@@ -487,28 +486,56 @@ Variables related to the funding are removed.
 ```{r, eval = FALSE}
 
 #Listing relevant variables for descriptive statistics
-list_var_fund = c("id_projet", "name_pa", "id_concours", 
-                "wdpaid", "country_en", "country_fr", "iso3", 
-                "region_afd", "region", "sub_region",
-                "cofinanciers", "cofinanciers_siop",
-                  "mt_fin_global_af_d_prevu_devise",
-                  "montant_prevu_concours_euro_octroi",
-                  "mt_global_projet_prevu_devise",
-                  "mt_part_cofinancier_prevu_euro",
-                  "libelle_produit",
-                  "date_funding",
-                  "year_funding")
+# list_var_fund = c("id_projet", "name_pa", "id_concours", 
+#                 "wdpaid", "country_en", "country_fr", "iso3", 
+#                 "region_afd", "region", "sub_region",
+#                 "cofinanciers", "cofinanciers_siop",
+#                   "mt_fin_global_af_d_prevu_devise",
+#                   "montant_prevu_concours_euro_octroi",
+#                   "mt_global_projet_prevu_devise",
+#                   "mt_part_cofinancier_prevu_euro",
+#                   "libelle_produit",
+#                   "date_funding",
+#                   "year_funding")
 
 #Defining dataset for descriptive statistics
 #Duplicates are not revmoved here, as we want the information on the different concours for instance. Peculiar datasets 
-data_fund = data_tidy %>%
-  select(all_of(list_var_fund))
+data_fund = data_tidy 
+
+data_fund_wdpa = data_fund %>%
+    subset(is.na(wdpaid) == FALSE) %>%
+  #We need to manually remove some WDPA_PID not relevant
+  ## Remove the buffer zone of WDPAID 9035
+  filter(!(wdpa_pid == "9035_B")) %>%
+  ## 555547861 has 3 marine PAs. The C one is chosen as the size reported by AFD (superficie_km2) matches the area reported by WDPA (https://www.protectedplanet.net/555547861)
+  filter(!(wdpa_pid %in% c("555547861_A", "555547861_B"))) %>%
+  # 555705345 : buffer area is also reported. Remove the buffer
+  filter(!(wdpa_pid == "555705345_B")) %>%
+  #555547863 : keep the WDPA_PID whose area matches the one reported by AFD employees and WDPA website (https://www.protectedplanet.net/555547863)
+  filter(!(wdpa_pid == "555547863_A")) %>%
+  #Finally, keep for each WDPAID the different funding it get
+  group_by(id_projet, id_concours, wdpaid, cofinanciers) %>%
+  slice(1) %>%
+  ungroup()
+
+data_fund_na = data_fund %>%
+  filter(is.na(wdpaid) == TRUE) %>%
+  #Create a unique key for a PA : project ID from AFD, country (ISO code) and PA name
+  #Rows with the same key correspond to different cofunders. This info is not relevant for non-funding analysis, so we can keep only one key value.
+  mutate(key = paste(id_projet, iso3, name_pa, sep = "_"),
+       .before = id_projet) %>%
+  group_by(key, cofinanciers) %>%
+  slice(1) %>%
+  ungroup() %>%
+  select(-key)
+
+data_fund_nodupl = rbind(data_fund_wdpa, data_fund_na)
 
 #fwrite(data_fund, "data_tidy/BDD_PA_AFD_fund.csv")
-# s3write_using(x = data_fund,
+# s3write_using(x = data_fund_nodupl,
 #               FUN = readr::write_delim,
 #               delim = ";",
-#               object = "data_tidy/BDD_PA_AFD_fund.csv",
+#               object = "data_tidy/BDD_PA_AFD_fund_nodupl.csv",
 #               bucket = "projet-afd-eva-ap",
 #               opts = list("region" = ""))
 ```
@@ -528,7 +555,7 @@ data_wdpa =
   select(c(wdpaid, wdpa_pid, geom)) %>%
   mutate(geom_type = sf::st_geometry_type(geom))
 
-data_pa_afd = 
+data_pa_nofund_nodupl = 
   #fread("data_raw/BDD_PA_AFD_nofund_nodupl.csv")
   s3read_using(readr::read_delim,
                delim = ";",
@@ -540,7 +567,6 @@ data_pa_afd =
 data_pa_afd_shp = data_pa_afd %>%
   left_join(data_wdpa, by = c("wdpaid", "wdpa_pid"))
 
-test = st_area(data_pa_afd_shp[2,]$geom)
 
 st_write(pa_shp,
          dsn = "data_tidy/BDD_pa_afd_shp_pub.gpkg",
