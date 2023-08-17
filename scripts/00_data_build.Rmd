@@ -185,6 +185,8 @@ data_wdpa =
               object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
               bucket = "projet-afd-eva-ap",
               opts = list("region" = "")) %>%
+  st_drop_geometry() %>%
+  select(-geom) %>%
   clean_names() %>%
   rename("iso3_wdpa" = "iso3")
 
@@ -210,8 +212,7 @@ data_raw = data_pa_afd %>%
          country_fr = countrycode(sourcevar = iso3,
                               origin = "iso3c",
                               destination = "un.name.fr"),
-         .after = "iso3_wdpa") %>%
-  select(!c(geom))
+         .after = "iso3_wdpa")
   
 
 # s3write_using(x = data_raw,
