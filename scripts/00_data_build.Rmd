@@ -518,13 +518,29 @@ data_fund = data_tidy %>%
 Removing confidential variables from the polygon dataset. This is temporary code, as in the future we will download information from WDPA through the WDPA package, and extract the WDPA ID of interest. No confidential data will then be contained in the polygon datasets.
 
 ```{r, eval = FALSE}
-#The confidential information removed concern funding or nominative variables
-pa_shp = read_sf("data_raw/WDPA_SHP/BDD_SHP_nodupl.shp") %>%
-  select(c(WDPAID, WDPA_PID, GEOMETRY, MARINE)) %>%
-  clean_names()
+data_wdpa =
+  #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
+  s3read_using(sf::st_read,
+              object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = "")) %>%
+  clean_names() %>%
+  select(c(wdpaid, wdpa_pid, geom)) %>%
+  mutate(geom_type = sf::st_geometry_type(geom))
+
+data_pa_afd = 
+  #fread("data_raw/BDD_PA_AFD_nofund_nodupl.csv")
+  s3read_using(readr::read_delim,
+               delim = ";",
+               show_col_types = FALSE,
+               object = "data_tidy/BDD_PA_AFD_nofund_nodupl.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
 
 data_pa_afd_shp = data_pa_afd %>%
-  left_join(pa_shp, by = "wdpaid")
+  left_join(data_wdpa, by = c("wdpaid", "wdpa_pid"))
+
+test = st_area(data_pa_afd_shp[2,]$geom)
 
 st_write(pa_shp,
          dsn = "data_tidy/BDD_pa_afd_shp_pub.gpkg",
@@ -552,25 +568,22 @@ Note that the following codes are about computing total area at country/region/w
 #Importing shapefiles
 sf_use_s2(FALSE)
 pa_shp = 
-  read_sf("data_tidy/BDD_shp_pub.gpkg") %>%
-  # aws.s3::s3read_using(
-  # FUN = sf::read_sf,
-  # # Mettre les options de FUN ici
-  # object = "data_tidy/BDD_SHP_nodupl_pub.gpkg",
-  # bucket = "projet-afd-eva-ap",
-  # opts = list("region" = "")) %>%
+  #read_sf("data_tidy/BDD_PA_AFD_shp.gpkg") %>%
+  aws.s3::s3read_using(
+  FUN = sf::read_sf,
+  # Mettre les options de FUN ici
+  object = "data_tidy/BDD_PA_AFD_shp.gpkg",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = "")) %>%
+  #Take polygons only
+  mutate(geom_type = as.character(st_geometry_type(geom))) %>%
+  filter(geom_type == "MULTIPOLYGON") %>%
   #Ensure all geometries are valid
   st_make_valid() %>%
   #From multipolygon to polygon
   sf::st_cast(to="POLYGON") %>%
-  clean_names() %>%
   #Select relevant variables
-  #Note ann_c = annee_octroi in the initial database data_raw
-  dplyr::select(c(wdpaid, sprfc, rep_a, gis_a, geom, iso3, drct, ann_c)) %>%
-  #Variable sprfc corresponds to AFD internal reported size
-  rename("sprfc_int" = "sprfc") %>%
-  mutate(wdpaid = as.numeric(wdpaid),
-         sprfc_int = as.numeric(sprfc_int)) 
+  dplyr::select(c(wdpaid, area_km2, rep_area, geom, iso3, region_afd, region, sub_region, year_funding)) 
 
 #Spatial definition of wdpaid 555547988 overlaps CMR and CAF. Wdpaid 1245 corresponds to the CMR part. The overlap is removed and iso3 redefined so that 555547988 is CAF only. 
 geom_555547988_1245 = st_difference(pa_shp[pa_shp$wdpaid == 555547988,]$geom, pa_shp[pa_shp$wdpaid == 1245,]$geom)
@@ -584,7 +597,7 @@ pa_shp_tidy = pa_shp %>%
   #Compute areas in km2 from the geometry, in km2. It must be equal to gis_a by definition 
   #Then to take into account potential refinements of the geometries (as for wdpaid 55547988), a variable for relevant area is defined. It takes rep_a value except for modified geometries where area_sf_moll is taken
   mutate(area_sf_moll = as.numeric(st_area(geom)/1e6),
-         sprfc_km2 = ifelse(wdpaid == 555547988, yes = area_sf_moll, no = rep_a))
+         area_km2 = ifelse(wdpaid == 555547988, yes = area_sf_moll, no = rep_area))
 ```
 
 ### Computing the intersection at country, region, world level
@@ -596,7 +609,7 @@ pa_int = st_intersection(pa_shp_tidy, pa_shp_tidy) %>%
   #Remove intersection of polygons with themselves
   subset(wdpaid != wdpaid.1) %>%
   #If one of the two intersectin polygon have unknwon area, then it is not necessary to subtract the interesction area. Indeed there is no double-counting of the intersection in this case, when both polygon areas are summed.
-  subset(is.na(sprfc_km2) == FALSE & is.na(sprfc_km2.1) == FALSE) %>%
+  subset(is.na(area_km2) == FALSE & is.na(area_km2.1) == FALSE) %>%
   #Compute the intersecting areas (pa_shp already in Mollweide projection) in km2
   mutate(area_int = as.numeric(st_area(geom)/1e6)) %>%
   #Now duplicates need to be removed : intersection of X with Y AND intersection of Y with X are reported. We need only one.
@@ -615,7 +628,7 @@ pa_int = st_intersection(pa_shp_tidy, pa_shp_tidy) %>%
   slice(1) %>%
   ungroup() %>%
   #select relevant variables only
-  select(wdpaid, iso3, drct, ann_c, wdpaid.1, iso3.1, drct.1, ann_c.1, geom, area_int)
+  select(wdpaid, iso3, region_afd, region, sub_region, year_funding, wdpaid.1, iso3.1, region_afd.1, year_funding.1, geom, area_int)
 
 #Computing the total area of intersections
 #At country level ...
@@ -629,8 +642,8 @@ pa_int_ctry = pa_int %>%
 #At region level
 pa_int_dr = pa_int %>%
   #Only overlapping PAs in the same DR are considered
-  subset(drct == drct.1) %>%
-  group_by(drct) %>%
+  subset(region_afd == region_afd.1) %>%
+  group_by(region_afd) %>%
   summarize(tot_area_int = sum(area_int)) %>%
   st_drop_geometry()
 
@@ -641,52 +654,82 @@ pa_int_wld = sum(pa_int$area_int)
 pa_int_yr = pa_int %>%
   #Define intersection year : the date ann_c of the later PA in the pair
   rowwise() %>%
-  mutate(annee_int = max(ann_c, ann_c.1)) %>% 
+  mutate(annee_int = max(year_funding, year_funding.1)) %>% 
   group_by(annee_int) %>%
   summarize(tot_int_km2 = sum(area_int)) %>%
   st_drop_geometry()
 
 # fwrite(pa_int_yr,
 #        "data_tidy/area/pa_int_yr.csv")
+# s3write_using(x = pa_int_yr,
+#               FUN = data.table::fwrite,
+#               object = "data_tidy/area/pa_int_yr.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
 ```
 
 ### Computing total areas without intersection
 
 ```{r, eval = FALSE}
+
+data_pa_afd = 
+  #fread("data_raw/BDD_PA_AFD_nofund_nodupl.csv")
+  s3read_using(readr::read_delim,
+               delim = ";",
+               show_col_types = FALSE,
+               object = "data_tidy/BDD_PA_AFD_nofund_nodupl.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
+
 #At country level ...
-pa_area_ctry = data_nofund_nodupl %>%
+pa_area_ctry = data_pa_afd %>%
   #Compute total area at country level
   group_by(iso3) %>%
-  summarize(sprfc_tot_km2 = sum(superficie)) %>%
+  summarize(area_tot_km2 = sum(area_km2, na.rm = TRUE)) %>%
   ungroup() %>%
   #Add information on intersection area in each country. Modify the variable so that NA value -> 0
   left_join(pa_int_ctry, by = "iso3") %>%
   mutate(tot_area_int = case_when(is.na(tot_area_int) == TRUE ~ 0, TRUE ~ tot_area_int)) %>%
   #Compute the total area at country level without intersection
-  mutate(sprfc_tot_noint_km2 = sprfc_tot_km2 - tot_area_int) 
+  mutate(area_tot_noint_km2 = area_tot_km2 - tot_area_int) 
 
 #fwrite(pa_area_ctry, "data_tidy/area/pa_area_ctry.csv")
+# s3write_using(x = pa_area_ctry,
+#               FUN = data.table::fwrite,
+#               object = "data_tidy/area/pa_area_ctry.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
 
 #At DR level ...
-pa_area_dr = data_nofund_nodupl %>%
+pa_area_dr = data_pa_afd %>%
   #Compute total area at dr level
-  group_by(direction_regionale) %>%
-  summarize(sprfc_tot_km2 = sum(superficie)) %>% 
+  group_by(region_afd) %>%
+  summarize(area_tot_km2 = sum(area_km2, na.rm = TRUE)) %>% 
   ungroup() %>%
   #Add information on intersection area in each DR. Modify the variable so that NA value -> 0
-  left_join(pa_int_dr, by = c("direction_regionale" = "drct")) %>%
+  left_join(pa_int_dr, by = "region_afd") %>%
   mutate(tot_area_int = case_when(is.na(tot_area_int) == TRUE ~0, TRUE ~tot_area_int)) %>%
   #Compute the total area at country level without intersection
-  mutate(sprfc_tot_noint_km2 = sprfc_tot_km2 - tot_area_int) %>%
+    mutate(area_tot_noint_km2 = area_tot_km2 - tot_area_int) %>%
   st_drop_geometry()
 
 #fwrite(pa_area_dr, "data_tidy/area/pa_area_dr.csv")
+# s3write_using(x = pa_area_dr,
+#               FUN = data.table::fwrite,
+#               object = "data_tidy/area/pa_area_dr.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
 
 #At world level
-pa_area_wld = sum(data_nofund_nodupl$superficie) - pa_int_wld %>%
+pa_area_wld = sum(data_pa_afd$area_km2, na.rm = TRUE) - pa_int_wld %>%
   as.data.frame() %>%
-  rename("sprfc_tot_noint_km2" = ".")
+  rename("area_tot_noint_km2" = ".")
 #fwrite(pa_area_wld, "data_tidy/area/pa_area_wld.csv")
+# s3write_using(x = pa_area_wld,
+#               FUN = data.table::fwrite,
+#               object = "data_tidy/area/pa_area_wld.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
 
 ```
 
