@@ -7,18 +7,19 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 ```
 
 ```{r message=TRUE, warning=TRUE, eval = FALSE}
+install.packages(c("janitor", "wdpar", "countrycode"))
 library(tidyverse)
-library(stargazer)
 library(dplyr)
 library(data.table)
 library(readxl)
-library(splitstackshape) 
 library(janitor)
 library(stringi)
 library(sf)
 library(terra)
 library(mapview)
 library(wdpar)
+library(aws.s3)
+library(countrycode)
 
 #Install webdriver to download WDPA data
 #webdriver::install_phantomjs()
@@ -40,11 +41,15 @@ Then, several datasets are built : (1) a dataset with only project related varia
 A first step has been to collect information on the PAs funded by the AFD. A first bunch was collected by Léa Poulin, Ingrid Dallmann and Pierre-Yves Durand (form EVA department). Others was reported to us by the ARB department. These datasets are combined with only relevant variables for future merging with WDPA and SIOP databases.
 
 ```{r}
-
 #PAs gathered by EVA
 ##BDD_joint created by Léa Poulin. 
 ##Create a dataset with a merged column for cofunders, instead of a variable ##for each. Only relevant variables are kept, and the date/author of the report are added.
-data_pa_eva = read_excel("data_raw/BDD_joint.xlsx") %>%
+data_pa_eva = 
+  #read_excel("data_raw/BDD_joint.xlsx") %>%
+  s3read_using(readxl::read_excel,
+               object = "data_raw/BDD_joint.xlsx",
+               bucket = "projet-afd-eva-ap",
+               opts = list("region" = "")) %>%
   as.data.frame() %>%
   unite(cofinanciers, starts_with("cofinancier"),
         sep=",", remove = TRUE, na.rm = TRUE) %>%
@@ -60,7 +65,12 @@ data_pa_eva = read_excel("data_raw/BDD_joint.xlsx") %>%
                 .fns = ~stri_enc_toutf8(.x)))
 
 #PAs gathered by ARB (10-08-2023)
-data_pa_arb = read_excel("data_raw/BDD_ARB_10082023.xlsx") %>%
+data_pa_arb = 
+  #read_excel("data_raw/BDD_ARB_10082023.xlsx") %>%
+  s3read_using(readxl::read_excel,
+             object = "data_raw/BDD_ARB_10082023.xlsx",
+             bucket = "projet-afd-eva-ap",
+             opts = list("region" = "")) %>%
   as.data.frame() %>%
   clean_names() %>%
   select(c(id_projet, id_concours, nom_cofinanciers,
@@ -93,49 +103,48 @@ data_pa_arb = read_excel("data_raw/BDD_ARB_10082023.xlsx") %>%
   
 #Create a dataset gathering EVA and ARB datasets, and remove duplicates
 data_pa_afd = rbind(data_pa_eva, data_pa_arb)
-data_pa_afd_wdpaid = data_pa_afd %>%
-  filter(is.na(wdpaid) == FALSE) %>%
-  group_by(wdpaid)
 
 #Finally, writing the dataset in csv file. Careful to the delimiter : ";" used as "," present in some variables values.
 # write_delim(data_pa_afd, "data_raw/BDD_PA_AFD.csv",
 #             delim = ";",
 #             na = "NA")
+# s3write_using(x = data_pa_afd,
+#               FUN = readr::write_delim,
+#               delim = ";",
+#               object = "data_raw/BDD_PA_AFD.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
+
 ```
 
 ### Import and merge raw datasets
 
 ```{r, eval = FALSE}
 
-#import a dataset with country names and corresponding ISO3 code
-data_iso = fread("data_raw/liste-197-etats-2020.csv") %>%
-  rename("iso3_join" = "CODE",
-         "nom_alpha" = "NOM_ALPHA") %>%
-  dplyr::select(c("nom_alpha", "iso3")) %>%
-  #get rid of accentuations and change name by hand to correspond with BDD_joint
-  mutate(nom_alpha2 = iconv(nom_alpha, to = "ASCII//TRANSLIT"),
-         nom_alpha2 = case_when(
-           nom_alpha2 == "Cook (Iles)" ~ "Cook",
-           nom_alpha2 == "Cote d'Ivoire" ~ "Cote d ivoire",
-           nom_alpha2 == "Sao Tome-et-Principe" ~ "Sao Tome",
-           nom_alpha2 == "Palaos" ~ "Palau",
-           nom_alpha2 == "Vietnam" ~ "Viet-nam",
-           nom_alpha2 == "Guinee-Bissao" ~ "Guinee-Bissau",
-           TRUE ~ nom_alpha2
-         ))
 
 #Import the manually reported dataset (merge from ARB, EVA reports)
 #Careful to the delimiter choice
-#data_pa_afd = read_delim("data_raw/BDD_PA_AFD.csv", delim = ";")
+data_pa_afd = 
+  #read_delim("data_raw/BDD_PA_AFD.csv", delim = ";")
+  s3read_using(readr::read_delim,
+                delim = ";",
+               show_col_types = FALSE,
+                object = "data_raw/BDD_PA_AFD.csv",
+                bucket = "projet-afd-eva-ap",
+                opts = list("region" = ""))
 
 #Import SIOP extract
-#/!\ Attention need a more recent verison
 
 fn_ucfirst <- function (str) {
   paste(toupper(substring(str, 1, 1)), tolower(substring(str, 2)), sep = "")
 }
 
-data_siop = read_excel("data_raw/BO_AP_16082023.xlsx") %>%
+data_siop = 
+  #read_excel("data_raw/BO_AP_16082023.xlsx") %>%
+  s3read_using(readxl::read_excel,
+              object = "data_raw/BO_AP_16082023.xlsx",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = "")) %>%
   clean_names() %>%
   filter(id_projet %in% data_pa_afd$id_projet) %>%
   select(c(id_projet, id_concours,
@@ -154,7 +163,15 @@ data_siop = read_excel("data_raw/BO_AP_16082023.xlsx") %>%
   mutate(pays = case_when(is.na(pays) == TRUE ~ NA,
                          is.na(pays) == FALSE ~ fn_ucfirst(pays)),
          pays2 = case_when(is.na(pays2) == TRUE ~ NA,
-                          is.na(pays2) == FALSE ~ fn_ucfirst(pays2)))
+                          is.na(pays2) == FALSE ~ fn_ucfirst(pays2))) %>%
+  #Add ISO code from countrycode package, reading "pays"
+  mutate(iso3_siop = countrycode(sourcevar = pays, 
+                                 origin = "country.name.fr",
+                                 destination = "iso3c",
+                                 custom_match = c("Multi-pays" = "ZZ",
+                                                  "Multi-Pays" = "ZZ",
+                                                  "Inde" = "IND")),
+         .after = "pays")
   
 #Import WDPA data
 # data_wdpa = wdpa_fetch(x = "global", wait = TRUE, download_dir = "data_raw",
@@ -162,8 +179,12 @@ data_siop = read_excel("data_raw/BO_AP_16082023.xlsx") %>%
 # st_write(wdpa,
 #          dsn = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
 #          delete_dsn = TRUE)
-data_wdpa = st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
-  st_drop_geometry() %>%
+data_wdpa = 
+  #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
+  s3read_using(sf::st_read,
+              object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = "")) %>%
   clean_names() %>%
   rename("iso3_wdpa" = "iso3")
 
@@ -171,19 +192,23 @@ data_wdpa = st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
 data_raw = data_pa_afd %>%
   #Add information from WDPA to PAs funded and with WDPAID
   left_join(data_wdpa, by = "wdpaid") %>%
-  st_drop_geometry() %>%
   #Add information from SIOP
   left_join(data_siop, by = c("id_projet", "id_concours")) %>%
-  #Add the ISO3 code corresponding to the country hosting the PA.             #Facilitate future mergings
-  left_join(data_iso, by = c("pays" = "nom_alpha2")) %>%
-  #Keep only one iso information : priority WDPA, then SIOP if NA value
+  #Keep only one ISO information : priority WDPA, then SIOP if NA value
   mutate(iso3 = iso3_wdpa,
-         iso3 = case_when(is.na(iso3) == TRUE ~ iso3_join,
+         iso3 = case_when(is.na(iso3) == TRUE ~ iso3_siop,
                           TRUE ~ iso3),
-         .after = "iso3_wdpa") 
+         .after = "iso3_wdpa") %>%
+  select(!c(geom))
   
 
-#write_csv(data_raw, "data_raw/BDD_PA_raw.xlsx")
+# s3write_using(x = data_raw,
+#               FUN = readr::write_delim,
+#               delim = ";",
+#               object = "data_raw/BDD_PA_raw.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
+
 ```
 
 ### Correct errors
@@ -192,14 +217,22 @@ Here errors in the reported information are corrected manually. Note the SIOP ca
 
 ```{r}
 #Loading the raw dataset
-data_raw = fread("data_raw/BDD_PA_raw.xlsx", encoding = "UTF-8")
+data_raw = 
+  #fread("data_raw/BDD_PA_raw.csv")
+  s3read_using(readr::read_delim,
+               delim = ";",
+               show_col_types = FALSE,
+               object = "data_raw/BDD_PA_raw.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
 data_raw_corr = data_raw
 
 #Modify errors in the dataset
 ##WDPAID 797 with ID project CZZ3056 corresponds to APAC de Kawawana in Senegal, with no WDPAID (https://kawawana.iccaconsortium.org/)
 data_raw_corr[data_raw_corr$wdpaid == "797" & data_raw_corr$id_projet == "CZZ3056",]$nom_ap = "APAC de Kawawana"
-data_raw_corr[data_raw_corr$wdpaid == "797" & data_raw_corr$id_projet == "CZZ3056",]$wdpaid = NA
 data_raw_corr[data_raw_corr$wdpaid == "797" & data_raw_corr$id_projet == "CZZ3056",]$iso3 = "SEN"
+data_raw_corr[data_raw_corr$wdpaid == "797" & data_raw_corr$id_projet == "CZZ3056",]$wdpaid = NA
+
 ##4223, 4224, 4226, 4228, 4229 : all in PS-N.Caledonie
 ## -> not relevant with new SIOP extract
 # data_raw_corr[data_raw_corr$wdpaid %in% c("4223", "4224", "4226", "4228", "4229") & data_raw_corr$pays == "Fidji",]$pays = "P-S N.Caléd"
@@ -217,7 +250,12 @@ data_raw_corr[data_raw_corr$wdpaid == "797" & data_raw_corr$id_projet == "CZZ305
 # data_raw_corr[data_raw_corr$wdpaid %in% c("20267") ,]$pays = "Guinee-Equatoriale"
 # data_raw_corr[data_raw_corr$wdpaid %in% c("20267") ,]$iso3 = "GNQ"
 
-write_csv(data_raw_corr, "data_raw/BDD_PA_raw_corr.csv")
+# s3write_using(x = data_raw_corr,
+#               FUN = readr::write_delim,
+#               delim = ";",
+#               object = "data_raw/BDD_PA_raw_corr.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
 
 ```
 
@@ -225,12 +263,19 @@ write_csv(data_raw_corr, "data_raw/BDD_PA_raw_corr.csv")
 
 ```{r}
 #Import raw dataset corrected from report errors
-data_raw_corr = fread("data_raw/BDD_PA_raw_corr.csv")
+data_raw_corr = 
+  #fread("data_raw/BDD_PA_raw_corr.csv")
+  s3read_using(readr::read_delim,
+               delim = ";",
+               show_col_types = FALSE,
+               object = "data_raw/BDD_PA_raw_corr.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
 
 data_tidy = data_raw_corr %>%
   #Select relevant variables
   select(c(libelle_court_direction_regionale,
-           pays, pays2, nom_alpha, parent_iso3, iso3.x, iso3.y,
+           pays, pays2, parent_iso3, iso3,
            id_projet, id_concours, nom_ap, wdpaid, wdpa_pid, 
            date_doctroi_projet, annee_doctroi_projet, status, status_yr,
            iucn_cat, marine, superficie_km2, rep_m_area, rep_area,
@@ -282,7 +327,6 @@ data_tidy = data_raw_corr %>%
                           "mt_global_projet_prevu_devise",
                           "mt_part_cofinancier_prevu_euro"), 
                 .fns = ~stri_enc_toutf8(.x))) 
-
 ```
 
 ### 
