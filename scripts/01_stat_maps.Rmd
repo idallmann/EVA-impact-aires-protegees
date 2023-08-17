@@ -30,8 +30,8 @@ library(countrycode)
 
 ```{r, eval = FALSE}
 
-#Import dataset of funded PAs
-data_pa_nofund_nodupl = 
+#Import dataset of funded PAs (1 row = 1 PA)
+data_pa_afd = 
   #fread("data_raw/BDD_PA_AFD_nofund_nodupl.csv")
   s3read_using(readr::read_delim,
                delim = ";",
@@ -40,24 +40,26 @@ data_pa_nofund_nodupl =
               bucket = "projet-afd-eva-ap",
               opts = list("region" = ""))
 #Define a list of iso to download WDPA data
-list_iso = data_pa_nofund_nodupl %>%
+list_iso = data_pa_afd %>%
   filter(!(iso3 %in% c("COG;CMR;CAF", "ZZ") | is.na(iso3))) %>%
   select(iso3) %>%
   unique() 
 list_iso = list_iso$iso3
 
 #Import WDPA data
-data_wdpa = wdpa_fetch(x = list_iso, wait = TRUE, download_dir = "data_raw",
-                       page_wait = 2, verbose = TRUE)
-st_write(wdpa,
-         dsn = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
-         delete_dsn = TRUE)
+##Either download and store it ...
+# data_wdpa = wdpa_fetch(x = list_iso, wait = TRUE, download_dir = "data_raw",
+#                        page_wait = 2, verbose = TRUE)
+# st_write(wdpa,
+#          dsn = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
+#          delete_dsn = TRUE)
 # s3write_using(x = data_wdpa,
 #               FUN = sf::st_write,
 #               object = "data_raw/wdpa/17_08_2023/wdpa_shp_global_raw.gpkg",
 #               bucket = "projet-afd-eva-ap",
 #               opts = list("region" = ""))
 
+##... or import it from SSP Cloud
 data_wdpa =
   #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
   s3read_using(sf::st_read,
@@ -66,12 +68,12 @@ data_wdpa =
               opts = list("region" = ""))
 
 
-#The confidential information removed concern funding or nominative variables
+#Polygons from WDPA are added to the PAs funded
 pa_shp = read_sf("data_raw/WDPA_SHP/BDD_SHP_nodupl.shp") %>%
-  select(c(WDPAID, WDPA_PID, GEOMETRY, MARINE)) %>%
+  select(c(WDPAID, WDPA_PID, GEOMETRY)) %>%
   clean_names()
 
-data_pa_afd_shp = data_pa_afd %>%
+data_pa_shp = data_pa_afd %>%
   left_join(pa_shp, by = "wdpaid")
 
 st_write(pa_shp,
