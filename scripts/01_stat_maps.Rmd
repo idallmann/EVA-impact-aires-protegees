@@ -1,0 +1,82 @@
+# Generating maps
+
+## Importing relevant packages
+
+```{r setup, include = FALSE, eval = FALSE}
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+```
+
+```{r message=TRUE, warning=TRUE, eval = FALSE}
+install.packages(c("janitor", "wdpar", "countrycode"))
+library(tidyverse)
+library(dplyr)
+library(data.table)
+library(readxl)
+library(janitor)
+library(stringi)
+library(sf)
+library(terra)
+library(mapview)
+library(wdpar)
+library(aws.s3)
+library(countrycode)
+
+#Install webdriver to download WDPA data
+#webdriver::install_phantomjs()
+
+```
+
+## Importing datasets
+
+```{r, eval = FALSE}
+
+#Import dataset of funded PAs
+data_pa_nofund_nodupl = 
+  #fread("data_raw/BDD_PA_AFD_nofund_nodupl.csv")
+  s3read_using(readr::read_delim,
+               delim = ";",
+               show_col_types = FALSE,
+               object = "data_tidy/BDD_PA_AFD_nofund_nodupl.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
+#Define a list of iso to download WDPA data
+list_iso = data_pa_nofund_nodupl %>%
+  filter(!(iso3 %in% c("COG;CMR;CAF", "ZZ") | is.na(iso3))) %>%
+  select(iso3) %>%
+  unique() 
+list_iso = list_iso$iso3
+
+#Import WDPA data
+data_wdpa = wdpa_fetch(x = list_iso, wait = TRUE, download_dir = "data_raw",
+                       page_wait = 2, verbose = TRUE)
+st_write(wdpa,
+         dsn = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
+         delete_dsn = TRUE)
+# s3write_using(x = data_wdpa,
+#               FUN = sf::st_write,
+#               object = "data_raw/wdpa/17_08_2023/wdpa_shp_global_raw.gpkg",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
+
+data_wdpa =
+  #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
+  s3read_using(sf::st_read,
+              object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
+
+
+#The confidential information removed concern funding or nominative variables
+pa_shp = read_sf("data_raw/WDPA_SHP/BDD_SHP_nodupl.shp") %>%
+  select(c(WDPAID, WDPA_PID, GEOMETRY, MARINE)) %>%
+  clean_names()
+
+data_pa_afd_shp = data_pa_afd %>%
+  left_join(pa_shp, by = "wdpaid")
+
+st_write(pa_shp,
+         dsn = "data_tidy/BDD_pa_afd_shp_pub.gpkg",
+         delete_dsn = TRUE)
+
+rm(pa_shp)
+```
