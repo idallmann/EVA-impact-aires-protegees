@@ -441,25 +441,16 @@ data_nofund = data_tidy %>%
   select(!all_of(list_var_fund))
 
 #fwrite(data_nofund, "data_tidy/BDD_PA_AFD_nofund.csv")
-s3write_using(x = data_nofund,
-              FUN = readr::write_delim,
-              delim = ";",
-              object = "data_tidy/BDD_PA_AFD_nofund.csv",
-              bucket = "projet-afd-eva-ap",
-              opts = list("region" = ""))
+# s3write_using(x = data_nofund,
+#               FUN = readr::write_delim,
+#               delim = ";",
+#               object = "data_tidy/BDD_PA_AFD_nofund.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
 
 #Then to keep only one row per PA, we need to consider separately PAs having WDPA ID and PAs which do not.
 ## Observations with WDPAID
 
-#OLD
-# data_nofund_wdpa = data_nofund %>%
-#   subset(is.na(wdpaid) == FALSE) %>%
-#   group_by(wdpa_pid) %>% 
-#   #Keep the earlier annee_octroi (year of the first funding)
-#   arrange(year_funding) %>%
-#   #Keep only one observation for rows with same WDPAID
-#   slice(1) %>%
-#   ungroup()
 
 data_nofund_wdpa = data_nofund %>%
   subset(is.na(wdpaid) == FALSE) %>%
@@ -492,29 +483,61 @@ data_nofund_wdpa = data_nofund %>%
 #   slice(1)
 
 #Observations without WDPAID but with name of the PA
-data_nofund_na = data_nofund %>%
-  subset(is.na(wdpaid) == TRUE) %>%
-  #Create a unique key for a PA : project ID from AFD, country (ISO code) and PA name
-  #Rows with the same key correspond to different cofunders. This info is not relevant for non-funding analysis, so we can keep only one key value.
-  mutate(key = paste(id_projet, iso3, name_pa, sep = "_"),
-       .before = id_projet) %>%
-  #We keep information on fundings : one row for each unique key, funding year is kept
-  #Note that WDPA_PID is a unique identifier for zones inside the corresponding WDPAID. 
-  group_by(key, year_funding) %>%
+data_nofund_name = data_nofund %>%
+  subset(is.na(wdpaid) == TRUE & is.na(name_pa) == FALSE) %>%
+  #Remove completely similar rows (due to merging with SIOP and WDPA)
+  unique() %>%
+  #We keep information on fundings : one row for each name, funding year is kept
+  group_by(name_pa, year_funding) %>%
   slice(1) %>%
   ungroup() %>%
-  group_by(key) %>%
-  #Then we create a variable with all the funding years for each protected area identified by key  ...
+  group_by(name_pa) %>%
+  #Then we create a variable with all the funding year for each WDPA ...
   mutate(year_funding_all = paste0(year_funding, collapse = ","),
          .after = "year_funding") %>%
-  #... and keep only the earlier funding year for year_funding
-  arrange(year_funding) %>%
+  ungroup() %>%
+  #Manual filtering to remove irrelevant duplicates
+  ##Get rid of the DR SIEGE PARIS when a duplicate has DR OCEAN PACIFIQUE so that region are the good ones
+  filter(!(name_pa %in% c("Ailite", "Aitutaki (3 Ra'ui)", "Kerehira", 
+                          "Kibelofolu", "Kiribati", "Ma'au", "Mereka", 
+                          "Mistery Island (Aneityum)", "Ngula Pele", "Niu Houa",
+                          "Niumarere", "Paonangisu", 
+                          "Parc provincial Yeega-Hienga (Hienghène)", 
+                          "Rarotonga : Avana-Muri lagoon ra'ui", 
+                          "Rarotonga : Mitiaro ra'ui", "Saama", "Siviri", 
+                          "Takara", "Takola", "Tavuilo", "Waimamaru") 
+           & id_projet == "CZZ1282")) %>%
+  filter(!(grepl("Aire de gestion durable des ressources Yambé", name_pa) & id_projet == "CZZ1282")) %>%
+  ##Remove duplicate with zero area while the other is non-zerp
+  filter(!(id_projet == "CZZ1667" & name_pa == "Dohimen")) %>%
+  filter(!(name_pa == "Hienghène" & id_projet == "CZZ1667")) %>%
+  filter(!(name_pa == "Hyabe Lé Jao" & id_projet == "CZZ1667")) %>%
+  filter(!(name_pa == "Naroko" & id_projet == "CZZ1667")) %>%
+  filter(!(name_pa == "Tasi Vanua" & id_projet == "CZZ166701")) %>%
+  filter(!(name_pa == "Yeega" & id_projet == "CZZ1667")) %>%
+  ##Remove duplicate of Pouébo with area 0
+  filter(!(name_pa == "Pweevo (Pouébo)"))
+
+#Finally, observations with no WDPAID and no name_pa
+data_nofund_na = data_nofund %>%
+  subset(is.na(wdpaid) == TRUE & is.na(name_pa) == TRUE) %>%
+  #Remove identical observations
+  unique() %>%
+  #We keep information on fundings : one row for each id_project+iso, supposed to correspond to one PA
+  group_by(id_projet, iso3, year_funding) %>%
   slice(1) %>%
   ungroup() %>%
-  select(-key)
-
-#Finally bind both datasets
-data_nofund_nodupl = rbind(data_nofund_wdpa, data_nofund_na) 
+  group_by(id_projet, iso3) %>%
+  #Then we create a variable with all the funding year for each id_project ...
+  mutate(year_funding_all = paste0(year_funding, collapse = ","),
+         .after = "year_funding") %>%
+  ungroup() %>%
+  #Finally we remove duplicated id_project
+  group_by(id_projet, iso3) %>%
+  slice(1)
+  
+#Finally bind the datasets
+data_nofund_nodupl = rbind(data_nofund_wdpa, data_nofund_name, data_nofund_na) 
 
 #fwrite(data_nofund_nodupl, "data_tidy/BDD_nofund_nodupl.csv")
 s3write_using(x = data_nofund_nodupl,
@@ -523,6 +546,39 @@ s3write_using(x = data_nofund_nodupl,
               object = "data_tidy/BDD_PA_AFD_nofund_nodupl.csv",
               bucket = "projet-afd-eva-ap",
               opts = list("region" = ""))
+
+
+           
+#OLD
+# data_nofund_wdpa = data_nofund %>%
+#   subset(is.na(wdpaid) == FALSE) %>%
+#   group_by(wdpa_pid) %>% 
+#   #Keep the earlier annee_octroi (year of the first funding)
+#   arrange(year_funding) %>%
+#   #Keep only one observation for rows with same WDPAID
+#   slice(1) %>%
+#   ungroup()
+
+# data_nofund_na = data_nofund %>%
+#   subset(is.na(wdpaid) == TRUE) %>%
+#   #Create a unique key for a PA : project ID from AFD, country (ISO code) and PA name
+#   #Rows with the same key correspond to different cofunders. This info is not relevant for non-funding analysis, so we can keep only one key value.
+#   mutate(key = paste(id_projet, iso3, name_pa, sep = "_"),
+#        .before = id_projet) %>%
+#   #We keep information on fundings : one row for each unique key, funding year is kept
+#   #Note that WDPA_PID is a unique identifier for zones inside the corresponding WDPAID. 
+#   group_by(key, year_funding) %>%
+#   slice(1) %>%
+#   ungroup() %>%
+#   group_by(key) %>%
+#   #Then we create a variable with all the funding years for each protected area identified by key  ...
+#   mutate(year_funding_all = paste0(year_funding, collapse = ","),
+#          .after = "year_funding") %>%
+#   #... and keep only the earlier funding year for year_funding
+#   arrange(year_funding) %>%
+#   slice(1) %>%
+#   ungroup() %>%
+#   select(-key)
 ```
 
 ### Datasets for confidential analysis
