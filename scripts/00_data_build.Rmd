@@ -481,28 +481,45 @@ data_nofund_nodupl = rbind(data_nofund_wdpa, data_nofund_na)
 
 ### Dataset for confidential analysis
 
-Variables related to the funding are removed.
+The first funding dataset is there to perform descriptive statistics on project funding. Thus we do not need to have one line per PA, as it is not possible to isolate the funding a given WDPAID has received. Variables related to the funding are removed.
 
 ```{r, eval = FALSE}
 
 #Listing relevant variables for descriptive statistics
-# list_var_fund = c("id_projet", "name_pa", "id_concours", 
-#                 "wdpaid", "country_en", "country_fr", "iso3", 
-#                 "region_afd", "region", "sub_region",
-#                 "cofinanciers", "cofinanciers_siop",
-#                   "mt_fin_global_af_d_prevu_devise",
-#                   "montant_prevu_concours_euro_octroi",
-#                   "mt_global_projet_prevu_devise",
-#                   "mt_part_cofinancier_prevu_euro",
-#                   "libelle_produit",
-#                   "date_funding",
-#                   "year_funding")
+list_var_fund = c("id_projet", "name_pa", "id_concours",
+                "wdpaid", "country_en", "country_fr", "iso3",
+                "region_afd", "region", "sub_region",
+                "cofinanciers", "cofinanciers_siop",
+                  "mt_fin_global_af_d_prevu_devise",
+                  "montant_prevu_concours_euro_octroi",
+                  "mt_global_projet_prevu_devise",
+                  "mt_part_cofinancier_prevu_euro",
+                  "libelle_produit",
+                  "date_funding",
+                  "year_funding")
 
 #Defining dataset for descriptive statistics
 #Duplicates are not revmoved here, as we want the information on the different concours for instance. Peculiar datasets 
-data_fund = data_tidy 
+data_fund = data_tidy %>%
+  select(all_of(list_var_fund))
 
-data_fund_wdpa = data_fund %>%
+#fwrite(data_fund, "data_tidy/BDD_AFD_fund.csv")
+# s3write_using(x = data_fund,
+#               FUN = readr::write_delim,
+#               delim = ";",
+#               object = "data_tidy/BDD_AFD_fund.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
+
+
+
+```
+
+Then a dataset is built with funding associated to each WDPAID. Note a project can fund several WDPAID, and that AFD funding data do not make it possible to isolate the funding of each PA defined by a WDPAID.
+
+```{r}
+data_fund_pa = data_tidy
+data_fund_wdpa = data_fund_pa %>%
     subset(is.na(wdpaid) == FALSE) %>%
   #We need to manually remove some WDPA_PID not relevant
   ## Remove the buffer zone of WDPAID 9035
@@ -518,7 +535,7 @@ data_fund_wdpa = data_fund %>%
   slice(1) %>%
   ungroup()
 
-data_fund_na = data_fund %>%
+data_fund_na = data_fund_pa %>%
   filter(is.na(wdpaid) == TRUE) %>%
   #Create a unique key for a PA : project ID from AFD, country (ISO code) and PA name
   #Rows with the same key correspond to different cofunders. This info is not relevant for non-funding analysis, so we can keep only one key value.
@@ -529,13 +546,13 @@ data_fund_na = data_fund %>%
   ungroup() %>%
   select(-key)
 
-data_fund_nodupl = rbind(data_fund_wdpa, data_fund_na)
+data_fund_pa_nodupl = rbind(data_fund_wdpa, data_fund_na)
 
 #fwrite(data_fund, "data_tidy/BDD_PA_AFD_fund.csv")
-# s3write_using(x = data_fund_nodupl,
+# s3write_using(x = data_fund_pa_nodupl,
 #               FUN = readr::write_delim,
 #               delim = ";",
-#               object = "data_tidy/BDD_PA_AFD_fund_nodupl.csv",
+#               object = "data_tidy/BDD_AFD_fund_PA.csv",
 #               bucket = "projet-afd-eva-ap",
 #               opts = list("region" = ""))
 ```
@@ -564,15 +581,29 @@ data_pa_nofund_nodupl =
               bucket = "projet-afd-eva-ap",
               opts = list("region" = ""))
 
-data_pa_afd_shp = data_pa_afd %>%
+data_fund_pa = 
+  #fread("data_tidy/BDD_AFD_fund_PA.csv")
+  s3read_using(readr::read_delim,
+               delim = ";",
+               show_col_types = FALSE,
+               object = "data_tidy/BDD_AFD_fund_PA.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
+
+data_fund_pa_shp = data_fund_pa %>%
   left_join(data_wdpa, by = c("wdpaid", "wdpa_pid"))
 
 
-st_write(pa_shp,
-         dsn = "data_tidy/BDD_pa_afd_shp_pub.gpkg",
-         delete_dsn = TRUE)
+# st_write(pa_shp,
+#          dsn = "data_tidy/BDD_pa_afd_shp_pub.gpkg",
+#          delete_dsn = TRUE)
+s3write_using(x = data_fund_pa_shp,
+              FUN = sf::st_write,
+              delim = ";",
+              object = "data_tidy/BDD_AFD_fund_PA_shp.gpkg",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
 
-rm(pa_shp)
 ```
 
 ## Computing total areas covered by PAs in the sample
