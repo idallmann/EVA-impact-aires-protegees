@@ -324,6 +324,9 @@ data_tidy = data_raw_corr %>%
   #"Multi-Pays".
   #French related : the ISO3 code 
   #Ocen Indien let NA value, Muti-pays set to ZZ as in the SIOP dataset
+    #Nouvelle-Calédonie is divided in two provinces : north and south. 
+  #This subdivision is irrelevant in our analysis so we keep 
+  #only "Nouvelle Caledonie"
   mutate(iso3 = case_when(
     pays == "Mayotte" ~ "MYT",
     pays == "Nouvelle-Caledonie" ~ "NCL",
@@ -360,18 +363,9 @@ data_tidy = data_raw_corr %>%
                                                "ZZ" = "Multi-pays",
                                                "COG;CMR;CAF" = "Multi-pays")),
          .after = "iso3") %>%
-  #Nouvelle-Calédonie is divided in two provinces : north and south. 
-  #This subdivision is irrelevant in our analysis so we keep 
-  #only "Nouvelle Caledonie"
-  # mutate(country_fr = case_when(pays %in% c("P-N N.Caléd", "P-S N.Caléd", "Nlle Caledonie") | iso3 == "NCL" ~ "Nouvelle-Caledonie",
-  #                               pays %in% c("Multi-Pays", "Multi-pays") ~ "Multi-pays",
-  #                              TRUE ~ country_fr)) %>%
-  #   mutate(country_en = case_when(pays %in% c("P-N N.Caléd", "P-S N.Caléd", "Nlle Caledonie")  | iso3 == "NCL"  ~ "New Caledonia",
-  #                                 
-  #                                 pays %in% c("Multi-Pays", "Multi-pays") ~ "Multi-countries",
-  #                                 TRUE ~ country_en)) %>%
   #Some PAs have iso "ZZ" (multi-countries) by funded by Dr Ocean Pacifique. The region is assigned to Oceania
-    mutate(region = case_when(is.na(region) == TRUE & libelle_court_direction_regionale == "DR OCEAN PACIFIQUE" ~ "Oceania",
+    mutate(region = case_when(region == "" & libelle_court_direction_regionale == "DR OCEAN PACIFIQUE" ~ "Oceania",
+                              region == "" ~ NA,
                             TRUE ~ region)) %>%
   #Add the description of IUCN from its category
     mutate(iucn_des = case_when(
@@ -497,7 +491,7 @@ data_nofund_wdpa = data_nofund %>%
 #   group_by(wdpa_pid) %>%
 #   slice(1)
 
-#Observations without WDPAID
+#Observations without WDPAID but with name of the PA
 data_nofund_na = data_nofund %>%
   subset(is.na(wdpaid) == TRUE) %>%
   #Create a unique key for a PA : project ID from AFD, country (ISO code) and PA name
