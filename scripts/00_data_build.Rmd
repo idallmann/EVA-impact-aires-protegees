@@ -139,7 +139,7 @@ fn_ucfirst <- function (str) {
   paste(toupper(substring(str, 1, 1)), tolower(substring(str, 2)), sep = "")
 }
 
-data_siop = 
+data_siop_pa = 
   #read_excel("data_raw/BO_AP_16082023.xlsx") %>%
   s3read_using(readxl::read_excel,
               object = "data_raw/BO_AP_16082023.xlsx",
@@ -195,7 +195,7 @@ data_raw = data_pa_afd %>%
   #Add information from WDPA to PAs funded and with WDPAID
   left_join(data_wdpa, by = "wdpaid") %>%
   #Add information from SIOP
-  left_join(data_siop, by = c("id_projet", "id_concours")) %>%
+  left_join(data_siop_pa, by = c("id_projet", "id_concours")) %>%
   #Keep only one ISO information : priority WDPA, then SIOP if NA value
   mutate(iso3 = iso3_wdpa,
          iso3 = case_when(is.na(iso3) == TRUE ~ iso3_siop,
@@ -479,29 +479,41 @@ data_nofund_nodupl = rbind(data_nofund_wdpa, data_nofund_na)
 
 ```
 
-### Dataset for confidential analysis
+### Datasets for confidential analysis
 
-The first funding dataset is there to perform descriptive statistics on project funding. Thus we do not need to have one line per PA, as it is not possible to isolate the funding a given WDPAID has received. Variables related to the funding are removed.
+The first funding dataset is there to perform descriptive statistics on project funding. Thus we do not need to have one line per PA, as it is not possible to isolate the funding a given WDPAID has received. We simply save the SIOP dataset for project reported as PAs related.
 
 ```{r, eval = FALSE}
 
 #Listing relevant variables for descriptive statistics
-list_var_fund = c("id_projet", "name_pa", "id_concours",
-                "wdpaid", "country_en", "country_fr", "iso3",
-                "region_afd", "region", "sub_region",
-                "cofinanciers", "cofinanciers_siop",
-                  "mt_fin_global_af_d_prevu_devise",
-                  "montant_prevu_concours_euro_octroi",
-                  "mt_global_projet_prevu_devise",
-                  "mt_part_cofinancier_prevu_euro",
-                  "libelle_produit",
-                  "date_funding",
-                  "year_funding")
+# list_var_fund = c("id_projet", "name_pa", "id_concours",
+#                 "wdpaid", "country_en", "country_fr", "iso3",
+#                 "region_afd", "region", "sub_region",
+#                 "cofinanciers", "cofinanciers_siop",
+#                   "mt_fin_global_af_d_prevu_devise",
+#                   "montant_prevu_concours_euro_octroi",
+#                   "mt_global_projet_prevu_devise",
+#                   "mt_part_cofinancier_prevu_euro",
+#                   "libelle_produit",
+#                   "date_funding",
+#                   "year_funding")
 
-#Defining dataset for descriptive statistics
-#Duplicates are not revmoved here, as we want the information on the different concours for instance. Peculiar datasets 
-data_fund = data_tidy %>%
-  select(all_of(list_var_fund))
+
+#Defining dataset for descriptive statistics on PAs funding. We keep SIOP data on projects reported by AFD employees as related to PAs. 
+data_fund = data_siop_pa %>%
+  mutate(region = countrycode(sourcevar = iso3_siop,
+                              origin = "iso3c",
+                              destination = "un.region.name"),
+         sub_region = countrycode(sourcevar = iso3_siop,
+                              origin = "iso3c",
+                              destination = "un.regionsub.name"),
+         country_en = countrycode(sourcevar = iso3_siop,
+                              origin = "iso3c",
+                              destination = "un.name.en"),
+         country_fr = countrycode(sourcevar = iso3_siop,
+                              origin = "iso3c",
+                              destination = "un.name.fr"),
+         .after = "iso3_siop")
 
 #fwrite(data_fund, "data_tidy/BDD_AFD_fund.csv")
 # s3write_using(x = data_fund,
