@@ -312,12 +312,14 @@ data_tidy = data_raw_corr %>%
   mutate(country_fr = case_when(pays_siop %in% c("P-N N.Caléd", "P-S N.Caléd", "Nlle Caledonie") | iso3 == "NCL" ~ "Nouvelle-Caledonie",
                                iso3 == "PYF" ~ "Polynesie-Francaise",
                                iso3 == "MYT" ~ "Mayotte",
+                               pays_siop %in% c("Multi-Pays", "Multi-pays") ~ "Multi-pays",
                                TRUE ~ country_fr)) %>%
     mutate(country_en = case_when(pays_siop %in% c("P-N N.Caléd", "P-S N.Caléd", "Nlle Caledonie")  | iso3 == "NCL"  ~ "New Caledonia",
                                   iso3 == "PYF" ~ "French Polynesia",
                                   iso3 == "MYT" ~ "Mayotte",
+                                  pays_siop %in% c("Multi-Pays", "Multi-pays") ~ "Multi-countries",
                                   TRUE ~ country_en)) %>%
-  #Some entries in "pays" are French department, DROM-COM, "Ocean Indien" or   #"Multi-Pays".
+  #Some entries in "pays_siop" are French department, DROM-COM, "Ocean Indien" or   #"Multi-Pays".
   #French related : the ISO3 code 
   #Ocen Indien let NA value, Muti-pays set to ZZ as in the SIOP dataset
   mutate(iso3 = case_when(
@@ -326,6 +328,9 @@ data_tidy = data_raw_corr %>%
     pays_siop == "Polynesie Francaise" ~ "PYF",
     is.na(iso3) & pays_siop %in% c("Multi-Pays", "Multi-pays", "Ocean Indien") ~ "ZZ",
     TRUE ~ iso3)) %>%
+  #Some PAs have iso "ZZ" (multi-countries) by funded by Dr Ocean Pacifique. The region is assigned to Oceania
+    mutate(region = case_when(is.na(region) & region_afd == "DR OCEAN PACIFIQUE" ~ "Oceania",
+                            TRUE ~ region)) %>%
   #Add the description of IUCN from its category
     mutate(iucn_des = case_when(
   !is.na(wdpaid) & iucn_cat == "Ia" ~ "Réserve naturelle intégrale",
@@ -353,6 +358,7 @@ data_tidy = data_raw_corr %>%
          "date_funding" = "date_doctroi_projet",
          "year_funding" = "annee_doctroi_projet",
          "area_km2" = "superficie_km2")
+
 ```
 
 ### Dataset with only SIOP variables
@@ -399,7 +405,13 @@ list_var_fund = c("cofinanciers", "cofinanciers_siop",
 data_nofund = data_tidy %>%
   select(!all_of(list_var_fund))
 
-#fwrite(data_nofund, "data_tidy/BDD_nofund.csv")
+#fwrite(data_nofund, "data_tidy/BDD_PA_AFD_nofund.csv")
+# s3write_using(x = data_nofund,
+#               FUN = readr::write_delim,
+#               delim = ";",
+#               object = "data_tidy/BDD_PA_AFD_nofund.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
 
 #Then to keep only one row per PA, we need to consider separately PAs having WDPA ID and PAs which do not.
 ## Observations with WDPAID
