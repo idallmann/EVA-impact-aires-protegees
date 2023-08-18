@@ -611,7 +611,7 @@ data_fund = data_tidy %>%
 # s3write_using(x = data_fund,
 #               FUN = readr::write_delim,
 #               delim = ";",
-#               object = "data_tidy/BDD_AFD_fund.csv",
+#               object = "data_tidy/BDD_PA_AFD_fund.csv",
 #               bucket = "projet-afd-eva-ap",
 #               opts = list("region" = ""))
 ```
@@ -620,6 +620,8 @@ Then a dataset is built with funding associated to each WDPAID. Note a project c
 
 ```{r}
 data_fund_pa = data_tidy
+
+#For PAs with WDPAIDs
 data_fund_wdpa = data_fund_pa %>%
     subset(is.na(wdpaid) == FALSE) %>%
   #We need to manually remove some WDPA_PID not relevant
@@ -636,18 +638,22 @@ data_fund_wdpa = data_fund_pa %>%
   slice(1) %>%
   ungroup()
 
-data_fund_na = data_fund_pa %>%
-  filter(is.na(wdpaid) == TRUE) %>%
-  #Create a unique key for a PA : project ID from AFD, country (ISO code) and PA name
-  #Rows with the same key correspond to different cofunders. This info is not relevant for non-funding analysis, so we can keep only one key value.
-  mutate(key = paste(id_projet, iso3, name_pa, sep = "_"),
-       .before = id_projet) %>%
-  group_by(key, cofinanciers) %>%
+#For PAs without WDPAIDs but a name_pa : for the PA identified by name_pa, keep id_projet/id_concours/confinanciers
+data_fund_name = data_fund_pa %>%
+  filter(is.na(wdpaid) == TRUE & is.na(name_pa) == FALSE) %>%
+  group_by(id_projet, id_concours, name_pa, cofinanciers) %>%
   slice(1) %>%
-  ungroup() %>%
-  select(-key)
+  ungroup() 
 
-data_fund_pa_nodupl = rbind(data_fund_wdpa, data_fund_na)
+  #For PAs without WDPAIDs nor name_pa : for the PA identified by id_projet/iso3, keep id_concours/confinanciers
+data_fund_na = data_fund_pa %>%
+  filter(is.na(wdpaid) == TRUE & is.na(name_pa) == TRUE) %>%
+  group_by(id_projet, iso3, id_concours, cofinanciers) %>%
+  slice(1) %>%
+  ungroup() 
+
+
+data_fund_pa_nodupl = rbind(data_fund_wdpa, data_fund_name, data_fund_na)
 
 #fwrite(data_fund, "data_tidy/BDD_PA_AFD_fund.csv")
 # s3write_using(x = data_fund_pa_nodupl,
@@ -682,7 +688,7 @@ data_pa_nofund_nodupl =
               bucket = "projet-afd-eva-ap",
               opts = list("region" = ""))
 
-data_fund_pa = 
+data_pa_fund_nodupl = 
   #fread("data_tidy/BDD_AFD_fund_PA.csv")
   s3read_using(readr::read_delim,
                delim = ";",
@@ -691,17 +697,30 @@ data_fund_pa =
               bucket = "projet-afd-eva-ap",
               opts = list("region" = ""))
 
-data_fund_pa_shp = data_fund_pa %>%
+data_pa_nofund_shp = data_pa_nofund_nodupl %>%
+  left_join(data_wdpa, by = c("wdpaid", "wdpa_pid"))
+
+data_pa_fund_shp = data_pa_fund_nodupl %>%
   left_join(data_wdpa, by = c("wdpaid", "wdpa_pid"))
 
 
 # st_write(pa_shp,
 #          dsn = "data_tidy/BDD_pa_afd_shp_pub.gpkg",
 #          delete_dsn = TRUE)
-s3write_using(x = data_fund_pa_shp,
+s3write_using(x = data_pa_nofund_shp,
               FUN = sf::st_write,
               delim = ";",
-              object = "data_tidy/BDD_AFD_fund_PA_shp.gpkg",
+              object = "data_tidy/BDD_PA_AFD_nofund_shp.gpkg",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
+
+# st_write(pa_shp,
+#          dsn = "data_tidy/BDD_pa_afd_shp_pub.gpkg",
+#          delete_dsn = TRUE)
+s3write_using(x = data_pa_fund_shp,
+              FUN = sf::st_write,
+              delim = ";",
+              object = "data_tidy/BDD_PA_AFD_fund_shp.gpkg",
               bucket = "projet-afd-eva-ap",
               opts = list("region" = ""))
 ```
@@ -729,7 +748,7 @@ pa_shp =
   aws.s3::s3read_using(
   FUN = sf::read_sf,
   # Mettre les options de FUN ici
-  object = "data_tidy/BDD_PA_AFD_shp.gpkg",
+  object = "data_tidy/BDD_PA_AFD_nofund_shp.gpkg",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = "")) %>%
   #Take polygons only
@@ -818,11 +837,11 @@ pa_int_yr = pa_int %>%
 
 # fwrite(pa_int_yr,
 #        "data_tidy/area/pa_int_yr.csv")
-# s3write_using(x = pa_int_yr,
-#               FUN = data.table::fwrite,
-#               object = "data_tidy/area/pa_int_yr.csv",
-#               bucket = "projet-afd-eva-ap",
-#               opts = list("region" = ""))
+s3write_using(x = pa_int_yr,
+              FUN = data.table::fwrite,
+              object = "data_tidy/area/pa_int_yr.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
 ```
 
 ### Computing total areas without intersection
@@ -851,11 +870,11 @@ pa_area_ctry = data_pa_afd %>%
   mutate(area_tot_noint_km2 = area_tot_km2 - tot_area_int) 
 
 #fwrite(pa_area_ctry, "data_tidy/area/pa_area_ctry.csv")
-# s3write_using(x = pa_area_ctry,
-#               FUN = data.table::fwrite,
-#               object = "data_tidy/area/pa_area_ctry.csv",
-#               bucket = "projet-afd-eva-ap",
-#               opts = list("region" = ""))
+s3write_using(x = pa_area_ctry,
+              FUN = data.table::fwrite,
+              object = "data_tidy/area/pa_area_ctry.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
 
 #At DR level ...
 pa_area_dr = data_pa_afd %>%
@@ -871,22 +890,22 @@ pa_area_dr = data_pa_afd %>%
   st_drop_geometry()
 
 #fwrite(pa_area_dr, "data_tidy/area/pa_area_dr.csv")
-# s3write_using(x = pa_area_dr,
-#               FUN = data.table::fwrite,
-#               object = "data_tidy/area/pa_area_dr.csv",
-#               bucket = "projet-afd-eva-ap",
-#               opts = list("region" = ""))
+s3write_using(x = pa_area_dr,
+              FUN = data.table::fwrite,
+              object = "data_tidy/area/pa_area_dr.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
 
 #At world level
 pa_area_wld = sum(data_pa_afd$area_km2, na.rm = TRUE) - pa_int_wld %>%
   as.data.frame() %>%
   rename("area_tot_noint_km2" = ".")
 #fwrite(pa_area_wld, "data_tidy/area/pa_area_wld.csv")
-# s3write_using(x = pa_area_wld,
-#               FUN = data.table::fwrite,
-#               object = "data_tidy/area/pa_area_wld.csv",
-#               bucket = "projet-afd-eva-ap",
-#               opts = list("region" = ""))
+s3write_using(x = pa_area_wld,
+              FUN = data.table::fwrite,
+              object = "data_tidy/area/pa_area_wld.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
 
 ```
 
