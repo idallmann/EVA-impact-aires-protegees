@@ -540,12 +540,12 @@ data_nofund_na = data_nofund %>%
 data_nofund_nodupl = rbind(data_nofund_wdpa, data_nofund_name, data_nofund_na) 
 
 #fwrite(data_nofund_nodupl, "data_tidy/BDD_nofund_nodupl.csv")
-s3write_using(x = data_nofund_nodupl,
-              FUN = readr::write_delim,
-              delim = ";",
-              object = "data_tidy/BDD_PA_AFD_nofund_nodupl.csv",
-              bucket = "projet-afd-eva-ap",
-              opts = list("region" = ""))
+# s3write_using(x = data_nofund_nodupl,
+#               FUN = readr::write_delim,
+#               delim = ";",
+#               object = "data_tidy/BDD_PA_AFD_nofund_nodupl.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
 
 
            
@@ -587,34 +587,25 @@ The first funding dataset is there to perform descriptive statistics on project 
 
 ```{r, eval = FALSE}
 #Listing relevant variables for descriptive statistics
-# list_var_fund = c("id_projet", "name_pa", "id_concours",
-#                 "wdpaid", "country_en", "country_fr", "iso3",
-#                 "region_afd", "region", "sub_region",
-#                 "cofinanciers", "cofinanciers_siop",
-#                   "mt_fin_global_af_d_prevu_devise",
-#                   "montant_prevu_concours_euro_octroi",
-#                   "mt_global_projet_prevu_devise",
-#                   "mt_part_cofinancier_prevu_euro",
-#                   "libelle_produit",
-#                   "date_funding",
-#                   "year_funding")
+list_var_fund = c("id_projet", "name_pa", "id_concours",
+                "wdpaid", "country_en", "country_fr", "iso3",
+                "region_afd", "region", "sub_region",
+                "cofinanciers", "cofinanciers_siop",
+                  "mt_fin_global_af_d_prevu_devise",
+                  "montant_prevu_concours_euro_octroi",
+                  "mt_global_projet_prevu_devise",
+                  "mt_part_cofinancier_prevu_euro",
+                  "libelle_produit",
+                  "date_funding",
+                  "year_funding")
 
 
-#Defining dataset for descriptive statistics on PAs funding. We keep SIOP data on projects reported by AFD employees as related to PAs. 
-data_fund = data_siop_pa %>%
-  mutate(region = countrycode(sourcevar = iso3_siop,
-                              origin = "iso3c",
-                              destination = "un.region.name"),
-         sub_region = countrycode(sourcevar = iso3_siop,
-                              origin = "iso3c",
-                              destination = "un.regionsub.name"),
-         country_en = countrycode(sourcevar = iso3_siop,
-                              origin = "iso3c",
-                              destination = "un.name.en"),
-         country_fr = countrycode(sourcevar = iso3_siop,
-                              origin = "iso3c",
-                              destination = "un.name.fr"),
-         .after = "iso3_siop")
+#Defining dataset for descriptive statistics on PAs funding. Keep one row for each id_projet/id_concours/cofinanciers of SIOP
+data_fund = data_tidy %>%
+  select(all_of(list_var_fund)) %>%
+  group_by(id_projet, id_concours, cofinanciers_siop) %>%
+  slice(1)
+
 
 #fwrite(data_fund, "data_tidy/BDD_AFD_fund.csv")
 # s3write_using(x = data_fund,
@@ -623,7 +614,6 @@ data_fund = data_siop_pa %>%
 #               object = "data_tidy/BDD_AFD_fund.csv",
 #               bucket = "projet-afd-eva-ap",
 #               opts = list("region" = ""))
-
 ```
 
 Then a dataset is built with funding associated to each WDPAID. Note a project can fund several WDPAID, and that AFD funding data do not make it possible to isolate the funding of each PA defined by a WDPAID.
