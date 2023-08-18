@@ -114,13 +114,11 @@ data_pa_afd = rbind(data_pa_eva, data_pa_arb)
 #               object = "data_raw/BDD_PA_AFD.csv",
 #               bucket = "projet-afd-eva-ap",
 #               opts = list("region" = ""))
-
 ```
 
 ### Import and merge raw datasets
 
 ```{r, eval = FALSE}
-
 
 #Import the manually reported dataset (merge from ARB, EVA reports)
 #Careful to the delimiter choice
@@ -133,6 +131,7 @@ data_pa_afd =
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
 
+list_wdpa_afd = unique(data_pa_afd$wdpaid)
 #Import SIOP extract
 
 fn_ucfirst <- function (str) {
@@ -187,10 +186,11 @@ data_wdpa =
               opts = list("region" = "")) %>%
   st_drop_geometry() %>%
   clean_names() %>%
+  filter(wdpaid %in% list_wdpa_afd) %>%
   rename("iso3_wdpa" = "iso3")
 
 #Merge the datasets
-data_raw = data_pa_afd %>%
+data_raw1 = data_pa_afd %>%
   #Add information from WDPA to PAs funded and with WDPAID
   left_join(data_wdpa, by = "wdpaid") %>%
   #Add information from SIOP
@@ -204,7 +204,7 @@ data_raw = data_pa_afd %>%
 #Manually add iso3 for some PAs where names are known but assigned "ZZ". 
 #The nom_ap is searched on google ("nom_ap protected area") and iso3 completed if
 #information found
-data_raw = data_raw %>%
+data_raw2 = data_raw1 %>%
   mutate(iso3 = case_when(grepl("Yambé-Diahoué", nom_ap) ~ "NCL",
                           nom_ap == "Aitutaki (3 Ra'ui)" ~ "COK",
                           nom_ap == "Dohimen (Hienghène)" ~ "NCL",
@@ -212,9 +212,25 @@ data_raw = data_raw %>%
                           nom_ap == "Kiribati" ~ "KIR",
                           nom_ap == "Marou" ~ "VUT",
                           nom_ap == "Mistery Island (Aneityum)" ~ "VUT",
-                          nom_ap == "Ngula Pele" ~ "VUT")
+                          nom_ap == "Ngula Pele" ~ "VUT",
+                          nom_ap == "Paonangisu" ~ "VUT",
+                          nom_ap == "Parc provincial Yeega-Hienga (Hienghène)" ~ "NCL",
+                          grepl("Rarotonga", nom_ap) ~ "COK",
+                          nom_ap == "Saama" ~ "VUT",
+                          nom_ap == "Siviri" ~ "VUT",
+                          nom_ap == "Dohimen" ~ "NCL",
+                          nom_ap == "Hienghène" ~ "NCL",
+                          nom_ap == "Hyabe Lé Jao" ~ "NCL",
+                          grepl("Pouébo", nom_ap) ~ "NCL",
+                          nom_ap == "Tasi Vanua" ~ "VUT",
+                          nom_ap == "Yeega" ~ "NCL",
+                          nom_ap == "Mangareva" ~ "PYF",
+                          nom_ap == "Rakiraiki" ~ "FJI",
+                          nom_ap == "Tasi Vanua" ~ "VUT",
+                          nom_ap == "Parc National Pongara" ~ "GAB",
+                          TRUE ~ iso3))
 
-# s3write_using(x = data_raw,
+# s3write_using(x = data_raw2,
 #               FUN = readr::write_delim,
 #               delim = ";",
 #               object = "data_raw/BDD_PA_raw.csv",
@@ -286,8 +302,7 @@ data_raw_corr =
 
 data_tidy = data_raw_corr %>%
   #Select relevant variables
-  select(c(libelle_court_direction_regionale, region, sub_region,
-           country_en, country_fr, pays_siop, pays2_siop, parent_iso3, iso3,
+  select(c(libelle_court_direction_regionale, pays, pays2, parent_iso3, iso3,
            id_projet, id_concours, nom_ap, wdpaid, wdpa_pid, 
            date_doctroi_projet, annee_doctroi_projet, status, status_yr,
            iucn_cat, marine, superficie_km2, rep_m_area, rep_area,
@@ -299,50 +314,64 @@ data_tidy = data_raw_corr %>%
            mt_part_cofinancier_prevu_euro,
            libelle_produit,
            date_entree, auteur_entree)) %>%
-  #Add region, sub-region and country names 
-  mutate(region = countrycode(sourcevar = iso3,
-                              origin = "iso3c",
-                              destination = "un.region.name"),
-         sub_region = countrycode(sourcevar = iso3,
-                              origin = "iso3c",
-                              destination = "un.regionsub.name"),
-         country_en = countrycode(sourcevar = iso3,
-                              origin = "iso3c",
-                              destination = "un.name.en"),
-         country_fr = countrycode(sourcevar = iso3,
-                              origin = "iso3c",
-                              destination = "un.name.fr"),
-         .after = "iso3") %>%
-  #Create dummy variables for main investors
+    #Create dummy variables for main investors
   #AFD is always funder, so no need of a dummy. 
   mutate(kfw_bin = grepl("KFW|kfw|KfW", cofinanciers),
          ffem_bin = grepl("ffem|FFEM", cofinanciers),
          cof_bin = is.na(cofinanciers) == FALSE & !(cofinanciers %in% c("AFD", "afd")),
          .after = "cofinanciers") %>%
-  #Nouvelle-Calédonie is divided in two provinces : north and south. 
-  #This subdivision is irrelevant in our analysis so we keep 
-  #only "Nouvelle Caledonie"
-  mutate(country_fr = case_when(pays_siop %in% c("P-N N.Caléd", "P-S N.Caléd", "Nlle Caledonie") | iso3 == "NCL" ~ "Nouvelle-Caledonie",
-                               iso3 == "PYF" ~ "Polynesie-Francaise",
-                               iso3 == "MYT" ~ "Mayotte",
-                               pays_siop %in% c("Multi-Pays", "Multi-pays") ~ "Multi-pays",
-                               TRUE ~ country_fr)) %>%
-    mutate(country_en = case_when(pays_siop %in% c("P-N N.Caléd", "P-S N.Caléd", "Nlle Caledonie")  | iso3 == "NCL"  ~ "New Caledonia",
-                                  iso3 == "PYF" ~ "French Polynesia",
-                                  iso3 == "MYT" ~ "Mayotte",
-                                  pays_siop %in% c("Multi-Pays", "Multi-pays") ~ "Multi-countries",
-                                  TRUE ~ country_en)) %>%
-  #Some entries in "pays_siop" are French department, DROM-COM, "Ocean Indien" or   #"Multi-Pays".
+    #Some entries in "pays" are French department, DROM-COM, "Ocean Indien" or   
+  #"Multi-Pays".
   #French related : the ISO3 code 
   #Ocen Indien let NA value, Muti-pays set to ZZ as in the SIOP dataset
   mutate(iso3 = case_when(
-    pays_siop == "Mayotte" ~ "MYT",
-    pays_siop == "Nouvelle-Caledonie" ~ "NCL",
-    pays_siop == "Polynesie Francaise" ~ "PYF",
-    is.na(iso3) & pays_siop %in% c("Multi-Pays", "Multi-pays", "Ocean Indien") ~ "ZZ",
+    pays == "Mayotte" ~ "MYT",
+    pays == "Nouvelle-Caledonie" ~ "NCL",
+    pays == "Polynesie Francaise" ~ "PYF",
+    is.na(iso3) & pays %in% c("Multi-Pays", "Multi-pays", "Ocean Indien") ~ "ZZ",
     TRUE ~ iso3)) %>%
+  #Add region, sub-region and country names 
+  mutate(region = countrycode(sourcevar = iso3,
+                              origin = "iso3c",
+                              destination = "un.region.name",
+                              custom_match = c("COG;CMR;CAF" = "Africa",
+                                               "ZZ" = "")),
+         sub_region = countrycode(sourcevar = iso3,
+                              origin = "iso3c",
+                              destination = "un.regionsub.name",
+                              custom_match = c("COG;CMR;CAF" = "Sub-Saharan Africa",
+                                               "ZZ" = "")),
+         country_en = countrycode(sourcevar = iso3,
+                              origin = "iso3c",
+                              destination = "un.name.en",
+                              custom_match = c("PYF" = "French Polynesia",
+                                               "NCL" = "New Caledonia",
+                                               "MYT" = "Mayotte",
+                                               "COK" = "Cook Islands",
+                                               "ZZ" = "Multi-countries",
+                                               "COG;CMR;CAF" = "Multi-countries")),
+         country_fr = countrycode(sourcevar = iso3,
+                              origin = "iso3c",
+                              destination = "un.name.fr",
+                              custom_match = c("PYF" = "Polynésie Française",
+                                               "NCL" = "Nouvelle-Calédonie",
+                                               "MYT" = "Mayotte",
+                                               "COK" = "Iles Cook",
+                                               "ZZ" = "Multi-pays",
+                                               "COG;CMR;CAF" = "Multi-pays")),
+         .after = "iso3") %>%
+  #Nouvelle-Calédonie is divided in two provinces : north and south. 
+  #This subdivision is irrelevant in our analysis so we keep 
+  #only "Nouvelle Caledonie"
+  # mutate(country_fr = case_when(pays %in% c("P-N N.Caléd", "P-S N.Caléd", "Nlle Caledonie") | iso3 == "NCL" ~ "Nouvelle-Caledonie",
+  #                               pays %in% c("Multi-Pays", "Multi-pays") ~ "Multi-pays",
+  #                              TRUE ~ country_fr)) %>%
+  #   mutate(country_en = case_when(pays %in% c("P-N N.Caléd", "P-S N.Caléd", "Nlle Caledonie")  | iso3 == "NCL"  ~ "New Caledonia",
+  #                                 
+  #                                 pays %in% c("Multi-Pays", "Multi-pays") ~ "Multi-countries",
+  #                                 TRUE ~ country_en)) %>%
   #Some PAs have iso "ZZ" (multi-countries) by funded by Dr Ocean Pacifique. The region is assigned to Oceania
-    mutate(region = case_when(is.na(region) & region_afd == "DR OCEAN PACIFIQUE" ~ "Oceania",
+    mutate(region = case_when(is.na(region) == TRUE & libelle_court_direction_regionale == "DR OCEAN PACIFIQUE" ~ "Oceania",
                             TRUE ~ region)) %>%
   #Add the description of IUCN from its category
     mutate(iucn_des = case_when(
@@ -378,7 +407,7 @@ data_tidy = data_raw_corr %>%
 
 ```{r, eval = FALSE}
 #Select info corresponding to SIOP extract and AP 
-list_var_siop = c("id_projet", "id_concours", "region_afd", "pays_siop", "pays2_siop", 
+list_var_siop = c("id_projet", "id_concours", "region_afd", "pays", "pays2", 
                   "date_funding", "year_funding", "cofinanciers_siop",
                   "mt_fin_global_af_d_prevu_devise" ,
                   "montant_prevu_concours_euro_octroi",
@@ -391,12 +420,12 @@ data_siop_tidy = data_tidy %>%
   dplyr::select(all_of(list_var_siop))
 
 #write_csv(data_siop_tidy, "data_tidy/BDD_siop_tidy.xlsx")
-# s3write_using(x = data_siop_tidy,
-#               FUN = readr::write_delim,
-#               delim = ";",
-#               object = "data_tidy/BDD_PA_tidy_siop.csv",
-#               bucket = "projet-afd-eva-ap",
-#               opts = list("region" = ""))
+s3write_using(x = data_siop_tidy,
+              FUN = readr::write_delim,
+              delim = ";",
+              object = "data_tidy/BDD_PA_tidy_siop.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
 ```
 
 ### Dataset for non-confidential analysis
@@ -404,7 +433,6 @@ data_siop_tidy = data_tidy %>%
 To perform analysis we want to keep one row per PA, characterized by WDPA ID or a name (if no ID reported). Some PAs can have several lines if they receive funds at different time or by different investors.
 
 ```{r, eval = FALSE}
-
 #Listing relevant variables for analysis that are NOT confidential (i.e not concern funding)
 list_var_fund = c("cofinanciers", "cofinanciers_siop",
                   "mt_fin_global_af_d_prevu_devise",
@@ -412,19 +440,19 @@ list_var_fund = c("cofinanciers", "cofinanciers_siop",
                   "mt_global_projet_prevu_devise",
                   "mt_part_cofinancier_prevu_euro",
                   "libelle_produit",
-                  "kfw_bin", "ffem_bin")
+                  "kfw_bin", "ffem_bin", "cof_bin")
 
 #Defining dataset for descriptive statistics
 data_nofund = data_tidy %>%
   select(!all_of(list_var_fund))
 
 #fwrite(data_nofund, "data_tidy/BDD_PA_AFD_nofund.csv")
-# s3write_using(x = data_nofund,
-#               FUN = readr::write_delim,
-#               delim = ";",
-#               object = "data_tidy/BDD_PA_AFD_nofund.csv",
-#               bucket = "projet-afd-eva-ap",
-#               opts = list("region" = ""))
+s3write_using(x = data_nofund,
+              FUN = readr::write_delim,
+              delim = ";",
+              object = "data_tidy/BDD_PA_AFD_nofund.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
 
 #Then to keep only one row per PA, we need to consider separately PAs having WDPA ID and PAs which do not.
 ## Observations with WDPAID
@@ -495,13 +523,12 @@ data_nofund_na = data_nofund %>%
 data_nofund_nodupl = rbind(data_nofund_wdpa, data_nofund_na) 
 
 #fwrite(data_nofund_nodupl, "data_tidy/BDD_nofund_nodupl.csv")
-# s3write_using(x = data_nofund_nodupl,
-#               FUN = readr::write_delim,
-#               delim = ";",
-#               object = "data_tidy/BDD_PA_AFD_nofund_nodupl.csv",
-#               bucket = "projet-afd-eva-ap",
-#               opts = list("region" = ""))
-
+s3write_using(x = data_nofund_nodupl,
+              FUN = readr::write_delim,
+              delim = ";",
+              object = "data_tidy/BDD_PA_AFD_nofund_nodupl.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
 ```
 
 ### Datasets for confidential analysis
@@ -509,7 +536,6 @@ data_nofund_nodupl = rbind(data_nofund_wdpa, data_nofund_na)
 The first funding dataset is there to perform descriptive statistics on project funding. Thus we do not need to have one line per PA, as it is not possible to isolate the funding a given WDPAID has received. We simply save the SIOP dataset for project reported as PAs related.
 
 ```{r, eval = FALSE}
-
 #Listing relevant variables for descriptive statistics
 # list_var_fund = c("id_projet", "name_pa", "id_concours",
 #                 "wdpaid", "country_en", "country_fr", "iso3",
@@ -547,8 +573,6 @@ data_fund = data_siop_pa %>%
 #               object = "data_tidy/BDD_AFD_fund.csv",
 #               bucket = "projet-afd-eva-ap",
 #               opts = list("region" = ""))
-
-
 
 ```
 
@@ -640,7 +664,6 @@ s3write_using(x = data_fund_pa_shp,
               object = "data_tidy/BDD_AFD_fund_PA_shp.gpkg",
               bucket = "projet-afd-eva-ap",
               opts = list("region" = ""))
-
 ```
 
 ## Computing total areas covered by PAs in the sample
