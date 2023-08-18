@@ -690,8 +690,6 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 ```{r, eval = FALSE}
 data_distrib_reg = data_stat_nodupl %>%
-  mutate(region = case_when(is.na(region) & region_afd == "DR OCEAN PACIFIQUE" ~ "Oceania",
-                            TRUE ~ region)) %>%
   group_by(region) %>%
   summarize(n = n(),
             freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%

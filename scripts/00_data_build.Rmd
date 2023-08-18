@@ -186,7 +186,6 @@ data_wdpa =
               bucket = "projet-afd-eva-ap",
               opts = list("region" = "")) %>%
   st_drop_geometry() %>%
-  select(-geom) %>%
   clean_names() %>%
   rename("iso3_wdpa" = "iso3")
 
@@ -200,20 +199,20 @@ data_raw = data_pa_afd %>%
   mutate(iso3 = iso3_wdpa,
          iso3 = case_when(is.na(iso3) == TRUE ~ iso3_siop,
                           TRUE ~ iso3),
-         region = countrycode(sourcevar = iso3,
-                              origin = "iso3c",
-                              destination = "un.region.name"),
-         sub_region = countrycode(sourcevar = iso3,
-                              origin = "iso3c",
-                              destination = "un.regionsub.name"),
-         country_en = countrycode(sourcevar = iso3,
-                              origin = "iso3c",
-                              destination = "un.name.en"),
-         country_fr = countrycode(sourcevar = iso3,
-                              origin = "iso3c",
-                              destination = "un.name.fr"),
          .after = "iso3_wdpa")
-  
+
+#Manually add iso3 for some PAs where names are known but assigned "ZZ". 
+#The nom_ap is searched on google ("nom_ap protected area") and iso3 completed if
+#information found
+data_raw = data_raw %>%
+  mutate(iso3 = case_when(grepl("Yambé-Diahoué", nom_ap) ~ "NCL",
+                          nom_ap == "Aitutaki (3 Ra'ui)" ~ "COK",
+                          nom_ap == "Dohimen (Hienghène)" ~ "NCL",
+                          nom_ap == "Kerehira" ~ "SLB",
+                          nom_ap == "Kiribati" ~ "KIR",
+                          nom_ap == "Marou" ~ "VUT",
+                          nom_ap == "Mistery Island (Aneityum)" ~ "VUT",
+                          nom_ap == "Ngula Pele" ~ "VUT")
 
 # s3write_using(x = data_raw,
 #               FUN = readr::write_delim,
@@ -300,6 +299,20 @@ data_tidy = data_raw_corr %>%
            mt_part_cofinancier_prevu_euro,
            libelle_produit,
            date_entree, auteur_entree)) %>%
+  #Add region, sub-region and country names 
+  mutate(region = countrycode(sourcevar = iso3,
+                              origin = "iso3c",
+                              destination = "un.region.name"),
+         sub_region = countrycode(sourcevar = iso3,
+                              origin = "iso3c",
+                              destination = "un.regionsub.name"),
+         country_en = countrycode(sourcevar = iso3,
+                              origin = "iso3c",
+                              destination = "un.name.en"),
+         country_fr = countrycode(sourcevar = iso3,
+                              origin = "iso3c",
+                              destination = "un.name.fr"),
+         .after = "iso3") %>%
   #Create dummy variables for main investors
   #AFD is always funder, so no need of a dummy. 
   mutate(kfw_bin = grepl("KFW|kfw|KfW", cofinanciers),
