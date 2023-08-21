@@ -64,6 +64,12 @@ data_pa_eva =
   mutate(across(.cols = !c(wdpaid, superficie_km2),
                 .fns = ~stri_enc_toutf8(.x)))
 
+##WDPAID 797 with ID project CZZ3056 corresponds to APAC de Kawawana in Senegal, with no WDPAID (https://kawawana.iccaconsortium.org/) 
+data_pa_eva[data_pa_eva$wdpaid == "797" & data_pa_eva$id_projet == "CZZ3056",]$nom_ap = "APAC de Kawawana"
+#Change reported area (https://kawawana.iccaconsortium.org/?p=150) : 10 000 ha or 100 km2
+data_pa_eva[data_pa_eva$wdpaid == "797" & data_pa_eva$id_projet == "CZZ3056",]$superficie_km2 = 100
+data_pa_eva[data_pa_eva$wdpaid == "797" & data_pa_eva$id_projet == "CZZ3056",]$wdpaid = NA
+
 #PAs gathered by ARB (10-08-2023)
 data_pa_arb = 
   #read_excel("data_raw/BDD_ARB_10082023.xlsx") %>%
@@ -108,12 +114,12 @@ data_pa_afd = rbind(data_pa_eva, data_pa_arb)
 # write_delim(data_pa_afd, "data_raw/BDD_PA_AFD.csv",
 #             delim = ";",
 #             na = "NA")
-# s3write_using(x = data_pa_afd,
-#               FUN = readr::write_delim,
-#               delim = ";",
-#               object = "data_raw/BDD_PA_AFD.csv",
-#               bucket = "projet-afd-eva-ap",
-#               opts = list("region" = ""))
+s3write_using(x = data_pa_afd,
+              FUN = readr::write_delim,
+              delim = ";",
+              object = "data_raw/BDD_PA_AFD.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
 ```
 
 ### Import and merge raw datasets
@@ -234,12 +240,12 @@ data_raw2 = data_raw1 %>%
                           nom_ap == "Parc National Pongara" ~ "GAB",
                           TRUE ~ iso3))
 
-# s3write_using(x = data_raw2,
-#               FUN = readr::write_delim,
-#               delim = ";",
-#               object = "data_raw/BDD_PA_raw.csv",
-#               bucket = "projet-afd-eva-ap",
-#               opts = list("region" = ""))
+s3write_using(x = data_raw2,
+              FUN = readr::write_delim,
+              delim = ";",
+              object = "data_raw/BDD_PA_raw.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
 
 ```
 
@@ -260,11 +266,6 @@ data_raw =
 data_raw_corr = data_raw
 
 #Modify errors in the dataset
-##WDPAID 797 with ID project CZZ3056 corresponds to APAC de Kawawana in Senegal, with no WDPAID (https://kawawana.iccaconsortium.org/)
-data_raw_corr[data_raw_corr$wdpaid == "797" & data_raw_corr$id_projet == "CZZ3056",]$nom_ap = "APAC de Kawawana"
-data_raw_corr[data_raw_corr$wdpaid == "797" & data_raw_corr$id_projet == "CZZ3056",]$iso3 = "SEN"
-data_raw_corr[data_raw_corr$wdpaid == "797" & data_raw_corr$id_projet == "CZZ3056",]$wdpaid = NA
-
 ##4223, 4224, 4226, 4228, 4229 : all in PS-N.Caledonie
 ## -> not relevant with new SIOP extract
 # data_raw_corr[data_raw_corr$wdpaid %in% c("4223", "4224", "4226", "4228", "4229") & data_raw_corr$pays == "Fidji",]$pays = "P-S N.Caléd"
@@ -282,12 +283,12 @@ data_raw_corr[data_raw_corr$wdpaid == "797" & data_raw_corr$id_projet == "CZZ305
 # data_raw_corr[data_raw_corr$wdpaid %in% c("20267") ,]$pays = "Guinee-Equatoriale"
 # data_raw_corr[data_raw_corr$wdpaid %in% c("20267") ,]$iso3 = "GNQ"
 
-# s3write_using(x = data_raw_corr,
-#               FUN = readr::write_delim,
-#               delim = ";",
-#               object = "data_raw/BDD_PA_raw_corr.csv",
-#               bucket = "projet-afd-eva-ap",
-#               opts = list("region" = ""))
+s3write_using(x = data_raw_corr,
+              FUN = readr::write_delim,
+              delim = ";",
+              object = "data_raw/BDD_PA_raw_corr.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
 
 ```
 
@@ -786,7 +787,7 @@ pa_shp =
   #From multipolygon to polygon
   sf::st_cast(to="POLYGON") %>%
   #Select relevant variables
-  dplyr::select(c(wdpaid, area_km2, rep_area, geom, iso3, region_afd, region, sub_region, year_funding)) 
+  dplyr::select(c(wdpaid, area_km2, rep_area, geom, iso3, region_afd, region, sub_region, year_funding_first, year_funding_all)) 
 
 #Spatial definition of wdpaid 555547988 overlaps CMR and CAF. Wdpaid 1245 corresponds to the CMR part. The overlap is removed and iso3 redefined so that 555547988 is CAF only. 
 geom_555547988_1245 = st_difference(pa_shp[pa_shp$wdpaid == 555547988,]$geom, pa_shp[pa_shp$wdpaid == 1245,]$geom)
@@ -831,7 +832,7 @@ pa_int = st_intersection(pa_shp_tidy, pa_shp_tidy) %>%
   slice(1) %>%
   ungroup() %>%
   #select relevant variables only
-  select(wdpaid, iso3, region_afd, region, sub_region, year_funding, wdpaid.1, iso3.1, region_afd.1, year_funding.1, geom, area_int)
+  select(wdpaid, iso3, region_afd, region, sub_region, year_funding_first, wdpaid.1, iso3.1, region_afd.1, year_funding_first.1, geom, area_int)
 
 #Computing the total area of intersections
 #At country level ...
@@ -857,7 +858,7 @@ pa_int_wld = sum(pa_int$area_int)
 pa_int_yr = pa_int %>%
   #Define intersection year : the date ann_c of the later PA in the pair
   rowwise() %>%
-  mutate(annee_int = max(year_funding, year_funding.1)) %>% 
+  mutate(annee_int = max(year_funding_first, year_funding_first.1)) %>% 
   group_by(annee_int) %>%
   summarize(tot_int_km2 = sum(area_int)) %>%
   st_drop_geometry()
