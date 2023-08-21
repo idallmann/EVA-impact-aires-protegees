@@ -15,10 +15,12 @@ The statistics are derived from datasets stored in the SSPCloud, and saved into 
 
 ## Importing packages
 
-\#`{r setup, include=FALSE, eval = FALSE} #knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file()) #`
+```{r setup, include=FALSE, eval = FALSE}
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+```
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
-
+install.packages(c("stargazer", "janitor", "questionr", "countrycode"))
 library(tidyverse)
 library(stargazer)
 library(dplyr)
@@ -31,11 +33,8 @@ library(data.table)
 library(janitor)
 library(xtable)
 library(questionr)
-library(tidyterra)
-library(terra)
-library(sf)
-library(mapview)
 library(aws.s3)
+library(countrycode)
 ```
 
 ## Importing datasets
@@ -44,23 +43,23 @@ library(aws.s3)
 #Both datasets are imported in UTF8 encoding, for some variables
 ##A first dataset with some PA on more than one row (one line per funding for instance)
 data_stat = 
-  #fread("data_tidy/BDD_nofund.csv", encoding = "UTF-8")
+  #fread("data_tidy/BDD_PA_AFD_nofund.csv", encoding = "UTF-8")
   aws.s3::s3read_using(
   FUN = data.table::fread,
   encoding = "UTF-8",
   # Mettre les options de FUN ici
-  object = "data_tidy/BDD_nofund.csv",
+  object = "data_tidy/BDD_PA_AFD_nofund.csv",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
 
 ##A second dataset with one line per PA, more suited for some statistics
 data_stat_nodupl = 
-  #fread("data_tidy/BDD_nofund_nodupl.csv" , encoding = "UTF-8")
+  #fread("data_tidy/BDD_PA_AFD_nofund_nodupl.csv" , encoding = "UTF-8")
   aws.s3::s3read_using(
   FUN = data.table::fread,
   encoding = "UTF-8",
   # Mettre les options de FUN ici
-  object = "data_tidy/BDD_nofund_nodupl.csv",
+  object = "data_tidy/BDD_PA_AFD_nofund_nodupl.csv",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
 
@@ -111,7 +110,7 @@ pa_int_yr =
 
 ### IUCN categories
 
-#### Share of PAs by IUCN categories
+#### Share of PAs by IUCN categories (all)
 
 ```{r, eval = FALSE}
 
@@ -312,7 +311,7 @@ data_iucn_ctry = table(data_stat_nodupl$iucn_des,
 
 #... and regional level
 data_iucn_reg = table(data_stat_nodupl$iucn_des,
-                       data_stat_nodupl$direction_regionale) %>%
+                       data_stat_nodupl$region_afd) %>%
     #Create a table with all iucn categories for each country, and compute the frequencies in percent
   prop.table(2) %>%
   as.data.frame() %>%
@@ -574,31 +573,45 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 ### Distribution of PAs across countries and regions
 
-#### Statistics at country level
+#### Statistics at country level (all)
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
 
 data_distrib_ctry = data_stat_nodupl %>%
-  group_by(pays, iso3) %>%
+  group_by(iso3) %>%
   summarize(n = n(),
             freq = round(n/nrow(data_stat_nodupl), 1)*100) %>%
-  ungroup() 
+  ungroup() %>%
+  mutate(country_en = countrycode(sourcevar = iso3,
+                                  origin = "iso3c",
+                                  destination = "un.name.en",
+                                  custom_match = c('ZZ' = 'Multi-countries',
+                                                   "MYT" = "Mayotte",
+                                                   "NCL" = "New Caledonia",
+                                                   "PYF" = "French Polynesia")),
+         country_fr  = countrycode(sourcevar = iso3,
+                                  origin = "iso3c",
+                                  destination = "un.name.fr",
+                                  custom_match = c('ZZ' = 'Multi-pays',
+                                                   "MYT" = "Mayotte",
+                                                   "NCL" = "Nouvelle-Calédonie",
+                                                   "PYF" = "Polynésie Française")))
 
 
 data_distrib_ctry_top = data_distrib_ctry %>%
   subset(freq >= 5)
 
 #Histogram in share (in French) for top countries
-hist_distrib_ctry_top_shr_fr = ggplot(data_distrib_ctry_top, 
-                     aes(x = reorder(pays, -freq), y = freq, fill = pays)) %>%
+hist_distrib_ctry_top_shr = ggplot(data_distrib_ctry_top, 
+                     aes(x = reorder(country_en, -freq), y = freq, fill = country_en)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
 + geom_text(aes(label = round(n, 1), y = freq), 
         vjust = -0.1, color="black",
         size=3.5) %>%
-+ labs(title = "Les pays abritant le plus d'aires protégées",
-       subtitle = paste("Echantillon :", sum(data_distrib_ctry$n), "aires protégées. Nombre d'aires indiqué à la base du graphique"),
-         x = "Pays",
-         y = "Proportion d'aires protégées(%)") %>%
++ labs(title = "Countries most targeted by AFD funded protected areas",
+       subtitle = paste("Sample :", sum(data_distrib_ctry$n), "protected areas. Numbers indicated above bars."),
+         x = "Countries",
+         y = "Share of protected areas (%)") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
       plot.title = element_text(size = 14, face = "bold"), 
@@ -609,21 +622,21 @@ hist_distrib_ctry_top_shr_fr = ggplot(data_distrib_ctry_top,
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-hist_distrib_ctry_top_shr_fr
+hist_distrib_ctry_top_shr
 # 
 
 
-#Histogram in number (in French)
-hist_distrib_ctry_n_fr = ggplot(data_distrib_ctry, 
-                     aes(x = reorder(pays, -n), y = n, fill = pays)) %>%
+#Histogram in number
+hist_distrib_ctry_n = ggplot(data_distrib_ctry, 
+                     aes(x = reorder(iso3, -n), y = n, fill = iso3)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
 + geom_text(aes(label = round(n, 1), y = n), 
         vjust = -0.1, color="black",
         size=3.5) %>%
-+ labs(title = "Proportion d'aires protégées par pays",
-       subtitle = paste("Echantillon :", sum(data_distrib_ctry$n), "aires protégées. Nombre d'aires indiqué sur chaque barre"),
-         x = "Pays",
-         y = "Proportion d'aires protégées(%)") %>%
++ labs(title = "Distribution of protected areas by countries",
+       subtitle = paste("Sample :", sum(data_distrib_ctry$n), "protected areas. Numbers indicated above bars."),
+         x = "Countries",
+         y = "Share of protected areas (%)") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
       plot.title = element_text(size = 14, face = "bold"), 
@@ -634,7 +647,7 @@ hist_distrib_ctry_n_fr = ggplot(data_distrib_ctry,
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-hist_distrib_ctry_n_fr
+hist_distrib_ctry_n
 # 
 
 ```
@@ -644,12 +657,12 @@ hist_distrib_ctry_n_fr
 
 tmp = paste(tempdir(), "fig", sep = "/")
 
-ggsave(paste(tmp, "hist_distrib_ctry_top_shr_fr.png", sep = "/"),
-       plot = hist_distrib_ctry_top_shr_fr,
+ggsave(paste(tmp, "hist_distrib_ctry_top_shr.png", sep = "/"),
+       plot = hist_distrib_ctry_top_shr,
        device = "png",
        height = 6, width = 9)
-ggsave(paste(tmp, "hist_distrib_ctry_n_fr.png", sep = "/"),
-       plot = hist_distrib_ctry_n_fr,
+ggsave(paste(tmp, "hist_distrib_ctry_n.png", sep = "/"),
+       plot = hist_distrib_ctry_n,
        device = "png",
        height = 6, width = 9)
 
@@ -673,32 +686,30 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
-#### Statistics at region level
+#### Statistics at region level (all)
 
 ```{r, eval = FALSE}
 data_distrib_reg = data_stat_nodupl %>%
-  group_by(direction_regionale) %>%
+  group_by(region) %>%
   summarize(n = n(),
             freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
-  ungroup() %>%
-  mutate(region = gsub("Dr ", "", direction_regionale),
-         .after = "direction_regionale")
+  ungroup()
 
 
 data_distrib_reg_top = data_distrib_reg %>%
   subset(freq >= 5)
 
 #Histogram in share (in French) for top countries
-hist_distrib_reg_top_shr_fr = ggplot(data_distrib_reg_top, 
-                     aes(x = reorder(region, -freq), y = freq, fill = region)) %>%
+hist_distrib_reg_top_shr = ggplot(data_distrib_reg_top, 
+                     aes(x = reorder(region_afd, -freq), y = freq, fill = region_afd)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
 + geom_text(aes(label = round(n, 1), y = freq), 
         vjust = -0.1, color="black",
         size=3.5) %>%
-+ labs(title = "Les directions régionales finançant le plus d'aires protégées",
-       subtitle = paste("Echantillon :", sum(data_distrib_reg$n), "aires protégées. Nombre d'aires indiqué sur chaque barre."),
-         x = "Direction régionale",
-         y = "Proportion d'aires protégées(%)") %>%
++ labs(title = "Regions funding most protected areas",
+       subtitle = paste("Sample :", sum(data_distrib_reg$n), "protected areas. Numbers indicated above bars."),
+         x = "",
+         y = "Share of protected areas (%)") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
       plot.title = element_text(size = 14, face = "bold"), 
@@ -709,20 +720,20 @@ hist_distrib_reg_top_shr_fr = ggplot(data_distrib_reg_top,
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-hist_distrib_reg_top_shr_fr
+hist_distrib_reg_top_shr
 
 
-#Histogram in number (in French)
-hist_distrib_reg_n_fr = ggplot(data_distrib_reg, 
-                     aes(x = reorder(direction_regionale, -n), y = n, fill = direction_regionale)) %>%
+#Histogram in number
+hist_distrib_reg_n = ggplot(data_distrib_reg, 
+                     aes(x = reorder(region_afd, -n), y = n, fill = region_afd)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
 + geom_text(aes(label = round(n, 1), y = n), 
         vjust = -0.1, color="black",
         size=3.5) %>%
-+ labs(title = "Proportion d'aires protégées par région",
-       subtitle = paste("Echantillon :", sum(data_distrib_ctry$n), "aires protégées. Nombre d'aires indiqué sur chaque barre."),
-         x = "Direction régionale",
-         y = "Proportion d'aires protégées(%)") %>%
++ labs(title = "Distribution of protected areas across regions",
+       subtitle = paste("Sample :", sum(data_distrib_ctry$n), "protected areas. Numbers indicated above bars."),
+         x = "",
+         y = "Share of protected areas (%)") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
       plot.title = element_text(size = 14, face = "bold"), 
@@ -733,7 +744,7 @@ hist_distrib_reg_n_fr = ggplot(data_distrib_reg,
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-hist_distrib_reg_n_fr
+hist_distrib_reg_n
 
 ```
 
@@ -742,12 +753,12 @@ hist_distrib_reg_n_fr
 
 tmp = paste(tempdir(), "fig", sep = "/")
 
-ggsave(paste(tmp, "hist_distrib_reg_top_shr_fr.png", sep = "/"),
-       plot = hist_distrib_reg_top_shr_fr,
+ggsave(paste(tmp, "hist_distrib_reg_top_shr.png", sep = "/"),
+       plot = hist_distrib_reg_top_shr,
        device = "png",
        height = 6, width = 9)
-ggsave(paste(tmp, "hist_distrib_reg_n_fr.png", sep = "/"),
-       plot = hist_distrib_reg_n_fr,
+ggsave(paste(tmp, "hist_distrib_reg_n.png", sep = "/"),
+       plot = hist_distrib_reg_n,
        device = "png",
        height = 6, width = 9)
 

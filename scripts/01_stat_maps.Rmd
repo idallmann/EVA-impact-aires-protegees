@@ -1,0 +1,87 @@
+# Generating maps
+
+## Importing relevant packages
+
+```{r setup, include = FALSE, eval = FALSE}
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+```
+
+```{r message=TRUE, warning=TRUE, eval = FALSE}
+install.packages(c("janitor", "wdpar", "countrycode"))
+library(tidyverse)
+library(dplyr)
+library(data.table)
+library(readxl)
+library(janitor)
+library(stringi)
+library(sf)
+library(terra)
+library(mapview)
+library(wdpar)
+library(aws.s3)
+library(countrycode)
+
+#Install webdriver to download WDPA data
+#webdriver::install_phantomjs()
+
+```
+
+## Importing datasets
+
+```{r, eval = FALSE}
+
+#Import dataset of PAs (1 row = 1 PA)
+data_pa_fund_nodupl = 
+  #fread("data_raw/BDD_PA_AFD_fund_nodupl.csv")
+  s3read_using(readr::read_delim,
+               delim = ";",
+               show_col_types = FALSE,
+               object = "data_tidy/BDD_PA_AFD_fund_nodupl.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
+
+data_pa_fund_wdpa = data_pa_fund_nodupl %>%
+  filter(is.na(wdpaid) == FALSE)
+#Define a list of iso to download WDPA data
+list_iso = data_pa_fund_wdpa %>%
+  filter(!(iso3 %in% c("COG;CMR;CAF", "ZZ") | is.na(iso3))) %>%
+  select(iso3) %>%
+  unique() 
+list_iso = list_iso$iso3
+
+#Import WDPA data
+##Either download and store it ...
+# data_wdpa = wdpa_fetch(x = list_iso, wait = TRUE, download_dir = "data_raw",
+#                        page_wait = 2, verbose = TRUE)
+# st_write(wdpa,
+#          dsn = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
+#          delete_dsn = TRUE)
+# s3write_using(x = data_wdpa,
+#               FUN = sf::st_write,
+#               object = "data_raw/wdpa/17_08_2023/wdpa_shp_global_raw.gpkg",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
+
+##... or import it from SSP Cloud
+data_wdpa =
+  #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
+  s3read_using(sf::st_read,
+              object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = "")) %>%
+  clean_names() %>%
+  select(c(wdpaid, wdpa_pid, geom)) %>%
+  mutate(geom_type = st_geometry_type(geom))
+
+
+#Polygons from WDPA are added to the PAs funded
+data_pa_fund_shp = data_pa_fund_wdpa %>%
+  left_join(data_wdpa, by = c("wdpaid", "wdpa_pid"))
+
+# s3write_using(x = data_pa_fund_shp,
+#               FUN = sf::st_write,
+#               object = "data_tidy/BDD_PA_AFD_fund_shp.gpkg",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
+
+```
