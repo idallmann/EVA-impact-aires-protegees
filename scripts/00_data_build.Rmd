@@ -34,7 +34,7 @@ Note that not all datasets are made publicly available, as some contain confiden
 
 The datasets are built from the list of PAs funded by the AFD, provided by AFD employees. For each PA, further information are gathered from the SIOP and the WDPA.
 
-Then, several datasets are built : (1) a dataset with only project related variables from the AFD, to facilitate merging with datasets other than WDPA; (2) a dataset to perform most analysis, except confidential statistics related to funding; (3) a confidential dataset with funding data.
+Then, several datasets are built : (1) a dataset with only project related variables from the AFD, to facilitate merging with datasets other than WDPA; (2) a dataset to perform most analysis, except confidential statistics related to funding; (3) a confidential dataset with funding data; (4) a polygon of funding and non-funding data with polygons of each PAs from WDPA.
 
 ### Merge PAs reporting (ARB, EVA ...)
 
@@ -118,6 +118,8 @@ data_pa_afd = rbind(data_pa_eva, data_pa_arb)
 
 ### Import and merge raw datasets
 
+The list of PAs reported by AFD department are then merged with AFD internal project information database (SIOP) and the World Database on Protected areas. The latter is the most comprehensive database on marine and terrestrial protected areas, published by the IUCN.
+
 ```{r, eval = FALSE}
 
 #Import the manually reported dataset (merge from ARB, EVA reports)
@@ -133,7 +135,7 @@ data_pa_afd =
 
 list_wdpa_afd = unique(data_pa_afd$wdpaid)
 #Import SIOP extract
-
+##A function to transform country names from upper case to lower cases : FRANCE -> France
 fn_ucfirst <- function (str) {
   paste(toupper(substring(str, 1, 1)), tolower(substring(str, 2)), sep = "")
 }
@@ -145,6 +147,7 @@ data_siop_pa =
               bucket = "projet-afd-eva-ap",
               opts = list("region" = "")) %>%
   clean_names() %>%
+  #Keep only project IDs corresponding to PAs reported
   filter(id_projet %in% data_pa_afd$id_projet) %>%
   select(c(id_projet, id_concours,
            libelle_court_direction_regionale,
@@ -190,6 +193,7 @@ data_wdpa =
   rename("iso3_wdpa" = "iso3")
 
 #Merge the datasets
+##A first raw dataset that will be edited to complete ISO3 code of countries.
 data_raw1 = data_pa_afd %>%
   #Add information from WDPA to PAs funded and with WDPAID
   left_join(data_wdpa, by = "wdpaid") %>%
@@ -241,7 +245,7 @@ data_raw2 = data_raw1 %>%
 
 ### Correct errors
 
-Here errors in the reported information are corrected manually. Note the SIOP can be updated and the error not present anymore.
+Here errors in the reported information are corrected manually. Note the SIOP can be updated and the error not present anymore. The errors that do not need to be corrected anymore are kept in comment.
 
 ```{r}
 #Loading the raw dataset
@@ -288,6 +292,8 @@ data_raw_corr[data_raw_corr$wdpaid == "797" & data_raw_corr$id_projet == "CZZ305
 ```
 
 ### Tidy the datasets
+
+After manual correction, a tidy dataset is built. 
 
 ```{r}
 #Import raw dataset corrected from report errors
