@@ -274,7 +274,7 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
     # Grid is projected to WGS84 because mapme.biodiverty package merely works with this CRS
     st_transform(crs=4326) %>%
     #Add treatment year variable
-    left_join(dplyr::select(data_pa, c(region_afd, region, sub_region, country_en, iso3, wdpaid, status_yr, year_funding)), by = "wdpaid")
+    left_join(dplyr::select(data_pa, c(region_afd, region, sub_region, country_en, iso3, wdpaid, status_yr, year_funding_first, year_funding_all)), by = "wdpaid")
   
   # If two PAs in different groups overlap, then the rasterization with fun = "min" (as in r.group definition) can lead to bad assgnment of pixels.
   # For instance, if a PA non-funded (group = 4) overlaps with a funded, analyzed one (group = 2), then the pixel will be assigned to the group 2
@@ -818,15 +818,15 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log, save_dir)
   mf = mf %>%
     #Remove PAs non-funded by AFD and buffers
     filter(group==1 | group==2) %>%
-    #Remove observations with NA values only for covariates (except for status_yr, region_afd, year_funding which are NA for control units)
-    drop_na(-c(status_yr, year_funding, region_afd, region, sub_region, iso3, country_en)) #%>%
+    #Remove observations with NA values only for covariates (except for status_yr, region_afd, year_funding_first which are NA for control units)
+    drop_na(-c(status_yr, year_funding_first, year_funding_all, region_afd, region, sub_region, iso3, country_en)) #%>%
      #filter(status_yr >= yr_min | is.na(status_yr))
   
   #Write the list of PAs matched
   list_pa = mf %>%
     st_drop_geometry() %>%
     as.data.frame() %>%
-    dplyr::select(c(region_afd, region, sub_region, country_en, iso3, wdpaid, status_yr, year_funding)) %>%
+    dplyr::select(c(region_afd, region, sub_region, country_en, iso3, wdpaid, status_yr, year_funding_first, year_funding_all)) %>%
     mutate(iso3 = iso, .before = "wdpaid") %>%
     filter(wdpaid != 0) %>%
     group_by(wdpaid) %>%
@@ -1734,7 +1734,7 @@ fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpa
   
   # Pivot Wide ==> Pivot Long
   matched.long = matched.wide %>%
-    dplyr::select(c(region_afd, region, sub_region, iso3, group, wdpaid, status_yr, year_funding,assetid, weights, starts_with(colfc.prefix))) %>%
+    dplyr::select(c(region_afd, region, sub_region, iso3, group, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, weights, starts_with(colfc.prefix))) %>%
     pivot_longer(cols = c(starts_with(colfc.prefix)),
                  names_to = c("var", "year"),
                  names_sep = colfc.bind,
@@ -1745,7 +1745,7 @@ fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpa
   
   # Pivot Wide ==> Pivot Long
   unmatched.long = unmatched.wide %>%
-    dplyr::select(c(region_afd, region, sub_region, iso3, group, wdpaid, status_yr, year_funding, assetid, starts_with(colfc.prefix))) %>%
+    dplyr::select(c(region_afd, region, sub_region, iso3, group, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, starts_with(colfc.prefix))) %>%
     pivot_longer(cols = c(starts_with(colfc.prefix)),
                  names_to = c("var", "year"),
                  names_sep = colfc.bind,
@@ -1840,7 +1840,8 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
   funding.years = mf %>% 
     filter(group == 2) %>% 
     slice(1)
-  funding.years = as.numeric(unlist(strsplit(funding.years$year_funding_all, split = ",")))
+  funding.years = funding.years$year_funding_first
+  #funding.years = as.numeric(unlist(strsplit(funding.years$year_funding_all, split = ",")))
   
   #Extract country name
   country.name = mf %>% 
@@ -1854,17 +1855,15 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
   names(fct.labs) <- c(FALSE, TRUE)
   
   ## Trend Plot for unmatched data
-  fig_trend_unm = ggplot(df.trend, aes(x = year, y = avgFC)) +
+  fig_trend_unm = ggplot(data = df.trend, aes(x = year, y = avgFC)) +
     geom_line(aes(group = group, color = as.character(group))) +
     geom_point(aes(color = as.character(group))) +
-    geom_vline(aes(xintercept=as.character(treatment.year), size="Treatment year"), linetype=1, linewidth=0.5, color="orange") +
-    geom_vline(aes(xintercept=as.character(funding.years), size="Funding year(s)"), linetype=2, linewidth=0.5, color="grey30") +
+    geom_vline(aes(xintercept = as.character(treatment.year)), size = "Treatment year", linetype = "solid", linewidth=0.5, color = "orange") +
+    geom_vline(aes(xintercept= as.character(funding.years)), size = "Funding years(s)", linetype = "dashed", linewidth=0.5, color = "grey30") +
     scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) +
     scale_color_hue(labels = c("Control", "Treatment")) +
-    
     facet_wrap(matched~., ncol = 2, #scales = 'free_x',
                labeller = labeller(matched = fct.labs)) +
-    
     labs(title = "Evolution of forest cover",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
          x = "Year", y = "Average forest cover (ha)", color = "Group") +
@@ -1888,8 +1887,9 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
       
       strip.text.x = element_text(size = 12) # Facet Label
       ) +
-    guides(size = guide_legend(override.aes = list(color = c("grey30", "orange")))) # Add legend for geom_vline
+    guides(size = guide_legend(override.aes = list(size = c("orange", "grey30")))) # Add legend for geom_vline
 
+  fig_trend_unm
   # Trend Plot for matched data
   fig_trend_m = ggplot(df.matched.trend, aes(x = year, y = avgFC)) +
     geom_line(aes(group = group, color = as.character(group))) +
