@@ -397,7 +397,7 @@ data_tidy = data_raw_corr %>%
   !is.na(wdpaid) & iucn_cat == "Not Applicable" ~ "Non catégorisée",
   !is.na(wdpaid) & iucn_cat == "Not Reported" ~ "Non catégorisée",
   !is.na(wdpaid) & iucn_cat == "Not Assigned" ~ "Non catégorisée",
-  TRUE ~ "Non référencée"), .after = iucn_cat) 
+  TRUE ~ "Non référencée"), .after = iucn_cat) %>%
     #Modify class of some variables
   mutate(across(.cols = -c("wdpaid", "superficie_km2",
                            "annee_doctroi_projet",
@@ -486,7 +486,7 @@ data_nofund_wdpa = data_nofund %>%
   arrange(year_funding) %>%
   slice(1) %>%
   #Rename year_funding variable to precise it is the year of first funding by the AFD
-  rename("year_funding_first" = "year_funding")
+  rename("year_funding_first" = "year_funding") %>%
   ungroup() %>%
   #Finally, we need to manually remove lines with more than one WDPA_PID
   ## Remove the buffer zone of WDPAID 9035
@@ -508,7 +508,7 @@ data_nofund_name = data_nofund %>%
   #Remove completely similar rows (due to merging with SIOP and WDPA)
   unique() %>%
   #Keep one line per name_pa, funding year (possibly more than one if more than one funding year)
-  group_by(name_pa, funding_year) %>%
+  group_by(name_pa, year_funding) %>%
   slice(1) %>%
   ungroup() %>%
   group_by(name_pa) %>%
@@ -519,7 +519,7 @@ data_nofund_name = data_nofund %>%
   arrange(year_funding) %>%
   slice(1) %>%
   #Rename year_funding variable to precise it is the year of first funding by the AFD
-  rename("year_funding_first" = "year_funding")
+  rename("year_funding_first" = "year_funding") %>%
   ungroup() %>%
   #Manual filtering to remove irrelevant duplicates
   ##Get rid of the DR SIEGE PARIS when a duplicate has DR OCEAN PACIFIQUE so that region are the good ones
@@ -560,7 +560,7 @@ data_nofund_na = data_nofund %>%
   arrange(year_funding) %>%
   slice(1) %>%
   #Rename year_funding variable to precise it is the year of first funding by the AFD
-  rename("year_funding_first" = "year_funding")
+  rename("year_funding_first" = "year_funding") %>%
   ungroup()
   
 #Finally bind the datasets
@@ -635,12 +635,12 @@ data_fund = data_tidy %>%
 
 
 #fwrite(data_fund, "data_tidy/BDD_AFD_fund.csv")
-# s3write_using(x = data_fund,
-#               FUN = readr::write_delim,
-#               delim = ";",
-#               object = "data_tidy/BDD_PA_AFD_fund.csv",
-#               bucket = "projet-afd-eva-ap",
-#               opts = list("region" = ""))
+s3write_using(x = data_fund,
+              FUN = readr::write_delim,
+              delim = ";",
+              object = "data_tidy/BDD_PA_AFD_fund.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
 ```
 
 Then a dataset is built with funding associated to each WDPAID. Note a project can fund several WDPAID, and that AFD funding data do not make it possible to isolate the funding of each PA defined by a WDPAID.
@@ -683,12 +683,12 @@ data_fund_na = data_fund_pa %>%
 data_fund_pa_nodupl = rbind(data_fund_wdpa, data_fund_name, data_fund_na)
 
 #fwrite(data_fund, "data_tidy/BDD_PA_AFD_fund.csv")
-# s3write_using(x = data_fund_pa_nodupl,
-#               FUN = readr::write_delim,
-#               delim = ";",
-#               object = "data_tidy/BDD_AFD_fund_PA.csv",
-#               bucket = "projet-afd-eva-ap",
-#               opts = list("region" = ""))
+s3write_using(x = data_fund_pa_nodupl,
+              FUN = readr::write_delim,
+              delim = ";",
+              object = "data_tidy/BDD_AFD_fund_PA.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
 ```
 
 ### A polygon dataset without confidential information
