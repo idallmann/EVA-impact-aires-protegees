@@ -394,9 +394,9 @@ data_tidy = data_raw_corr %>%
   !is.na(wdpaid) & iucn_cat == "IV" ~ " Habitat or species management area",
   !is.na(wdpaid) & iucn_cat == "V" ~ "Protected landscape or seascape",
   !is.na(wdpaid) & iucn_cat == "VI" ~ "Protected area with sust. use of nat. res.",
-  !is.na(wdpaid) & iucn_cat == "Not Applicable" ~ "Non catégorisée",
-  !is.na(wdpaid) & iucn_cat == "Not Reported" ~ "Non catégorisée",
-  !is.na(wdpaid) & iucn_cat == "Not Assigned" ~ "Non catégorisée",
+  !is.na(wdpaid) & iucn_cat == "Not Applicable" ~ "Not categorized",
+  !is.na(wdpaid) & iucn_cat == "Not Reported" ~ "Not categorized",
+  !is.na(wdpaid) & iucn_cat == "Not Assigned" ~ "Not categorized",
   TRUE ~ "Non référencée"), .after = iucn_cat) %>%
     #Modify class of some variables
   mutate(across(.cols = -c("wdpaid", "superficie_km2",
@@ -462,12 +462,12 @@ data_nofund = data_tidy %>%
   select(!all_of(list_var_fund))
 
 #fwrite(data_nofund, "data_tidy/BDD_PA_AFD_nofund.csv")
-# s3write_using(x = data_nofund,
-#               FUN = readr::write_delim,
-#               delim = ";",
-#               object = "data_tidy/BDD_PA_AFD_nofund.csv",
-#               bucket = "projet-afd-eva-ap",
-#               opts = list("region" = ""))
+s3write_using(x = data_nofund,
+              FUN = readr::write_delim,
+              delim = ";",
+              object = "data_tidy/BDD_PA_AFD_nofund.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
 
 #Then to keep only one row per PA, we need to consider separately PAs having WDPA ID and PAs which do not.
 ## Observations with WDPAID
@@ -567,12 +567,12 @@ data_nofund_na = data_nofund %>%
 data_nofund_nodupl = rbind(data_nofund_wdpa, data_nofund_name, data_nofund_na) 
 
 #fwrite(data_nofund_nodupl, "data_tidy/BDD_nofund_nodupl.csv")
-# s3write_using(x = data_nofund_nodupl,
-#               FUN = readr::write_delim,
-#               delim = ";",
-#               object = "data_tidy/BDD_PA_AFD_nofund_nodupl.csv",
-#               bucket = "projet-afd-eva-ap",
-#               opts = list("region" = ""))
+s3write_using(x = data_nofund_nodupl,
+              FUN = readr::write_delim,
+              delim = ";",
+              object = "data_tidy/BDD_PA_AFD_nofund_nodupl.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
 
 
            
