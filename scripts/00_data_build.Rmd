@@ -377,7 +377,7 @@ data_tidy = data_raw_corr %>%
     mutate(iucn_des_fr = case_when(
   !is.na(wdpaid) & iucn_cat == "Ia" ~ "Réserve naturelle intégrale",
   !is.na(wdpaid) & iucn_cat == "Ib" ~ "Zone de nature sauvage",
-  !is.na(wdpaid) & iucn_cat == "II" ~ "Parc national",
+  !is.na(wdpaid) & iucn_cat == "II" ~ "Parc national", 
   !is.na(wdpaid) & iucn_cat == "III" ~ "Monument naturel",
   !is.na(wdpaid) & iucn_cat == "IV" ~ "Gest. des habitats/espèces",
   !is.na(wdpaid) & iucn_cat == "V" ~ "Paysage protégé",
@@ -397,7 +397,7 @@ data_tidy = data_raw_corr %>%
   !is.na(wdpaid) & iucn_cat == "Not Applicable" ~ "Not categorized",
   !is.na(wdpaid) & iucn_cat == "Not Reported" ~ "Not categorized",
   !is.na(wdpaid) & iucn_cat == "Not Assigned" ~ "Not categorized",
-  TRUE ~ "Non référencée"), .after = iucn_cat) %>%
+  TRUE ~ "Not referenced"), .after = iucn_cat) %>%
     #Modify class of some variables
   mutate(across(.cols = -c("wdpaid", "superficie_km2",
                            "annee_doctroi_projet",

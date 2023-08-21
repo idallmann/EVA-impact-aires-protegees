@@ -116,22 +116,22 @@ pa_int_yr =
 #Building the relevant dataset
 ##For all PAs ..
 data_cat_iucn = data_stat_nodupl %>%
-  group_by(iucn_des) %>%
+  group_by(iucn_des_en) %>%
   #number of PAs per IUCN category
   summarize(n_iucn = n()) %>%
   ungroup() %>%
   #Frequency of IUCN categories
   mutate(n_pa = sum(n_iucn),
          freq_iucn = round(n_iucn/n_pa*100, 1)) %>%
-  arrange(desc(iucn_des)) %>%
+  arrange(desc(iucn_des_en)) %>%
   mutate(ypos_iucn = cumsum(freq_iucn) - 0.5*freq_iucn) 
 
 
 ##... and for referenced PAs only
 data_cat_iucn_ref = data_stat_nodupl %>%
   #Remove not referenced PAs
-  subset(!(iucn_des %in% c("Non catégorisée", "Non référencée"))) %>%
-  group_by(iucn_des) %>%
+  subset(!(iucn_des_en %in% c("Not categorized", "Not referenced"))) %>%
+  group_by(iucn_des_en) %>%
   #number of PAs per IUCN category
   summarize(n_iucn = n()) %>%
   ungroup() %>%
