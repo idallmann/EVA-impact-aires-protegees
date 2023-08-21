@@ -77,9 +77,11 @@ source("scripts/functions/02_fns_matching.R")
 ```
 
 ```{r, eval = FALSE}
-# Define the path to a temporary, working directory for pre- and post-processing steps
+# Define the path to a temporary, working directory for pre- and post-processing steps.
+# Define a directory where outputs are stored in SSPCloud.
 tmp_pre = paste(tempdir(), "matching_pre", sep = "/")
 tmp_post = paste(tempdir(), "matching_post", sep = "/")
+save_dir = paste("projet-afd-eva-ap/impact_analysis/matching", Sys.Date(), sep = "/")
 
 
 #####
@@ -411,7 +413,7 @@ toc_post = toc()
 cat(paste("END OF POST-PROCESSING :", toc_post$callback_msg, "\n\n"),
     file = log, append = TRUE)
 aws.s3::put_object(file = log,
-                   bucket = "projet-afd-eva-ap/data_tidy/mapme_bio_data/matching",
+                   bucket = save_dir,
                    region = "",
                    show_progress = FALSE)
 

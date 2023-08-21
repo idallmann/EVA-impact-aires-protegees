@@ -44,7 +44,7 @@ lonlat2UTM = function(lonlat)
 ### utm_code : UTM code of the country
 ### gridSize : the resolution of gridding, defined from the area of the PA with the lowest area
 
-fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log)
+fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log, save_dir)
 {
   
   output = withCallingHandlers(
@@ -106,7 +106,7 @@ fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log)
          device = "png",
          height = 6, width = 9)
   aws.s3::put_object(file = fig_save, 
-                     bucket = paste("projet-afd-eva-ap/impact_analysis/matching", iso, sep = "/"), 
+                     bucket = paste(save_dir, iso, sep = "/"), 
                      region = "", 
                      show_progress = FALSE)
   
@@ -163,7 +163,7 @@ fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log)
 ##NOTES :
 ### Errors can arise from the wdpa_clean() function, during "formatting attribute data" step. Can be settled playing with geometry_precision parameter
 
-fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, data_pa, gadm_prj, grid, gridSize, log)
+fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, data_pa, gadm_prj, grid, gridSize, log, save_dir)
 {
   
   output = withCallingHandlers(
@@ -304,7 +304,7 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
   s3write_using(grid.param,
                 sf::write_sf,
                 overwrite = TRUE,
-                object = paste0("projet-afd-eva-ap/impact_analysis/matching", "/", iso, "/", paste0("grid_param_", iso, ".gpkg")),
+                object = paste0(save_dir, "/", iso, "/", paste0("grid_param_", iso, ".gpkg")),
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
   
@@ -333,7 +333,7 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
          device = "png",
          height = 6, width = 9)
   aws.s3::put_object(file = fig_save, 
-                     bucket = paste("projet-afd-eva-ap/impact_analysis/matching", iso, sep = "/"), 
+                     bucket = paste(save_dir, iso, sep = "/"), 
                      region = "", 
                      show_progress = FALSE)
   
@@ -417,7 +417,7 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
   {
     cat("Uploading file", paste0("'", f, "'"), "\n")
     aws.s3::put_object(file = f, 
-                       bucket = paste("projet-afd-eva-ap/impact_analysis/matching", iso, sep = "/"), 
+                       bucket = paste(save_dir, iso, sep = "/"), 
                        region = "", show_progress = TRUE)
   }
   do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
@@ -469,7 +469,7 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
 ### None
 
 
-fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output, yr_first, yr_last)
+fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output, yr_first, yr_last, save_dir)
 {
   print("----Initialize portfolio")
   #Take only potential control (group = 1) and treatment (group = 2) in the country gridding
@@ -488,7 +488,7 @@ fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output, yr_firs
     dplyr::select(c(gridID, assetid))
   s3write_using(df_gridID_assetID,
                 data.table::fwrite,
-                object = paste0("projet-afd-eva-ap/impact_analysis/matching", "/", iso, "/", "df_gridID_assetID_", iso, ".csv"),
+                object = paste0(save_dir, "/", iso, "/", "df_gridID_assetID_", iso, ".csv"),
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
 
@@ -585,7 +585,7 @@ fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output, yr_firs
   name_save = paste0(name_output, "_", iso, ext_output)
   s3write_using(pivot.all,
                 sf::st_write,
-                object = paste0("projet-afd-eva-ap/impact_analysis/matching", "/", iso, "/", name_save),
+                object = paste0(save_dir, "/", iso, "/", name_save),
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
 
@@ -597,7 +597,7 @@ fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output, yr_firs
 
 
 
-fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output, yr_first, yr_last, log) 
+fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output, yr_first, yr_last, log, save_dir) 
 {
   output = tryCatch(
     
@@ -621,7 +621,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
     dplyr::select(c(gridID, assetid))
   s3write_using(df_gridID_assetID,
                 data.table::fwrite,
-                object = paste0("projet-afd-eva-ap/impact_analysis/matching", "/", iso, "/", "df_gridID_assetID_", iso, ".csv"),
+                object = paste0(save_dir, "/", iso, "/", "df_gridID_assetID_", iso, ".csv"),
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
   
@@ -744,7 +744,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   name_save = paste0(name_output, "_", iso, ext_output)
   s3write_using(pivot.all,
                 sf::st_write,
-                object = paste0("projet-afd-eva-ap/impact_analysis/matching", "/", iso, "/", name_save),
+                object = paste0(save_dir, "/", iso, "/", name_save),
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
   
@@ -801,14 +801,14 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
 ### yr_min : the minimum for treatment year
 ##OUTPUTS :
 ### mf : matching dataframe. More precisely, it gives for each observation units in a country values of different covariates to perform matching.
-fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log)
+fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log, save_dir)
 {
   output = tryCatch(
     
     {
       
   #Load the matching dataframe
-  object = paste("projet-afd-eva-ap/impact_analysis/matching", iso, paste0(name_input, "_", iso, ext_input), sep = "/")
+  object = paste(save_dir, iso, paste0(name_input, "_", iso, ext_input), sep = "/")
   mf = s3read_using(sf::st_read,
                       bucket = "projet-afd-eva-ap",
                       object = object,
@@ -836,7 +836,7 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log)
   s3write_using(list_pa,
                 data.table::fwrite,
                 bucket = "projet-afd-eva-ap",
-                object = paste("projet-afd-eva-ap/impact_analysis/matching", iso, paste0("list_pa_matched_", iso, ".csv"), sep = "/"),
+                object = paste(save_dir, iso, paste0("list_pa_matched_", iso, ".csv"), sep = "/"),
                 opts = list("region" = ""))
   
   #Append the log
@@ -1006,7 +1006,8 @@ fn_post_cutoff = function(mf, colname.travelTime, colname.clayContent, colname.e
 fn_post_cem = function(mf, lst_cutoffs, iso, path_tmp,
                        colname.travelTime, colname.clayContent, 
                        colname.elevation, colname.tri, 
-                       colname.fcIni, colname.flAvg)
+                       colname.fcIni, colname.flAvg,
+                       save_dir)
 {
   formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
                         + .(as.name(colname.clayContent))  
@@ -1025,7 +1026,7 @@ fn_post_cem = function(mf, lst_cutoffs, iso, path_tmp,
   # plot(summary(out.cem))
   # dev.off()
   # aws.s3::put_object(file = fig_save, 
-  #                    bucket = paste("projet-afd-eva-ap/impact_analysis/matching", iso, sep = "/"), 
+  #                    bucket = paste(save_dir, iso, sep = "/"), 
   #                    region = "", 
   #                    show_progress = FALSE)
   
@@ -1317,7 +1318,10 @@ fn_post_match_auto_old = function(mf, iso,
 ## OUTPUTS :
 ### None
 
-fn_post_covbal = function(out.cem, mf, colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, colname.tri, colname.elevation, iso, path_tmp, wdpaid, log)
+fn_post_covbal = function(out.cem, mf, 
+                          colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, colname.tri, colname.elevation, 
+                          iso, path_tmp, wdpaid, log,
+                          save_dir)
 {
   
   output = tryCatch(
@@ -1410,7 +1414,7 @@ fn_post_covbal = function(out.cem, mf, colname.travelTime, colname.clayContent, 
   {
     cat("Uploading file", paste0("'", f, "'"), "\n")
     aws.s3::put_object(file = f, 
-                       bucket = paste("projet-afd-eva-ap/impact_analysis/matching", iso, wdpaid, sep = "/"), 
+                       bucket = paste(save_dir, iso, wdpaid, sep = "/"), 
                        region = "", show_progress = TRUE)
   }
   do.call(file.remove, list(list.files(paste(path_tmp, "CovBal", sep = "/"), full.names = TRUE)))
@@ -1456,7 +1460,7 @@ fn_post_covbal = function(out.cem, mf, colname.travelTime, colname.clayContent, 
 
 fn_post_plot_density = function(out.cem, mf, 
                                 colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, colname.tri, colname.elevation, 
-                                iso, path_tmp, wdpaid = j, log)
+                                iso, path_tmp, wdpaid, log, save_dir)
 {
   output = tryCatch(
     
@@ -1674,7 +1678,7 @@ fn_post_plot_density = function(out.cem, mf,
   {
     cat("Uploading file", paste0("'", f, "'"), "\n")
     aws.s3::put_object(file = f, 
-                       bucket = paste("projet-afd-eva-ap/impact_analysis/matching", iso, wdpaid, sep = "/"), 
+                       bucket = paste(save_dir, iso, wdpaid, sep = "/"), 
                        region = "", show_progress = TRUE)
   }
   do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
@@ -1718,7 +1722,7 @@ fn_post_plot_density = function(out.cem, mf,
 ## OUTPUTS :
 ### list_output : a list of dataframes : (un)matched.wide/long. They contain covariates and outcomes for treatment and control units, before and after matching, in a wide or long format
 
-fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpaid, iso, log)
+fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpaid, iso, log, save_dir)
 {
   
   output = tryCatch(
@@ -1750,22 +1754,22 @@ fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpa
   #Save the dataframes
   s3write_using(matched.wide,
                 sf::st_write,
-                object = paste0("projet-afd-eva-ap/impact_analysis/matching", "/", iso, "/", wdpaid, "/", paste0("matched_wide", "_", iso, "_", wdpaid, ext_output)),
+                object = paste0(save_dir, "/", iso, "/", wdpaid, "/", paste0("matched_wide", "_", iso, "_", wdpaid, ext_output)),
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
   s3write_using(unmatched.wide,
                 sf::st_write,
-                object = paste0("projet-afd-eva-ap/impact_analysis/matching", "/", iso, "/", wdpaid, "/", paste0("unmatched_wide", "_", iso, "_", wdpaid, ext_output)),
+                object = paste0(save_dir, "/", iso, "/", wdpaid, "/", paste0("unmatched_wide", "_", iso, "_", wdpaid, ext_output)),
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
   s3write_using(matched.long,
                 sf::st_write,
-                object = paste0("projet-afd-eva-ap/impact_analysis/matching", "/", iso, "/", wdpaid, "/", paste0("matched_long", "_", iso, "_", wdpaid, ext_output)),
+                object = paste0(save_dir, "/", iso, "/", wdpaid, "/", paste0("matched_long", "_", iso, "_", wdpaid, ext_output)),
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
   s3write_using(unmatched.long,
                 sf::st_write,
-                object = paste0("projet-afd-eva-ap/impact_analysis/matching", "/", iso, "/", wdpaid, "/", paste0("unmatched_long", "_", iso, "_", wdpaid, ext_output)),
+                object = paste0(save_dir, "/", iso, "/", wdpaid, "/", paste0("unmatched_long", "_", iso, "_", wdpaid, ext_output)),
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
   
@@ -1809,7 +1813,7 @@ fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpa
 ## OUTPUTS : 
 ### None
 
-fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log) 
+fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log, save_dir) 
 {
   
   output = tryCatch(
@@ -1938,7 +1942,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
   {
     cat("Uploading file", paste0("'", f, "'"), "\n")
     aws.s3::put_object(file = f, 
-                       bucket = paste("projet-afd-eva-ap/impact_analysis/matching", iso, wdpaid, sep = "/"), 
+                       bucket = paste(save_dir, iso, wdpaid, sep = "/"), 
                        region = "", show_progress = TRUE)
   }
   do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
@@ -1981,7 +1985,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
 ##OUTPUTS
 ### None (plots)
 
-fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp, log)
+fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp, log, save_dir)
 {
   
   output = tryCatch(
@@ -1990,7 +1994,7 @@ fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp, log)
       
   #Import dataframe where each pixel in the grid has both its grid ID and asset ID from the portfolio creation
   df_gridID_assetID = s3read_using(data.table::fread,
-                                   object = paste0("projet-afd-eva-ap/impact_analysis/matching", "/", iso, "/", paste0("df_gridID_assetID_", iso, ".csv")),
+                                   object = paste0(save_dir, "/", iso, "/", paste0("df_gridID_assetID_", iso, ".csv")),
                                    bucket = "projet-afd-eva-ap",
                                    opts = list("region" = ""))
   
@@ -1998,7 +2002,7 @@ fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp, log)
   #Merge with a dataframe so that each pixel in the grid has both its grid ID and asset ID from the portfolio creation
   #Merge with matched pixels dataframe
   grid =  s3read_using(sf::read_sf,
-                       object = paste0("projet-afd-eva-ap/impact_analysis/matching", "/", iso, "/", paste0("grid_param_", iso, ".gpkg")),
+                       object = paste0(save_dir, "/", iso, "/", paste0("grid_param_", iso, ".gpkg")),
                        bucket = "projet-afd-eva-ap",
                        opts = list("region" = "")) %>%
     left_join(df_gridID_assetID, by = "gridID") %>%
@@ -2017,7 +2021,7 @@ fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp, log)
   fig_grid = 
     ggplot(grid) +
     #The original gridding as a first layer
-    geom_sf(aes(fill = as.factor(group_plot)), , color = NA) +
+    geom_sf(aes(fill = as.factor(group_plot)), color = NA) +
     scale_fill_brewer(name = "Group", type = "qual", palette = "BrBG", direction = 1) +
     labs(title = paste("Gridding of", country.name, ": matched units"),
          subtitle = ifelse(is_pa == TRUE,
@@ -2034,8 +2038,8 @@ fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp, log)
          height = 6, width = 9)
   aws.s3::put_object(file = fig_save, 
                      bucket = ifelse(is_pa == TRUE,
-                                     yes = paste("projet-afd-eva-ap/impact_analysis/matching", iso, wdpaid, sep = "/"),
-                                     no = paste("projet-afd-eva-ap/impact_analysis/matching", iso, sep = "/")),
+                                     yes = paste(save_dir, iso, wdpaid, sep = "/"),
+                                     no = paste(save_dir, iso, sep = "/")),
                      region = "", 
                      show_progress = FALSE)
   
