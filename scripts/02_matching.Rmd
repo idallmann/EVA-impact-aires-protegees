@@ -39,6 +39,7 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 #Install some libraries
 install.packages(c("tictoc", "geodata", "wdpar", "exactextractr", "MatchIt", "fixest", "cobalt", "future", "progressr", "mapme.biodiversity", "future.callr", "janitor"))
 #remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
+#remotes::install_github("prioritizr/wdpar", upgrade="always")
 
 #Install the web driver to download wdpa data directly
 webdriver::install_phantomjs()
@@ -106,7 +107,7 @@ wdpa_wld_raw = s3read_using(
 buffer_m = 10000
 # Specify the grid cell size in meter
 #gridSize = 10000 
-n_sampling = 50
+n_sampling = 1000
 
 #Load data 
 data_pa = 
@@ -119,8 +120,7 @@ data_pa =
   opts = list("region" = "")) 
 
 #List of countries in the sample
-#list_iso = unique(data_pa$iso3)
-list_iso = c("COM")
+list_iso = unique(data_pa[data_pa$direction_regionale == "Dr Afrique Centrale", ]$iso3)
 # Specify a list of WDPA IDs of funded protected areas (treated areas)
 # paid = data_stat_nodupl[data_stat_nodupl$iso3 == country,]$wdpaid
 
@@ -131,7 +131,8 @@ yr_first = 2000
 yr_last = 2021
 
 #Minimum treatment year
-yr_min = yr_first
+#At least two pre-treatment periods of forest cover are needed to compute average pre-treatment deforestation
+yr_min = yr_first+2
 
 #####
 ###Post-processing
@@ -139,9 +140,9 @@ yr_min = yr_first
 
 # Define Column Names of Covariates
 colname.travelTime = "minutes_median_5k_110mio"
-colname.clayContent = "clay_0.5cm_mean"
-# colname.elevation = "elevation_mean"
-# colname.tri = "tri_mean"
+colname.clayContent = "clay_0_5cm_mean"
+colname.elevation = "elevation_mean"
+colname.tri = "tri_mean"
 colname.fcIni = "treecover_2000"
 
 
@@ -167,57 +168,73 @@ For pre- and post-processing steps, the different functions are called in a loop
 count = 0 #Initialize counter
 max_i = length(list_iso) #Max value of the counter
 tic_pre = tic() #Start timer
+
+#Create a log to track progress
+log = fn_pre_log(list_iso,
+                 name = paste0("log-", Sys.Date(), "-test-GAB.txt"),
+                 notes = "All country in Dr Ocean Indien")
+
 for (i in list_iso)
 {
   #Update counter and display progress
   count = count+1
   print(paste0(i, " : country ", count, "/", max_i))
   
+  #Append the log to track progress of the process on country i
+  cat(paste("#####\nCOUNTRY :", i, "\n#####\n\n"), file = log, append = TRUE)
+
+  
   #Generate observation units
   print("--Generating observation units")
-  output_pre_grid = fn_pre_grid(iso = i, 
-                                path_tmp = tmp_pre, 
-                                data_pa = data_pa,
-                                sampling = n_sampling)
+  output_grid = fn_pre_grid(iso = i, 
+                            yr_min = yr_min,
+                            path_tmp = tmp_pre, 
+                            data_pa = data_pa,
+                            sampling = n_sampling,
+                            log = log)
+  if(output_grid$is_ok == FALSE) {next}
   
   #Load the outputs 
-  utm_code = output_pre_grid$utm_code
-  gadm_prj = output_pre_grid$ctry_shp_prj
-  grid = output_pre_grid$grid
-  gridSize = output_pre_grid$gridSize
+  utm_code = output_grid$utm_code
+  gadm_prj = output_grid$ctry_shp_prj
+  grid = output_grid$grid
+  gridSize = output_grid$gridSize
   
   #Determining Group IDs and WDPA IDs for all observation units
   print("--Determining Group IDs and WDPA IDs")
-  grid_param = fn_pre_group(iso = i, wdpa_raw = wdpa_wld_raw,
+  output_group = fn_pre_group(iso = i, wdpa_raw = wdpa_wld_raw,
                             yr_min = yr_min,
                             path_tmp = tmp_pre, utm_code = utm_code,
                             buffer_m = buffer_m, data_pa = data_pa,
                             gadm_prj = gadm_prj, grid = grid, 
-                            gridSize = gridSize)
+                            gridSize = gridSize,
+                            log = log)
+  if(output_group$is_ok == FALSE) {next} else grid_param = output_group$grid.param
 
   #Calculating outcome and other covariates for all observation units
   print("--Calculating outcome and other covariates")
-  tic_parallel = tic()
-  fn_pre_mf_parallel(grid.param = grid_param, path_tmp = tmp_pre, iso = i,
+  output_mf = 
+    fn_pre_mf_parallel(grid.param = grid_param, path_tmp = tmp_pre, iso = i,
           name_output = paste0("matching_frame_spling", n_sampling),
           ext_output = ".gpkg",
-          yr_first = yr_first, yr_last = yr_last)
-  toc_parallel = toc()
+          yr_first = yr_first, yr_last = yr_last,
+          log = log)
+  if(output_mf$is_ok == FALSE) {next}
   
-  # ##Without parallel computing
-  # tic = tic()
-  # fn_pre_mf(grid.param = grid_param, path_tmp = tmp_pre, iso = i,
-  #           name_output = paste0("matching_frame_spling", n_sampling),
-  #           ext_output = ".gpkg",
-  #           yr_first = yr_first, yr_last = yr_last)
-  # toc = toc()
-
+  #Remove files in the session memory
   tmp_files = list.files(tmp_pre, include.dirs = T, full.names = T, recursive = T)
   file.remove(tmp_files)
   
 }
 
-toc_pre = toc() #end timer
+  #End timer for pre-processing
+  toc_pre = toc()
+  
+  #Append the log
+  cat(paste("END OF PRE-PROCESSING :", toc_pre$callback_msg, "\n\n"), 
+      file = log, append = TRUE)
+
+
 
 ```
 
@@ -228,20 +245,34 @@ toc_pre = toc() #end timer
 count_i = 0 #Initialize counter
 max_i = length(list_iso) #Max value of the counter
 tic_post = tic() #start timer
+
+#Append the log
+cat(paste("##########\nPOST-PROCESSING\n##########\n\n"), 
+    file = log, append = TRUE)
+  
 for (i in list_iso)
 {
   #Update counter and show progress
   count_i = count_i+1
   print(paste0(i, " : country ", count_i, "/", max_i))
   
+  #Append the log to track progress of the process on country i
+  cat(paste("#####\nCOUNTRY :", i, "\n"), file = log, append = TRUE)
+  
   #Load the matching frame
   print("--Loading the matching frame")
-  mf_ini = fn_post_load_mf(iso = i, 
+  output_load = fn_post_load_mf(iso = i, 
                            yr_min = yr_min,
                            name_input = paste0("matching_frame_spling", n_sampling),
-                           ext_input = ".gpkg")
+                           ext_input = ".gpkg",
+                           log = log)
+  if(output_load$is_ok == FALSE) {next} else mf_ini = output_load$mf
   
   list_pa = unique(mf_ini[mf_ini$wdpaid != 0, ]$wdpaid)
+  
+    #Append the log : list of PAs analyzed in the matching frame
+  cat(paste("LIST OF WDPAIDs :", paste(list_pa, collapse = ", "), "\n#####\n\n"), 
+      file = log, append = TRUE)
   
   #Initialization
   ##Counter
@@ -255,77 +286,84 @@ for (i in list_iso)
   {
     #Update counter and show progress
     count_j = count_j+1
-    print(paste0("WDPA ID ", j, " : ", count_j, "/", max_j))
+    print(paste0("WDPAID : ", j, " : ", count_j, "/", max_j))
+    
+    #Append the log to track progress of the process on PA j
+    cat(paste("###\nWDPAID :", j, "\n###\n\n"), file = log, append = TRUE)
   
     mf_ini_j = mf_ini %>%
       filter(group == 1 | (group == 2 & wdpaid == j))
     
     #Add average pre-loss
     print("--Add covariate : average tree loss pre-funding")
-    mf_j = fn_post_avgLoss_prefund(mf = mf_ini_j, colfl.prefix = colfl.prefix)
-    
-    #Define cut-offs
-    print("--Define cutoffs")
-    ##CAREFUL : ADD elevation and TRI when available
-    lst_cutoffs_j = fn_post_cutoff(mf = mf_j,
-                               colname.travelTime = colname.travelTime,
-                               colname.clayContent = colname.clayContent,
-                               colname.fcIni = colname.fcIni,
-                               colname.flAvg = colname.flAvg
-                               )
+    output_avgLoss = fn_post_avgLoss_prefund(mf = mf_ini_j, 
+                                             colfl.prefix = colfl.prefix,
+                                             log = log)
+    if(output_avgLoss$is_ok == FALSE) {next} else mf_j = output_avgLoss$mf
     
     #Run Coarsened Exact Matching
     print("--Run CEM")
-    out.cem_j = fn_post_cem(mf = mf_j, iso = i, path_tmp = tmp_post,
-                        lst_cutoffs = lst_cutoffs_j,
-                       colname.travelTime = colname.travelTime,
-                       colname.clayContent = colname.clayContent,
-                       colname.fcIni = colname.fcIni,
-                       colname.flAvg = colname.flAvg)
-    # if(out.cem_j == "skip_to_next") {next}
-    
-    # out.cem_j = fn_post_match(mf = mf_j, iso = i, path_tmp = tmp_post,
-    #                    colname.travelTime = colname.travelTime, 
-    #                    colname.clayContent = colname.clayContent,
-    #                    colname.fcIni = colname.fcIni, 
-    #                    colname.flAvg = colname.flAvg)
+    output_cem = fn_post_match_auto(mf = mf_j, iso = i, 
+                                   dummy_int = FALSE,
+                                     th_mean = 0.1, 
+                                     th_var_min = 0.5, th_var_max = 2,
+                                   colname.travelTime = colname.travelTime, 
+                                   colname.clayContent = colname.clayContent, 
+                                   colname.elevation = colname.elevation,
+                                   colname.tri = colname.tri, 
+                                   colname.fcIni = colname.fcIni, 
+                                   colname.flAvg = colname.flAvg,
+                                   log = log)
+    if(output_cem$is_ok == FALSE) {next} else out_cem_j = output_cem$out.cem
     
     #Plots : covariates
     print("--Some plots : covariates")
     print("----Covariate balance")
-    fn_post_covbal(out.cem = out.cem_j,
+    output_covbal = fn_post_covbal(out.cem = out_cem_j,
                    mf = mf_j,
-                      colname.travelTime = colname.travelTime, 
-                      colname.clayContent = colname.clayContent,
-                      colname.fcIni = colname.fcIni, 
-                      colname.flAvg = colname.flAvg,
-                      iso = i,
-                      path_tmp = tmp_post,
-                      wdpaid = j)
+                   colname.travelTime = colname.travelTime, 
+                   colname.clayContent = colname.clayContent,
+                   colname.fcIni = colname.fcIni, 
+                   colname.flAvg = colname.flAvg,
+                   colname.tri = colname.tri,
+                   colname.elevation = colname.elevation,
+                   iso = i,
+                   path_tmp = tmp_post,
+                   wdpaid = j,
+                   log)
+  if(output_covbal$is_ok == FALSE) {next}
+    
     print("----Density plots")
-    fn_post_plot_density(out.cem = out.cem_j, 
-                         mf = mf_j,
-                      colname.travelTime = colname.travelTime, 
-                       colname.clayContent = colname.clayContent,
-                       colname.fcIni = colname.fcIni, 
-                       colname.flAvg = colname.flAvg,
-                      iso = i,
-                      path_tmp = tmp_post,
-                      wdpaid = j)
+    output_density = fn_post_plot_density(out.cem = out_cem_j, 
+                                         mf = mf_j,
+                                      colname.travelTime = colname.travelTime, 
+                                       colname.clayContent = colname.clayContent,
+                                       colname.fcIni = colname.fcIni, 
+                                       colname.flAvg = colname.flAvg,
+                                    colname.tri = colname.tri,
+                                   colname.elevation = colname.elevation,
+                                      iso = i,
+                                      path_tmp = tmp_post,
+                                      wdpaid = j,
+                                   log)
+     if(output_density$is_ok == FALSE) {next}
     
     #Panelize dataframes
     print("----Panelize (Un-)Matched Dataframe")
-    output_post_panel_j = fn_post_panel(out.cem = out.cem_j, 
-                                        mf = mf_j, 
-                                        colfc.prefix = colfc.prefix, 
-                                        colfc.bind = colfc.bind,
-                                        ext_output = ".csv", 
-                                        iso = i,
-                                        wdpaid = j)
-    matched.wide.j = output_post_panel_j$matched.wide
-    unmatched.wide.j = output_post_panel_j$unmatched.wide
-    matched.long.j = output_post_panel_j$matched.long
-    unmatched.long.j = output_post_panel_j$unmatched.long 
+    output_panel = fn_post_panel(out.cem = out_cem_j, 
+                                  mf = mf_j, 
+                                  colfc.prefix = colfc.prefix, 
+                                  colfc.bind = colfc.bind,
+                                  ext_output = ".csv", 
+                                  iso = i,
+                                  wdpaid = j,
+                                  log = log)
+     if(output_panel$is_ok == FALSE) {next}
+    
+    matched.wide.j = output_panel$matched.wide
+    unmatched.wide.j = output_panel$unmatched.wide
+    matched.long.j = output_panel$matched.long
+    unmatched.long.j = output_panel$unmatched.long 
     
     #Extract matched units and plot them on a grid
     print("----Extract matched units and plot them on a grid")
@@ -337,38 +375,54 @@ for (i in list_iso)
       rename("group_matched" = "group") 
     df_pix_matched = rbind(df_pix_matched, df_pix_matched_j)
     ##Plot the grid with matched control and treated for the PA
-    fn_post_plot_grid(iso = i, wdpaid = j,
+    output_grid = fn_post_plot_grid(iso = i, wdpaid = j,
                       is_pa = TRUE,
                       df_pix_matched = df_pix_matched_j,
-                      path_tmp = tmp_post)
+                      path_tmp = tmp_post,
+                      log)
+     if(output_grid$is_ok == FALSE) {next}
   
     
   
     #Plots : trend
     print("----Plots again : trend")
-    fn_post_plot_trend(matched.long = matched.long.j, 
+    output_trend = fn_post_plot_trend(matched.long = matched.long.j, 
                        unmatched.long = unmatched.long.j, 
                        mf = mf_j,
                        iso = i,
-                       wdpaid = j)
+                       wdpaid = j,
+                       log)
+    if(output_trend$is_ok == FALSE) {next}
   }
   
   # Plot the grid with matched control and treated for the country 
-  fn_post_plot_grid(iso = i, wdpaid = j,
+  output_grid = fn_post_plot_grid(iso = i, wdpaid = j,
                     is_pa = FALSE,
                     df_pix_matched = df_pix_matched,
-                    path_tmp = tmp_post)
+                    path_tmp = tmp_post,
+                    log)
+   if(output_grid$is_ok == FALSE) {next}
   
 }
 
-toc_post = toc() #end timer
+#End post-processing timer
+toc_post = toc()
+
+#Append the log and save it
+cat(paste("END OF POST-PROCESSING :", toc_post$callback_msg, "\n\n"),
+    file = log, append = TRUE)
+aws.s3::put_object(file = log,
+                   bucket = "projet-afd-eva-ap/data_tidy/mapme_bio_data/matching",
+                   region = "",
+                   show_progress = FALSE)
+
 
 #Notes
 ## Automate the definition of cutoffs for CEM
 ### Coder 5.5.3 de Iacus et al. 2012 ? Permet de savoir le gain de matched units pour une modification des seuils d'une variable
-## Loop for different treatment years : need to adapt fn_post_avgLoss_prefund function
 ## Allow to enter a list of any covariates to perform the matching
 ## Function to plot Fig. 3 in Iacus et al. 2012
-## Il faut contrôler le nombre de paired units à la fin ! Typiquement on veut que tous les pixels traités soient retenus, idéalement.
 ## On veut ATE ou ATT ?? Je dirai ATT car on ne veut pas estimer l'effet de mettre une AP, mais l'effet des AP financés par l'AFD 
+
+
 ```

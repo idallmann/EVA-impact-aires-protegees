@@ -6,6 +6,18 @@
 #Pre-processing
 ###
 
+fn_pre_log = function(list_iso, name, notes)
+{
+  str_iso = paste(list_iso, collapse = ", ")
+  log = paste(tempdir(), name, sep = "/")
+  file.create(log)
+  #Do not forget to end the writing with a \n to avoid warnings
+  #cat(paste("#####\nCOUNTRY :", iso, "\nTIME :", print(Sys.time(), tz = "UTC-2"), "\n#####\n\n###\nPRE-PROCESSING\n###\n\n"), file = log, append = TRUE)
+  cat(paste("STARTING TIME :", print(Sys.time(), tz = "UTC-2"), "\nCOUNTRIES :", str_iso, "\nNOTES :", notes, "\n\n##########\nPRE-PROCESSING\n##########\n\n"), file = log, append = TRUE)
+  
+  return(log)
+}
+
 #Find UTM code for a given set of coordinates
 ##INPUTS : coordinates (lonlat)
 ##OUTPUTS : UTM code
@@ -32,8 +44,13 @@ lonlat2UTM = function(lonlat)
 ### utm_code : UTM code of the country
 ### gridSize : the resolution of gridding, defined from the area of the PA with the lowest area
 
-fn_pre_grid = function(iso, path_tmp, data_pa, sampling)
+fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log)
 {
+  
+  output = withCallingHandlers(
+    
+    {
+      
   # Download country polygon to working directory and load it into workspace
   gadm = gadm(country = iso, resolution = 1, level = 0, path = path_tmp) %>% 
     st_as_sf() 
@@ -46,16 +63,16 @@ fn_pre_grid = function(iso, path_tmp, data_pa, sampling)
     st_transform(crs = utm_code)
   
   #Determine relevant grid size
-  ##Select the PA in the country with minimum area. PAs with null areas or treatment year before 2000 are discarded (not analyzed anyway)
+  ##Select the PA in the country with minimum area. PAs with null areas, marine or treatment year before 2000 are discarded (not analyzed anyway)
   pa_min = data_pa %>%
-    filter(iso3 == iso & status_yr >= 2000 & superficie > 0) %>%
+    filter(iso3 == iso & is.na(wdpaid) == FALSE & status_yr >= yr_min & marine %in% c(0,1)) %>%
     arrange(superficie) %>%
     slice(1)
   ##From this minimum area, define the grid size. 
   ##It depends on the sampling of the minimal area, i.e how many pixels we want to subdivide the PA with lowest area
   ## To avoid a resolution higher than the one of our data, grid size is set to be 30m at least (resolution of tree cover data, Hansen et al. 2013)
   area_min = pa_min$superficie #in kilometer
-  gridSize = max(30, round(sqrt(area_min/sampling)*1000, 0)) #Side of the pixel is expressed in meter and rounded, if above 30m. 
+  gridSize = max(1e3, round(sqrt(area_min/sampling)*1000, 0)) #Side of the pixel is expressed in meter and rounded, if 1km. 
   
   # Make bounding box of projected country polygon
   bbox = st_bbox(gadm_prj) %>% st_as_sfc() %>% st_as_sf() 
@@ -70,7 +87,6 @@ fn_pre_grid = function(iso, path_tmp, data_pa, sampling)
   grid = grid.ini[sort(grid.sub)] %>%
     st_as_sf() %>%
     mutate(gridID = seq(1:nrow(.))) # Add id for grid cells
-  #Visualize and save the grid
   
   #Extract country name
   country.name = data_pa %>% 
@@ -78,6 +94,7 @@ fn_pre_grid = function(iso, path_tmp, data_pa, sampling)
     slice(1)
   country.name = country.name$pays
   
+  #Visualize and save the grid
   fig_grid = ggplot() +
     geom_sf(data = st_geometry(bbox)) +
     geom_sf(data = st_geometry(gadm_prj)) +
@@ -92,9 +109,43 @@ fn_pre_grid = function(iso, path_tmp, data_pa, sampling)
                      bucket = paste("projet-afd-eva-ap/data_tidy/mapme_bio_data/matching", iso, sep = "/"), 
                      region = "", 
                      show_progress = FALSE)
+  
+  #Append the log 
+  cat("#Generating observation units\n-> OK\n", file = log, append = TRUE)
+  
   #Return outputs
-  list_output = list("ctry_shp_prj" = gadm_prj, "grid" = grid, "gridSize" = gridSize, "utm_code" = utm_code)
+  list_output = list("ctry_shp_prj" = gadm_prj, 
+                     "grid" = grid, 
+                     "gridSize" = gridSize, 
+                     "utm_code" = utm_code,
+                     "is_ok" = TRUE)
   return(list_output)
+  
+    },
+  
+  error = function(e)
+  {
+    #Print the error and append the log
+    print(e)
+    #Append the log 
+    cat(paste("#Generating observation units\n-> Error :\n", e, "\n"), file = log, append = TRUE)
+    #Return string to inform user to skip
+    return(list("is_ok" = FALSE))
+  },
+  
+  warning = function(w)
+  {
+    #Print the warning and append the log
+    print(w)
+    #Append the log 
+    cat(paste("#Generating observation units\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+    #Return string to inform user to skip
+    return(list("is_ok" = TRUE))
+  }
+  
+  )
+  
+  return(output)
 }
 
 #Assign each pixel (observation unit) to a group : PA non-funded, funded and analyzed, funded and not analyzed, buffer, potential control
@@ -109,10 +160,15 @@ fn_pre_grid = function(iso, path_tmp, data_pa, sampling)
 ### gridSize : resolution of the gridding
 ##OUTPUTS : 
 ### grid.param : a raster representing the gridding of the country with two layers. One for the group each pixel belongs to (funded PA, non-funded PA, potential control, buffer), the other for the WDPAID corresponding to each pixel (0 if not a PA)
+##NOTES :
+### Errors can arise from the wdpa_clean() function, during "formatting attribute data" step. Can be settled playing with geometry_precision parameter
 
-fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, data_pa, gadm_prj, grid, gridSize)
+fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, data_pa, gadm_prj, grid, gridSize, log)
 {
   
+  output = withCallingHandlers(
+    
+    {
   # wdpa_prj = wdpa_raw %>%
   #   filter(ISO3 == iso) %>%
   #   dplyr::select(c("WDPAID", "MARINE", "PA_DEF", "STATUS_YR", "NO_TK_AREA"))
@@ -120,7 +176,8 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
   # PAs are projected, and column "geometry_type" is added
   wdpa_prj = wdpa_raw %>%
     filter(ISO3 == iso) %>%
-    wdpa_clean(geometry_precision = 1000) %>%
+    #st_make_valid() %>%
+    wdpa_clean() %>% #the geometry precision is set to default. Used to be 1000 in Kemmeng code
     # Remove the PAs that are only proposed, or have geometry type "point"
     filter(STATUS != "Proposed") %>%
     filter(GEOMETRY_TYPE != "POINT") %>%
@@ -137,14 +194,14 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
   ##PAs funded by AFD 
   ###... which can bu used in impact evaluation
   pa_afd_ie = data_pa %>%
-    filter(iso3 == iso & is.na(wdpaid) == FALSE & superficie > 0 & status_yr >= yr_min)
+    filter(iso3 == iso & is.na(wdpaid) == FALSE & superficie > 1 & status_yr >= yr_min & marine %in% c(0,1))
   wdpaID_afd_ie = pa_afd_ie[pa_afd_ie$iso3 == iso,]$wdpaid
   wdpa_afd_ie = wdpa_prj %>% filter(WDPAID %in% wdpaID_afd_ie) %>%
     mutate(group=2,
            group_name = "Funded PA, analyzed") # Assign an ID "1" to the funded PA group
   ###...which cannot
   pa_afd_no_ie = data_pa %>%
-    filter(iso3 == iso & (is.na(wdpaid) == TRUE | superficie == 0 | is.na(superficie) | status_yr < yr_min))
+    filter(iso3 == iso & (is.na(wdpaid) == TRUE | superficie <= 1 | is.na(superficie) | status_yr < yr_min | marine == 2)) #PAs not in WDPA, of area less than 1km2 (Wolf et al 2020), not terrestrial/coastal or implemented after yr_min are not analyzed
   wdpaID_afd_no_ie = pa_afd_no_ie[pa_afd_no_ie$iso3 == iso,]$wdpaid 
   wdpa_afd_no_ie = wdpa_prj %>% filter(WDPAID %in% wdpaID_afd_no_ie) %>%
     mutate(group=3,
@@ -223,9 +280,14 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
   # For instance, if a PA non-funded (group = 4) overlaps with a funded, analyzed one (group = 2), then the pixel will be assigned to the group 2
   # Same for group 3 (funded, not analyzed). Then, the following correction is applied.
   # Finally, each group is given a name for later plotting
+  # grid.param = grid.param.ini %>%
+  #   mutate(group = case_when(wdpaid %in% wdpaID_no_afd & group == 2 ~ 4,
+  #                            wdpaid %in% wdpaID_afd_no_ie & group == 2 ~3,
+  #                            TRUE ~ group)) %>%
+  #/!\ For the moment, a pixel both non-funded and funded is considered funded !
+  #But if funded not analyzed AND funded analyzed, then funded not analyzed
   grid.param = grid.param.ini %>%
-    mutate(group = case_when(wdpaid %in% wdpaID_no_afd & group == 2 ~ 4,
-                             wdpaid %in% wdpaID_afd_no_ie & group == 2 ~3,
+    mutate(group = case_when(wdpaid %in% wdpaID_afd_no_ie & group == 2 ~ 3,
                              TRUE ~ group)) %>%
     #Add name for the group
     mutate(group_name = case_when(group == 0 ~ "Background",
@@ -234,7 +296,6 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
                                   group == 3 ~ "Funded PA, not analyzed",
                                   group == 4 ~ "Non-funded PA",
                                   group == 5 ~ "Buffer"))
-  
   
   
   #Save the grid
@@ -255,7 +316,7 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
   
   fig_grid_group = 
     ggplot(grid.param) +
-    geom_sf(aes(fill = as.factor(group_name))) +
+    geom_sf(aes(fill = as.factor(group_name)), color = NA) +
     labs(title = paste("Gridding of", country.name)) +
     scale_fill_brewer(name = "Group", type = "qual", palette = "YlGnBu", direction = -1) +
     # scale_color_viridis_d(
@@ -359,8 +420,39 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
   }
   do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
   
+  #Append the log 
+  cat("#Determining Group IDs and WDPA IDs\n-> OK\n", file = log, append = TRUE)
+  
+  #Return the output
+  list_output = list("grid.param" = grid.param, "is_ok" = TRUE)
+  return(list_output)
+  
+    },
+  
+  error = function(e)
+  {
+    #Print the error and append the log
+    print(e)
+    #Append the log 
+    cat(paste("#Determining Group IDs and WDPA IDs\n-> Error :\n", e, "\n"), file = log, append = TRUE)
+    #Return string to inform user to skip
+    return(list("is_ok" = FALSE))
+  },
+  
+  warning = function(w)
+  {
+    #Print the warning and append the log
+    print(w)
+    #Append the log 
+    cat(paste("#Determining Group IDs and WDPA IDs\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+    #Return string to inform user to skip
+    return(list("is_ok" = TRUE))
+  }
+  
+  )
+  
   #Return outputs
-  return(grid.param)
+  return(output)
   
 }
 
@@ -503,8 +595,12 @@ fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output, yr_firs
 
 
 
-fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output, yr_first, yr_last) 
+fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output, yr_first, yr_last, log) 
 {
+  output = tryCatch(
+    
+    {
+  tic = tic()
   
   print("----Initialize portfolio")
   #Take only potential control (group = 1) and treatment (group = 2) in the country gridding
@@ -538,16 +634,18 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
                              range_traveltime = c("5k_110mio"))
   dl.tree = get_resources(aoi, resources = c("gfw_treecover", "gfw_lossyear"))
   
-  # dl.elevation = get_resources(aoi, "nasa_srtm")
+  dl.elevation = get_resources(aoi, "nasa_srtm")
   
-  # dl.tri = get_resources(aoi, "nasa_srtm")
+  dl.tri = get_resources(aoi, "nasa_srtm")
   
   print("----Compute indicators")
   #Compute indicators
   
-  #Begin callr
-  plan(callr) 
+  #Begin multisession
+  # gc : optimize memory management for the background sessions.
+  # Multisession with workers = 6 as in mapme.biodiversity tutorial : https://mapme-initiative.github.io/mapme.biodiversity/articles/quickstart.html?q=parall#enabling-parallel-computing
   
+  plan(multisession, workers = 6, gc = TRUE) 
   with_progress({
     get.soil %<-% {calc_indicators(dl.soil,
                                 indicators = "soilproperties",
@@ -563,12 +661,12 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
                                min_size=1, # indicator-specific argument
                                min_cover=10)}
   
-    # get.elevation %<-% calc_indicators(dl.elevation,
-    #                   indicators = "elevation",
-    #                   stats_elevation = c("mean"))
+    get.elevation %<-% calc_indicators(dl.elevation,
+                      indicators = "elevation",
+                      stats_elevation = c("mean"))
     
-    # get.tri %<-% calc_indicators(dl.tri,
-    #                   indicators = "tri")
+    get.tri %<-% calc_indicators(dl.tri,
+                      indicators = "tri")
     
     })
   
@@ -577,17 +675,31 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   ## Transform the output dataframe into a pivot dataframe
   data.soil = unnest(get.soil, soilproperties) %>%
     mutate(across(c("mean"), \(x) round(x, 3))) %>% # Round numeric columns
-    pivot_wider(names_from = c("layer", "depth", "stat"), values_from = "mean")
+    pivot_wider(names_from = c("layer", "depth", "stat"), values_from = "mean") %>%
+    rename("clay_0_5cm_mean" = "clay_0-5cm_mean") %>%
+    mutate(clay_0_5cm_mean = case_when(is.nan(clay_0_5cm_mean) ~ NA,
+                                       TRUE ~ clay_0_5cm_mean))
   
   data.travelT = unnest(get.travelT, traveltime) %>%
-    pivot_wider(names_from = "distance", values_from = "minutes_median", names_prefix = "minutes_median_")
+    pivot_wider(names_from = "distance", values_from = "minutes_median", names_prefix = "minutes_median_") %>%
+    mutate(minutes_median_5k_110mio = case_when(is.nan(minutes_median_5k_110mio) ~ NA,
+                                       TRUE ~ minutes_median_5k_110mio))
   
   data.tree = unnest(get.tree, treecover_area) %>%
+    drop_na(treecover) %>% #get rid of units with NA values 
     mutate(across(c("treecover"), \(x) round(x, 3))) %>% # Round numeric columns
     pivot_wider(names_from = "years", values_from = "treecover", names_prefix = "treecover_")
   
-  ## End parallel plan : close parralel sessions, so must be done once indicators' datasets are built
-  #plan(sequential)
+  data.tri = unnest(get.tri, tri) %>%
+    mutate(tri_mean = case_when(is.nan(tri_mean) ~ NA,
+                                TRUE ~ tri_mean))
+  
+  data.elevation = unnest(get.elevation, elevation) %>%
+    mutate(elevation_mean = case_when(is.nan(elevation_mean) ~ NA,
+                                TRUE ~ elevation_mean))
+  
+  ## End parallel plan : close parallel sessions, so must be done once indicators' datasets are built
+  plan(sequential)
   
   # The calculation of tree loss area is performed at dataframe base
   # Get the column names of tree cover time series
@@ -611,17 +723,18 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   df.tree = data.tree %>% mutate(x = NULL) %>% as.data.frame()
   df.travelT = data.travelT %>% mutate(x = NULL) %>% as.data.frame()
   df.soil = data.soil %>% mutate(x = NULL) %>% as.data.frame()
-  # df.elevation = get.elevation %>% mutate(x = NULL) %>% as.data.frame()
-  # df.tri = get.tri %>% mutate(x=NULL) %>% as.data.frame()
+  df.elevation = data.elevation %>% mutate(x = NULL) %>% as.data.frame()
+  df.tri = data.tri %>% mutate(x=NULL) %>% as.data.frame()
   
   # Make a dataframe containing only "assetid" and geometry
-  df.geom = data.tree[, c("assetid", "x")] %>% as.data.frame()
+  # Use data.soil instead of data.tree, as some pixels are removed in data.tree (NA values from get.tree)
+  df.geom = data.soil[, c("assetid", "x")] %>% as.data.frame() 
   
   # Merge all output dataframes 
-  # pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.elevation, df.tri, df.geom)) %>%
-  #   st_as_sf()
-  pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.geom)) %>%
+  pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.elevation, df.tri, df.geom)) %>%
     st_as_sf()
+  # pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.geom)) %>%
+  #   st_as_sf()
   # Make column Group ID and WDPA ID have data type "integer"
   pivot.all$group = as.integer(pivot.all$group)
   pivot.all$wdpaid = as.integer(pivot.all$wdpaid)
@@ -636,7 +749,40 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   #Removing files in the temporary folder
   do.call(file.remove, list(list.files(tmp_pre, include.dirs = F, full.names = T, recursive = T)))
   
+  #End timer
+  toc = toc()
   
+  #Append the log
+  cat(paste("#Calculating outcome and other covariates\n-> OK :", toc$callback_msg, "\n\n"), file = log, append = TRUE)
+
+  #Return the output
+  return(list("is_ok" = TRUE))
+  
+    },
+  
+  error = function(e)
+  {
+    #Print the error and append the log
+    print(e)
+    #Append the log 
+    cat(paste("#Calculating outcome and other covariates\n-> Error :\n", e, "\n\n"), file = log, append = TRUE)
+    #Return string to inform user to skip
+    return(list("is_ok" = FALSE))
+  }
+  
+  # warning = function(w)
+  # {
+  #   #Print the warning and append the log
+  #   print(w)
+  #   #Append the log 
+  #   cat(paste("#Calculating outcome and other covariates\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+  #   #Return string to inform user to skip
+  #   return(list("is_ok" = TRUE))
+  # }
+  
+  )
+  
+  return(output)
 }
 
 
@@ -653,8 +799,12 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
 ### yr_min : the minimum for treatment year
 ##OUTPUTS :
 ### mf : matching dataframe. More precisely, it gives for each observation units in a country values of different covariates to perform matching.
-fn_post_load_mf = function(iso, yr_min, name_input, ext_input)
+fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log)
 {
+  output = tryCatch(
+    
+    {
+      
   #Load the matching dataframe
   object = paste("data_tidy/mapme_bio_data/matching", iso, paste0(name_input, "_", iso, ext_input), sep = "/")
   mf = s3read_using(sf::st_read,
@@ -667,8 +817,8 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input)
     #Remove PAs non-funded by AFD and buffers
     filter(group==1 | group==2) %>%
     #Remove observations with NA values only for covariates (except for status_yr, direction_regionale, annee_octroi which are NA for control units)
-    drop_na(-c(status_yr, annee_octroi, direction_regionale, iso3, pays)) %>%
-    filter(status_yr >= yr_min | is.na(status_yr))
+    drop_na(-c(status_yr, annee_octroi, direction_regionale, iso3, pays)) #%>%
+     #filter(status_yr >= yr_min | is.na(status_yr))
   
   #Write the list of PAs matched
   list_pa = mf %>%
@@ -687,8 +837,35 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input)
                 object = paste("data_tidy/mapme_bio_data/matching", iso, paste0("list_pa_matched_", iso, ".csv"), sep = "/"),
                 opts = list("region" = ""))
   
+  #Append the log
+  cat("Loading the matching frame -> OK\n", file = log, append = TRUE)
   
-  return(mf)
+  #Return output
+  return(list("mf" = mf, "is_ok" = TRUE))
+  
+    },
+  
+  error = function(e)
+  {
+    print(e)
+    cat(paste("Error in loading the matching frame :\n", e, "\n"), file = log, append = TRUE)
+    return(list("is_ok" = FALSE))
+  }
+  
+  # warning = function(w)
+  # {
+  #   #Print the warning and append the log
+  #   print(w)
+  #   #Append the log 
+  #   cat(paste("Warining while loading the matching frame :\n", w, "\n"), file = log, append = TRUE)
+  #   #Return string to inform user to skip
+  #   return(list("is_ok" = TRUE))
+  # }
+  
+  
+  )
+  
+  return(output)
 }
 
 
@@ -702,8 +879,14 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input)
 ## OUTPUTS :
 ### mf : matching frame with the new covariate
 
-fn_post_avgLoss_prefund = function(mf, colfl.prefix, colname.flAvg)
+fn_post_avgLoss_prefund = function(mf, colfl.prefix, colname.flAvg, log)
 {
+  
+  output = tryCatch(
+    
+    {
+      
+  #OLD
   # Columns treeloss, without geometry
   # start = yr_start - 2000
   # end = yr_end - 2000
@@ -711,16 +894,31 @@ fn_post_avgLoss_prefund = function(mf, colfl.prefix, colname.flAvg)
   #   st_drop_geometry()
   # # Add column: average treeloss before funding starts, 
   # mf$avgLoss_pre_fund = round(rowMeans(df_fl), 2)
-  
-  ###TEST
+
   #Extract treatment year
   treatment.year = mf %>% 
     filter(group == 2) %>% 
     slice(1)
   treatment.year = treatment.year$status_yr
+  
+  #Extract first year treeloss is computed
+  ##Select cols with "treeloss" in mf, drop geometry, replace "treeloss_" by "", convert to num and take min
+  treeloss.ini.year = mf[grepl(colfl.prefix, names(mf))] %>%
+    st_drop_geometry() %>%
+    names() %>%
+    gsub(paste0(colfl.prefix, "_"), "", .) %>%
+    as.numeric() %>%
+    min()
+  
   #Define period to compute average loss
-  yr_start = (treatment.year-5)
-  yr_end = (treatment.year -1)
+  ##If 5 pre-treatment periods are available at least, then average pre-treatment deforestation is computed on this 5 years range
+  ## If less than 5 are available, compute on this restricted period
+  ## Note that by construction, treatment.year >= treeloss.ini.year +1 (as yr_min = yr_first+2 in the parameters)
+  if((treatment.year-treeloss.ini.year) >=5)
+  {yr_start = (treatment.year)-5
+  yr_end = (treatment.year)-1} else if((treatment.year-treeloss.ini.year <5) & (treatment.year-treeloss.ini.year >0))
+  {yr_start = treeloss.ini.year
+  yr_end = (treatment.year)-1} 
   #Transform it in variable suffix
   var_start = yr_start - 2000
   var_end = yr_end - 2000
@@ -732,7 +930,34 @@ fn_post_avgLoss_prefund = function(mf, colfl.prefix, colname.flAvg)
   #Remove NA values
   mf = mf %>% drop_na(avgLoss_pre_fund)
   
-  return(mf)
+  #Append the log
+  cat("#Add average pre-treatment treecover loss\n-> OK\n", file = log, append = TRUE)
+  
+  #Return output
+  return(list("mf" = mf, "is_ok" = TRUE))
+  
+    },
+  
+  error = function(e)
+  {
+    print(e)
+    cat(paste("#Add average pre-treatment treecover loss\n-> Error :\n", e, "\n"), file = log, append = TRUE)
+    return(list("is_ok" = FALSE))
+  }
+  
+  # warning = function(w)
+  # {
+  #   #Print the warning and append the log
+  #   print(w)
+  #   #Append the log 
+  #   cat(paste("#Add average pre-treatment treecover loss\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+  #   #Return string to inform user to skip
+  #   return(list("is_ok" = TRUE))
+  # }
+  
+  )
+  
+  return(output)
 }
 
 #Define the cutoffs of the covariates histogram, to perform Coarsened Exact Matching (CEM)
@@ -804,12 +1029,13 @@ fn_post_cem = function(mf, lst_cutoffs, iso, path_tmp,
   
 }
 
-fn_post_match = function(mf, iso, path_tmp,
+fn_post_match_manual = function(mf, iso, wdpaid, path_tmp,
+                         th_mean, th_var_min, th_var_max,
                          colname.travelTime, colname.clayContent, 
                          colname.elevation, colname.tri, 
                          colname.fcIni, colname.flAvg)
 {
-  ## Formula
+  # Formula
   formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
                         + .(as.name(colname.clayContent))  
                         +  .(as.name(colname.fcIni)) 
@@ -817,14 +1043,12 @@ fn_post_match = function(mf, iso, path_tmp,
 
   
   is_match_ok = FALSE
-  #step_ini = 0.1
   count = 1
-  list_sep = c(1, 5, 10, 15, 20, 25, 40, 50) #The thresholds to try, in percentage points  
-  while (is_match_ok == FALSE)
+  list_sep = c(1, 5, 10, 15, 20, 25, 40, 50, 100) #The quantile thresholds to try, in percentage points
+  
+  while (is_match_ok == FALSE & count <= length(list_sep))
   {
     # Define cutoffs for CEM matching
-    
-    ## Make cut-off list
     lst_cutoffs = c()
     sep = list_sep[count] #step is increased by 10% each iteration
     
@@ -845,7 +1069,7 @@ fn_post_match = function(mf, iso, path_tmp,
 
 
     ## Matching handling errors due to absence of matching
-    tryCatch(
+    withCallingHandlers(
       {
         #Try to perform matching
         out.cem = matchit(formula,
@@ -853,31 +1077,32 @@ fn_post_match = function(mf, iso, path_tmp,
                           method = "cem",
                           cutpoints = lst_cutoffs)
         
-        #Compute matching feature FI the matching has been performed, otherwise it runs the error function
-        # df_nn = summary(out.cem)$nn %>% as.data.frame()
-        # n_matched = df_nn["Matched", "Treated"]
-        # n_all = df_nn["All", "Treated"]
-        # per_matched = n_matched/n_all*100
-        
-        df_cov_m = summary(out.cem, interactions = TRUE)$sum.matched %>%
+        #Compute matching feature IF the matching has been performed, otherwise it runs the error function
+        ##Percentage of units matched
+        df.nn = summary(out.cem)$nn %>% as.data.frame()
+        n.matched = df.nn["Matched", "Treated"]
+        n.all = df.nn["All", "Treated"]
+        per.matched = n.matched/n.all*100
+        ## Covariate balance : standardized mean difference and variance ratio
+        df.cov.m = summary(out.cem, interactions = FALSE)$sum.matched %>%
           as.data.frame() %>%
           clean_names() %>%
-          mutate(sum_abs_std_mean_diff = sum(abs(std_mean_diff)),
-                 is_var_ok = var.ratio < 2 & var.ratio > 0.5, #Check variance ratio between treated and controls
-                 is_mean_ok = abs(std_mean_diff) < 0.1, #Check absolute standardized mean difference
-                 is_bal_ok = is_var_ok*is_mean_ok, #Binary : TRUE if both variance and mean difference check pass, 0 if at least one does not
+          mutate(is_var_ok = var_ratio < th_var_max & var_ratio > th_var_min, #Check variance ratio between treated and controls
+                 is_mean_ok = abs(std_mean_diff) < th_mean, #Check absolute standardized mean difference
+                 is_bal_ok = as.logical(is_var_ok*is_mean_ok), #Binary : TRUE if both variance and mean difference check pass, 0 if at least one does not
                  .after = "std_mean_diff")
         
-        
-        
-        if(per_matched >= 25)
+        # Depending on covariate balance, different possibilities
+        ## If all covariates are balanced, then the matching with the cutoffs in this iteration is kept
+        if(sum(df.cov.m$is_bal_ok) == nrow(df.cov.m) & is.na(sum(df.cov.m$is_bal_ok)) == FALSE) 
         {
-          print(paste("It's a good match !", round(per_matched, 1), "% of treated units matched"))
+          print(paste("It's a good match ! Variance ratio is between", th_var_min, "and", th_var_max, ", absolute standardized mean difference is below", th_mean, ".", round(per.matched, 1), "% of treated units matched."))
           is_match_ok <<- TRUE
-          return(out.cem)
-        } else 
+          return(list("out.cem" = out.cem, "df.cov.m" = df.cov.m))
+        } else if (sum(df.cov.m$is_bal_ok) > 0 & sum(df.cov.m$is_bal_ok) < nrow(df.cov.m) & is.na(sum(df.cov.m$is_bal_ok)) == FALSE)
+          ## If at least one covariate is not balanced
           {
-            print(paste("Matching was done successfuly but only", per_matched, "% of treated units matched. Next iteration"))
+            print(paste("Matching not satisfactory regarding variance ratio or standardized mean difference."))
             count = count+1
           }
         
@@ -920,8 +1145,165 @@ fn_post_match = function(mf, iso, path_tmp,
   
 }
   
+fn_post_match_auto = function(mf,
+                              iso,
+                              dummy_int,
+                              th_mean, 
+                              th_var_min, th_var_max,
+                              colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcIni, colname.flAvg,
+                              log)
+{
+
+  #Append the log file : CEM step
+  cat("#Run Coarsened Exact Matching\n", 
+      file = log, append = TRUE)
   
+  ## Matching handling errors due to absence of matching
+  output = 
+    tryCatch(
+    {
+      # Formula
+      formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
+                            + .(as.name(colname.clayContent))  
+                            +  .(as.name(colname.fcIni)) 
+                            + .(as.name(colname.flAvg))
+                            + .(as.name(colname.tri))
+                            + .(as.name(colname.elevation))))
+      
+      #Try to perform matching
+      out.cem = matchit(formula,
+                        data = mf,
+                        method = "cem",
+                        cutpoints = "sturges",
+                        k2k = TRUE,
+                        k2k.method = "mahalanobis")
+      
+      ## Covariate balance : standardized mean difference and variance ratio
+      ## For both tests and the joint one, a dummy variable is defined, with value TRUE is the test is passed
+      df.cov.m = summary(out.cem, interactions = dummy_int)$sum.matched %>%
+        as.data.frame() %>%
+        clean_names() %>%
+        mutate(is_var_ok = var_ratio < th_var_max & var_ratio > th_var_min, #Check variance ratio between treated and controls
+               is_mean_ok = abs(std_mean_diff) < th_mean, #Check absolute standardized mean difference
+               is_bal_ok = as.logical(is_var_ok*is_mean_ok), #Binary : TRUE if both variance and mean difference check pass, 0 if at least one does not
+               .after = "std_mean_diff")
+      
+      #Add a warning if covariate balance tests are not passed
+      if(sum(df.cov.m$is_bal_ok) < nrow(df.cov.m) | is.na(sum(df.cov.m$is_bal_ok)) == TRUE)
+      {
+        message("Matched control and treated units are not balanced enough. Increase sample size, turn to less restrictive tests or visually check balance.")
+        cat("-> Careful : matched control and treated units are not balanced enough. Increase sample size, turn to less restrictive tests or visually check balance.\n", 
+            file = log, append = TRUE)
+      }
+      
+      #Append the log : note the step has already been appended at the beginning of the function
+      cat("-> OK\n", file = log, append = TRUE)
+      
+      return(list("out.cem" = out.cem, "df.cov.m" = df.cov.m, "is_ok" = TRUE))
+      
+    },
+    
+    error=function(e)
+    {
+      print(e)
+      cat(paste("-> Error :\n", e, "\n"), file = log, append = TRUE)
+      return(list("is_ok" = FALSE))
+    },
+    
+    warning = function(w)
+    {
+      #Print the warning and append the log
+      #Append the log 
+      cat(paste("-> Warning :\n", w, "\n"),
+          file = log, append = TRUE)
+      return(list("is_ok" = FALSE)) #Here warning comes from an absence of matching : thus must skip to next country
+    }
+    
+  )
   
+  return(output)
+  
+}
+    
+
+fn_post_match_auto_old = function(mf, iso,
+                              dummy_int,
+                              th_mean, 
+                              th_var_min, th_var_max)
+{
+  # Formula
+  formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
+                        + .(as.name(colname.clayContent))  
+                        +  .(as.name(colname.fcIni)) 
+                        + .(as.name(colname.flAvg))))
+  
+  list_cut = c("sturges", "scott", "fd") #Three methods to define bins size of a distribution automatically (Iacus et al. 2011)
+  list_results = c()
+  
+  # For the three methods offered by matchit, perform matching and run some tests on covariate balance
+  for (cut_method in list_cut)
+  {
+    
+    ## Matching handling errors due to absence of matching
+    withCallingHandlers(
+      {
+        #Try to perform matching
+        out.cem = matchit(formula,
+                          data = mf,
+                          method = "cem",
+                          cutpoints = "fd",
+                          k2k = TRUE,
+                          k2k.method = "mahalanobis")
+        
+        #Compute matching feature IF the matching has been performed, otherwise it runs the error function
+        ##Percentage of units matched
+        # df.nn = summary(out.cem)$nn %>% as.data.frame()
+        # n.matched = df.nn["Matched", "Treated"]
+        # n.all = df.nn["All", "Treated"]
+        # per.matched = n.matched/n.all*100
+        ## Covariate balance : standardized mean difference and variance ratio
+        ## For both tests and the joint one, a dummy variable is defined, with value TRUE is the test is passed
+        df.cov.m = summary(out.cem, interactions = dummy_int)$sum.matched %>%
+          as.data.frame() %>%
+          clean_names() %>%
+          mutate(is_var_ok = var_ratio < th_var_max & var_ratio > th_var_min, #Check variance ratio between treated and controls
+                 is_mean_ok = abs(std_mean_diff) < th_mean, #Check absolute standardized mean difference
+                 is_bal_ok = as.logical(is_var_ok*is_mean_ok), #Binary : TRUE if both variance and mean difference check pass, 0 if at least one does not
+                 .after = "std_mean_diff")
+        
+        list_results[[cut_method]] = list("out.cem" = out.cem, "df.cov.m" = df.cov.m)
+        
+      },
+        
+      error=function(e)
+      {
+        message(paste('Error : the method', cut_method, "for cutpoints is not able to match units. Increase the sampling or try an other method."))
+        list_results[[cut_method]] = list("df.nn" = paste('Error : the method', cut_method, "for cutpoints is not able to match units. Increase the sampling or try an other method."), 
+                                         "df.cov.m" = paste('Error : the method', cut_method, "for cutpoints is not able to match units. Increase the sampling or try an other method."))
+      }
+      
+    )
+    
+  }
+  
+  # From the covariate balance check, choosing which method whose results are returned : arbitrarily, we prefer sturges over scott, and scott over fd.
+  is_sturges_ok = sum(list_results[["sturges"]]$df.cov.m$is_bal_ok) == nrow(list_results[["sturges"]]$df.cov.m)
+  is_scott_ok = sum(list_results[["scott"]]$df.cov.m$is_bal_ok) == nrow(list_results[["scott"]]$df.cov.m)
+  is_fd_ok = sum(list_results[["fd"]]$df.cov.m$is_bal_ok) == nrow(list_results[["fd"]]$df.cov.m)
+  if(is_sturges_ok == TRUE)
+  {
+    return(list_results[["sturges"]])
+  } else if (is_scott_ok == TRUE) 
+  {
+    return(list_results[["scott"]])
+  } else if (is_fd_ok == TRUE)
+  {
+    return(list_results[["fd"]])
+  } else next 
+
+}
+
+
 #Plot covariates balance (plots and summary table)
 ## INPUTS :
 ### out.cem : list of results from the CEM matching
@@ -931,9 +1313,13 @@ fn_post_match = function(mf, iso, path_tmp,
 ## OUTPUTS :
 ### None
 
-fn_post_covbal = function(out.cem, mf, colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, iso, path_tmp, wdpaid)
+fn_post_covbal = function(out.cem, mf, colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, colname.tri, colname.elevation, iso, path_tmp, wdpaid, log)
 {
   
+  output = tryCatch(
+    
+    {
+      
   #Save summary table from matching
   smry_cem = summary(out.cem)
   tbl_cem_nn = smry_cem$nn
@@ -947,9 +1333,9 @@ fn_post_covbal = function(out.cem, mf, colname.travelTime, colname.clayContent, 
   country.name = country.name$pays
   
   #Plot covariate balance
-  c_name = data.frame(old = c(colname.travelTime, colname.clayContent,
+  c_name = data.frame(old = c(colname.travelTime, colname.clayContent, colname.tri, colname.elevation,
                               colname.fcIni, colname.flAvg),
-                      new = c("Accessibility", "Clay Content", "Forest Cover in 2000",
+                      new = c("Accessibility", "Clay Content", "Terrain Ruggedness Index (TRI)", "Elevation (m)", "Forest Cover in 2000",
                               "Avg. Annual Forest \n Loss 2001 ~ 2006"))
   
   # Refer to cobalt::love.plot()
@@ -1012,6 +1398,34 @@ fn_post_covbal = function(out.cem, mf, colname.travelTime, colname.clayContent, 
                        region = "", show_progress = TRUE)
   }
   do.call(file.remove, list(list.files(paste(path_tmp, "CovBal", sep = "/"), full.names = TRUE)))
+  
+  #Append the log
+  cat("#Plot covariates balance\n->OK\n", file = log, append = TRUE)
+  
+  return(list("is_ok" = TRUE))
+  
+    },
+  
+  error=function(e)
+  {
+    print(e)
+    cat(paste("#Plot covariates balance\n-> Error :\n", e, "\n"), file = log, append = TRUE)
+    return(list("is_ok" = FALSE))
+  }
+  
+  # warning = function(w)
+  # {
+  #   #Print the warning and append the log
+  #   print(w)
+  #   #Append the log 
+  #   cat(paste("#Plot covariates balance\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+  #   #Return string to inform user to skip
+  #   return(list("is_ok" = TRUE))
+  # }
+  
+  )
+  
+  return(output)
 
 }
 
@@ -1024,8 +1438,14 @@ fn_post_covbal = function(out.cem, mf, colname.travelTime, colname.clayContent, 
 ## OUTPUTS :
 ### None
 
-fn_post_plot_density = function(out.cem, mf, colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, iso, path_tmp, wdpaid = j)
+fn_post_plot_density = function(out.cem, mf, 
+                                colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, colname.tri, colname.elevation, 
+                                iso, path_tmp, wdpaid = j, log)
 {
+  output = tryCatch(
+    
+    {
+      
   # Define Facet Labels
   fnl = c(`Unadjusted Sample` = "Before Matching",
           `Adjusted Sample` = "After Matching")
@@ -1049,6 +1469,7 @@ fn_post_plot_density = function(out.cem, mf, colname.travelTime, colname.clayCon
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
          x = "Accessibility (min)",
          fill = "Group") +
+    theme_bw() +
     theme(
       plot.title = element_text(family="Arial Black", size=16, hjust = 0),
       
@@ -1076,6 +1497,7 @@ fn_post_plot_density = function(out.cem, mf, colname.travelTime, colname.clayCon
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
          x = "Clay content at 0~20cm soil depth (%)",
          fill = "Group") +
+    theme_bw() +
     theme(
       plot.title = element_text(family="Arial Black", size=16, hjust=0),
       
@@ -1093,59 +1515,59 @@ fn_post_plot_density = function(out.cem, mf, colname.travelTime, colname.clayCon
     )
   
   ## Density plot for Elevation
-  # fig_elevation = bal.plot(out.cem, 
-  #                     var.name = colname.elevation,
-  #                     which = "both") +
-  #     facet_wrap(.~which, labeller = as_labeller(fnl)) +
-  #     #scale_fill_viridis(discrete = T) +
-  #     scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
-  #     labs(title = "Distributional balance for elevation",
-  #          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-  #          x = "Elevation (m)",
-  #          fill = "Group") +
-  #     theme_bw() +
-  #     theme(
-  #         plot.title = element_text(family="Arial Black", size=16, hjust=0),
-  #         legend.title = element_blank(),
-  #         legend.text=element_text(size=14),
-  #         legend.spacing.x = unit(0.5, 'cm'),
-  #         legend.spacing.y = unit(0.75, 'cm'),
-  #         
-  #         axis.text=element_text(size=12),
-  #         axis.title=element_text(size=14),
-  #         axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
-  #         axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
-  #         
-  #         strip.text.x = element_text(size = 12) # Facet Label
-  #     )
+  fig_elevation = bal.plot(out.cem,
+                      var.name = colname.elevation,
+                      which = "both") +
+      facet_wrap(.~which, labeller = as_labeller(fnl)) +
+      #scale_fill_viridis(discrete = T) +
+      scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+      labs(title = "Distributional balance for elevation",
+           subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+           x = "Elevation (m)",
+           fill = "Group") +
+      theme_bw() +
+      theme(
+          plot.title = element_text(family="Arial Black", size=16, hjust=0),
+          legend.title = element_blank(),
+          legend.text=element_text(size=14),
+          legend.spacing.x = unit(0.5, 'cm'),
+          legend.spacing.y = unit(0.75, 'cm'),
+
+          axis.text=element_text(size=12),
+          axis.title=element_text(size=14),
+          axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+          axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+
+          strip.text.x = element_text(size = 12) # Facet Label
+      )
   
   ## Density plot for TRI
-  # fig_tri = bal.plot(out.cem, 
-  #                     var.name = colname.tri,
-  #                     which = "both") +
-  #     facet_wrap(.~which, labeller = as_labeller(fnl)) +
-  #     #scale_fill_viridis(discrete = T) +
-  #     scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
-  #     labs(title = "Distributional balance for Terrain Ruggedness Index (TRI)",
-  #         subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-  #          x = "TRI",
-  #          fill = "Group") +
-  #     theme_bw() +
-  #     theme(
-  #         plot.title = element_text(family="Arial Black", size=16, hjust=0),
-  #         
-  #         legend.title = element_blank(),
-  #         legend.text=element_text(size=14),
-  #         legend.spacing.x = unit(0.5, 'cm'),
-  #         legend.spacing.y = unit(0.75, 'cm'),
-  #         
-  #         axis.text=element_text(size=12),
-  #         axis.title=element_text(size=14),
-  #         axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
-  #         axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
-  #         
-  #         strip.text.x = element_text(size = 12) # Facet Label
-  #     )
+  fig_tri = bal.plot(out.cem,
+                      var.name = colname.tri,
+                      which = "both") +
+      facet_wrap(.~which, labeller = as_labeller(fnl)) +
+      #scale_fill_viridis(discrete = T) +
+      scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+      labs(title = "Distributional balance for Terrain Ruggedness Index (TRI)",
+          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+           x = "TRI",
+           fill = "Group") +
+      theme_bw() +
+      theme(
+          plot.title = element_text(family="Arial Black", size=16, hjust=0),
+
+          legend.title = element_blank(),
+          legend.text=element_text(size=14),
+          legend.spacing.x = unit(0.5, 'cm'),
+          legend.spacing.y = unit(0.75, 'cm'),
+
+          axis.text=element_text(size=12),
+          axis.title=element_text(size=14),
+          axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+          axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+
+          strip.text.x = element_text(size = 12) # Facet Label
+      )
   
   ## Density plot for covariate "forest cover 2000"
   fig_fc = bal.plot(out.cem, 
@@ -1158,6 +1580,7 @@ fn_post_plot_density = function(out.cem, mf, colname.travelTime, colname.clayCon
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
          x = "Forest cover (ha)",
          fill = "Group") +
+    theme_bw() +
     theme(
       plot.title = element_text(family="Arial Black", size=16, hjust=0),
       
@@ -1185,6 +1608,7 @@ fn_post_plot_density = function(out.cem, mf, colname.travelTime, colname.clayCon
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
          x = "Forest loss (%)",
          fill = "Group") +
+    theme_bw() +
     theme(
       plot.title = element_text(family="Arial Black", size=16, hjust=0.5),
       legend.title = element_blank(),
@@ -1211,14 +1635,14 @@ fn_post_plot_density = function(out.cem, mf, colname.travelTime, colname.clayCon
          plot = fig_clay,
          device = "png",
          height = 6, width = 9)
-  # ggsave(paste(tmp, paste0("fig_elevation_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
-  #        plot = fig_elevation,
-  #        device = "png",
-  #        height = 6, width = 9)
-  # ggsave(paste(tmp, paste0("fig_tri_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
-  #        plot = fig_tri,
-  #        device = "png",
-  #        height = 6, width = 9)
+  ggsave(paste(tmp, paste0("fig_elevation_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
+         plot = fig_elevation,
+         device = "png",
+         height = 6, width = 9)
+  ggsave(paste(tmp, paste0("fig_tri_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
+         plot = fig_tri,
+         device = "png",
+         height = 6, width = 9)
   ggsave(paste(tmp, paste0("fig_fc_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
          plot = fig_fc,
          device = "png",
@@ -1239,6 +1663,34 @@ fn_post_plot_density = function(out.cem, mf, colname.travelTime, colname.clayCon
   }
   do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
   
+  #Append the log
+  cat("#Plot covariates density\n->OK\n", file = log, append = TRUE)
+  
+  return(list("is_ok" = TRUE))
+  
+    },
+  
+  error=function(e)
+  {
+    print(e)
+    cat(paste("#Plot covariates density\n-> Error :\n", e, "\n"), file = log, append = TRUE)
+    return(list("is_ok" = FALSE))
+  }
+  
+  # warning = function(w)
+  # {
+  #   #Print the warning and append the log
+  #   print(w)
+  #   #Append the log 
+  #   cat(paste("#Plot covariates density\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+  #   #Return string to inform user to skip
+  #   return(list("is_ok" = TRUE))
+  # }
+  
+  )
+  
+  return(output)
+  
 }
 
 #Define panel datasets (long, wide) for control and treatment observation units, before and after matching.
@@ -1250,8 +1702,13 @@ fn_post_plot_density = function(out.cem, mf, colname.travelTime, colname.clayCon
 ## OUTPUTS :
 ### list_output : a list of dataframes : (un)matched.wide/long. They contain covariates and outcomes for treatment and control units, before and after matching, in a wide or long format
 
-fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpaid, iso)
+fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpaid, iso, log)
 {
+  
+  output = tryCatch(
+    
+    {
+      
   # Convert dataframe of matched objects to pivot wide form
   matched.wide = match.data(object=out.cem, data=mf)
   
@@ -1296,10 +1753,37 @@ fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpa
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
   
+  #Append the log
+  cat("#Panelize dataframe\n-> OK\n", file = log, append = TRUE)
+  
   #Return outputs
   list_output = list("matched.wide" = matched.wide, "matched.long" = matched.long,
-                     "unmatched.wide" = unmatched.wide, "unmatched.long" = unmatched.long)
+                     "unmatched.wide" = unmatched.wide, "unmatched.long" = unmatched.long,
+                     "is_ok" = TRUE)
   return(list_output)
+  
+    },
+  
+  error=function(e)
+{
+  print(e)
+  cat(paste("#Panelize dataframe\n-> Error :\n", e, "\n"), file = log, append = TRUE)
+  return(list("is_ok" = FALSE))
+}
+
+# warning = function(w)
+# {
+#   #Print the warning and append the log
+#   print(w)
+#   #Append the log 
+#   cat(paste("#Panelize dataframe\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+#   #Return string to inform user to skip
+#   return(list("is_ok" = TRUE))
+# }
+
+  )
+  
+  return(output)
   
 }
 
@@ -1309,8 +1793,12 @@ fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpa
 ## OUTPUTS : 
 ### None
 
-fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid) 
+fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log) 
 {
+  
+  output = tryCatch(
+    
+    {
   # Make dataframe for plotting Trend
   df.matched.trend = matched.long %>%
     group_by(group, year) %>%
@@ -1439,6 +1927,33 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid)
   }
   do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
   
+  #Append the log
+  cat("#Plot matched and unmatched trends\n-> OK\n\n", file = log, append = TRUE)
+  
+  return(list("is_ok" = TRUE))
+  
+    },
+  
+  error=function(e)
+  {
+    print(e)
+    cat(paste("#Plot matched and unmatched trends\n-> Error :\n", e, "\n\n"), file = log, append = TRUE)
+    return(list("is_ok" = FALSE))
+  }
+  
+  # warning = function(w)
+  # {
+  #   #Print the warning and append the log
+  #   print(w)
+  #   #Append the log 
+  #   cat(paste("#Plot matched and unmatched trends\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+  #   #Return string to inform user to skip
+  #   return(list("is_ok" = TRUE))
+  # }
+  
+  )
+  return(output)
+  
 }
 
 # Plot the country grid with matched control and treated
@@ -1450,8 +1965,13 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid)
 ##OUTPUTS
 ### None (plots)
 
-fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp)
+fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp, log)
 {
+  
+  output = tryCatch(
+    
+    {
+      
   #Import dataframe where each pixel in the grid has both its grid ID and asset ID from the portfolio creation
   df_gridID_assetID = s3read_using(data.table::fread,
                                    object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", paste0("df_gridID_assetID_", iso, ".csv")),
@@ -1481,7 +2001,7 @@ fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp)
   fig_grid = 
     ggplot(grid) +
     #The original gridding as a first layer
-    geom_sf(aes(fill = as.factor(group_plot))) +
+    geom_sf(aes(fill = as.factor(group_plot)), , color = NA) +
     scale_fill_brewer(name = "Group", type = "qual", palette = "BrBG", direction = 1) +
     labs(title = paste("Gridding of", country.name, ": matched units"),
          subtitle = ifelse(is_pa == TRUE,
@@ -1503,4 +2023,39 @@ fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp)
                      region = "", 
                      show_progress = FALSE)
   
+  #Append the log
+  if(is_pa == TRUE)
+  {
+    cat("#Plot the grid with matched control and treated for the PA \n-> OK\n", file = log, append = TRUE)
+  } else cat("#Plot the grid with matched control and treated for all PAs in the country \n-> OK\n", file = log, append = TRUE)
+
+  
+  return(list("is_ok" = TRUE))
+  
+    },
+  
+  error = function(e)
+  {
+    print(e)
+    if(is_pa == TRUE)
+    {
+      cat(paste("#Plot the grid with matched control and treated for the PA \n-> Error :\n", e, "\n"), file = log, append = TRUE)
+    } else cat(paste("#Plot the grid with matched control and treated for all the PAs in the country \n-> Error :\n", e, "\n"), file = log, append = TRUE)
+    return(list("is_ok" = FALSE))
+  }
+  
+  # warning = function(w)
+  # {
+  #   #Print the warning and append the log
+  #   print(w)
+  #   if(is_pa == TRUE)
+  #   {
+  #     cat(paste("#Plot the grid with matched control and treated for the PA \n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+  #   } else cat(paste("#Plot the grid with matched control and treated for all the PAs in the country \n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+  #   return(list("is_ok" = TRUE))
+  # }
+  
+  )
+  
+  return(output)
 }
