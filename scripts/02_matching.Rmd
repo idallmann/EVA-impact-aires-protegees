@@ -115,12 +115,12 @@ data_pa =
   aws.s3::s3read_using(
   FUN = data.table::fread,
   encoding = "UTF-8",
-  object = "data_tidy/BDD_nofund_nodupl.csv",
+  object = "data_tidy/BDD_PA_AFD_nofund_nodupl.csv",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = "")) 
 
 #List of countries in the sample
-list_iso = unique(data_pa[data_pa$direction_regionale == "Dr Afrique Centrale", ]$iso3)
+list_iso = c("COM", "GNB")
 # Specify a list of WDPA IDs of funded protected areas (treated areas)
 # paid = data_stat_nodupl[data_stat_nodupl$iso3 == country,]$wdpaid
 
@@ -171,8 +171,7 @@ tic_pre = tic() #Start timer
 
 #Create a log to track progress
 log = fn_pre_log(list_iso,
-                 name = paste0("log-", Sys.Date(), "-test-GAB.txt"),
-                 notes = "All country in Dr Ocean Indien")
+                 name = paste0("log-", Sys.Date(), "-test-merge-COM.txt"),
 
 for (i in list_iso)
 {

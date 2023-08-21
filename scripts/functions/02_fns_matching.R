@@ -66,13 +66,13 @@ fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log)
   ##Select the PA in the country with minimum area. PAs with null areas, marine or treatment year before 2000 are discarded (not analyzed anyway)
   pa_min = data_pa %>%
     filter(iso3 == iso & is.na(wdpaid) == FALSE & status_yr >= yr_min & marine %in% c(0,1)) %>%
-    arrange(superficie) %>%
+    arrange(area_km2) %>%
     slice(1)
   ##From this minimum area, define the grid size. 
   ##It depends on the sampling of the minimal area, i.e how many pixels we want to subdivide the PA with lowest area
   ## To avoid a resolution higher than the one of our data, grid size is set to be 30m at least (resolution of tree cover data, Hansen et al. 2013)
-  area_min = pa_min$superficie #in kilometer
-  gridSize = max(1e3, round(sqrt(area_min/sampling)*1000, 0)) #Side of the pixel is expressed in meter and rounded, if 1km. 
+  area_min = pa_min$area_km2 #in kilometer
+  gridSize = max(1e3, round(sqrt(area_min/sampling)*1000, 0)) #Side of the pixel is expressed in meter and rounded, if above 1km. 
   
   # Make bounding box of projected country polygon
   bbox = st_bbox(gadm_prj) %>% st_as_sfc() %>% st_as_sf() 
@@ -92,7 +92,7 @@ fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log)
   country.name = data_pa %>% 
     filter(iso3 == iso) %>% 
     slice(1)
-  country.name = country.name$pays
+  country.name = country.name$country_en
   
   #Visualize and save the grid
   fig_grid = ggplot() +
@@ -106,7 +106,7 @@ fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log)
          device = "png",
          height = 6, width = 9)
   aws.s3::put_object(file = fig_save, 
-                     bucket = paste("projet-afd-eva-ap/data_tidy/mapme_bio_data/matching", iso, sep = "/"), 
+                     bucket = paste("projet-afd-eva-ap/impact_analysis/matching", iso, sep = "/"), 
                      region = "", 
                      show_progress = FALSE)
   
@@ -194,14 +194,14 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
   ##PAs funded by AFD 
   ###... which can bu used in impact evaluation
   pa_afd_ie = data_pa %>%
-    filter(iso3 == iso & is.na(wdpaid) == FALSE & superficie > 1 & status_yr >= yr_min & marine %in% c(0,1))
+    filter(iso3 == iso & is.na(wdpaid) == FALSE & area_km2 > 1 & status_yr >= yr_min & marine %in% c(0,1))
   wdpaID_afd_ie = pa_afd_ie[pa_afd_ie$iso3 == iso,]$wdpaid
   wdpa_afd_ie = wdpa_prj %>% filter(WDPAID %in% wdpaID_afd_ie) %>%
     mutate(group=2,
            group_name = "Funded PA, analyzed") # Assign an ID "1" to the funded PA group
   ###...which cannot
   pa_afd_no_ie = data_pa %>%
-    filter(iso3 == iso & (is.na(wdpaid) == TRUE | superficie <= 1 | is.na(superficie) | status_yr < yr_min | marine == 2)) #PAs not in WDPA, of area less than 1km2 (Wolf et al 2020), not terrestrial/coastal or implemented after yr_min are not analyzed
+    filter(iso3 == iso & (is.na(wdpaid) == TRUE | area_km2 <= 1 | is.na(area_km2) | status_yr < yr_min | marine == 2)) #PAs not in WDPA, of area less than 1km2 (Wolf et al 2020), not terrestrial/coastal or implemented after yr_min are not analyzed
   wdpaID_afd_no_ie = pa_afd_no_ie[pa_afd_no_ie$iso3 == iso,]$wdpaid 
   wdpa_afd_no_ie = wdpa_prj %>% filter(WDPAID %in% wdpaID_afd_no_ie) %>%
     mutate(group=3,
@@ -274,7 +274,7 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
     # Grid is projected to WGS84 because mapme.biodiverty package merely works with this CRS
     st_transform(crs=4326) %>%
     #Add treatment year variable
-    left_join(dplyr::select(data_pa, c(direction_regionale, pays, iso3, wdpaid, status_yr, annee_octroi)), by = "wdpaid")
+    left_join(dplyr::select(data_pa, c(region_afd, region, sub_region, country_en, iso3, wdpaid, status_yr, year_funding)), by = "wdpaid")
   
   # If two PAs in different groups overlap, then the rasterization with fun = "min" (as in r.group definition) can lead to bad assgnment of pixels.
   # For instance, if a PA non-funded (group = 4) overlaps with a funded, analyzed one (group = 2), then the pixel will be assigned to the group 2
@@ -284,8 +284,10 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
   #   mutate(group = case_when(wdpaid %in% wdpaID_no_afd & group == 2 ~ 4,
   #                            wdpaid %in% wdpaID_afd_no_ie & group == 2 ~3,
   #                            TRUE ~ group)) %>%
+  
   #/!\ For the moment, a pixel both non-funded and funded is considered funded !
   #But if funded not analyzed AND funded analyzed, then funded not analyzed
+  # -> Check with the others if that seems OK
   grid.param = grid.param.ini %>%
     mutate(group = case_when(wdpaid %in% wdpaID_afd_no_ie & group == 2 ~ 3,
                              TRUE ~ group)) %>%
@@ -302,7 +304,7 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
   s3write_using(grid.param,
                 sf::write_sf,
                 overwrite = TRUE,
-                object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", paste0("grid_param_", iso, ".gpkg")),
+                object = paste0("projet-afd-eva-ap/impact_analysis/matching", "/", iso, "/", paste0("grid_param_", iso, ".gpkg")),
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
   
@@ -312,7 +314,7 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
   country.name = grid.param %>% 
     filter(group == 2) %>% 
     slice(1)
-  country.name = country.name$pays
+  country.name = country.name$country_en
   
   fig_grid_group = 
     ggplot(grid.param) +
@@ -331,7 +333,7 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
          device = "png",
          height = 6, width = 9)
   aws.s3::put_object(file = fig_save, 
-                     bucket = paste("projet-afd-eva-ap/data_tidy/mapme_bio_data/matching", iso, sep = "/"), 
+                     bucket = paste("projet-afd-eva-ap/impact_analysis/matching", iso, sep = "/"), 
                      region = "", 
                      show_progress = FALSE)
   
@@ -339,7 +341,7 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
   # Pie plots
   df_pie_wdpa = data_pa %>%
     filter(iso3 == iso) %>%
-    dplyr::select(c(iso3, wdpaid, nom_ap, status_yr, superficie)) %>%
+    dplyr::select(c(iso3, wdpaid, name_pa, status_yr, area_km2)) %>%
     mutate(group_wdpa = case_when(is.na(wdpaid) == FALSE ~ "WDPA",
                              is.na(wdpaid) == TRUE ~ "Not WDPA")) %>%
     group_by(iso3, group_wdpa) %>%
@@ -415,7 +417,7 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
   {
     cat("Uploading file", paste0("'", f, "'"), "\n")
     aws.s3::put_object(file = f, 
-                       bucket = paste("projet-afd-eva-ap/data_tidy/mapme_bio_data/matching", iso, sep = "/"), 
+                       bucket = paste("projet-afd-eva-ap/impact_analysis/matching", iso, sep = "/"), 
                        region = "", show_progress = TRUE)
   }
   do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
@@ -486,7 +488,7 @@ fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output, yr_firs
     dplyr::select(c(gridID, assetid))
   s3write_using(df_gridID_assetID,
                 data.table::fwrite,
-                object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", "df_gridID_assetID_", iso, ".csv"),
+                object = paste0("projet-afd-eva-ap/impact_analysis/matching", "/", iso, "/", "df_gridID_assetID_", iso, ".csv"),
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
 
@@ -583,7 +585,7 @@ fn_pre_mf = function(grid.param, path_tmp, iso, name_output, ext_output, yr_firs
   name_save = paste0(name_output, "_", iso, ext_output)
   s3write_using(pivot.all,
                 sf::st_write,
-                object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", name_save),
+                object = paste0("projet-afd-eva-ap/impact_analysis/matching", "/", iso, "/", name_save),
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
 
@@ -619,7 +621,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
     dplyr::select(c(gridID, assetid))
   s3write_using(df_gridID_assetID,
                 data.table::fwrite,
-                object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", "df_gridID_assetID_", iso, ".csv"),
+                object = paste0("projet-afd-eva-ap/impact_analysis/matching", "/", iso, "/", "df_gridID_assetID_", iso, ".csv"),
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
   
@@ -645,7 +647,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   # gc : optimize memory management for the background sessions.
   # Multisession with workers = 6 as in mapme.biodiversity tutorial : https://mapme-initiative.github.io/mapme.biodiversity/articles/quickstart.html?q=parall#enabling-parallel-computing
   
-  plan(multisession, workers = 6, gc = TRUE) 
+  plan(multisession, workers = 6, gc = TRUE)
   with_progress({
     get.soil %<-% {calc_indicators(dl.soil,
                                 indicators = "soilproperties",
@@ -742,7 +744,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   name_save = paste0(name_output, "_", iso, ext_output)
   s3write_using(pivot.all,
                 sf::st_write,
-                object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", name_save),
+                object = paste0("projet-afd-eva-ap/impact_analysis/matching", "/", iso, "/", name_save),
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
   
@@ -806,7 +808,7 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log)
     {
       
   #Load the matching dataframe
-  object = paste("data_tidy/mapme_bio_data/matching", iso, paste0(name_input, "_", iso, ext_input), sep = "/")
+  object = paste("projet-afd-eva-ap/impact_analysis/matching", iso, paste0(name_input, "_", iso, ext_input), sep = "/")
   mf = s3read_using(sf::st_read,
                       bucket = "projet-afd-eva-ap",
                       object = object,
@@ -816,15 +818,15 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log)
   mf = mf %>%
     #Remove PAs non-funded by AFD and buffers
     filter(group==1 | group==2) %>%
-    #Remove observations with NA values only for covariates (except for status_yr, direction_regionale, annee_octroi which are NA for control units)
-    drop_na(-c(status_yr, annee_octroi, direction_regionale, iso3, pays)) #%>%
+    #Remove observations with NA values only for covariates (except for status_yr, region_afd, year_funding which are NA for control units)
+    drop_na(-c(status_yr, year_funding, region_afd, region, sub_region, iso3, country_en)) #%>%
      #filter(status_yr >= yr_min | is.na(status_yr))
   
   #Write the list of PAs matched
   list_pa = mf %>%
     st_drop_geometry() %>%
     as.data.frame() %>%
-    dplyr::select(c(direction_regionale, pays, iso3, wdpaid, status_yr, annee_octroi)) %>%
+    dplyr::select(c(region_afd, region, sub_region, country_en, iso3, wdpaid, status_yr, year_funding)) %>%
     mutate(iso3 = iso, .before = "wdpaid") %>%
     filter(wdpaid != 0) %>%
     group_by(wdpaid) %>%
@@ -834,7 +836,7 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log)
   s3write_using(list_pa,
                 data.table::fwrite,
                 bucket = "projet-afd-eva-ap",
-                object = paste("data_tidy/mapme_bio_data/matching", iso, paste0("list_pa_matched_", iso, ".csv"), sep = "/"),
+                object = paste("projet-afd-eva-ap/impact_analysis/matching", iso, paste0("list_pa_matched_", iso, ".csv"), sep = "/"),
                 opts = list("region" = ""))
   
   #Append the log
@@ -925,8 +927,10 @@ fn_post_avgLoss_prefund = function(mf, colfl.prefix, colname.flAvg, log)
   #Select only relevant variables
   df_fl = mf[grepl(colfl.prefix, names(mf))][var_start:var_end] %>% 
     st_drop_geometry()
-  #Compute average loss for each pixel
+  #Compute average loss for each pixel and store it in mf. Also add the start and end years of pre-treatment period where average loss is computed.
   mf$avgLoss_pre_fund = round(rowMeans(df_fl), 2)
+  mf$start_pre_fund = yr_start
+  mf$end_pre_fund = yr_end
   #Remove NA values
   mf = mf %>% drop_na(avgLoss_pre_fund)
   
@@ -1021,7 +1025,7 @@ fn_post_cem = function(mf, lst_cutoffs, iso, path_tmp,
   # plot(summary(out.cem))
   # dev.off()
   # aws.s3::put_object(file = fig_save, 
-  #                    bucket = paste("projet-afd-eva-ap/data_tidy/mapme_bio_data/matching", iso, sep = "/"), 
+  #                    bucket = paste("projet-afd-eva-ap/impact_analysis/matching", iso, sep = "/"), 
   #                    region = "", 
   #                    show_progress = FALSE)
   
@@ -1330,13 +1334,25 @@ fn_post_covbal = function(out.cem, mf, colname.travelTime, colname.clayContent, 
   country.name = mf %>% 
     filter(group == 2) %>% 
     slice(1)
-  country.name = country.name$pays
+  country.name = country.name$country_en
+  
+  #Extract start and end years of pre-treatment period where average loss is computed
+  year.start.prefund = mf %>%
+    filter(group == 2) %>% 
+    slice(1)
+  year.start.prefund = year.start.prefund$start_pre_fund
+  
+  year.end.prefund = mf %>%
+    filter(group == 2) %>% 
+    slice(1)
+  year.end.prefund = year.end.prefund$end_pre_fund
   
   #Plot covariate balance
+  colname.flAvg.new = paste0("Avg. Annual Forest \n Loss ",  year.start.prefund, "-", year.end.prefund)
   c_name = data.frame(old = c(colname.travelTime, colname.clayContent, colname.tri, colname.elevation,
                               colname.fcIni, colname.flAvg),
                       new = c("Accessibility", "Clay Content", "Terrain Ruggedness Index (TRI)", "Elevation (m)", "Forest Cover in 2000",
-                              "Avg. Annual Forest \n Loss 2001 ~ 2006"))
+                              colname.flAvg.new))
   
   # Refer to cobalt::love.plot()
   # https://cloud.r-project.org/web/packages/cobalt/vignettes/cobalt.html#love.plot
@@ -1394,7 +1410,7 @@ fn_post_covbal = function(out.cem, mf, colname.travelTime, colname.clayContent, 
   {
     cat("Uploading file", paste0("'", f, "'"), "\n")
     aws.s3::put_object(file = f, 
-                       bucket = paste("projet-afd-eva-ap/data_tidy/mapme_bio_data/matching", iso, wdpaid, sep = "/"), 
+                       bucket = paste("projet-afd-eva-ap/impact_analysis/matching", iso, wdpaid, sep = "/"), 
                        region = "", show_progress = TRUE)
   }
   do.call(file.remove, list(list.files(paste(path_tmp, "CovBal", sep = "/"), full.names = TRUE)))
@@ -1454,7 +1470,7 @@ fn_post_plot_density = function(out.cem, mf,
   country.name = mf %>% 
     filter(group == 2) %>% 
     slice(1)
-  country.name = country.name$pays
+  country.name = country.name$country_en
   
   #Define plots
   ## Density plot for Travel Time
@@ -1658,7 +1674,7 @@ fn_post_plot_density = function(out.cem, mf,
   {
     cat("Uploading file", paste0("'", f, "'"), "\n")
     aws.s3::put_object(file = f, 
-                       bucket = paste("projet-afd-eva-ap/data_tidy/mapme_bio_data/matching", iso, wdpaid, sep = "/"), 
+                       bucket = paste("projet-afd-eva-ap/impact_analysis/matching", iso, wdpaid, sep = "/"), 
                        region = "", show_progress = TRUE)
   }
   do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
@@ -1714,7 +1730,7 @@ fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpa
   
   # Pivot Wide ==> Pivot Long
   matched.long = matched.wide %>%
-    dplyr::select(c(direction_regionale, iso3, group, wdpaid, status_yr, annee_octroi,assetid, weights, starts_with(colfc.prefix))) %>%
+    dplyr::select(c(region_afd, region, sub_region, iso3, group, wdpaid, status_yr, year_funding,assetid, weights, starts_with(colfc.prefix))) %>%
     pivot_longer(cols = c(starts_with(colfc.prefix)),
                  names_to = c("var", "year"),
                  names_sep = colfc.bind,
@@ -1725,7 +1741,7 @@ fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpa
   
   # Pivot Wide ==> Pivot Long
   unmatched.long = unmatched.wide %>%
-    dplyr::select(c(direction_regionale, iso3, group, wdpaid, status_yr, annee_octroi, assetid, starts_with(colfc.prefix))) %>%
+    dplyr::select(c(region_afd, region, sub_region, iso3, group, wdpaid, status_yr, year_funding, assetid, starts_with(colfc.prefix))) %>%
     pivot_longer(cols = c(starts_with(colfc.prefix)),
                  names_to = c("var", "year"),
                  names_sep = colfc.bind,
@@ -1734,22 +1750,22 @@ fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpa
   #Save the dataframes
   s3write_using(matched.wide,
                 sf::st_write,
-                object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", wdpaid, "/", paste0("matched_wide", "_", iso, "_", wdpaid, ext_output)),
+                object = paste0("projet-afd-eva-ap/impact_analysis/matching", "/", iso, "/", wdpaid, "/", paste0("matched_wide", "_", iso, "_", wdpaid, ext_output)),
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
   s3write_using(unmatched.wide,
                 sf::st_write,
-                object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", wdpaid, "/", paste0("unmatched_wide", "_", iso, "_", wdpaid, ext_output)),
+                object = paste0("projet-afd-eva-ap/impact_analysis/matching", "/", iso, "/", wdpaid, "/", paste0("unmatched_wide", "_", iso, "_", wdpaid, ext_output)),
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
   s3write_using(matched.long,
                 sf::st_write,
-                object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", wdpaid, "/", paste0("matched_long", "_", iso, "_", wdpaid, ext_output)),
+                object = paste0("projet-afd-eva-ap/impact_analysis/matching", "/", iso, "/", wdpaid, "/", paste0("matched_long", "_", iso, "_", wdpaid, ext_output)),
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
   s3write_using(unmatched.long,
                 sf::st_write,
-                object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", wdpaid, "/", paste0("unmatched_long", "_", iso, "_", wdpaid, ext_output)),
+                object = paste0("projet-afd-eva-ap/impact_analysis/matching", "/", iso, "/", wdpaid, "/", paste0("unmatched_long", "_", iso, "_", wdpaid, ext_output)),
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
   
@@ -1816,17 +1832,17 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
     slice(1)
   treatment.year = treatment.year$status_yr
   
-  #Extract funding year
-  funding.year = mf %>% 
+  #Extract funding years
+  funding.years = mf %>% 
     filter(group == 2) %>% 
     slice(1)
-  funding.year = funding.year$annee_octroi
+  funding.years = as.numeric(unlist(strsplit(funding.years$year_funding_all, split = ",")))
   
   #Extract country name
   country.name = mf %>% 
     filter(group == 2) %>% 
     slice(1)
-  country.name = country.name$pays
+  country.name = country.name$country_en
   
   #Plot
   ## Change Facet Labels
@@ -1838,7 +1854,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
     geom_line(aes(group = group, color = as.character(group))) +
     geom_point(aes(color = as.character(group))) +
     geom_vline(aes(xintercept=as.character(treatment.year), size="Treatment year"), linetype=1, linewidth=0.5, color="orange") +
-    geom_vline(aes(xintercept=as.character(funding.year), size="Funding year"), linetype=2, linewidth=0.5, color="grey30") +
+    geom_vline(aes(xintercept=as.character(funding.years), size="Funding year(s)"), linetype=2, linewidth=0.5, color="grey30") +
     scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) +
     scale_color_hue(labels = c("Control", "Treatment")) +
     
@@ -1875,7 +1891,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
     geom_line(aes(group = group, color = as.character(group))) +
     geom_point(aes(color = as.character(group))) +
     geom_vline(aes(xintercept=as.character(treatment.year), size="Treatment year"), linetype=1, linewidth=0.5, color="orange") +
-    geom_vline(aes(xintercept=as.character(funding.year), size="Funding year"), linetype=2, linewidth=0.5, color="grey30") +
+    geom_vline(aes(xintercept=as.character(funding.years), size="Funding year(s)"), linetype=2, linewidth=0.5, color="grey30") +
     #scale_y_continuous(breaks=seq(0,100,10), labels=paste(seq(0,100,10)),
     #                   expand=c(0,0), limits=c(0,100)) +
     scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) +
@@ -1922,7 +1938,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
   {
     cat("Uploading file", paste0("'", f, "'"), "\n")
     aws.s3::put_object(file = f, 
-                       bucket = paste("projet-afd-eva-ap/data_tidy/mapme_bio_data/matching", iso, wdpaid, sep = "/"), 
+                       bucket = paste("projet-afd-eva-ap/impact_analysis/matching", iso, wdpaid, sep = "/"), 
                        region = "", show_progress = TRUE)
   }
   do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
@@ -1974,7 +1990,7 @@ fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp, log)
       
   #Import dataframe where each pixel in the grid has both its grid ID and asset ID from the portfolio creation
   df_gridID_assetID = s3read_using(data.table::fread,
-                                   object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", paste0("df_gridID_assetID_", iso, ".csv")),
+                                   object = paste0("projet-afd-eva-ap/impact_analysis/matching", "/", iso, "/", paste0("df_gridID_assetID_", iso, ".csv")),
                                    bucket = "projet-afd-eva-ap",
                                    opts = list("region" = ""))
   
@@ -1982,7 +1998,7 @@ fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp, log)
   #Merge with a dataframe so that each pixel in the grid has both its grid ID and asset ID from the portfolio creation
   #Merge with matched pixels dataframe
   grid =  s3read_using(sf::read_sf,
-                       object = paste0("data_tidy/mapme_bio_data/matching", "/", iso, "/", paste0("grid_param_", iso, ".gpkg")),
+                       object = paste0("projet-afd-eva-ap/impact_analysis/matching", "/", iso, "/", paste0("grid_param_", iso, ".gpkg")),
                        bucket = "projet-afd-eva-ap",
                        opts = list("region" = "")) %>%
     left_join(df_gridID_assetID, by = "gridID") %>%
@@ -1995,7 +2011,7 @@ fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp, log)
   country.name = grid %>% 
     filter(group == 2) %>% 
     slice(1)
-  country.name = country.name$pays
+  country.name = country.name$country_en
   
   # Visualize and save grouped grid cells
   fig_grid = 
@@ -2018,8 +2034,8 @@ fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp, log)
          height = 6, width = 9)
   aws.s3::put_object(file = fig_save, 
                      bucket = ifelse(is_pa == TRUE,
-                                     yes = paste("projet-afd-eva-ap/data_tidy/mapme_bio_data/matching", iso, wdpaid, sep = "/"),
-                                     no = paste("projet-afd-eva-ap/data_tidy/mapme_bio_data/matching", iso, sep = "/")),
+                                     yes = paste("projet-afd-eva-ap/impact_analysis/matching", iso, wdpaid, sep = "/"),
+                                     no = paste("projet-afd-eva-ap/impact_analysis/matching", iso, sep = "/")),
                      region = "", 
                      show_progress = FALSE)
   
