@@ -293,7 +293,7 @@ data_raw_corr[data_raw_corr$wdpaid == "797" & data_raw_corr$id_projet == "CZZ305
 
 ### Tidy the datasets
 
-After manual correction, a tidy dataset is built. 
+After manual correction, a tidy dataset is built. Relevant variables are selected, region/sub-region/country names are added from ISO3 codes and countrycode package, description of IUCN categories added. Some variables are renamed in English.
 
 ```{r}
 #Import raw dataset corrected from report errors
@@ -374,7 +374,7 @@ data_tidy = data_raw_corr %>%
                               region == "" ~ NA,
                             TRUE ~ region)) %>%
   #Add the description of IUCN from its category
-    mutate(iucn_des = case_when(
+    mutate(iucn_des_fr = case_when(
   !is.na(wdpaid) & iucn_cat == "Ia" ~ "Réserve naturelle intégrale",
   !is.na(wdpaid) & iucn_cat == "Ib" ~ "Zone de nature sauvage",
   !is.na(wdpaid) & iucn_cat == "II" ~ "Parc national",
@@ -386,6 +386,18 @@ data_tidy = data_raw_corr %>%
   !is.na(wdpaid) & iucn_cat == "Not Reported" ~ "Non catégorisée",
   !is.na(wdpaid) & iucn_cat == "Not Assigned" ~ "Non catégorisée",
   TRUE ~ "Non référencée"), .after = iucn_cat) %>%
+      mutate(iucn_des_en = case_when(
+  !is.na(wdpaid) & iucn_cat == "Ia" ~ "Strict nature reserve",
+  !is.na(wdpaid) & iucn_cat == "Ib" ~ "Wilderness area",
+  !is.na(wdpaid) & iucn_cat == "II" ~ "National park",
+  !is.na(wdpaid) & iucn_cat == "III" ~ "Natural monument or feature",
+  !is.na(wdpaid) & iucn_cat == "IV" ~ " Habitat or species management area",
+  !is.na(wdpaid) & iucn_cat == "V" ~ "Protected landscape or seascape",
+  !is.na(wdpaid) & iucn_cat == "VI" ~ "Protected area with sust. use of nat. res.",
+  !is.na(wdpaid) & iucn_cat == "Not Applicable" ~ "Non catégorisée",
+  !is.na(wdpaid) & iucn_cat == "Not Reported" ~ "Non catégorisée",
+  !is.na(wdpaid) & iucn_cat == "Not Assigned" ~ "Non catégorisée",
+  TRUE ~ "Non référencée"), .after = iucn_cat) 
     #Modify class of some variables
   mutate(across(.cols = -c("wdpaid", "superficie_km2",
                            "annee_doctroi_projet",
@@ -401,9 +413,12 @@ data_tidy = data_raw_corr %>%
          "year_funding" = "annee_doctroi_projet",
          "area_km2" = "superficie_km2")
 
+
 ```
 
 ### Dataset with only SIOP variables
+
+Build a dataset from the tidy dataset that keeps only SIOP variables. Potentially useful for analysis on SIOP information.
 
 ```{r, eval = FALSE}
 #Select info corresponding to SIOP extract and AP 
@@ -456,8 +471,6 @@ data_nofund = data_tidy %>%
 
 #Then to keep only one row per PA, we need to consider separately PAs having WDPA ID and PAs which do not.
 ## Observations with WDPAID
-
-
 data_nofund_wdpa = data_nofund %>%
   subset(is.na(wdpaid) == FALSE) %>%
   #We keep information on fundings : one row for each wdpa_pid, funding year is kept
