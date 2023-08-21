@@ -445,7 +445,7 @@ s3write_using(x = data_siop_tidy,
 
 ### Dataset for non-confidential analysis
 
-To perform analysis we want to keep one row per PA, characterized by WDPA ID or a name (if no ID reported). Some PAs can have several lines if they receive funds at different time or by different investors.
+Buld a dataset with one row per PA. In the list of PAs reported by AFD department, some PAs are also reported in the WDPA and are identified by a WDPA ID, some have no WDPAID but have a unique name, and other have neither name nor WDPAID. For the latter case, a PA is supposed to be identified by project ID and country. Thus we need to remove duplicates for each case. Also, the funding years of each PA is kept.
 
 ```{r, eval = FALSE}
 #Listing relevant variables for analysis that are NOT confidential (i.e not concern funding)
@@ -471,11 +471,10 @@ data_nofund = data_tidy %>%
 
 #Then to keep only one row per PA, we need to consider separately PAs having WDPA ID and PAs which do not.
 ## Observations with WDPAID
+###We keep information on fundings : one row for each wdpa_pid, funding year is kept
+###Note that WDPA_PID is a unique identifier for zones inside the corresponding WDPAID. ###The choice of the WDPA_PID to keep is performed below (e.g choosing the area instead ###of the buffer zone)
 data_nofund_wdpa = data_nofund %>%
   subset(is.na(wdpaid) == FALSE) %>%
-  #We keep information on fundings : one row for each wdpa_pid, funding year is kept
-  #Note that WDPA_PID is a unique identifier for zones inside the corresponding WDPAID. 
-  #The choice of the WDPA_PID to keep is performed below (e.g choosing the area instead   #of the buffer zone)
   group_by(wdpa_pid, year_funding) %>%
   slice(1) %>%
   ungroup() %>%
@@ -486,6 +485,8 @@ data_nofund_wdpa = data_nofund %>%
   #... and keep only the earlier funding year for year_funding
   arrange(year_funding) %>%
   slice(1) %>%
+  #Rename year_funding variable to precise it is the year of first funding by the AFD
+  rename("year_funding_first" = "year_funding")
   ungroup() %>%
   #Finally, we need to manually remove lines with more than one WDPA_PID
   ## Remove the buffer zone of WDPAID 9035
@@ -506,14 +507,19 @@ data_nofund_name = data_nofund %>%
   subset(is.na(wdpaid) == TRUE & is.na(name_pa) == FALSE) %>%
   #Remove completely similar rows (due to merging with SIOP and WDPA)
   unique() %>%
-  #We keep information on fundings : one row for each name, funding year is kept
-  group_by(name_pa, year_funding) %>%
+  #Keep one line per name_pa, funding year (possibly more than one if more than one funding year)
+  group_by(name_pa, funding_year) %>%
   slice(1) %>%
   ungroup() %>%
   group_by(name_pa) %>%
-  #Then we create a variable with all the funding year for each WDPA ...
+  #Then we create a variable with all the funding year for each PA name ...
   mutate(year_funding_all = paste0(year_funding, collapse = ","),
          .after = "year_funding") %>%
+  #... and keep only the earlier funding year for year_funding
+  arrange(year_funding) %>%
+  slice(1) %>%
+  #Rename year_funding variable to precise it is the year of first funding by the AFD
+  rename("year_funding_first" = "year_funding")
   ungroup() %>%
   #Manual filtering to remove irrelevant duplicates
   ##Get rid of the DR SIEGE PARIS when a duplicate has DR OCEAN PACIFIQUE so that region are the good ones
@@ -550,10 +556,12 @@ data_nofund_na = data_nofund %>%
   #Then we create a variable with all the funding year for each id_project ...
   mutate(year_funding_all = paste0(year_funding, collapse = ","),
          .after = "year_funding") %>%
-  ungroup() %>%
-  #Finally we remove duplicated id_project
-  group_by(id_projet, iso3) %>%
-  slice(1)
+  #... and keep only the earlier funding year for year_funding
+  arrange(year_funding) %>%
+  slice(1) %>%
+  #Rename year_funding variable to precise it is the year of first funding by the AFD
+  rename("year_funding_first" = "year_funding")
+  ungroup()
   
 #Finally bind the datasets
 data_nofund_nodupl = rbind(data_nofund_wdpa, data_nofund_name, data_nofund_na) 
