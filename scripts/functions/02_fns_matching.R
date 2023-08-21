@@ -1858,8 +1858,8 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
   fig_trend_unm = ggplot(data = df.trend, aes(x = year, y = avgFC)) +
     geom_line(aes(group = group, color = as.character(group))) +
     geom_point(aes(color = as.character(group))) +
-    geom_vline(aes(xintercept = as.character(treatment.year)), size = "Treatment year", linetype = "solid", linewidth=0.5, color = "orange") +
-    geom_vline(aes(xintercept= as.character(funding.years)), size = "Funding years(s)", linetype = "dashed", linewidth=0.5, color = "grey30") +
+    geom_vline(aes(xintercept=as.character(treatment.year), size="Treatment year"), linetype=1, linewidth=0.5, color="orange") +
+    geom_vline(aes(xintercept=as.character(funding.years), size="Funding year"), linetype=2, linewidth=0.5, color="grey30") +
     scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) +
     scale_color_hue(labels = c("Control", "Treatment")) +
     facet_wrap(matched~., ncol = 2, #scales = 'free_x',
@@ -1880,6 +1880,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
       legend.spacing.y = unit(0.75, 'cm'),
       legend.key.size = unit(2, 'line'),
       
+      
       panel.grid.major.x = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
       panel.grid.minor.x = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
       panel.grid.major.y = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
@@ -1887,7 +1888,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
       
       strip.text.x = element_text(size = 12) # Facet Label
       ) +
-    guides(size = guide_legend(override.aes = list(size = c("orange", "grey30")))) # Add legend for geom_vline
+    guides(size = guide_legend(override.aes = list(color = c("grey30", "orange")))) # Add legend for geom_vline
 
   fig_trend_unm
   # Trend Plot for matched data
