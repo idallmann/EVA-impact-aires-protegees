@@ -106,7 +106,7 @@ fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log, save_dir)
          device = "png",
          height = 6, width = 9)
   aws.s3::put_object(file = fig_save, 
-                     bucket = paste(save_dir, iso, sep = "/"), 
+                     bucket = paste("projet-afd-eva-ap", save_dir, iso, sep = "/"), 
                      region = "", 
                      show_progress = FALSE)
   
@@ -332,8 +332,8 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
          plot = fig_grid_group,
          device = "png",
          height = 6, width = 9)
-  aws.s3::put_object(file = fig_save, 
-                     bucket = paste(save_dir, iso, sep = "/"), 
+  aws.s3::put_object(file = fig_save,
+                     bucket = paste("projet-afd-eva-ap", save_dir, iso, sep = "/"),
                      region = "", 
                      show_progress = FALSE)
   
@@ -416,8 +416,8 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
   for(f in files) 
   {
     cat("Uploading file", paste0("'", f, "'"), "\n")
-    aws.s3::put_object(file = f, 
-                       bucket = paste(save_dir, iso, sep = "/"), 
+    aws.s3::put_object(file = f,
+                       bucket = paste("projet-afd-eva-ap", save_dir, iso, sep = "/"),
                        region = "", show_progress = TRUE)
   }
   do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
@@ -627,6 +627,8 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   
   print("----Download Rasters")
   # Download Data
+
+  
   dl.soil = get_resources(aoi, 
                           resources = c("soilgrids"), 
                           layers = c("clay"), # resource specific argument
@@ -636,6 +638,8 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
                              range_traveltime = c("5k_110mio"))
   dl.tree = get_resources(aoi, resources = c("gfw_treecover", "gfw_lossyear"))
   
+  httr::set_config(httr::config(ssl_verifypeer = 0L))
+  options(download.file.method="curl", download.file.extra="--no-check-certificate")
   dl.elevation = get_resources(aoi, "nasa_srtm")
   
   dl.tri = get_resources(aoi, "nasa_srtm")
@@ -1026,7 +1030,7 @@ fn_post_cem = function(mf, lst_cutoffs, iso, path_tmp,
   # plot(summary(out.cem))
   # dev.off()
   # aws.s3::put_object(file = fig_save, 
-  #                    bucket = paste(save_dir, iso, sep = "/"), 
+  #                   bucket = paste("projet-afd-eva-ap", save_dir, iso, sep = "/")
   #                    region = "", 
   #                    show_progress = FALSE)
   
@@ -1414,7 +1418,7 @@ fn_post_covbal = function(out.cem, mf,
   {
     cat("Uploading file", paste0("'", f, "'"), "\n")
     aws.s3::put_object(file = f, 
-                       bucket = paste(save_dir, iso, wdpaid, sep = "/"), 
+                       bucket = paste("projet-afd-eva-ap", save_dir, iso, sep = "/"),
                        region = "", show_progress = TRUE)
   }
   do.call(file.remove, list(list.files(paste(path_tmp, "CovBal", sep = "/"), full.names = TRUE)))
@@ -1678,7 +1682,7 @@ fn_post_plot_density = function(out.cem, mf,
   {
     cat("Uploading file", paste0("'", f, "'"), "\n")
     aws.s3::put_object(file = f, 
-                       bucket = paste(save_dir, iso, wdpaid, sep = "/"), 
+                       bucket = paste("projet-afd-eva-ap", save_dir, iso, sep = "/"),
                        region = "", show_progress = TRUE)
   }
   do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
@@ -1943,7 +1947,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
   {
     cat("Uploading file", paste0("'", f, "'"), "\n")
     aws.s3::put_object(file = f, 
-                       bucket = paste(save_dir, iso, wdpaid, sep = "/"), 
+                       bucket = paste("projet-afd-eva-ap", save_dir, iso, sep = "/"),
                        region = "", show_progress = TRUE)
   }
   do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
@@ -2039,8 +2043,8 @@ fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp, log, 
          height = 6, width = 9)
   aws.s3::put_object(file = fig_save, 
                      bucket = ifelse(is_pa == TRUE,
-                                     yes = paste(save_dir, iso, wdpaid, sep = "/"),
-                                     no = paste(save_dir, iso, sep = "/")),
+                                     yes = paste("projet-afd-eva-ap", save_dir, iso, wdpaid, sep = "/"),
+                                     no = paste("projet-afd-eva-ap", save_dir, iso, sep = "/")),
                      region = "", 
                      show_progress = FALSE)
   

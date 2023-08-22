@@ -32,7 +32,6 @@ The steps are the following
 
 ```{r setup, include=FALSE, eval = FALSE}
 knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file()) 
-
 ```
 
 ```{r eval=, message=FALSE, warning=FALSE}
@@ -81,7 +80,7 @@ source("scripts/functions/02_fns_matching.R")
 # Define a directory where outputs are stored in SSPCloud.
 tmp_pre = paste(tempdir(), "matching_pre", sep = "/")
 tmp_post = paste(tempdir(), "matching_post", sep = "/")
-save_dir = paste("projet-afd-eva-ap/impact_analysis/matching", Sys.Date(), sep = "/")
+save_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/")
 
 
 #####
@@ -99,11 +98,11 @@ save_dir = paste("projet-afd-eva-ap/impact_analysis/matching", Sys.Date(), sep =
 #               opts = list("region" = ""))
 
 ##Load
-# wdpa_wld_raw = s3read_using(
-#               sf::st_read,
-#               object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
-#               bucket = "projet-afd-eva-ap",
-#               opts = list("region" = ""))
+wdpa_wld_raw = s3read_using(
+              sf::st_read,
+              object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
 
 # Specify buffer width in meter
 buffer_m = 10000
