@@ -327,6 +327,21 @@ data_tidy = data_raw_corr %>%
          ffem_bin = grepl("ffem|FFEM", cofinanciers),
          cof_bin = is.na(cofinanciers) == FALSE & !(cofinanciers %in% c("AFD", "afd")),
          .after = "cofinanciers") %>%
+  #Create an area variable combining AFD and WDPA information. Priority given to WDPA, then AFD if unknown
+  rename("area_afd_km2" = "superficie_km2") %>%
+  #If both are not NA and different, take rep_area
+  #If both are equal, take rep_area
+  #if one is NA, take the other
+  #If both NA, set NA
+  #If rep_area = 0 and area_afd_km2 != 0 then set area_afd_km2
+  mutate(area_km2 = case_when(is.na(area_afd_km2) == FALSE & is.na(rep_area) == FALSE & area_afd_km2 == rep_area ~ rep_area,
+                              is.na(area_afd_km2) == FALSE & is.na(rep_area) == FALSE & area_afd_km2 != rep_area ~ rep_area,
+                              is.na(area_afd_km2) == TRUE & is.na(rep_area) == FALSE ~ rep_area,
+                              is.na(area_afd_km2) == FALSE & is.na(rep_area) == TRUE ~ area_afd_km2,
+                              is.na(area_afd_km2) == TRUE & is.na(rep_area) == TRUE ~ NA,
+                              rep_area == 0 & is.na(area_afd_km2) == FALSE & area_afd_km2 >0 ~ area_afd_km2
+                              ),
+         .after = "rep_area") %>%
     #Some entries in "pays" are French department, DROM-COM, "Ocean Indien" or   
   #"Multi-Pays".
   #French related : the ISO3 code 
@@ -372,6 +387,9 @@ data_tidy = data_raw_corr %>%
          .after = "iso3") %>%
   #Some PAs have iso "ZZ" (multi-countries) by funded by Dr Ocean Pacifique. The region is assigned to Oceania
     mutate(region = case_when(region == "" & libelle_court_direction_regionale == "DR OCEAN PACIFIQUE" ~ "Oceania",
+                              region == "" & grepl("sahel|guinee|africa", libelle_court_direction_regionale, ignore.case = TRUE) ~ "Africa",
+                              region == "" & grepl("chine|asie", libelle_court_direction_regionale, ignore.case = TRUE) ~ "Asia",
+                              region == "" & grepl("amerique", libelle_court_direction_regionale, ignore.case = TRUE) ~ "America",
                               region == "" ~ NA,
                             TRUE ~ region)) %>%
   #Add the description of IUCN from its category
@@ -400,7 +418,8 @@ data_tidy = data_raw_corr %>%
   !is.na(wdpaid) & iucn_cat == "Not Assigned" ~ "Not categorized",
   TRUE ~ "Not referenced"), .after = iucn_cat) %>%
     #Modify class of some variables
-  mutate(across(.cols = -c("wdpaid", "superficie_km2",
+  mutate(across(.cols = -c("wdpaid", "area_afd_km2", 
+                           "area_km2", "rep_area", "rep_m_area",
                            "annee_doctroi_projet",
                           "mt_fin_global_af_d_prevu_devise",
                           "montant_prevu_concours_euro_octroi" ,
@@ -411,8 +430,7 @@ data_tidy = data_raw_corr %>%
   rename("region_afd" = "libelle_court_direction_regionale",
          "name_pa" = "nom_ap",
          "date_funding" = "date_doctroi_projet",
-         "year_funding" = "annee_doctroi_projet",
-         "area_km2" = "superficie_km2")
+         "year_funding" = "annee_doctroi_projet")
 
 
 ```
@@ -490,8 +508,8 @@ data_nofund_wdpa = data_nofund %>%
   rename("year_funding_first" = "year_funding") %>%
   ungroup() %>%
   #Finally, we need to manually remove lines with more than one WDPA_PID
-  ## Remove the buffer zone of WDPAID 9035
-  filter(!(wdpa_pid == "9035_B")) %>%
+  ## Remove the marine area of WDPAID 9035 with null area
+  filter(!(wdpa_pid == "9035_A")) %>%
   ## 555547861 has 3 marine PAs. The C one is chosen as the size reported by AFD (superficie_km2) matches the area reported by WDPA (https://www.protectedplanet.net/555547861)
   filter(!(wdpa_pid %in% c("555547861_A", "555547861_B"))) %>%
   # 555705345 : buffer area is also reported. Remove the buffer
@@ -508,23 +526,25 @@ data_nofund_name = data_nofund %>%
   subset(is.na(wdpaid) == TRUE & is.na(name_pa) == FALSE) %>%
   #Remove completely similar rows (due to merging with SIOP and WDPA)
   unique() %>%
-  #Keep one line per name_pa, funding year (possibly more than one if more than one funding year)
-  group_by(name_pa, year_funding) %>%
-  slice(1) %>%
-  ungroup() %>%
+  #Some PAs might have been funded at different times. Create a variable with all the funding year for each PA name
   group_by(name_pa) %>%
-  #Then we create a variable with all the funding year for each PA name ...
-  mutate(year_funding_all = paste0(year_funding, collapse = ","),
+  mutate(year_funding_all = paste0(unique(year_funding), collapse = ","),
          .after = "year_funding") %>%
-  #... and keep only the earlier funding year for year_funding
-  arrange(year_funding) %>%
+  mutate(year_funding_all = case_when(year_funding_all == "NA" ~NA,
+                                      TRUE ~ year_funding_all)) %>%
+  #keep observation with largest area reported
+  arrange(-area_km2) %>%
   slice(1) %>%
+  #Change year_funding to min of year_fund_all
+  mutate(year_funding = min(as.numeric(unlist(strsplit(year_funding_all, split = ","))), na.rm = TRUE),
+         year_funding = case_when(year_funding == Inf ~ NA,
+                                  TRUE ~ year_funding)) %>%
   #Rename year_funding variable to precise it is the year of first funding by the AFD
   rename("year_funding_first" = "year_funding") %>%
   ungroup() %>%
-  #Manual filtering to remove irrelevant duplicates
-  ##Get rid of the DR SIEGE PARIS when a duplicate has DR OCEAN PACIFIQUE so that region are the good ones
-  filter(!(name_pa %in% c("Ailite", "Aitutaki (3 Ra'ui)", "Kerehira", 
+  #Some PAs have multiple entries, with DR Siege de Paris and DR Ocean Pacifique. Their region is assigned to Oceania
+  mutate(region = case_when(name_pa %in% c("Ailite", "Aitutaki (3 Ra'ui)",
+                                               "Kerehira", 
                           "Kibelofolu", "Kiribati", "Ma'au", "Mereka", 
                           "Mistery Island (Aneityum)", "Ngula Pele", "Niu Houa",
                           "Niumarere", "Paonangisu", 
@@ -532,37 +552,41 @@ data_nofund_name = data_nofund %>%
                           "Rarotonga : Avana-Muri lagoon ra'ui", 
                           "Rarotonga : Mitiaro ra'ui", "Saama", "Siviri", 
                           "Takara", "Takola", "Tavuilo", "Waimamaru") 
-           & id_projet == "CZZ1282")) %>%
-  filter(!(grepl("Aire de gestion durable des ressources Yambé", name_pa) & id_projet == "CZZ1282")) %>%
-  ##Remove duplicate with zero area while the other is non-zerp
-  filter(!(id_projet == "CZZ1667" & name_pa == "Dohimen")) %>%
-  filter(!(name_pa == "Hienghène" & id_projet == "CZZ1667")) %>%
-  filter(!(name_pa == "Hyabe Lé Jao" & id_projet == "CZZ1667")) %>%
-  filter(!(name_pa == "Naroko" & id_projet == "CZZ1667")) %>%
-  filter(!(name_pa == "Tasi Vanua" & id_projet == "CZZ166701")) %>%
-  filter(!(name_pa == "Yeega" & id_projet == "CZZ1667")) %>%
-  ##Remove duplicate of Pouébo with area 0
-  filter(!(name_pa == "Pweevo (Pouébo)"))
+           & id_projet == "CZZ1282" ~ "Oceania",
+         TRUE ~ region)) 
+#Careful : the following filtering are outdated
+  # filter(!(grepl("Aire de gestion durable des ressources Yambé", name_pa) & id_projet == "CZZ1282")) %>%
+  # ##Remove duplicate with zero area while the other is non-zerp
+  # filter(!(id_projet == "CZZ1667" & name_pa == "Dohimen")) %>%
+  # filter(!(name_pa == "Hienghène" & id_projet == "CZZ1667")) %>%
+  # filter(!(name_pa == "Hyabe Lé Jao" & id_projet == "CZZ1667")) %>%
+  # filter(!(name_pa == "Naroko" & id_projet == "CZZ1667")) %>%
+  # filter(!(name_pa == "Tasi Vanua" & id_projet == "CZZ166701")) %>%
+  # filter(!(name_pa == "Yeega" & id_projet == "CZZ1667")) %>%
+  # ##Remove duplicate of Pouébo with area 0
+  # filter(!(name_pa == "Pweevo (Pouébo)"))
 
 #Finally, observations with no WDPAID and no name_pa
 data_nofund_na = data_nofund %>%
   subset(is.na(wdpaid) == TRUE & is.na(name_pa) == TRUE) %>%
   #Remove identical observations
   unique() %>%
-  #We keep information on fundings : one row for each id_project+iso, supposed to correspond to one PA
-  group_by(id_projet, iso3, year_funding) %>%
-  slice(1) %>%
-  ungroup() %>%
+    #Some PAs might have been funded at different times. Create a variable with all the funding year for each PA name
   group_by(id_projet, iso3) %>%
-  #Then we create a variable with all the funding year for each id_project ...
-  mutate(year_funding_all = paste0(year_funding, collapse = ","),
+  mutate(year_funding_all = paste0(unique(year_funding), collapse = ","),
          .after = "year_funding") %>%
-  #... and keep only the earlier funding year for year_funding
-  arrange(year_funding) %>%
+  mutate(year_funding_all = case_when(year_funding_all == "NA" ~NA,
+                                      TRUE ~ year_funding_all)) %>%
+  #keep observation with largest area reported
+  arrange(-area_km2) %>%
   slice(1) %>%
+  #Change year_funding to min of year_fund_all
+  mutate(year_funding = min(as.numeric(unlist(strsplit(year_funding_all, split = ","))), na.rm = TRUE),
+         year_funding = case_when(year_funding == Inf ~ NA,
+                                  TRUE ~ year_funding)) %>%
   #Rename year_funding variable to precise it is the year of first funding by the AFD
   rename("year_funding_first" = "year_funding") %>%
-  ungroup()
+  ungroup() 
   
 #Finally bind the datasets
 data_nofund_nodupl = rbind(data_nofund_wdpa, data_nofund_name, data_nofund_na) 
@@ -618,6 +642,7 @@ The first funding dataset is there to perform descriptive statistics on project 
 list_var_fund = c("id_projet", "name_pa", "id_concours",
                 "wdpaid", "country_en", "country_fr", "iso3",
                 "region_afd", "region", "sub_region",
+                "area_km2", "rep_area", "area_afd_km2",
                 "cofinanciers", "cofinanciers_siop",
                   "mt_fin_global_af_d_prevu_devise",
                   "montant_prevu_concours_euro_octroi",
@@ -787,7 +812,7 @@ pa_shp =
   #From multipolygon to polygon
   sf::st_cast(to="POLYGON") %>%
   #Select relevant variables
-  dplyr::select(c(wdpaid, area_km2, rep_area, geom, iso3, region_afd, region, sub_region, year_funding_first, year_funding_all)) 
+  dplyr::select(c(wdpaid, area_afd_km2, rep_area, geom, iso3, region_afd, region, sub_region, year_funding_first, year_funding_all)) 
 
 #Spatial definition of wdpaid 555547988 overlaps CMR and CAF. Wdpaid 1245 corresponds to the CMR part. The overlap is removed and iso3 redefined so that 555547988 is CAF only. 
 geom_555547988_1245 = st_difference(pa_shp[pa_shp$wdpaid == 555547988,]$geom, pa_shp[pa_shp$wdpaid == 1245,]$geom)
@@ -801,7 +826,7 @@ pa_shp_tidy = pa_shp %>%
   #Compute areas in km2 from the geometry, in km2. It must be equal to gis_a by definition 
   #Then to take into account potential refinements of the geometries (as for wdpaid 55547988), a variable for relevant area is defined. It takes rep_a value except for modified geometries where area_sf_moll is taken
   mutate(area_sf_moll = as.numeric(st_area(geom)/1e6),
-         area_km2 = ifelse(wdpaid == 555547988, yes = area_sf_moll, no = rep_area))
+         area_afd_km2 = ifelse(wdpaid == 555547988, yes = area_sf_moll, no = rep_area))
 ```
 
 ### Computing the intersection at country, region, world level
@@ -813,7 +838,7 @@ pa_int = st_intersection(pa_shp_tidy, pa_shp_tidy) %>%
   #Remove intersection of polygons with themselves
   subset(wdpaid != wdpaid.1) %>%
   #If one of the two intersectin polygon have unknwon area, then it is not necessary to subtract the interesction area. Indeed there is no double-counting of the intersection in this case, when both polygon areas are summed.
-  subset(is.na(area_km2) == FALSE & is.na(area_km2.1) == FALSE) %>%
+  subset(is.na(area_afd_km2) == FALSE & is.na(area_afd_km2.1) == FALSE) %>%
   #Compute the intersecting areas (pa_shp already in Mollweide projection) in km2
   mutate(area_int = as.numeric(st_area(geom)/1e6)) %>%
   #Now duplicates need to be removed : intersection of X with Y AND intersection of Y with X are reported. We need only one.
@@ -904,7 +929,7 @@ data_pa_afd =
 pa_area_ctry = data_pa_afd %>%
   #Compute total area at country level
   group_by(iso3) %>%
-  summarize(area_tot_km2 = sum(area_km2, na.rm = TRUE)) %>%
+  summarize(area_tot_km2 = sum(area_afd_km2, na.rm = TRUE)) %>%
   ungroup() %>%
   #Add information on intersection area in each country. Modify the variable so that NA value -> 0
   left_join(pa_int_ctry, by = "iso3") %>%
@@ -923,7 +948,7 @@ s3write_using(x = pa_area_ctry,
 pa_area_dr = data_pa_afd %>%
   #Compute total area at dr level
   group_by(region_afd) %>%
-  summarize(area_tot_km2 = sum(area_km2, na.rm = TRUE)) %>% 
+  summarize(area_tot_km2 = sum(area_afd_km2, na.rm = TRUE)) %>% 
   ungroup() %>%
   #Add information on intersection area in each DR. Modify the variable so that NA value -> 0
   left_join(pa_int_dr, by = "region_afd") %>%
@@ -943,7 +968,7 @@ s3write_using(x = pa_area_dr,
 pa_area_region = data_pa_afd %>%
   #Compute total area at dr level
   group_by(region) %>%
-  summarize(area_tot_km2 = sum(area_km2, na.rm = TRUE)) %>% 
+  summarize(area_tot_km2 = sum(area_afd_km2, na.rm = TRUE)) %>% 
   ungroup() %>%
   #Add information on intersection area in each DR. Modify the variable so that NA value -> 0
   left_join(pa_int_region, by = "region") %>%
@@ -963,7 +988,7 @@ s3write_using(x = pa_area_region,
 pa_area_subregion = data_pa_afd %>%
   #Compute total area at dr level
   group_by(sub_region) %>%
-  summarize(area_tot_km2 = sum(area_km2, na.rm = TRUE)) %>% 
+  summarize(area_tot_km2 = sum(area_afd_km2, na.rm = TRUE)) %>% 
   ungroup() %>%
   #Add information on intersection area in each DR. Modify the variable so that NA value -> 0
   left_join(pa_int_subregion, by = "sub_region") %>%
@@ -980,7 +1005,7 @@ s3write_using(x = pa_area_subregion,
               opts = list("region" = ""))
 
 #At world level
-pa_area_wld = sum(data_pa_afd$area_km2, na.rm = TRUE) - pa_int_wld %>%
+pa_area_wld = sum(data_pa_afd$area_afd_km2, na.rm = TRUE) - pa_int_wld %>%
   as.data.frame() %>%
   rename("area_tot_noint_km2" = ".")
 #fwrite(pa_area_wld, "data_tidy/area/pa_area_wld.csv")

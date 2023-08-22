@@ -62,6 +62,16 @@ data_stat_nodupl =
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
 
+data_stat_nodupl_old = 
+  #fread("data_tidy/old/BDD_nofund.csv" , encoding = "UTF-8")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  # Mettre les options de FUN ici
+  object = "data_tidy/old/BDD_nofund.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
+
 ##Datasets on aggregated size per country/region/year and at world level, taking into account the overlap.
 pa_area_ctry = 
   #fread("data_tidy/area/pa_area_ctry.csv", encoding = "UTF-8")
