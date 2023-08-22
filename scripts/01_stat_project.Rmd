@@ -62,15 +62,6 @@ data_stat_nodupl =
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
 
-data_stat_nodupl_old = 
-  #fread("data_tidy/old/BDD_nofund.csv" , encoding = "UTF-8")
-  aws.s3::s3read_using(
-  FUN = data.table::fread,
-  encoding = "UTF-8",
-  # Mettre les options de FUN ici
-  object = "data_tidy/old/BDD_nofund.csv",
-  bucket = "projet-afd-eva-ap",
-  opts = list("region" = ""))
 
 ##Datasets on aggregated size per country/region/year and at world level, taking into account the overlap.
 pa_area_ctry = 
@@ -83,13 +74,13 @@ pa_area_ctry =
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
 
-pa_area_dr = 
-  #fread("data_tidy/area/pa_area_dr.csv", encoding = "UTF-8")
+pa_area_region =
+  #fread("data_tidy/area/pa_area_region.csv", encoding = "UTF-8")
   aws.s3::s3read_using(
   FUN = data.table::fread,
   encoding = "UTF-8",
   # Mettre les options de FUN ici
-  object = "data_tidy/area/pa_area_dr.csv",
+  object = "data_tidy/area/pa_area_region.csv",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
 
@@ -632,7 +623,7 @@ pie_eco_en = ggplot(data_eco_hist,
              color = "black", position = position_stack(vjust = 0.55), 
              size=2.5, show.legend = FALSE) %>%
 + coord_polar("y", start=0) %>%
-+ labs(title = "Proportion of protected areas by ecosystem type \n(exluding non-referenced PAs)",
++ labs(title = "Proportion of protected areas by ecosystem type \n(excluding non-referenced PAs)",
        subtitle = paste("Sample :", sum(data_eco_hist$n), "out of", nrow(data_stat_nodupl), "protected areas"),
          x = "Ecosystem type",
          y = "Proportion of protected areas") %>%
@@ -870,35 +861,35 @@ pie_eco_en
 tmp = paste(tempdir(), "fig", sep = "/")
 
 
-ggsave(paste(tmp, "hist_eco_shr_fr.png", sep = "/"),
+ggsave(paste(tmp, paste0("hist_eco_shr_", roi, "_fr.png"), sep = "/"),
        plot = hist_eco_shr_fr,
        device = "png",
        height = 6, width = 9)
-ggsave(paste(tmp, "hist_eco_shr_en.png", sep = "/"),
+ggsave(paste(tmp, paste0("hist_eco_shr_", roi, "_en.png"), sep = "/"),
        plot = hist_eco_shr_en,
        device = "png",
        height = 6, width = 9)
-ggsave(paste(tmp, "hist_eco_n_fr.png", sep = "/"),
+ggsave(paste(tmp, paste0("hist_eco_n_", roi, "_fr.png"), sep = "/"),
        plot = hist_eco_n_fr,
        device = "png",
        height = 6, width = 9)
-ggsave(paste(tmp, "hist_eco_n_en.png", sep = "/"),
+ggsave(paste(tmp, paste0("hist_eco_n_", roi, "_en.png"), sep = "/"),
        plot = hist_eco_n_en,
        device = "png",
        height = 6, width = 9)
-ggsave(paste(tmp, "pie_eco_fr.png", sep = "/"),
+ggsave(paste(tmp, paste0("pie_eco_", roi, "_fr.png"), sep = "/"),
        plot = pie_eco_fr,
        device = "png",
        height = 6, width = 9)
-ggsave(paste(tmp, "pie_eco_en.png", sep = "/"),
+ggsave(paste(tmp, paste0("pie_eco_", roi, "_en.png"), sep = "/"),
        plot = pie_eco_en,
        device = "png",
        height = 6, width = 9)
 
-print(xtable(tbl_eco_world_fr, type = "latex"), 
-      file = paste(tmp, "tbl_ecosyst_fr.tex", sep = "/"))
-print(xtable(tbl_eco_world_en, type = "latex"), 
-      file = paste(tmp, "tbl_ecosyst_en.tex", sep = "/"))
+print(xtable(tbl_eco_fr, type = "latex"), 
+      file = paste(tmp, paste0("tbl_ecosyst_", roi, "_fr.tex"), sep = "/"))
+print(xtable(tbl_eco_en, type = "latex"), 
+      file = paste(tmp, paste0("tbl_ecosyst_", roi, "_en.tex"), sep = "/"))
 
 #Export to S3 storage
 
@@ -929,7 +920,7 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 data_distrib_ctry = data_stat_nodupl %>%
   group_by(iso3, country_en, country_fr) %>%
   summarize(n = n(),
-            freq = round(n/nrow(data_stat_nodupl), 1)*100) %>%
+            freq = round(n/nrow(data_stat_nodupl), 2)*100) %>%
   ungroup() 
 
 data_distrib_ctry_top = data_distrib_ctry %>%
@@ -937,7 +928,7 @@ data_distrib_ctry_top = data_distrib_ctry %>%
 
 #Histogram in share (in French) for top countries
 hist_distrib_ctry_top_shr = ggplot(data_distrib_ctry_top, 
-                     aes(x = reorder(country_en, -freq), y = freq, fill = country_en)) %>%
+                     aes(x = reorder(country_en, -freq), y = freq, fill = freq)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
 + geom_text(aes(label = round(n, 1), y = freq), 
         vjust = -0.1, color="black",

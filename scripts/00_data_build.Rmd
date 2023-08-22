@@ -678,8 +678,8 @@ data_fund_pa = data_tidy
 data_fund_wdpa = data_fund_pa %>%
     subset(is.na(wdpaid) == FALSE) %>%
   #We need to manually remove some WDPA_PID not relevant
-  ## Remove the buffer zone of WDPAID 9035
-  filter(!(wdpa_pid == "9035_B")) %>%
+  ## Remove the marine area with null area of WDPAID 9035
+  filter(!(wdpa_pid == "9035_A")) %>%
   ## 555547861 has 3 marine PAs. The C one is chosen as the size reported by AFD (superficie_km2) matches the area reported by WDPA (https://www.protectedplanet.net/555547861)
   filter(!(wdpa_pid %in% c("555547861_A", "555547861_B"))) %>%
   # 555705345 : buffer area is also reported. Remove the buffer
@@ -869,13 +869,14 @@ pa_int_ctry = pa_int %>%
   st_drop_geometry()
 
 #At region level
-#AFD regions
-pa_int_dr = pa_int %>%
-  #Only overlapping PAs in the same DR are considered
-  subset(region_afd == region_afd.1) %>%
-  group_by(region_afd) %>%
-  summarize(tot_area_int = sum(area_int)) %>%
-  st_drop_geometry()
+#AFD regions : not performed as some PAs have multiple DR and only one kept
+# pa_int_dr = pa_int %>%
+#   #Only overlapping PAs in the same DR are considered
+#   subset(region_afd == region_afd.1) %>%
+#   group_by(region_afd) %>%
+#   summarize(tot_area_int = sum(area_int)) %>%
+#   st_drop_geometry()
+
 #UN regions
 pa_int_region = pa_int %>%
   #Only overlapping PAs in the same DR are considered
@@ -945,24 +946,24 @@ s3write_using(x = pa_area_ctry,
               opts = list("region" = ""))
 
 #At AFD region level ...
-pa_area_dr = data_pa_afd %>%
-  #Compute total area at dr level
-  group_by(region_afd) %>%
-  summarize(area_tot_km2 = sum(area_afd_km2, na.rm = TRUE)) %>% 
-  ungroup() %>%
-  #Add information on intersection area in each DR. Modify the variable so that NA value -> 0
-  left_join(pa_int_dr, by = "region_afd") %>%
-  mutate(tot_area_int = case_when(is.na(tot_area_int) == TRUE ~0, TRUE ~tot_area_int)) %>%
-  #Compute the total area at country level without intersection
-    mutate(area_tot_noint_km2 = area_tot_km2 - tot_area_int) %>%
-  st_drop_geometry()
-
-#fwrite(pa_area_dr, "data_tidy/area/pa_area_dr.csv")
-s3write_using(x = pa_area_dr,
-              FUN = data.table::fwrite,
-              object = "data_tidy/area/pa_area_dr.csv",
-              bucket = "projet-afd-eva-ap",
-              opts = list("region" = ""))
+# pa_area_dr = data_pa_afd %>%
+#   #Compute total area at dr level
+#   group_by(region_afd) %>%
+#   summarize(area_tot_km2 = sum(area_afd_km2, na.rm = TRUE)) %>% 
+#   ungroup() %>%
+#   #Add information on intersection area in each DR. Modify the variable so that NA value -> 0
+#   left_join(pa_int_dr, by = "region_afd") %>%
+#   mutate(tot_area_int = case_when(is.na(tot_area_int) == TRUE ~0, TRUE ~tot_area_int)) %>%
+#   #Compute the total area at country level without intersection
+#     mutate(area_tot_noint_km2 = area_tot_km2 - tot_area_int) %>%
+#   st_drop_geometry()
+# 
+# #fwrite(pa_area_dr, "data_tidy/area/pa_area_dr.csv")
+# s3write_using(x = pa_area_dr,
+#               FUN = data.table::fwrite,
+#               object = "data_tidy/area/pa_area_dr.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
 
 #At UN region level
 pa_area_region = data_pa_afd %>%
