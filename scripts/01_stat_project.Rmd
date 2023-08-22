@@ -1532,13 +1532,14 @@ data_distrib_ctry = data_stat_nodupl %>%
   ungroup() 
 
 data_distrib_ctry_top = data_distrib_ctry %>%
-  subset(freq >= 5)
+    arrange(-freq) %>%
+  slice(1:5)
 
 #Histogram in share (in French) for top countries
 hist_distrib_ctry_top_shr = ggplot(data_distrib_ctry_top, 
                      aes(x = reorder(country_en, -freq), y = freq, fill = freq)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ geom_text(aes(label = round(n, 1), y = freq), 
++ geom_text(aes(label = paste(n, "PAs"), y = freq), 
         vjust = -0.1, color="black",
         size=3.5) %>%
 + labs(title = "Countries most targeted by AFD funded protected areas",
@@ -1563,7 +1564,7 @@ hist_distrib_ctry_top_shr
 hist_distrib_ctry_n = ggplot(data_distrib_ctry, 
                      aes(x = reorder(iso3, -n), y = n, fill = iso3)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ geom_text(aes(label = round(n, 1), y = n), 
++ geom_text(aes(label = "", y = n), 
         vjust = -0.1, color="black",
         size=3.5) %>%
 + labs(title = "Distribution of protected areas by countries",
@@ -1631,13 +1632,14 @@ data_distrib_ctry = data_stat_nodupl %>%
   ungroup() 
 
 data_distrib_ctry_top = data_distrib_ctry %>%
-  subset(freq >= 5)
+  arrange(-freq) %>%
+  slice(1:5)
 
 #Histogram in share (in French) for top countries
 hist_distrib_ctry_top_shr = ggplot(data_distrib_ctry_top, 
                      aes(x = reorder(country_en, -freq), y = freq, fill = freq)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ geom_text(aes(label = round(n, 1), y = freq), 
++ geom_text(aes(label = paste(n, "PAs"), y = freq), 
         vjust = -0.1, color="black",
         size=3.5) %>%
 + labs(title = "Countries most targeted by AFD funded non-marine protected areas",
@@ -1662,7 +1664,7 @@ hist_distrib_ctry_top_shr
 hist_distrib_ctry_n = ggplot(data_distrib_ctry, 
                      aes(x = reorder(iso3, -n), y = n, fill = iso3)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ geom_text(aes(label = round(n, 1), y = n), 
++ geom_text(aes(label = "", y = n), 
         vjust = -0.1, color="black",
         size=3.5) %>%
 + labs(title = "Distribution of non-marine protected areas by countries",
@@ -1729,13 +1731,14 @@ data_distrib_reg = data_stat_nodupl %>%
 
 
 data_distrib_reg_top = data_distrib_reg %>%
-  subset(freq >= 5)
+  arrange(-freq) %>%
+  slice(1:5)
 
 #Histogram in share (in French) for top countries
 hist_distrib_reg_top_shr = ggplot(data_distrib_reg_top, 
                      aes(x = reorder(region, -freq), y = freq, fill = region)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ geom_text(aes(label = round(n, 1), y = freq), 
++ geom_text(aes(label = paste(n, "PAs"), y = freq), 
         vjust = -0.1, color="black",
         size=3.5) %>%
 + labs(title = "Regions funding most protected areas",
@@ -1759,7 +1762,7 @@ hist_distrib_reg_top_shr
 hist_distrib_reg_n = ggplot(data_distrib_reg, 
                      aes(x = reorder(region, -n), y = n, fill = region)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ geom_text(aes(label = round(n, 1), y = n), 
++ geom_text(aes(label = paste(n, "PAs"), y = n), 
         vjust = -0.1, color="black",
         size=3.5) %>%
 + labs(title = "Distribution of protected areas across regions",
@@ -1805,7 +1808,106 @@ for(f in files)
   count = count+1
   cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/distribution", 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/distribution/all", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+```
+
+#### Statistics at region level (non-marine)
+
+```{r, eval = FALSE}
+
+data_distrib_reg = data_stat_nodupl %>%
+  filter(marine %in% c(0,1)) %>%
+  group_by(region) %>%
+  summarize(n = n(),
+            freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
+  ungroup()
+
+
+data_distrib_reg_top = data_distrib_reg %>%
+  arrange(-freq) %>%
+  slice(1:5)
+
+#Histogram in share (in French) for top countries
+hist_distrib_reg_top_shr = ggplot(data_distrib_reg_top, 
+                     aes(x = reorder(region, -freq), y = freq, fill = region)) %>%
++ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
++ geom_text(aes(label = paste(n, "PAs"), y = freq), 
+        vjust = -0.1, color="black",
+        size=3.5) %>%
++ labs(title = "Regions funding most non-marine protected areas",
+       subtitle = paste("Sample :", sum(data_distrib_reg$n), "non-marine protected areas. Numbers indicated above bars."),
+         x = "",
+         y = "Share of protected areas (%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 0,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_distrib_reg_top_shr
+
+
+#Histogram in number
+hist_distrib_reg_n = ggplot(data_distrib_reg, 
+                     aes(x = reorder(region, -n), y = n, fill = region)) %>%
++ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
++ geom_text(aes(label = paste(n, "PAs"), y = n), 
+        vjust = -0.1, color="black",
+        size=3.5) %>%
++ labs(title = "Distribution of non-marine protected areas across regions",
+       subtitle = paste("Sample :", sum(data_distrib_ctry$n), "non-marine protected areas. Numbers indicated above bars."),
+         x = "",
+         y = "Share of protected areas (%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_distrib_reg_n
+
+```
+
+```{r, eval = FALSE}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+ggsave(paste(tmp, "hist_distrib_reg_top_shr.png", sep = "/"),
+       plot = hist_distrib_reg_top_shr,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "hist_distrib_reg_n.png", sep = "/"),
+       plot = hist_distrib_reg_n,
+       device = "png",
+       height = 6, width = 9)
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+count = 0
+for(f in files) 
+{
+  count = count+1
+  cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/distribution/no_marine", 
                      region = "", show_progress = TRUE)
   }
 
@@ -1920,7 +2022,7 @@ for(f in files)
   count = count+1
   cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/surface", 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/surface/world", 
                      region = "", show_progress = TRUE)
   }
 
@@ -1931,7 +2033,7 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 ### Temporal evolution
 
-#### Number of PAs
+#### Number of PAs (world, all)
 
 ```{r, eval = FALSE}
 
@@ -1957,7 +2059,7 @@ fig_n_pa_fr = ggplot(data_time_n,
   + geom_text(aes(y = n, label = ifelse(n == 0, NA, n)), 
               color = "black", size=4, vjust = -0.3) %>%
   + labs(title = "Nombre d'aires protégées appuyées par année par l'AFD",
-         subtitle = paste("Echantillon :", sum(data_time_n$n), "sur", nrow(data_stat_nodupl), "aires protégées"),
+         subtitle = paste("Echantillon :", sum(data_time_n$n), "aires protégées"),
          x = "Année",
          y = "Nombre d'aires protégées") %>%
   + theme(legend.position = "bottom",
@@ -1978,7 +2080,7 @@ fig_n_pa_en = ggplot(data_time_n,
   + geom_text(aes(y = n, label = ifelse(n == 0, NA, n)), 
               color = "black", size=4, vjust = -0.3) %>%
   + labs(title = "Number of protected areas funded each year by AFD",
-         subtitle = paste("Sample :", sum(data_time_n$n),  "out of", nrow(data_stat_nodupl), "protected areas"),
+         subtitle = paste("Sample :", sum(data_time_n$n), "protected areas"),
          x = "Year",
          y = "Number of protected areas") %>%
   + theme(legend.position = "bottom",
@@ -2004,7 +2106,7 @@ fig_ncum_pa_fr = ggplot(data_time_n,
   + geom_text(aes(y = n_cum, label = n_cum), 
               color = "black", size=4, vjust = -0.3) %>%
   + labs(title = "Evolution cumulée du nombre d'aires protégées appuyées par l'AFD",
-         subtitle = paste("Echantillon :", sum(data_time_n$n),  "sur", nrow(data_stat_nodupl), "aires protégées"),
+         subtitle = paste("Echantillon :", sum(data_time_n$n), "aires protégées"),
          x = "Année",
          y = "Nombre d'aires protégées") %>%
   + theme(legend.position = "bottom",
@@ -2027,7 +2129,7 @@ fig_ncum_pa_en = ggplot(data_time_n,
   + geom_text(aes(y = n_cum, label = n_cum), 
               color = "black", size=4, vjust = -0.3) %>%
   + labs(title = "Cumulative number of protected areas funded by AFD",
-         subtitle = paste("Sample :", sum(data_time_n$n),  "out of", nrow(data_stat_nodupl), "protected areas"),
+         subtitle = paste("Sample :", sum(data_time_n$n), "protected areas"),
          x = "Year",
          y = "Number of protected areas") %>%
   + theme(legend.position = "bottom",
@@ -2080,7 +2182,7 @@ for(f in files)
   count = count+1
   cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/time_evolution", 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/time_evolution/world/all", 
                      region = "", show_progress = TRUE)
   }
 
@@ -2089,7 +2191,327 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
-#### Surface of PAs
+#### Number of PAs (world, non-marine)
+
+```{r, eval = FALSE}
+
+data_time_range = data.frame(year = 
+                              c(min(data_stat_nodupl$year_funding_first, na.rm = TRUE):max(data_stat_nodupl$year_funding_first, na.rm = TRUE))
+)
+
+
+data_time_n = data_stat_nodupl %>%
+  filter(marine %in% c(0,1)) %>%
+  filter(is.na(year_funding_first) == FALSE) %>%
+  group_by(year_funding_first) %>%
+  summarize(n = n()) %>%
+  full_join(data_time_range, by = c("year_funding_first" = "year")) %>%
+  mutate(n = case_when(is.na(n)~0, TRUE~n)) %>%
+  arrange(year_funding_first) %>%
+  mutate(n_cum = cumsum(n)) 
+
+#Number of PAs funded by year 
+#French
+fig_n_pa_fr = ggplot(data_time_n,
+                  aes(x = factor(year_funding_first), y = n)) %>%
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>% 
+  + geom_text(aes(y = n, label = ifelse(n == 0, NA, n)), 
+              color = "black", size=4, vjust = -0.3) %>%
+  + labs(title = "Nombre d'aires protégées non-marines appuyées par année par l'AFD",
+         subtitle = paste("Echantillon :", sum(data_time_n$n), "aires protégées non-marines"),
+         x = "Année",
+         y = "Nombre d'aires protégées") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+fig_n_pa_fr
+#English
+fig_n_pa_en = ggplot(data_time_n,
+                  aes(x = factor(year_funding_first), y = n)) %>%
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>% 
+  + geom_text(aes(y = n, label = ifelse(n == 0, NA, n)), 
+              color = "black", size=4, vjust = -0.3) %>%
+  + labs(title = "Number of non-marine protected areas funded each year by AFD",
+         subtitle = paste("Sample :", sum(data_time_n$n), "non-marine protected areas"),
+         x = "Year",
+         y = "Number of protected areas") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+fig_n_pa_en
+
+
+#Cumulative number over time
+#French
+fig_ncum_pa_fr = ggplot(data_time_n,
+                  aes(x = factor(year_funding_first), y = n_cum)) %>%
+  # + geom_point(color = "#3182BD", size = 1.5) %>%
+  # + geom_line(color = "#3182BD", size = 1) %>% 
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>%
+  + geom_text(aes(y = n_cum, label = n_cum), 
+              color = "black", size=4, vjust = -0.3) %>%
+  + labs(title = "Evolution cumulée du nombre d'aires protégées non-marines appuyées par l'AFD",
+         subtitle = paste("Echantillon :", sum(data_time_n$n),  "aires protégées non-marines"),
+         x = "Année",
+         y = "Nombre d'aires protégées") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+fig_ncum_pa_fr
+#English
+fig_ncum_pa_en = ggplot(data_time_n,
+                  aes(x = factor(year_funding_first), y = n_cum)) %>%
+  # + geom_point(color = "#3182BD", size = 1.5) %>%
+  # + geom_line(color = "#3182BD", size = 1) %>% 
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>%
+  + geom_text(aes(y = n_cum, label = n_cum), 
+              color = "black", size=4, vjust = -0.3) %>%
+  + labs(title = "Cumulative number of non-marine protected areas funded by AFD",
+         subtitle = paste("Sample :", sum(data_time_n$n),   "non-marine protected areas"),
+         x = "Year",
+         y = "Number of protected areas") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+fig_ncum_pa_en
+
+
+```
+
+```{r, eval = FALSE}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+ggsave(paste(tmp, "fig_n_pa_fr.png", sep = "/"),
+       fig_n_pa_fr,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "fig_n_pa_en.png", sep = "/"),
+       fig_n_pa_en,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "fig_ncum_pa_fr.png", sep = "/"),
+       fig_ncum_pa_fr,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "fig_ncum_pa_en.png", sep = "/"),
+       fig_ncum_pa_en,
+       device = "png",
+       height = 6, width = 9)
+
+
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+count = 0
+for(f in files) 
+{
+  count = count+1
+  cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/time_evolution/world/no_marine", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+```
+
+#### Number of PAs (region, non-marine)
+
+```{r, eval = FALSE}
+
+roi = "Africa"
+
+data_time_range = data.frame(year = 
+                              c(min(data_stat_nodupl$year_funding_first, na.rm = TRUE):max(data_stat_nodupl$year_funding_first, na.rm = TRUE))
+)
+
+
+data_time_n = data_stat_nodupl %>%
+  filter(region == roi & marine %in% c(0,1)) %>%
+  filter(is.na(year_funding_first) == FALSE) %>%
+  group_by(year_funding_first) %>%
+  summarize(n = n()) %>%
+  full_join(data_time_range, by = c("year_funding_first" = "year")) %>%
+  mutate(n = case_when(is.na(n)~0, TRUE~n)) %>%
+  arrange(year_funding_first) %>%
+  mutate(n_cum = cumsum(n)) 
+
+#Number of PAs funded by year 
+#French
+fig_n_pa_fr = ggplot(data_time_n,
+                  aes(x = factor(year_funding_first), y = n)) %>%
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>% 
+  + geom_text(aes(y = n, label = ifelse(n == 0, NA, n)), 
+              color = "black", size=4, vjust = -0.3) %>%
+  + labs(title = paste("Nombre d'aires protégées non-marines appuyées par année par l'AFD,", roi),
+         subtitle = paste("Echantillon :", sum(data_time_n$n),   "aires protégées non-marines"),
+         x = "Année",
+         y = "Nombre d'aires protégées") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+fig_n_pa_fr
+#English
+fig_n_pa_en = ggplot(data_time_n,
+                  aes(x = factor(year_funding_first), y = n)) %>%
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>% 
+  + geom_text(aes(y = n, label = ifelse(n == 0, NA, n)), 
+              color = "black", size=4, vjust = -0.3) %>%
+  + labs(title = paste("Number of non-marine protected areas funded each year by AFD,", roi),
+         subtitle = paste("Sample :", sum(data_time_n$n),  "non-marine protected areas"),
+         x = "Year",
+         y = "Number of protected areas") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+fig_n_pa_en
+
+
+#Cumulative number over time
+#French
+fig_ncum_pa_fr = ggplot(data_time_n,
+                  aes(x = factor(year_funding_first), y = n_cum)) %>%
+  # + geom_point(color = "#3182BD", size = 1.5) %>%
+  # + geom_line(color = "#3182BD", size = 1) %>% 
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>%
+  + geom_text(aes(y = n_cum, label = n_cum), 
+              color = "black", size=4, vjust = -0.3) %>%
+  + labs(title = paste("Evolution cumulée du nombre d'aires protégées non-marines,", roi),
+         subtitle = paste("Echantillon :", sum(data_time_n$n),  "aires protégées non-marines"),
+         x = "Année",
+         y = "Nombre d'aires protégées") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+fig_ncum_pa_fr
+#English
+fig_ncum_pa_en = ggplot(data_time_n,
+                  aes(x = factor(year_funding_first), y = n_cum)) %>%
+  # + geom_point(color = "#3182BD", size = 1.5) %>%
+  # + geom_line(color = "#3182BD", size = 1) %>% 
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>%
+  + geom_text(aes(y = n_cum, label = n_cum), 
+              color = "black", size=4, vjust = -0.3) %>%
+  + labs(title = paste("Cumulated number of non-marine protected areas funded by AFD,", roi),
+         subtitle = paste("Sample :", sum(data_time_n$n), "non-marine protected areas"),
+         x = "Year",
+         y = "Number of protected areas") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+fig_ncum_pa_en
+
+
+```
+
+```{r, eval = FALSE}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+ggsave(paste(tmp, "fig_n_pa_fr.png", sep = "/"),
+       fig_n_pa_fr,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "fig_n_pa_en.png", sep = "/"),
+       fig_n_pa_en,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "fig_ncum_pa_fr.png", sep = "/"),
+       fig_ncum_pa_fr,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "fig_ncum_pa_en.png", sep = "/"),
+       fig_ncum_pa_en,
+       device = "png",
+       height = 6, width = 9)
+
+
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+count = 0
+for(f in files) 
+{
+  count = count+1
+  cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = paste("projet-afd-eva-ap/descriptive_stats/time_evolution", roi, "no_marine", sep = "/"), 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+```
+
+#### Surface of PAs (world, all)
 
 ```{r, eval = FALSE}
 data_time_range = data.frame(year = 
@@ -2100,7 +2522,8 @@ data_time_range = data.frame(year =
 data_time_area = data_stat_nodupl %>%
   filter(is.na(year_funding_first) == FALSE) %>%
   group_by(year_funding_first) %>%
-  summarize(tot_area_km2 = sum(area_km2)) %>%
+  summarize(tot_area_km2 = sum(area_km2),
+            n = n()) %>%
   left_join(pa_int_yr, by = c("year_funding_first" = "annee_int")) %>%
   full_join(data_time_range, by = c("year_funding_first" = "year")) %>%
   mutate(tot_area_km2 = case_when(is.na(tot_area_km2)~0, TRUE~tot_area_km2),
@@ -2121,7 +2544,7 @@ fig_area_pa_fr = ggplot(data_time_area,
                                  NA)), 
               color = "black", size=2, vjust = -0.3) %>%
   + labs(title = "Evolution de la superficie financée par l'AFD",
-         subtitle = paste("Echantillon :", sum(data_time_n$n), "aires protégées sur",  nrow(data_stat_nodupl), "couvrant", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km2"),
+         subtitle = paste("Echantillon :", sum(data_time_area$n, na.rm = TRUE), "aires protégées couvrant", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km2"),
          x = "Année",
          y = "Superficie (km2)") %>%
   + theme(legend.position = "bottom",
@@ -2147,7 +2570,7 @@ fig_area_pa_en = ggplot(data_time_area,
                                  NA)), 
               color = "black", size=2, vjust = -0.3) %>%
   + labs(title = "Evolution of AFD funded area",
-         subtitle = paste("Sample :", sum(data_time_n$n), "protected areas out of", nrow(data_stat_nodupl), "covering", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km2"),
+         subtitle = paste("Sample :", sum(data_time_area$n, na.rm = TRUE), "protected areas covering", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km2"),
          x = "Year",
          y = "Area (km2)") %>%
   + theme(legend.position = "bottom",
@@ -2178,7 +2601,7 @@ fig_area_cum_pa_fr = ggplot(data_time_area,
                                  scientific = TRUE)), 
               color = "black", size=2, vjust = -0.3) %>%
   + labs(title = "Evolution cumulée de la superficie des aires protégées, financées par l'AFD",
-          subtitle = paste("Echantillon :", sum(data_time_n$n), "aires protégées sur",  nrow(data_stat_nodupl), "couvrant", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km2"),
+          subtitle = paste("Echantillon :", sum(data_time_area$n, na.rm = TRUE), "aires protégées couvrant", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km2"),
          x = "Année",
          y = "Superficie (km2)") %>%
   + theme(legend.position = "bottom",
@@ -2205,7 +2628,7 @@ fig_area_cum_pa_en = ggplot(data_time_area,
                                  scientific = TRUE)), 
               color = "black", size=2, vjust = -0.3) %>%
   + labs(title = "Cumulative evolution of area funded by AFD",
-          subtitle = paste("Sample :", sum(data_time_n$n), "protected areas out of",  nrow(data_stat_nodupl), "covering", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km2"),
+          subtitle = paste("Sample :", sum(data_time_area$n, na.rm = TRUE), "protected areas covering", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km2"),
          x = "Year",
          y = "Area (km2)") %>%
   + theme(legend.position = "bottom",
@@ -2257,7 +2680,7 @@ for(f in files)
   count = count+1
   cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/time_evolution", 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/time_evolution/world/all", 
                      region = "", show_progress = TRUE)
   }
 
@@ -2266,14 +2689,371 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
-### Governance
+#### Surface of PAs (world, non-marine)
+
+```{r, eval = FALSE}
+data_time_range = data.frame(year = 
+                              c(min(data_stat_nodupl$year_funding_first, na.rm = TRUE):max(data_stat_nodupl$year_funding_first, na.rm = TRUE))
+)
+
+
+data_time_area = data_stat_nodupl %>%
+  filter(marine %in% c(0,1)) %>%
+  filter(is.na(year_funding_first) == FALSE) %>%
+  group_by(year_funding_first) %>%
+  summarize(tot_area_km2 = sum(area_km2),
+            n = n()) %>%
+  left_join(pa_int_yr, by = c("year_funding_first" = "annee_int")) %>%
+  full_join(data_time_range, by = c("year_funding_first" = "year")) %>%
+  mutate(tot_area_km2 = case_when(is.na(tot_area_km2)~0, TRUE~tot_area_km2),
+         tot_int_km2 = case_when(is.na(tot_int_km2)~0, TRUE~tot_int_km2),
+         tot_area_noint_km2 = tot_area_km2 - tot_int_km2) %>%
+  arrange(year_funding_first)
+
+#Evolution of area over time
+##French
+fig_area_pa_fr = ggplot(data_time_area,
+                  aes(x = factor(year_funding_first), y = tot_area_noint_km2)) %>%
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>%
+  + geom_text(aes(y = tot_area_noint_km2, 
+                  label = ifelse(tot_area_noint_km2 != 0,
+                                 format(tot_area_noint_km2, 
+                                        digits = 2, 
+                                        scientific = TRUE),
+                                 NA)), 
+              color = "black", size=2, vjust = -0.3) %>%
+  + labs(title = "Evolution de la superficie non-marine financée par l'AFD",
+         subtitle = paste("Echantillon :", sum(data_time_area$n, na.rm = TRUE), "aires protégées couvrant", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km2"),
+         x = "Année",
+         y = "Superficie (km2)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+fig_area_pa_fr
+##English
+fig_area_pa_en = ggplot(data_time_area,
+                  aes(x = factor(year_funding_first), y = tot_area_noint_km2)) %>%
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>%
+  + geom_text(aes(y = tot_area_noint_km2, 
+                  label = ifelse(tot_area_noint_km2 != 0,
+                                 format(tot_area_noint_km2, 
+                                        digits = 2, 
+                                        scientific = TRUE),
+                                 NA)), 
+              color = "black", size=2, vjust = -0.3) %>%
+  + labs(title = "Evolution of AFD funded non-marine protected areas",
+         subtitle = paste("Sample :", sum(data_time_area$n, na.rm = TRUE), "protected areas covering", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km2"),
+         x = "Year",
+         y = "Area (km2)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+fig_area_pa_en
+
+
+
+#Cumulative area over time
+##French
+fig_area_cum_pa_fr = ggplot(data_time_area,
+                  aes(x = factor(year_funding_first),
+                      y = cumsum(tot_area_noint_km2))) %>%
+  # + geom_point(color = "#3182BD", size = 1.5) %>%
+  # + geom_line(color = "#3182BD", size = 1) %>% 
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>%
+  + geom_text(aes(y = cumsum(tot_area_noint_km2), 
+                  label = format(cumsum(tot_area_noint_km2), 
+                                 digits = 2,
+                                 scientific = TRUE)), 
+              color = "black", size=2, vjust = -0.3) %>%
+  + labs(title = "Evolution cumulée de la superficie des aires protégées non-marines, financées par l'AFD",
+          subtitle = paste("Echantillon :", sum(data_time_area$n, na.rm = TRUE), "aires protégées couvrant", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km2"),
+         x = "Année",
+         y = "Superficie (km2)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+fig_area_cum_pa_fr
+#English
+fig_area_cum_pa_en = ggplot(data_time_area,
+                  aes(x = factor(year_funding_first),
+                      y = cumsum(tot_area_noint_km2))) %>%
+  # + geom_point(color = "#3182BD", size = 1.5) %>%
+  # + geom_line(color = "#3182BD", size = 1) %>% 
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>%
+  + geom_text(aes(y = cumsum(tot_area_noint_km2), 
+                  label = format(cumsum(tot_area_noint_km2), 
+                                 digits = 2,
+                                 scientific = TRUE)), 
+              color = "black", size=2, vjust = -0.3) %>%
+  + labs(title = "Cumulated evolution of non-marine protected areas funded by AFD",
+          subtitle = paste("Sample :", sum(data_time_area$n, na.rm = TRUE), "protected areas covering", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km2"),
+         x = "Year",
+         y = "Area (km2)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+fig_area_cum_pa_en
+```
+
+```{r, eval = FALSE}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+ggsave(paste(tmp, "fig_area_pa_fr.png", sep = "/"),
+       fig_area_pa_fr,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "fig_area_pa_en.png", sep = "/"),
+       fig_area_pa_en,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "fig_area_cum_pa_fr.png", sep = "/"),
+       fig_area_cum_pa_fr,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "fig_area_cum_pa_en.png", sep = "/"),
+       fig_area_cum_pa_en,
+       device = "png",
+       height = 6, width = 9)
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+count = 0
+for(f in files) 
+{
+  count = count+1
+  cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/time_evolution/world/no_marine", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+```
+
+#### Surface of PAs (region, non-marine)
+
+```{r, eval = FALSE}
+
+roi = "Africa"
+
+data_time_range = data.frame(year = 
+                              c(min(data_stat_nodupl$year_funding_first, na.rm = TRUE):max(data_stat_nodupl$year_funding_first, na.rm = TRUE))
+)
+
+
+data_time_area = data_stat_nodupl %>%
+  filter(region == roi & marine %in% c(0,1)) %>%
+  filter(is.na(year_funding_first) == FALSE) %>%
+  group_by(year_funding_first) %>%
+  summarize(tot_area_km2 = sum(area_km2),
+            n = n()) %>%
+  left_join(pa_int_yr, by = c("year_funding_first" = "annee_int")) %>%
+  full_join(data_time_range, by = c("year_funding_first" = "year")) %>%
+  mutate(tot_area_km2 = case_when(is.na(tot_area_km2)~0, TRUE~tot_area_km2),
+         tot_int_km2 = case_when(is.na(tot_int_km2)~0, TRUE~tot_int_km2),
+         tot_area_noint_km2 = tot_area_km2 - tot_int_km2) %>%
+  arrange(year_funding_first)
+
+#Evolution of area over time
+##French
+fig_area_pa_fr = ggplot(data_time_area,
+                  aes(x = factor(year_funding_first), y = tot_area_noint_km2)) %>%
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>%
+  + geom_text(aes(y = tot_area_noint_km2, 
+                  label = ifelse(tot_area_noint_km2 != 0,
+                                 format(tot_area_noint_km2, 
+                                        digits = 2, 
+                                        scientific = TRUE),
+                                 NA)), 
+              color = "black", size=2, vjust = -0.3) %>%
+  + labs(title = paste("Evolution de la superficie non-marine financée par l'AFD,", roi), 
+         subtitle = paste("Echantillon :", sum(data_time_area$n, na.rm = TRUE), "aires protégées couvrant", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km2"),
+         x = "Année",
+         y = "Superficie (km2)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+fig_area_pa_fr
+##English
+fig_area_pa_en = ggplot(data_time_area,
+                  aes(x = factor(year_funding_first), y = tot_area_noint_km2)) %>%
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>%
+  + geom_text(aes(y = tot_area_noint_km2, 
+                  label = ifelse(tot_area_noint_km2 != 0,
+                                 format(tot_area_noint_km2, 
+                                        digits = 2, 
+                                        scientific = TRUE),
+                                 NA)), 
+              color = "black", size=2, vjust = -0.3) %>%
+  + labs(title = paste("Evolution of AFD funded non-marine protected areas,", roi),
+         subtitle = paste("Sample :", sum(data_time_area$n, na.rm = TRUE), "protected areas covering", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km2"),
+         x = "Year",
+         y = "Area (km2)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+fig_area_pa_en
+
+
+
+#Cumulative area over time
+##French
+fig_area_cum_pa_fr = ggplot(data_time_area,
+                  aes(x = factor(year_funding_first),
+                      y = cumsum(tot_area_noint_km2))) %>%
+  # + geom_point(color = "#3182BD", size = 1.5) %>%
+  # + geom_line(color = "#3182BD", size = 1) %>% 
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>%
+  + geom_text(aes(y = cumsum(tot_area_noint_km2), 
+                  label = format(cumsum(tot_area_noint_km2), 
+                                 digits = 2,
+                                 scientific = TRUE)), 
+              color = "black", size=2, vjust = -0.3) %>%
+  + labs(title = paste("Evolution cumulée de la superficie des aires protégées\nnon-marines financées par l'AFD,", roi),
+          subtitle = paste("Echantillon :", sum(data_time_area$n, na.rm = TRUE), "aires protégées couvrant", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km2"),
+         x = "Année",
+         y = "Superficie (km2)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+fig_area_cum_pa_fr
+#English
+fig_area_cum_pa_en = ggplot(data_time_area,
+                  aes(x = factor(year_funding_first),
+                      y = cumsum(tot_area_noint_km2))) %>%
+  # + geom_point(color = "#3182BD", size = 1.5) %>%
+  # + geom_line(color = "#3182BD", size = 1) %>% 
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>%
+  + geom_text(aes(y = cumsum(tot_area_noint_km2), 
+                  label = format(cumsum(tot_area_noint_km2), 
+                                 digits = 2,
+                                 scientific = TRUE)), 
+              color = "black", size=2, vjust = -0.3) %>%
+  + labs(title = paste("Cumulated evolution of non-marine protected areas funded by AFD,", roi),
+          subtitle = paste("Sample :", sum(data_time_area$n, na.rm = TRUE), "protected areas covering", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km2"),
+         x = "Year",
+         y = "Area (km2)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+fig_area_cum_pa_en
+```
+
+```{r, eval = FALSE}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+ggsave(paste(tmp, "fig_area_pa_fr.png", sep = "/"),
+       fig_area_pa_fr,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "fig_area_pa_en.png", sep = "/"),
+       fig_area_pa_en,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "fig_area_cum_pa_fr.png", sep = "/"),
+       fig_area_cum_pa_fr,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "fig_area_cum_pa_en.png", sep = "/"),
+       fig_area_cum_pa_en,
+       device = "png",
+       height = 6, width = 9)
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+count = 0
+for(f in files) 
+{
+  count = count+1
+  cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = paste("projet-afd-eva-ap/descriptive_stats/time_evolution", roi, "no_marine", sep = "/"), 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+```
+
+### Governance 
+
+#### World, all
 
 ```{r, eval = FALSE}
 
 #Table of the governance type distribution
 ##English version
 data_gov_en = data_stat_nodupl %>%
-  mutate(gov_type = case_when(gov_type == "" ~ "Not referenced",
+  mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Not referenced",
                               TRUE ~ gov_type)) %>%
   group_by(gov_type) %>%
   summarize(n = n()) %>%
@@ -2288,7 +3068,7 @@ names(tbl_gov_en) = c("Governance","Number of PAs","Share of PAs (%)")
 
 ##French Version
 data_gov_fr = data_stat_nodupl %>%
-  mutate(gov_type = case_when(gov_type == "" ~ "Non référencée",
+  mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Non référencée",
                               gov_type == "Collaborative governance" ~ "Gouvernance collaborative",
                               gov_type == "Federal or national ministry or agency" ~ "Ministère ou agence, fédérale ou nationale",
                               gov_type == "Federal or national ministry or agency" ~ "Ministère ou agence, fédérale ou nationale",
@@ -2316,7 +3096,7 @@ names(tbl_gov_fr) = c("Gouvernance","Nombre d'AP","Proportion (%)")
 ##Tables
 ###English
 data_gov_knwn_en = data_stat_nodupl %>%
-  mutate(gov_type = case_when(gov_type == "" ~ "Not referenced",
+  mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Not referenced",
                               TRUE ~ gov_type)) %>%
   filter(gov_type != "Not Reported" & gov_type != "Not referenced") %>%
   group_by(gov_type) %>%
@@ -2331,7 +3111,7 @@ names(tbl_gov_knwn_en) = c("Governance","Number of PAs","Share of PAs (%)")
 
 ###French
 data_gov_knwn_fr = data_stat_nodupl %>%
-  mutate(gov_type = case_when(gov_type == "" ~ "Non référencée",
+  mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Non référencée",
                               gov_type == "Collaborative governance" ~ "Gouvernance collaborative",
                               gov_type == "Federal or national ministry or agency" ~ "Ministère ou agence, fédérale ou nationale",
                               gov_type == "Federal or national ministry or agency" ~ "Ministère ou agence, fédérale ou nationale",
@@ -2367,8 +3147,8 @@ pie_gov_knwn_en =
                position = position_stack(vjust = 0.55), 
                size=2.5, show.legend = FALSE) %>%
   + coord_polar("y", start=0) %>%
-  + labs(title = "Governance type of PAs, except not referenced/reported",
-         subtitle = paste("Sample :", sum(data_gov_knwn_en$n), "PAs out of", nrow(data_stat_nodupl))) %>%
+  + labs(title = "Governance type of protected areas except not referenced/reported",
+         subtitle = paste("Sample :", sum(data_gov_knwn_en$n), "protected areas")) %>%
   + scale_fill_brewer(name = "Governance", palette="Paired") %>%
   + theme_void()
 pie_gov_knwn_en
@@ -2385,8 +3165,8 @@ pie_gov_knwn_fr =
                position = position_stack(vjust = 0.55), 
                size=2.5, show.legend = FALSE) %>%
   + coord_polar("y", start=0) %>%
-  + labs(title = "Gouvernance, hors non-rapportée/référencée",
-         subtitle = paste("Echantillon :", sum(data_gov_knwn_fr$n), "aires protégées sur", nrow(data_stat_nodupl))) %>%
+  + labs(title = "Gouvernance, hors non-rapportées/référencées",
+         subtitle = paste("Echantillon :", sum(data_gov_knwn_fr$n), "aires protégées" )) %>%
   + scale_fill_brewer(name = "Gouvernance", palette="Paired") %>%
   + theme_void()
 pie_gov_knwn_fr
@@ -2398,13 +3178,21 @@ pie_gov_knwn_fr
 
 tmp = paste(tempdir(), "fig", sep = "/")
 
-print(xtable(tbl_gov_en, type = "latex"),
+print(xtable(tbl_gov_en,
+             caption = "Governance of protected areas funded by AFD",
+             type = "latex"),
       file = paste(tmp, "tbl_gov_en.tex", sep  ="/"))
-print(xtable(tbl_gov_fr, type = "latex"),
+print(xtable(tbl_gov_fr,
+             caption = "Gouvernance des aires protégées appuyées par l'AFD",
+             type = "latex"),
       file = paste(tmp, "tbl_gov_fr.tex", sep  ="/"))
-print(xtable(tbl_gov_knwn_en, type = "latex"),
+print(xtable(tbl_gov_knwn_en, 
+             caption = "Governance of protected areas funded by AFD (when known)",
+             type = "latex"),
       file = paste(tmp, "tbl_gov_knwn_en.tex", sep  ="/"))
-print(xtable(tbl_gov_knwn_fr, type = "latex"),
+print(xtable(tbl_gov_knwn_fr, 
+             caption = "Gouvernance des aires protégées appuyées par l'AFD (si connu)",
+             type = "latex"),
       file = paste(tmp, "tbl_gov_knwn_fr.tex", sep  ="/"))
 
 ggsave(paste(tmp, " pie_gov_knwn_en.png", sep = "/"),
@@ -2427,7 +3215,377 @@ for(f in files)
   count = count+1
   cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/gouvernance", 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/gouvernance/world/all", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+```
+
+#### World, non-marine
+
+```{r, eval = FALSE}
+
+#Table of the governance type distribution
+##English version
+data_gov_en = data_stat_nodupl %>%
+  filter(marine %in% c(0,1)) %>%
+  mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Not referenced",
+                              TRUE ~ gov_type)) %>%
+  group_by(gov_type) %>%
+  summarize(n = n()) %>%
+  mutate(n_tot = sum(n),
+         freq = round(n/n_tot*100,1)) %>%
+  select(-n_tot) %>%
+  arrange(-freq)
+
+tbl_gov_en = data_gov_en
+names(tbl_gov_en) = c("Governance","Number of PAs","Share of PAs (%)")
+
+
+##French Version
+data_gov_fr = data_stat_nodupl %>%
+  filter(marine %in% c(0,1)) %>%
+  mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Non référencée",
+                              gov_type == "Collaborative governance" ~ "Gouvernance collaborative",
+                              gov_type == "Federal or national ministry or agency" ~ "Ministère ou agence, fédérale ou nationale",
+                              gov_type == "Federal or national ministry or agency" ~ "Ministère ou agence, fédérale ou nationale",
+                              gov_type == "Government-delegated management" ~ "Gestion déléguée par le gouvernement",
+                              gov_type == "Indigenous peoples" ~ "Peuples indigènes",
+                              gov_type == "Joint governance" ~ "Gouvernance conjointe",
+                              gov_type == "Local communities" ~ "Communautés locales",
+                              gov_type == "Non-profit organisations" ~ "Organisations non-lucratives",
+                              gov_type == "Not Reported" ~ "Non rapportée",
+                              gov_type == "Sub-national ministry or agency" ~ "Ministère ou agence sous-nationale",
+                              TRUE ~ gov_type)) %>%
+  group_by(gov_type) %>%
+  summarize(n = n()) %>%
+  mutate(n_tot = sum(n),
+         freq = round(n/n_tot*100,1)) %>%
+  select(-n_tot) %>%
+  arrange(-freq)
+
+tbl_gov_fr = data_gov_fr
+names(tbl_gov_fr) = c("Gouvernance","Nombre d'AP","Proportion (%)")
+
+
+
+#PAs with nureported or unreferenced governance types are removed
+##Tables
+###English
+data_gov_knwn_en = data_stat_nodupl %>%
+  filter(marine %in% c(0,1)) %>%
+  mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Not referenced",
+                              TRUE ~ gov_type)) %>%
+  filter(gov_type != "Not Reported" & gov_type != "Not referenced") %>%
+  group_by(gov_type) %>%
+  summarize(n = n()) %>%
+  mutate(n_tot = sum(n),
+         freq = round(n/n_tot*100,1)) %>%
+  select(-n_tot) %>%
+  arrange(-freq)
+
+tbl_gov_knwn_en = data_gov_knwn_en
+names(tbl_gov_knwn_en) = c("Governance","Number of PAs","Share of PAs (%)")
+
+###French
+data_gov_knwn_fr = data_stat_nodupl %>%
+  filter(marine %in% c(0,1)) %>%
+  mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Non référencée",
+                              gov_type == "Collaborative governance" ~ "Gouvernance collaborative",
+                              gov_type == "Federal or national ministry or agency" ~ "Ministère ou agence, fédérale ou nationale",
+                              gov_type == "Federal or national ministry or agency" ~ "Ministère ou agence, fédérale ou nationale",
+                              gov_type == "Government-delegated management" ~ "Gestion déléguée par le gouvernement",
+                              gov_type == "Indigenous peoples" ~ "Peuples indigènes",
+                              gov_type == "Joint governance" ~ "Gouvernance conjointe",
+                              gov_type == "Local communities" ~ "Communautés locales",
+                              gov_type == "Non-profit organisations" ~ "Organisations non-lucratives",
+                              gov_type == "Not Reported" ~ "Non rapportée",
+                              gov_type == "Sub-national ministry or agency" ~ "Ministère ou agence sous-nationale",
+                              TRUE ~ gov_type)) %>%
+  filter(gov_type != "Non référencée" & gov_type != "Non rapportée") %>%
+  group_by(gov_type) %>%
+  summarize(n = n()) %>%
+  mutate(n_tot = sum(n),
+         freq = round(n/n_tot*100,1)) %>%
+  select(-n_tot) %>%
+  arrange(-freq)
+
+tbl_gov_knwn_fr = data_gov_knwn_fr
+names(tbl_gov_knwn_fr) = c("Gouvernance","Nombre d'AP","Proportion (%)")
+ 
+
+##Pie charts
+###English
+pie_gov_knwn_en = 
+  ggplot(data_gov_knwn_en, 
+       aes(x="", y= freq, fill= gov_type)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + geom_label(aes(x=1.3, 
+                   label = paste0(format(freq, digits = 2), "%")), 
+               color = "black", 
+               position = position_stack(vjust = 0.55), 
+               size=2.5, show.legend = FALSE) %>%
+  + coord_polar("y", start=0) %>%
+  + labs(title = "Governance type of non-marine protected areas except not referenced/reported",
+         subtitle = paste("Sample :", sum(data_gov_knwn_en$n), "non-marines protected areas")) %>%
+  + scale_fill_brewer(name = "Governance", palette="Paired") %>%
+  + theme_void()
+pie_gov_knwn_en
+
+
+###French
+pie_gov_knwn_fr =
+  ggplot(data_gov_knwn_fr, 
+       aes(x="", y= freq, fill= gov_type)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + geom_label(aes(x=1.3, 
+                   label = paste0(format(freq, digits = 2), "%")), 
+               color = "black", 
+               position = position_stack(vjust = 0.55), 
+               size=2.5, show.legend = FALSE) %>%
+  + coord_polar("y", start=0) %>%
+  + labs(title = "Gouvernance des aires protégées non-marines hors non-rapportées/référencées",
+         subtitle = paste("Echantillon :", sum(data_gov_knwn_fr$n), "aires protégées non-marines")) %>%
+  + scale_fill_brewer(name = "Gouvernance", palette="Paired") %>%
+  + theme_void()
+pie_gov_knwn_fr
+
+
+```
+
+```{r, eval = FALSE}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+print(xtable(tbl_gov_en,
+             caption = "Governance of non-marine protected areas funded by AFD",
+             type = "latex"),
+      file = paste(tmp, "tbl_gov_en.tex", sep  ="/"))
+print(xtable(tbl_gov_fr,
+             caption = "Gouvernance des aires protégées non-marines appuyées par l'AFD",
+             type = "latex"),
+      file = paste(tmp, "tbl_gov_fr.tex", sep  ="/"))
+print(xtable(tbl_gov_knwn_en, 
+             caption = "Governance of non-marine protected areas funded by AFD (when known)",
+             type = "latex"),
+      file = paste(tmp, "tbl_gov_knwn_en.tex", sep  ="/"))
+print(xtable(tbl_gov_knwn_fr, 
+             caption = "Gouvernance des aires protégées non-marines appuyées par l'AFD (si connu)",
+             type = "latex"),
+      file = paste(tmp, "tbl_gov_knwn_fr.tex", sep  ="/"))
+
+
+ggsave(paste(tmp, " pie_gov_knwn_en.png", sep = "/"),
+       plot =  pie_gov_knwn_en,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "pie_gov_knwn_fr.png", sep = "/"),
+       plot = pie_gov_knwn_fr,
+       device = "png",
+       height = 6, width = 9)
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+count = 0
+for(f in files) 
+{
+  count = count+1
+  cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/gouvernance/world/no_marine", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+
+```
+
+#### Region, non-marine
+
+```{r, eval = FALSE}
+
+roi = "Africa"
+
+#Table of the governance type distribution
+##English version
+data_gov_en = data_stat_nodupl %>%
+  filter(region == roi & marine %in% c(0,1)) %>%
+  mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Not referenced",
+                              TRUE ~ gov_type)) %>%
+  group_by(gov_type) %>%
+  summarize(n = n()) %>%
+  mutate(n_tot = sum(n),
+         freq = round(n/n_tot*100,1)) %>%
+  select(-n_tot) %>%
+  arrange(-freq)
+
+tbl_gov_en = data_gov_en
+names(tbl_gov_en) = c("Governance","Number of PAs","Share of PAs (%)")
+
+
+##French Version
+data_gov_fr = data_stat_nodupl %>%
+  filter(region == roi & marine %in% c(0,1)) %>%
+  mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Non référencée",
+                              gov_type == "Collaborative governance" ~ "Gouvernance collaborative",
+                              gov_type == "Federal or national ministry or agency" ~ "Ministère ou agence, fédérale ou nationale",
+                              gov_type == "Federal or national ministry or agency" ~ "Ministère ou agence, fédérale ou nationale",
+                              gov_type == "Government-delegated management" ~ "Gestion déléguée par le gouvernement",
+                              gov_type == "Indigenous peoples" ~ "Peuples indigènes",
+                              gov_type == "Joint governance" ~ "Gouvernance conjointe",
+                              gov_type == "Local communities" ~ "Communautés locales",
+                              gov_type == "Non-profit organisations" ~ "Organisations non-lucratives",
+                              gov_type == "Not Reported" ~ "Non rapportée",
+                              gov_type == "Sub-national ministry or agency" ~ "Ministère ou agence sous-nationale",
+                              TRUE ~ gov_type)) %>%
+  group_by(gov_type) %>%
+  summarize(n = n()) %>%
+  mutate(n_tot = sum(n),
+         freq = round(n/n_tot*100,1)) %>%
+  select(-n_tot) %>%
+  arrange(-freq)
+
+tbl_gov_fr = data_gov_fr
+names(tbl_gov_fr) = c("Gouvernance","Nombre d'AP","Proportion (%)")
+
+
+
+#PAs with nureported or unreferenced governance types are removed
+##Tables
+###English
+data_gov_knwn_en = data_stat_nodupl %>%
+  filter(region == roi & marine %in% c(0,1)) %>%
+  mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Not referenced",
+                              TRUE ~ gov_type)) %>%
+  filter(gov_type != "Not Reported" & gov_type != "Not referenced") %>%
+  group_by(gov_type) %>%
+  summarize(n = n()) %>%
+  mutate(n_tot = sum(n),
+         freq = round(n/n_tot*100,1)) %>%
+  select(-n_tot) %>%
+  arrange(-freq)
+
+tbl_gov_knwn_en = data_gov_knwn_en
+names(tbl_gov_knwn_en) = c("Governance","Number of PAs","Share of PAs (%)")
+
+###French
+data_gov_knwn_fr = data_stat_nodupl %>%
+  filter(region == roi & marine %in% c(0,1)) %>%
+  mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Non référencée",
+                              gov_type == "Collaborative governance" ~ "Gouvernance collaborative",
+                              gov_type == "Federal or national ministry or agency" ~ "Ministère ou agence, fédérale ou nationale",
+                              gov_type == "Federal or national ministry or agency" ~ "Ministère ou agence, fédérale ou nationale",
+                              gov_type == "Government-delegated management" ~ "Gestion déléguée par le gouvernement",
+                              gov_type == "Indigenous peoples" ~ "Peuples indigènes",
+                              gov_type == "Joint governance" ~ "Gouvernance conjointe",
+                              gov_type == "Local communities" ~ "Communautés locales",
+                              gov_type == "Non-profit organisations" ~ "Organisations non-lucratives",
+                              gov_type == "Not Reported" ~ "Non rapportée",
+                              gov_type == "Sub-national ministry or agency" ~ "Ministère ou agence sous-nationale",
+                              TRUE ~ gov_type)) %>%
+  filter(gov_type != "Non référencée" & gov_type != "Non rapportée") %>%
+  group_by(gov_type) %>%
+  summarize(n = n()) %>%
+  mutate(n_tot = sum(n),
+         freq = round(n/n_tot*100,1)) %>%
+  select(-n_tot) %>%
+  arrange(-freq)
+
+tbl_gov_knwn_fr = data_gov_knwn_fr
+names(tbl_gov_knwn_fr) = c("Gouvernance","Nombre d'AP","Proportion (%)")
+ 
+
+##Pie charts
+###English
+pie_gov_knwn_en = 
+  ggplot(data_gov_knwn_en, 
+       aes(x="", y= freq, fill= gov_type)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + geom_label(aes(x=1.3, 
+                   label = paste0(format(freq, digits = 2), "%")), 
+               color = "black", 
+               position = position_stack(vjust = 0.55), 
+               size=2.5, show.legend = FALSE) %>%
+  + coord_polar("y", start=0) %>%
+  + labs(title = paste0("Governance type of non-marine protected areas except not referenced/reported\n", roi),
+         subtitle = paste("Sample :", sum(data_gov_knwn_en$n), "non-marine protected areas")) %>%
+  + scale_fill_brewer(name = "Governance", palette="Paired") %>%
+  + theme_void()
+pie_gov_knwn_en
+
+
+###French
+pie_gov_knwn_fr =
+  ggplot(data_gov_knwn_fr, 
+       aes(x="", y= freq, fill= gov_type)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + geom_label(aes(x=1.3, 
+                   label = paste0(format(freq, digits = 2), "%")), 
+               color = "black", 
+               position = position_stack(vjust = 0.55), 
+               size=2.5, show.legend = FALSE) %>%
+  + coord_polar("y", start=0) %>%
+  + labs(title = paste0("Gouvernance des aires protégées non-marines hors non-rapportées/référencées\n", roi),
+         subtitle = paste("Echantillon :", sum(data_gov_knwn_fr$n), "aires protégées")) %>%
+  + scale_fill_brewer(name = "Gouvernance", palette="Paired") %>%
+  + theme_void()
+pie_gov_knwn_fr
+
+
+```
+
+```{r, eval = FALSE}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+print(xtable(tbl_gov_en,
+             caption = paste("Governance of non-marine protected areas funded by AFD,", roi),
+             type = "latex"),
+      file = paste(tmp, "tbl_gov_en.tex", sep  ="/"))
+print(xtable(tbl_gov_fr,
+             caption = paste("Gouvernance des aires protégées non-marines appuyées par l'AFD,", roi),
+             type = "latex"),
+      file = paste(tmp, "tbl_gov_fr.tex", sep  ="/"))
+print(xtable(tbl_gov_knwn_en, 
+             caption = paste("Governance of non-marine protected areas funded by AFD,", roi, "(when known)"),
+             type = "latex"),
+      file = paste(tmp, "tbl_gov_knwn_en.tex", sep  ="/"))
+print(xtable(tbl_gov_knwn_fr, 
+             caption = paste("Gouvernance des aires protégées non-marines appuyées par l'AFD,", roi, "(si connu)"),
+             type = "latex"),
+      file = paste(tmp, "tbl_gov_knwn_fr.tex", sep  ="/"))
+
+ggsave(paste(tmp, " pie_gov_knwn_en.png", sep = "/"),
+       plot =  pie_gov_knwn_en,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "pie_gov_knwn_fr.png", sep = "/"),
+       plot = pie_gov_knwn_fr,
+       device = "png",
+       height = 6, width = 9)
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+count = 0
+for(f in files) 
+{
+  count = count+1
+  cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = paste("projet-afd-eva-ap/descriptive_stats/gouvernance" , roi, "no_marine", sep = "/"), 
                      region = "", show_progress = TRUE)
   }
 
