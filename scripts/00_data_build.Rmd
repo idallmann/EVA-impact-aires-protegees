@@ -385,7 +385,10 @@ data_tidy = data_raw_corr %>%
                                                "ZZ" = "Multi-pays",
                                                "COG;CMR;CAF" = "Multi-pays")),
          .after = "iso3") %>%
-  #Some PAs have iso "ZZ" (multi-countries) by funded by Dr Ocean Pacifique. The region is assigned to Oceania
+#Change transboundary iso3 to ZZ (mutli-countries)
+  mutate(iso3 = case_when(iso3 == "COG;CMR;CAF" ~"ZZ",
+                          TRUE ~iso3)) %>%
+    #Some PAs have iso "ZZ" (multi-countries) by funded by Dr Ocean Pacifique. The region is assigned to Oceania
     mutate(region = case_when(region == "" & libelle_court_direction_regionale == "DR OCEAN PACIFIQUE" ~ "Oceania",
                               region == "" & grepl("sahel|guinee|africa", libelle_court_direction_regionale, ignore.case = TRUE) ~ "Africa",
                               region == "" & grepl("chine|asie", libelle_court_direction_regionale, ignore.case = TRUE) ~ "Asia",
@@ -465,6 +468,10 @@ s3write_using(x = data_siop_tidy,
 ### Dataset for non-confidential analysis
 
 Buld a dataset with one row per PA. In the list of PAs reported by AFD department, some PAs are also reported in the WDPA and are identified by a WDPA ID, some have no WDPAID but have a unique name, and other have neither name nor WDPAID. For the latter case, a PA is supposed to be identified by project ID and country. Thus we need to remove duplicates for each case. Also, the funding years of each PA is kept.
+
+For the impact analysis, we also need to take into account transboundary PAs (i.e PAs on more than one country). Indeed the analysis is performed country by country based on ISO3 code. Thus we need to divide the PAs across the country it is located in, and re-compute the area of the PA in each country
+
+#### For descriptive statistics
 
 ```{r, eval = FALSE}
 #Listing relevant variables for analysis that are NOT confidential (i.e not concern funding)
@@ -633,6 +640,38 @@ s3write_using(x = data_nofund_nodupl,
 #   select(-key)
 ```
 
+#### For impact analysis
+
+```{r, eval = FALSE}
+
+data_pa_nofund_nodupl = 
+  #fread("data_raw/BDD_PA_AFD_nofund_nodupl.csv")
+  s3read_using(readr::read_delim,
+               delim = ";",
+               show_col_types = FALSE,
+               object = "data_tidy/BDD_PA_AFD_nofund_nodupl.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
+
+data_wdpa =
+  #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
+  s3read_using(sf::st_read,
+              object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = "")) %>%
+  clean_names() %>%
+  select(c(wdpaid, wdpa_pid, geom)) %>%
+  filter(wdpaid %in% data_fund_pa_nodupl$wdpaid)
+
+#The PA WDPAID 555547988 is located in COG, CMR and CAF
+df_555547988 = data_pa_fund_nodupl %>%
+  filter(wdpaid == 555547988) %>%
+  left_join(data_wdpa, by = "wdpaid") %>%
+  separate_longer_delim(cols = c("parent_iso3"), delim = ";") 
+
+
+```
+
 ### Datasets for confidential analysis
 
 The first funding dataset is there to perform descriptive statistics on project funding. Thus we do not need to have one line per PA, as it is not possible to isolate the funding a given WDPAID has received. We simply save the SIOP dataset for project reported as PAs related.
@@ -717,9 +756,9 @@ s3write_using(x = data_fund_pa_nodupl,
               opts = list("region" = ""))
 ```
 
-### A polygon dataset without confidential information
+### A polygon dataset 
 
-Removing confidential variables from the polygon dataset. This is temporary code, as in the future we will download information from WDPA through the WDPA package, and extract the WDPA ID of interest. No confidential data will then be contained in the polygon datasets.
+The funding and non-funding datasets with polygon, for maps creation.
 
 ```{r, eval = FALSE}
 data_wdpa =
