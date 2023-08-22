@@ -7,7 +7,7 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 ```
 
 ```{r message=TRUE, warning=TRUE, eval = FALSE}
-install.packages(c("janitor", "wdpar", "countrycode"))
+install.packages(c("janitor", "geodata", "wdpar", "countrycode"))
 library(tidyverse)
 library(dplyr)
 library(data.table)
@@ -20,6 +20,7 @@ library(mapview)
 library(wdpar)
 library(aws.s3)
 library(countrycode)
+library(geodata)
 
 #Install webdriver to download WDPA data
 #webdriver::install_phantomjs()
@@ -644,6 +645,7 @@ s3write_using(x = data_nofund_nodupl,
 
 ```{r, eval = FALSE}
 
+#Import the non-confidential dataset with no duplicates
 data_pa_nofund_nodupl = 
   #fread("data_raw/BDD_PA_AFD_nofund_nodupl.csv")
   s3read_using(readr::read_delim,
@@ -653,6 +655,7 @@ data_pa_nofund_nodupl =
               bucket = "projet-afd-eva-ap",
               opts = list("region" = ""))
 
+#Import WDPA data
 data_wdpa =
   #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
   s3read_using(sf::st_read,
@@ -660,16 +663,63 @@ data_wdpa =
               bucket = "projet-afd-eva-ap",
               opts = list("region" = "")) %>%
   clean_names() %>%
-  select(c(wdpaid, wdpa_pid, geom)) %>%
+  select(c(wdpaid, geom)) %>%
   filter(wdpaid %in% data_fund_pa_nodupl$wdpaid)
 
 #The PA WDPAID 555547988 is located in COG, CMR and CAF
-df_555547988 = data_pa_fund_nodupl %>%
+##Create a frame with one line by country
+df_555547988 = data_pa_nofund_nodupl %>%
   filter(wdpaid == 555547988) %>%
   left_join(data_wdpa, by = "wdpaid") %>%
-  separate_longer_delim(cols = c("parent_iso3"), delim = ";") 
+  #Create one line by country
+  separate_longer_delim(cols = c("parent_iso3"), delim = ";") %>%
+  mutate(iso3 = parent_iso3,
+         country_en = countrycode(sourcevar = iso3,
+                                  origin = "iso3c",
+                                  destination = "un.name.en"),
+        country_fr = countrycode(sourcevar = iso3,
+                        origin = "iso3c",
+                        destination = "un.name.fr"), 
+        name_pa = paste(name_pa, iso3, sep = "-"))
 
+##Get countries boundaries from geodata package
+ctry_bnd = gadm(country = unique(df_555547988$iso3), 
+                path = tempfile(),
+                version = "latest", level = 0) %>%
+  st_as_sf() %>%
+  rename("geom_ctry" = "geometry",
+         "iso3" = "GID_0")
 
+##Take the intersection of each country with the transboundary polygon, then compute its area in km2
+df_int = st_intersection(ctry_bnd, df_555547988$geom) %>%
+  st_as_sf() %>%
+  #Compute the area in km2
+  mutate(area_int_km2 = as.numeric(st_area(geom_ctry))/1e6) %>%
+  group_by(area_int_km2) %>%
+  slice(1) %>%
+  select(c("iso3", "area_int_km2")) %>%
+  st_drop_geometry()
+
+##Define the cropped dataset
+df_cropd = df_555547988 %>% 
+  left_join(df_int, by = "iso3") %>%
+  mutate(area_km2 = area_int_km2) %>%
+  select(c(names(data_pa_nofund_nodupl))) %>%
+  st_drop_geometry()
+
+##Finally, replace the original transboundary line by multiple lines
+data_pa_ie = data_pa_nofund_nodupl %>%
+  #Select all lines excepted the one to replace
+  filter(is.na(wdpaid) | wdpaid != 555547988) %>%
+  #Add the multiple lines 
+  rbind(df_cropd)
+
+s3write_using(x = data_pa_ie,
+              FUN = readr::write_delim,
+              delim = ";",
+              object = "data_tidy/BDD_PA_AFD_ie.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
 ```
 
 ### Datasets for confidential analysis
