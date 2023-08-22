@@ -110,10 +110,9 @@ pa_int_yr =
 
 ### IUCN categories
 
-#### Share of PAs by IUCN categories (all)
+#### Share of PAs by IUCN categories (world)
 
 ```{r, eval = FALSE}
-
 #Building the relevant dataset
 ##For all PAs ..
 data_cat_iucn = data_stat_nodupl %>%
@@ -123,7 +122,7 @@ data_cat_iucn = data_stat_nodupl %>%
   ungroup() %>%
   #Frequency of IUCN categories
   mutate(n_pa = sum(n_iucn),
-         freq_iucn = round(n_iucn/n_pa*100, 1)) %>%
+         freq_iucn = round(n_iucn/n_pa*100, 2)) %>%
   arrange(desc(iucn_des_en)) %>%
   mutate(ypos_iucn = cumsum(freq_iucn) - 0.5*freq_iucn) 
 
@@ -138,7 +137,7 @@ data_cat_iucn_ref = data_stat_nodupl %>%
   ungroup() %>%
   #Frequency of IUCN categories
   mutate(n_pa = sum(n_iucn),
-         freq_iucn = round(n_iucn/n_pa*100, 1)) %>%
+         freq_iucn = round(n_iucn/n_pa*100, 2)) %>%
   arrange(freq_iucn) %>%
   mutate(ypos_iucn = cumsum(freq_iucn) - 0.5*freq_iucn) 
 
@@ -333,8 +332,310 @@ pie_cat_iucn_ref_en = ggplot(data_cat_iucn_ref,
   + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
   + theme_void()
 pie_cat_iucn_ref_en
+```
+
+```{r, eval = FALSE}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+ggsave(paste(tmp, "hist_cat_iucn_fr.png", sep = "/"),
+       plot = hist_cat_iucn_fr,
+       device = "png",
+       height = 6, width = 9)
+
+ggsave(paste(tmp, "hist_cat_iucn_en.png", sep = "/"),
+       plot = hist_cat_iucn_en,
+       device = "png",
+       height = 6, width = 9)
+
+ggsave(paste(tmp, "hist_cat_iucn_ref_fr.png", sep = "/"),
+       plot = hist_cat_iucn_ref_fr,
+       device = "png",
+       height = 6, width = 9)
+
+ggsave(paste(tmp, "hist_cat_iucn_ref_en.png", sep = "/"),
+       plot = hist_cat_iucn_ref_en,
+       device = "png",
+       height = 6, width = 9)
+
+ggsave(paste(tmp, "pie_cat_iucn_fr.png", sep = "/"),
+       plot = pie_cat_iucn_fr,
+       device = "png",
+       height = 6, width = 9)
+
+ggsave(paste(tmp, "pie_cat_iucn_en.png", sep = "/"),
+       plot = pie_cat_iucn_en,
+       device = "png",
+       height = 6, width = 9)
+
+ggsave(paste(tmp, "pie_cat_iucn_ref_fr.png", sep = "/"),
+       plot = pie_cat_iucn_ref_fr,
+       device = "png",
+       height = 6, width = 9)
+
+ggsave(paste(tmp, "pie_cat_iucn_ref_en.png", sep = "/"),
+       plot = pie_cat_iucn_ref_en,
+       device = "png",
+       height = 6, width = 9)
+
+print(xtable(tbl_cat_iucn_fr, type = "latex"),
+      file = paste(tmp, "tbl_cat_iucn_fr.tex", sep = "/"))
+
+print(xtable(tbl_cat_iucn_en, type = "latex"),
+      file = paste(tmp, "tbl_cat_iucn_en.tex", sep = "/"))
+
+print(xtable(tbl_cat_iucn_ref_fr, type = "latex"),
+      file = paste(tmp, "tbl_cat_iucn_ref_fr.tex", sep = "/"))
+
+print(xtable(tbl_cat_iucn_ref_en, type = "latex"),
+      file = paste(tmp, "tbl_cat_iucn_ref_en.tex", sep = "/"))
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+for(f in files) 
+  {
+  cat("Uploading file", paste0("'", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/IUCN/world/all", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+```
+
+#### Share of PAs by IUCN categories (world, no marine)
+
+```{r, eval = FALSE}
+
+#Building the relevant dataset
+##For all PAs ..
+data_cat_iucn = data_stat_nodupl %>%
+  #Keep only terrestrial or coastal PA (when unknown, discarded)
+  filter(marine %in% c(0,1)) %>%
+  group_by(iucn_des_en, iucn_des_fr) %>%
+  #number of PAs per IUCN category
+  summarize(n_iucn = n()) %>%
+  ungroup() %>%
+  #Frequency of IUCN categories
+  mutate(n_pa = sum(n_iucn),
+         freq_iucn = round(n_iucn/n_pa*100, 2)) %>%
+  arrange(desc(iucn_des_en)) %>%
+  mutate(ypos_iucn = cumsum(freq_iucn) - 0.5*freq_iucn) 
 
 
+##... and for referenced PAs only
+data_cat_iucn_ref = data_stat_nodupl %>%
+  #Keep only terrestrial or coastal PA (when unknown, discarded)
+  filter(marine %in% c(0,1)) %>%
+  #Remove not referenced PAs
+  subset(!(iucn_des_fr %in% c("Non catégorisée", "Non référencée"))) %>%
+  group_by(iucn_des_en, iucn_des_fr) %>%
+  #number of PAs per IUCN category
+  summarize(n_iucn = n()) %>%
+  ungroup() %>%
+  #Frequency of IUCN categories
+  mutate(n_pa = sum(n_iucn),
+         freq_iucn = round(n_iucn/n_pa*100, 2)) %>%
+  arrange(freq_iucn) %>%
+  mutate(ypos_iucn = cumsum(freq_iucn) - 0.5*freq_iucn) 
+
+#Latex table
+##French
+tbl_cat_iucn_fr = data_cat_iucn %>%
+  select(c(iucn_des_fr, n_iucn, freq_iucn))
+names(tbl_cat_iucn_fr) <- c("Catégories IUCN","Nombre d'AP", "Proportion d'AP (%)")
+tbl_cat_iucn_ref_fr = data_cat_iucn_ref %>%
+  select(c(iucn_des_fr, n_iucn, freq_iucn))
+names(tbl_cat_iucn_ref_fr) <- c("Catégories IUCN","Nombre d'AP", "Proportion d'AP (%)")
+##English
+tbl_cat_iucn_en = data_cat_iucn %>%
+  select(c(iucn_des_en, n_iucn, freq_iucn))
+names(tbl_cat_iucn_en) <- c("IUCN categories","Number of PAs", "Share of PAs (%)")
+tbl_cat_iucn_ref_en = data_cat_iucn_ref %>%
+  select(c(iucn_des_en, n_iucn, freq_iucn))
+names(tbl_cat_iucn_ref_en) <- c("IUCN categories","Number of PAs", "Share of PAs (%)")
+
+
+#Histogram including non-referenced PAs
+##French
+hist_cat_iucn_fr = ggplot(data_cat_iucn, 
+                       aes(x = reorder(iucn_des_fr, -freq_iucn), 
+                           y = freq_iucn, fill = iucn_des_fr)) %>% 
+  + geom_bar(stat = "identity", width = 0.50, fill="#3182BD") %>%
+  + geom_text(aes(label = round(n_iucn, 1), y = freq_iucn), 
+            vjust = -0.1, color="black",
+            size=3.5) %>%
+  + labs(title = "Proportion d'aires protégées non-marines par catégorie IUCN",
+         subtitle = paste("Echantillon :", sum(data_cat_iucn$n_iucn), "aires protégées non-marines. Nombre d'aires indiqué sur les barres."),
+          x = "Catégories IUCN", 
+          y = "Proportion (%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=9, hjust = .5, vjust = .6),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_cat_iucn_fr
+##English
+hist_cat_iucn_en = ggplot(data_cat_iucn, 
+                       aes(x = reorder(iucn_des_en, -freq_iucn), 
+                           y = freq_iucn, fill = iucn_des_en)) %>% 
+  + geom_bar(stat = "identity", width = 0.50, fill="#3182BD") %>%
+  + geom_text(aes(label = round(n_iucn, 1), y = freq_iucn), 
+            vjust = -0.1, color="black",
+            size=3.5) %>%
+  + labs(title = "Distribution of non-marine protected areas by IUCN categories",
+         subtitle = paste("Sample :", sum(data_cat_iucn$n_iucn), "non-marine protected areas. Number of areas indicated above the bars."),
+          x = "IUCN categories", 
+          y = "Share (%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=9, hjust = .5, vjust = .6),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_cat_iucn_en
+
+#Histogram excluding non-referenced PAs
+#French
+hist_cat_iucn_ref_fr = ggplot(data_cat_iucn_ref, 
+                       aes(x = reorder(iucn_des_fr, -freq_iucn), 
+                           y = freq_iucn, fill = iucn_des_fr)) %>% 
+  + geom_bar(stat = "identity", width = 0.50, fill="#3182BD") %>%
+  + geom_text(aes(label = round(n_iucn, 1), y = freq_iucn), 
+            vjust = -0.1, color="black",
+            size=3.5) %>%
+  + labs(title = "Proportion d'aires protégées non-marines par catégorie IUCN \n(hors AP non-répertoriées)",
+         subtitle = paste("Echantillon :", sum(data_cat_iucn_ref$n_iucn), "sur", sum(data_cat_iucn$n_iucn), "aires protégées non-marines. Nombre d'aires indiqué sur les barres."),
+          x = "Catégories IUCN", 
+          y = "Nombre (%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=9, hjust = .5, vjust = .6),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_cat_iucn_ref_fr
+#English
+hist_cat_iucn_ref_en = ggplot(data_cat_iucn_ref, 
+                       aes(x = reorder(iucn_des_en, -freq_iucn), 
+                           y = freq_iucn, fill = iucn_des_en)) %>% 
+  + geom_bar(stat = "identity", width = 0.50, fill="#3182BD") %>%
+  + geom_text(aes(label = round(n_iucn, 1), y = freq_iucn), 
+            vjust = -0.1, color="black",
+            size=3.5) %>%
+  + labs(title = "Distribution of non-marine protected areas by IUCN categories \n(excluding not reported/categorized)",
+         subtitle = paste("Sample :", sum(data_cat_iucn_ref$n_iucn), "out of", sum(data_cat_iucn$n_iucn), "non-marine protected areas. Number of areas indicated above the bars."),
+          x = "IUCN categories", 
+          y = "Share (%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=9, hjust = .5, vjust = .6),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_cat_iucn_ref_en
+
+
+#Pie chart INcluding non-referenced PAs
+##French
+pie_cat_iucn_fr = ggplot(data_cat_iucn, 
+                      aes(x="", y= freq_iucn, fill = iucn_des_fr)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + coord_polar("y", start=0) %>%
+  + geom_label_repel(aes(x=1.2, label = paste0(round(freq_iucn, 1), "%")), 
+             color = "white", 
+             position = position_stack(vjust = 0.55), 
+             size=2.5, show.legend = FALSE) %>%
+  # + geom_label(aes(x=1.4, label = paste0(freq_iucn, "%")), 
+  #              color = "white", 
+  #              position = position_stack(vjust = 0.7), size=2.5, 
+  #              show.legend = FALSE) %>%
+  + labs(x = "", y = "",
+         title = "Proportion d'aires protégées non-marines par catégorie IUCN (%)",
+         subtitle = paste("Echantillon :", sum(data_cat_iucn$n_iucn), "aires protégées non-marines")) %>%
+  + scale_fill_brewer(name = "Catégories", palette = "Dark2") %>%
+  + theme_void()
+pie_cat_iucn_fr
+##English
+pie_cat_iucn_en = ggplot(data_cat_iucn, 
+                      aes(x="", y= freq_iucn, fill = iucn_des_en)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + coord_polar("y", start=0) %>%
+  + geom_label_repel(aes(x=1.2, label = paste0(round(freq_iucn, 1), "%")), 
+             color = "white", 
+             position = position_stack(vjust = 0.55), 
+             size=2.5, show.legend = FALSE) %>%
+  # + geom_label(aes(x=1.4, label = paste0(freq_iucn, "%")), 
+  #              color = "white", 
+  #              position = position_stack(vjust = 0.7), size=2.5, 
+  #              show.legend = FALSE) %>%
+  + labs(x = "", y = "",
+         title = "Distribution of non-marine protected areas by IUCN categories (%)",
+         subtitle = paste("Sample :", sum(data_cat_iucn$n_iucn), "non-marine protected areas")) %>%
+  + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
+  + theme_void()
+pie_cat_iucn_en
+
+
+
+#Pie chart EXcluding non-referenced PAs
+##French
+pie_cat_iucn_ref_fr = ggplot(data_cat_iucn_ref, 
+                      aes(x="", y= freq_iucn, fill = iucn_des_fr)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + coord_polar("y", start=0) %>%
+  + geom_label_repel(aes(x=1.2, label = paste0(round(freq_iucn, 1), "%")), 
+             color = "white", 
+             position = position_stack(vjust = 0.55), 
+             size=2.5, show.legend = FALSE) %>%
+  # + geom_label(aes(x=1.4, label = paste0(freq_iucn, "%")), 
+  #              color = "white", 
+  #              position = position_stack(vjust = 0.7), size=2.5, 
+  #              show.legend = FALSE) %>%
+  + labs(x = "", y = "",
+         title = "Proportion d'aires protégées non-marines par catégorie IUCN \nhors aires non répertoriées (%)",
+         subtitle = paste("Echantillon :", sum(data_cat_iucn_ref$n_iucn), "sur", sum(data_cat_iucn$n_iucn), "aires protégées non-marines")) %>%
+  + scale_fill_brewer(name = "Catégories", palette = "Dark2") %>%
+  + theme_void()
+pie_cat_iucn_ref_fr
+##English
+pie_cat_iucn_ref_en = ggplot(data_cat_iucn_ref, 
+                      aes(x="", y= freq_iucn, fill = iucn_des_en)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + coord_polar("y", start=0) %>%
+  + geom_label_repel(aes(x=1.2, label = paste0(round(freq_iucn, 1), "%")), 
+             color = "white", 
+             position = position_stack(vjust = 0.55), 
+             size=2.5, show.legend = FALSE) %>%
+  # + geom_label(aes(x=1.4, label = paste0(freq_iucn, "%")), 
+  #              color = "white", 
+  #              position = position_stack(vjust = 0.7), size=2.5, 
+  #              show.legend = FALSE) %>%
+  + labs(x = "", y = "",
+         title = "Distribution of non-marine protected areas by IUCN categories \nexcluding not reported/categorized (%)",
+         subtitle = paste("Sample :", sum(data_cat_iucn_ref$n_iucn), "out of", sum(data_cat_iucn$n_iucn),  "non-marine protected areas")) %>%
+  + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
+  + theme_void()
+pie_cat_iucn_ref_en
 
 ```
 
@@ -404,7 +705,7 @@ for(f in files)
   {
   cat("Uploading file", paste0("'", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/IUCN", 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/IUCN/world/no_marine", 
                      region = "", show_progress = TRUE)
   }
 
@@ -413,7 +714,314 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
-#### IUCN categories by countries and regions
+#### Share of PAs by IUCN categories (region, no marine)
+
+```{r, eval = FALSE}
+
+roi = "Africa"
+
+#Building the relevant dataset
+##For all PAs ..
+data_cat_iucn = data_stat_nodupl %>%
+  #Keep only terrestrial or coastal PA (when unknown, discarded)
+  filter(marine %in% c(0,1) & region == roi) %>%
+  group_by(iucn_des_en, iucn_des_fr) %>%
+  #number of PAs per IUCN category
+  summarize(n_iucn = n()) %>%
+  ungroup() %>%
+  #Frequency of IUCN categories
+  mutate(n_pa = sum(n_iucn),
+         freq_iucn = round(n_iucn/n_pa*100, 2)) %>%
+  arrange(desc(iucn_des_en)) %>%
+  mutate(ypos_iucn = cumsum(freq_iucn) - 0.5*freq_iucn) 
+
+
+##... and for referenced PAs only
+data_cat_iucn_ref = data_stat_nodupl %>%
+  #Keep only terrestrial or coastal PA (when unknown, discarded)
+  filter(marine %in% c(0,1) & region == roi) %>%
+  #Remove not referenced PAs
+  subset(!(iucn_des_fr %in% c("Non catégorisée", "Non référencée"))) %>%
+  group_by(iucn_des_en, iucn_des_fr) %>%
+  #number of PAs per IUCN category
+  summarize(n_iucn = n()) %>%
+  ungroup() %>%
+  #Frequency of IUCN categories
+  mutate(n_pa = sum(n_iucn),
+         freq_iucn = round(n_iucn/n_pa*100, 2)) %>%
+  arrange(freq_iucn) %>%
+  mutate(ypos_iucn = cumsum(freq_iucn) - 0.5*freq_iucn) 
+
+#Latex table
+##French
+tbl_cat_iucn_fr = data_cat_iucn %>%
+  select(c(iucn_des_fr, n_iucn, freq_iucn))
+names(tbl_cat_iucn_fr) <- c("Catégories IUCN","Nombre d'AP", "Proportion d'AP (%)")
+tbl_cat_iucn_ref_fr = data_cat_iucn_ref %>%
+  select(c(iucn_des_fr, n_iucn, freq_iucn))
+names(tbl_cat_iucn_ref_fr) <- c("Catégories IUCN","Nombre d'AP", "Proportion d'AP (%)")
+##English
+tbl_cat_iucn_en = data_cat_iucn %>%
+  select(c(iucn_des_en, n_iucn, freq_iucn))
+names(tbl_cat_iucn_en) <- c("IUCN categories","Number of PAs", "Share of PAs (%)")
+tbl_cat_iucn_ref_en = data_cat_iucn_ref %>%
+  select(c(iucn_des_en, n_iucn, freq_iucn))
+names(tbl_cat_iucn_ref_en) <- c("IUCN categories","Number of PAs", "Share of PAs (%)")
+
+
+#Histogram including non-referenced PAs
+##French
+hist_cat_iucn_fr = ggplot(data_cat_iucn, 
+                       aes(x = reorder(iucn_des_fr, -freq_iucn), 
+                           y = freq_iucn, fill = iucn_des_fr)) %>% 
+  + geom_bar(stat = "identity", width = 0.50, fill="#3182BD") %>%
+  + geom_text(aes(label = round(n_iucn, 1), y = freq_iucn), 
+            vjust = -0.1, color="black",
+            size=3.5) %>%
+  + labs(title = paste("Proportion d'aires protégées non-marines par catégorie IUCN,", roi),
+         subtitle = paste("Echantillon :", sum(data_cat_iucn$n_iucn), "aires protégées non-marines. Nombre d'aires indiqué sur les barres."),
+          x = "Catégories IUCN", 
+          y = "Proportion (%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=9, hjust = .5, vjust = .6),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_cat_iucn_fr
+##English
+hist_cat_iucn_en = ggplot(data_cat_iucn, 
+                       aes(x = reorder(iucn_des_en, -freq_iucn), 
+                           y = freq_iucn, fill = iucn_des_en)) %>% 
+  + geom_bar(stat = "identity", width = 0.50, fill="#3182BD") %>%
+  + geom_text(aes(label = round(n_iucn, 1), y = freq_iucn), 
+            vjust = -0.1, color="black",
+            size=3.5) %>%
+  + labs(title = paste("Distribution of non-marine protected areas by IUCN categories,", roi),
+         subtitle = paste("Sample :", sum(data_cat_iucn$n_iucn), "non-marine protected areas. Number of areas indicated above the bars."),
+          x = "IUCN categories", 
+          y = "Share (%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=9, hjust = .5, vjust = .6),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_cat_iucn_en
+
+#Histogram excluding non-referenced PAs
+#French
+hist_cat_iucn_ref_fr = ggplot(data_cat_iucn_ref, 
+                       aes(x = reorder(iucn_des_fr, -freq_iucn), 
+                           y = freq_iucn, fill = iucn_des_fr)) %>% 
+  + geom_bar(stat = "identity", width = 0.50, fill="#3182BD") %>%
+  + geom_text(aes(label = round(n_iucn, 1), y = freq_iucn), 
+            vjust = -0.1, color="black",
+            size=3.5) %>%
+  + labs(title = paste("Proportion d'aires protégées non-marines par catégorie IUCN,", roi, "\n(hors AP non-répertoriées)"),
+         subtitle = paste("Echantillon :", sum(data_cat_iucn_ref$n_iucn), "sur", sum(data_cat_iucn$n_iucn), "aires protégées non-marines. Nombre d'aires indiqué sur les barres."),
+          x = "Catégories IUCN", 
+          y = "Nombre (%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=9, hjust = .5, vjust = .6),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_cat_iucn_ref_fr
+#English
+hist_cat_iucn_ref_en = ggplot(data_cat_iucn_ref, 
+                       aes(x = reorder(iucn_des_en, -freq_iucn), 
+                           y = freq_iucn, fill = iucn_des_en)) %>% 
+  + geom_bar(stat = "identity", width = 0.50, fill="#3182BD") %>%
+  + geom_text(aes(label = round(n_iucn, 1), y = freq_iucn), 
+            vjust = -0.1, color="black",
+            size=3.5) %>%
+  + labs(title = paste("Distribution of non-marine protected areas by IUCN categories,", roi, "\n(excluding not reported/categorized)"),
+         subtitle = paste("Sample :", sum(data_cat_iucn_ref$n_iucn), "out of", sum(data_cat_iucn$n_iucn), "non-marine protected areas. Number of areas indicated above the bars."),
+          x = "IUCN categories", 
+          y = "Share (%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=9, hjust = .5, vjust = .6),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_cat_iucn_ref_en
+
+
+#Pie chart INcluding non-referenced PAs
+##French
+pie_cat_iucn_fr = ggplot(data_cat_iucn, 
+                      aes(x="", y= freq_iucn, fill = iucn_des_fr)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + coord_polar("y", start=0) %>%
+  + geom_label_repel(aes(x=1.2, label = paste0(round(freq_iucn, 1), "%")), 
+             color = "white", 
+             position = position_stack(vjust = 0.55), 
+             size=2.5, show.legend = FALSE) %>%
+  # + geom_label(aes(x=1.4, label = paste0(freq_iucn, "%")), 
+  #              color = "white", 
+  #              position = position_stack(vjust = 0.7), size=2.5, 
+  #              show.legend = FALSE) %>%
+  + labs(x = "", y = "",
+         title = paste("Proportion d'aires protégées non-marines par catégorie IUCN (%),", roi),
+         subtitle = paste("Echantillon :", sum(data_cat_iucn$n_iucn), "aires protégées non-marines")) %>%
+  + scale_fill_brewer(name = "Catégories", palette = "Dark2") %>%
+  + theme_void()
+pie_cat_iucn_fr
+##English
+pie_cat_iucn_en = ggplot(data_cat_iucn, 
+                      aes(x="", y= freq_iucn, fill = iucn_des_en)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + coord_polar("y", start=0) %>%
+  + geom_label_repel(aes(x=1.2, label = paste0(round(freq_iucn, 1), "%")), 
+             color = "white", 
+             position = position_stack(vjust = 0.55), 
+             size=2.5, show.legend = FALSE) %>%
+  # + geom_label(aes(x=1.4, label = paste0(freq_iucn, "%")), 
+  #              color = "white", 
+  #              position = position_stack(vjust = 0.7), size=2.5, 
+  #              show.legend = FALSE) %>%
+  + labs(x = "", y = "",
+         title = paste("Distribution of non-marine protected areas by IUCN categories (%),", roi),
+         subtitle = paste("Sample :", sum(data_cat_iucn$n_iucn), "non-marine protected areas")) %>%
+  + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
+  + theme_void()
+pie_cat_iucn_en
+
+
+
+#Pie chart EXcluding non-referenced PAs
+##French
+pie_cat_iucn_ref_fr = ggplot(data_cat_iucn_ref, 
+                      aes(x="", y= freq_iucn, fill = iucn_des_fr)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + coord_polar("y", start=0) %>%
+  + geom_label_repel(aes(x=1.2, label = paste0(round(freq_iucn, 1), "%")), 
+             color = "white", 
+             position = position_stack(vjust = 0.55), 
+             size=2.5, show.legend = FALSE) %>%
+  # + geom_label(aes(x=1.4, label = paste0(freq_iucn, "%")), 
+  #              color = "white", 
+  #              position = position_stack(vjust = 0.7), size=2.5, 
+  #              show.legend = FALSE) %>%
+  + labs(x = "", y = "",
+         title = paste("Proportion d'aires protégées non-marines par catégorie IUCN,",  roi, "\nhors aires non répertoriées (%)"),
+         subtitle = paste("Echantillon :", sum(data_cat_iucn_ref$n_iucn), "sur", sum(data_cat_iucn$n_iucn), "aires protégées non-marines")) %>%
+  + scale_fill_brewer(name = "Catégories", palette = "Dark2") %>%
+  + theme_void()
+pie_cat_iucn_ref_fr
+##English
+pie_cat_iucn_ref_en = ggplot(data_cat_iucn_ref, 
+                      aes(x="", y= freq_iucn, fill = iucn_des_en)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + coord_polar("y", start=0) %>%
+  + geom_label_repel(aes(x=1.2, label = paste0(round(freq_iucn, 1), "%")), 
+             color = "white", 
+             position = position_stack(vjust = 0.55), 
+             size=2.5, show.legend = FALSE) %>%
+  # + geom_label(aes(x=1.4, label = paste0(freq_iucn, "%")), 
+  #              color = "white", 
+  #              position = position_stack(vjust = 0.7), size=2.5, 
+  #              show.legend = FALSE) %>%
+  + labs(x = "", y = "",
+         title = paste("Distribution of non-marine protected areas by IUCN categories,", roi, "\nexcluding not reported/categorized (%)"),
+         subtitle = paste("Sample :", sum(data_cat_iucn_ref$n_iucn), "out of", sum(data_cat_iucn$n_iucn),  "non-marine protected areas")) %>%
+  + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
+  + theme_void()
+pie_cat_iucn_ref_en
+
+```
+
+```{r, eval = FALSE}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+ggsave(paste(tmp, "hist_cat_iucn_fr.png", sep = "/"),
+       plot = hist_cat_iucn_fr,
+       device = "png",
+       height = 6, width = 9)
+
+ggsave(paste(tmp, "hist_cat_iucn_en.png", sep = "/"),
+       plot = hist_cat_iucn_en,
+       device = "png",
+       height = 6, width = 9)
+
+ggsave(paste(tmp, "hist_cat_iucn_ref_fr.png", sep = "/"),
+       plot = hist_cat_iucn_ref_fr,
+       device = "png",
+       height = 6, width = 9)
+
+ggsave(paste(tmp, "hist_cat_iucn_ref_en.png", sep = "/"),
+       plot = hist_cat_iucn_ref_en,
+       device = "png",
+       height = 6, width = 9)
+
+ggsave(paste(tmp, "pie_cat_iucn_fr.png", sep = "/"),
+       plot = pie_cat_iucn_fr,
+       device = "png",
+       height = 6, width = 9)
+
+ggsave(paste(tmp, "pie_cat_iucn_en.png", sep = "/"),
+       plot = pie_cat_iucn_en,
+       device = "png",
+       height = 6, width = 9)
+
+ggsave(paste(tmp, "pie_cat_iucn_ref_fr.png", sep = "/"),
+       plot = pie_cat_iucn_ref_fr,
+       device = "png",
+       height = 6, width = 9)
+
+ggsave(paste(tmp, "pie_cat_iucn_ref_en.png", sep = "/"),
+       plot = pie_cat_iucn_ref_en,
+       device = "png",
+       height = 6, width = 9)
+
+print(xtable(tbl_cat_iucn_fr, type = "latex"),
+      file = paste(tmp, "tbl_cat_iucn_fr.tex", sep = "/"))
+
+print(xtable(tbl_cat_iucn_en, type = "latex"),
+      file = paste(tmp, "tbl_cat_iucn_en.tex", sep = "/"))
+
+print(xtable(tbl_cat_iucn_ref_fr, type = "latex"),
+      file = paste(tmp, "tbl_cat_iucn_ref_fr.tex", sep = "/"))
+
+print(xtable(tbl_cat_iucn_ref_en, type = "latex"),
+      file = paste(tmp, "tbl_cat_iucn_ref_en.tex", sep = "/"))
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+for(f in files) 
+  {
+  cat("Uploading file", paste0("'", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = paste("projet-afd-eva-ap/descriptive_stats/IUCN", roi, "no_marine", sep = "/"), 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+```
+
+#### IUCN categories by countries and regions (world, all)
 
 ```{r, eval = FALSE}
 
@@ -458,7 +1066,7 @@ for(f in files)
   {
   cat("Uploading file", paste0("'", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/IUCN", 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/IUCN/world/all", 
                      region = "", show_progress = TRUE)
   }
 
@@ -490,7 +1098,7 @@ data_eco$ecosyst_fr = fct_recode(data_eco$marine,
 data_eco_hist = data_eco %>%
   group_by(ecosyst_en, ecosyst_fr) %>%
   summarize(n = n(),
-            freq = round(n/nrow(data_eco), 1)*100) %>%
+            freq = round(n/nrow(data_eco), 2)*100) %>%
   ungroup()
 
 tbl_eco_fr = data_eco_hist %>%
@@ -630,7 +1238,6 @@ pie_eco_en = ggplot(data_eco_hist,
   + scale_fill_brewer(name = "Ecosystem", palette="Paired") %>%
   + theme_void()
 pie_eco_en
-  
 ```
 
 ```{r, eval = FALSE}
@@ -680,7 +1287,7 @@ for(f in files)
   count = count+1
   cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/ecosysteme", 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/ecosysteme/world", 
                      region = "", show_progress = TRUE)
   }
 
@@ -713,7 +1320,7 @@ data_eco$ecosyst_fr = fct_recode(data_eco$marine,
 data_eco_hist = data_eco %>%
   group_by(ecosyst_en, ecosyst_fr) %>%
   summarize(n = n(),
-            freq = round(n/nrow(data_eco), 1)*100) %>%
+            freq = round(n/nrow(data_eco), 2)*100) %>%
   ungroup()
 
 tbl_eco_fr = data_eco_hist %>%
@@ -909,6 +1516,7 @@ for(f in files)
 #Erase the files in the temp directory
 
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+
 ```
 
 ### Distribution of PAs across countries and regions
@@ -974,6 +1582,105 @@ hist_distrib_ctry_n = ggplot(data_distrib_ctry,
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
 hist_distrib_ctry_n
 # 
+```
+
+```{r, eval = FALSE}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+ggsave(paste(tmp, "hist_distrib_ctry_top_shr.png", sep = "/"),
+       plot = hist_distrib_ctry_top_shr,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "hist_distrib_ctry_n.png", sep = "/"),
+       plot = hist_distrib_ctry_n,
+       device = "png",
+       height = 6, width = 9)
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+count = 0
+for(f in files) 
+{
+  count = count+1
+  cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/distribution/all", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+
+```
+
+#### Statistics at country level (non-marine)
+
+```{r message=FALSE, warning=FALSE, eval = FALSE}
+
+data_distrib_ctry = data_stat_nodupl %>%
+  filter(marine %in% c(0,1)) %>%
+  group_by(iso3, country_en, country_fr) %>%
+  summarize(n = n(),
+            freq = round(n/nrow(.), 3)*100) %>%
+  ungroup() 
+
+data_distrib_ctry_top = data_distrib_ctry %>%
+  subset(freq >= 5)
+
+#Histogram in share (in French) for top countries
+hist_distrib_ctry_top_shr = ggplot(data_distrib_ctry_top, 
+                     aes(x = reorder(country_en, -freq), y = freq, fill = freq)) %>%
++ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
++ geom_text(aes(label = round(n, 1), y = freq), 
+        vjust = -0.1, color="black",
+        size=3.5) %>%
++ labs(title = "Countries most targeted by AFD funded non-marine protected areas",
+       subtitle = paste("Sample :", sum(data_distrib_ctry$n), "non-marine protected areas. Numbers indicated above bars."),
+         x = "Countries",
+         y = "Share of protected areas (%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 0,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_distrib_ctry_top_shr
+# 
+
+
+#Histogram in number
+hist_distrib_ctry_n = ggplot(data_distrib_ctry, 
+                     aes(x = reorder(iso3, -n), y = n, fill = iso3)) %>%
++ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
++ geom_text(aes(label = round(n, 1), y = n), 
+        vjust = -0.1, color="black",
+        size=3.5) %>%
++ labs(title = "Distribution of non-marine protected areas by countries",
+       subtitle = paste("Sample :", sum(data_distrib_ctry$n), "non-marine protected areas. Numbers indicated above bars."),
+         x = "Countries",
+         y = "Share of protected areas (%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_distrib_ctry_n
+# 
 
 ```
 
@@ -1002,7 +1709,7 @@ for(f in files)
   count = count+1
   cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/distribution", 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/distribution/no_marine", 
                      region = "", show_progress = TRUE)
   }
 
