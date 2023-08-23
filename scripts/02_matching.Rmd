@@ -112,18 +112,16 @@ n_sampling = 1000
 
 #Load data 
 data_pa = 
-  #fread("data_tidy/BDD_nofund_nodupl.csv" , encoding = "UTF-8")
+  #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
   aws.s3::s3read_using(
   FUN = data.table::fread,
   encoding = "UTF-8",
-  object = "data_tidy/BDD_PA_AFD_nofund_nodupl.csv",
+  object = "data_tidy/BDD_PA_AFD_ie.csv",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = "")) 
 
 #List of countries in the sample
-list_iso = c("COM")
-# Specify a list of WDPA IDs of funded protected areas (treated areas)
-# paid = data_stat_nodupl[data_stat_nodupl$iso3 == country,]$wdpaid
+list_iso = unique(data_pa[data_pa$region == "Africa", iso3])
 
 #Specify the period of study to create the mapme.bidiversity portfolio
 ## Start year
@@ -172,8 +170,8 @@ tic_pre = tic() #Start timer
 
 #Create a log to track progress
 log = fn_pre_log(list_iso,
-                 name = paste0("log-", Sys.Date(), "-test-COM.txt"),
-                 notes = "The branch matching_auto has been merged to main. This is a test to check everything is fine.")
+                 name = paste0("log-", Sys.Date(), "-Africa-full.txt"),
+                 notes = "Perform an analysis on all PAs in Africa.")
 
 for (i in list_iso)
 {
@@ -423,7 +421,7 @@ toc_post = toc()
 cat(paste("END OF POST-PROCESSING :", toc_post$callback_msg, "\n\n"),
     file = log, append = TRUE)
 aws.s3::put_object(file = log,
-                   bucket = save_dir,
+                   bucket = paste("projet-afd-eva-ap", save_dir, sep = "/"),
                    region = "",
                    show_progress = FALSE)
 
