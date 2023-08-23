@@ -2,7 +2,7 @@
 
 # Projects funded by the AFD
 
-In this document are performed and plotted the following descriptive statistics on the PAs funded the AFD :
+In this document are performed and plotted the following descriptive statistics on the protected areas (PAs) funded by French Development Agency (AFD) :
 
 -   Distribution of PAs among IUCN categories, at country, region and world level.
 -   Distribution in terms of ecosystems
@@ -11,9 +11,13 @@ In this document are performed and plotted the following descriptive statistics 
 -   Temporal evolution in the number and area of PAs funded by the AFD
 -   Distribution in terms of governance types
 
+Some statistics are performed for all PAs across the world, while others are done for some regions and some specific PAs. Typically some statistics are performed for non-marine PAs, i.e terrestrial or coastal ones. These categories are defined by the WDPA and are indicative. A terrestrial PA has less than 10% of its area covered by sea or ocean, a marine one more than 90% and coastal PAs are in between.
+
 The statistics are derived from datasets stored in the SSPCloud, and saved into the SSPCloud. Thus specific functions from the aws.S3 package are used (s3read_using() and s3write_using()). These can be replaced by other R functions to read/write locally (fread() typically). The ggplot2::ggsave() function cannot be used to write directly in the SSPCloud storage. Instead, plots from ggplot2 are stored in the temporary memory, then moved to the SSPCloud storage. Working locally, ggsave() can be directly used once the plots are created.
 
 ## Importing packages
+
+Packages relevant to perform the statistics.
 
 ```{r setup, include=FALSE, eval = FALSE}
 knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
@@ -38,20 +42,10 @@ library(aws.s3)
 
 ## Importing datasets
 
-```{r, eval = FALSE}
-#Both datasets are imported in UTF8 encoding, for some variables
-##A first dataset with some PA on more than one row (one line per funding for instance)
-data_stat = 
-  #fread("data_tidy/BDD_PA_AFD_nofund.csv", encoding = "UTF-8")
-  aws.s3::s3read_using(
-  FUN = data.table::fread,
-  encoding = "UTF-8",
-  # Mettre les options de FUN ici
-  object = "data_tidy/BDD_PA_AFD_nofund.csv",
-  bucket = "projet-afd-eva-ap",
-  opts = list("region" = ""))
+A dataset with information for each PA funded by the AFD, and datasets on aggregated size at country/region/world level and by year. The latter takes into account potential overlap between PAs reported in the World Database on Protected Areas (WDPA) [REF DOCUMENTATION].
 
-##A second dataset with one line per PA, more suited for some statistics
+```{r, eval = FALSE}
+##Dataset with one line per PA
 data_stat_nodupl = 
   #fread("data_tidy/BDD_PA_AFD_nofund_nodupl.csv" , encoding = "UTF-8")
   aws.s3::s3read_using(
@@ -108,9 +102,17 @@ pa_int_yr =
 
 ## Performing descriptive statistics
 
+The figures and tables are drawn and saved as follow. In a first code chunk, a dataset specific to the statistic needed is generated, then plots are built from ggplot package. Finally, a specific code chunk saves the figures and tables (thanks to xtable package) to a temporary folder and put it in the SSPCloud.
+
+Importantly, a specific statistic performed at world and regional level for all and non-marine PAs use same naming for conciseness. See IUCN categories statistics for instance. It is then necessary to generate the relevant plots before running saving chunk, otherwise the lots won't be saved in the good folder.
+
 ### IUCN categories
 
-#### Share of PAs by IUCN categories (world)
+The distribution of PAs across the different IUCN categories. This information is reported by the WDPA, thus PAs funded by the AFD but not reported in this database have no information on IUCN categories, and assigned to "not referenced" category. The information on IUCN category is not mandatory in the WDPA, and some PAs have no category reported ("not categorized").
+
+#### Share of PAs by IUCN categories (world, all)
+
+For all PAs in the world, marine and non-marine.
 
 ```{r, eval = FALSE}
 #Building the relevant dataset
@@ -410,6 +412,8 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
 #### Share of PAs by IUCN categories (world, no marine)
+
+For PAs across the world, non-marine only.
 
 ```{r, eval = FALSE}
 
@@ -716,8 +720,11 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 #### Share of PAs by IUCN categories (region, no marine)
 
+Pas in a specific region, non-marine only.
+
 ```{r, eval = FALSE}
 
+#Define the region of interest (see region variable in the main dataset).
 roi = "Africa"
 
 #Building the relevant dataset
@@ -1023,6 +1030,8 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 #### IUCN categories by countries and regions (world, all)
 
+For each country/region, the percentage of PAs in the different IUCN categories.
+
 ```{r, eval = FALSE}
 
 #Build the distribution of IUCN categories at country level ...
@@ -1077,7 +1086,11 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 ### Ecosystems (excluding non-referenced PAs)
 
+The percentage of PAs in the ecosystem categories of WDPA : terrestrial, coastal and marine. A terrestrial PA has less than 10% of its area covered by sea or ocean, a marine one more than 90% and coastal PAs are in between. This definition is taken from the WDPA.
+
 #### Proportion of PAs by marine or terrestrial areas (world)
+
+All PAs in the world.
 
 ```{r, eval = FALSE}
 
@@ -1101,6 +1114,7 @@ data_eco_hist = data_eco %>%
             freq = round(n/nrow(data_eco), 2)*100) %>%
   ungroup()
 
+#Define tables
 tbl_eco_fr = data_eco_hist %>%
   select(c(ecosyst_fr, n, freq)) %>%
   rename("Ecosystème" = "ecosyst_fr",
@@ -1147,7 +1161,7 @@ hist_eco_shr_en = ggplot(data_eco_hist,
 + geom_text(aes(label = round(n, 1), y = freq), 
         vjust = -0.1, color="black",
         size=3.5) %>%
-+ labs(title = "Proportion of protected areas by ecosystem type \n(excluding non-references PAs)",
++ labs(title = "Proportion of protected areas by ecosystem type \n(excluding not referenced PAs)",
        subtitle = paste("Sample :", sum(data_eco_hist$n), "out of", nrow(data_stat_nodupl), "protected areas. Number of areas indicated above."),
          x = "Ecosystem type",
          y = "Proportion of protected areas(%)") %>%
@@ -1172,7 +1186,7 @@ hist_eco_n_fr = ggplot(data_eco_hist,
 + labs(title = "Proportion d'aires protégées par type d'écosystème \n(hors AP non-référencées)",
        subtitle = paste("Echantillon :", sum(data_eco_hist$n), "sur", nrow(data_stat_nodupl), "aires protégées"),
          x = "Type d'écosystème",
-         y = "Proportion d'aires protégées") %>%
+         y = "# d'aires protégées") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
       plot.title = element_text(size = 14, face = "bold"), 
@@ -1190,10 +1204,10 @@ hist_eco_n_fr
 hist_eco_n_en = ggplot(data_eco_hist, 
                      aes(x = ecosyst_en, y = n, fill = ecosyst_en)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ labs(title = "Proportion of protected areas by ecosystem type \n(excluding non-referenced PAs)",
++ labs(title = "Proportion of protected areas by ecosystem type \n(excluding not referenced PAs)",
        subtitle = paste("Sample :", sum(data_eco_hist$n), "out of", nrow(data_stat_nodupl), "protected areas"),
          x = "Ecosystem type",
-         y = "Proportion of protected areas") %>%
+         y = "# of protected areas") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
       plot.title = element_text(size = 14, face = "bold"), 
@@ -1298,6 +1312,8 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 #### Proportion of PAs by marine or terrestrial areas (region)
 
+PAs in a given region to specify.
+
 ```{r, eval = FALSE}
 
 #Define the region of interest where the stats are performed
@@ -1369,7 +1385,7 @@ hist_eco_shr_en = ggplot(data_eco_hist,
 + geom_text(aes(label = round(n, 1), y = freq), 
         vjust = -0.1, color="black",
         size=3.5) %>%
-+ labs(title = paste("Proportion of protected areas by ecosystem type,", roi,  "\n(excluding non-references PAs)"),
++ labs(title = paste("Proportion of protected areas by ecosystem type,", roi,  "\n(excluding not referenced PAs)"),
        subtitle = paste("Sample :", sum(data_eco_hist$n), "out of", nrow(subset(data_stat_nodupl, region == roi)), "protected areas. Number of areas indicated above."),
          x = "Ecosystem type",
          y = "Proportion of protected areas(%)") %>%
@@ -1394,7 +1410,7 @@ hist_eco_n_fr = ggplot(data_eco_hist,
 + labs(title = paste("Proportion d'aires protégées par type d'écosystème,", roi, "\n(hors AP non-référencées)"),
        subtitle = paste("Echantillon :", sum(data_eco_hist$n), "sur", nrow(subset(data_stat_nodupl, region == roi)), "aires protégées"),
          x = "Type d'écosystème",
-         y = "Proportion d'aires protégées") %>%
+         y = "# d'aires protégées") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
       plot.title = element_text(size = 14, face = "bold"), 
@@ -1415,7 +1431,7 @@ hist_eco_n_en = ggplot(data_eco_hist,
 + labs(title = paste("Proportion of protected areas by ecosystem type,", roi, "\n(excluding not referenced PAs)"),
        subtitle = paste("Sample :", sum(data_eco_hist$n), "out of", nrow(subset(data_stat_nodupl, region == roi)), "protected areas"),
          x = "Ecosystem type",
-         y = "Proportion of protected areas") %>%
+         y = "# of protected areas") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
       plot.title = element_text(size = 14, face = "bold"), 
@@ -3044,7 +3060,7 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
-### Governance 
+### Governance
 
 #### World, all
 
