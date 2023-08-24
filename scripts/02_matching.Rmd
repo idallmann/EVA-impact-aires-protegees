@@ -81,7 +81,7 @@ source("scripts/functions/02_fns_matching.R")
 tmp_pre = paste(tempdir(), "matching_pre", sep = "/")
 tmp_post = paste(tempdir(), "matching_post", sep = "/")
 save_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/")
-
+#save_dir = paste("impact_analysis/matching", "2023-08-XX", sep = "/")
 
 #####
 ###Pre-processing

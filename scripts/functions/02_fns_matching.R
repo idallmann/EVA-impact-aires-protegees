@@ -308,7 +308,9 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
                                   group == 2 ~ "Funded PA, analyzed (potential treatment)",
                                   group == 3 ~ "Funded PA, not analyzed",
                                   group == 4 ~ "Non-funded PA",
-                                  group == 5 ~ "Buffer"))
+                                  group == 5 ~ "Buffer")) %>%
+  #Add spatial resolution in m2 : useful to compute share of forest area in a given pixel and extrapolate to the PA for instance
+  mutate(res_m2 = gridSize)
   
   
   #Save the grid
@@ -631,6 +633,8 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   # Make column Group ID and WDPA ID have data type "integer"
   pivot.all$group = as.integer(pivot.all$group)
   pivot.all$wdpaid = as.integer(pivot.all$wdpaid)
+  #Add the spatial resolution of pixels
+  pivot.all$res_m2 = grid.param[1, "res_m2"]
   
   name_save = paste0(name_output, "_", iso, ext_output)
   s3write_using(pivot.all,
@@ -710,7 +714,7 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log, save_dir)
     #Remove PAs non-funded by AFD and buffers
     filter(group==1 | group==2) %>%
     #Remove observations with NA values only for covariates (except for status_yr, region_afd, year_funding_first which are NA for control units)
-    drop_na(-c(status_yr, year_funding_first, year_funding_all, region_afd, region, sub_region, iso3, country_en)) #%>%
+    drop_na(-c(status_yr, year_funding_first, year_funding_all, region_afd, region, sub_region, iso3, country_en, res_m2)) #%>%
      #filter(status_yr >= yr_min | is.na(status_yr))
   
   #Write the list of PAs matched
@@ -787,6 +791,9 @@ fn_post_avgLoss_prefund = function(mf, colfl.prefix, colname.flAvg, log)
   #   st_drop_geometry()
   # # Add column: average treeloss before funding starts, 
   # mf$avgLoss_pre_fund = round(rowMeans(df_fl), 2)
+      
+  #Extract spatial resolution : can be useful to compute forest loss in percentage for instance
+  #res_m2 = mf[1, "res_m2"]
 
   #Extract treatment year
   treatment.year = mf %>% 
@@ -1364,7 +1371,7 @@ fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpa
   
   # Pivot Wide ==> Pivot Long
   matched.long = matched.wide %>%
-    dplyr::select(c(region_afd, region, sub_region, iso3, group, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, weights, starts_with(colfc.prefix))) %>%
+    dplyr::select(c(region_afd, region, sub_region, iso3, group, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, weights, starts_with(colfc.prefix), res_m2)) %>%
     pivot_longer(cols = c(starts_with(colfc.prefix)),
                  names_to = c("var", "year"),
                  names_sep = colfc.bind,
@@ -1375,7 +1382,7 @@ fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpa
   
   # Pivot Wide ==> Pivot Long
   unmatched.long = unmatched.wide %>%
-    dplyr::select(c(region_afd, region, sub_region, iso3, group, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, starts_with(colfc.prefix))) %>%
+    dplyr::select(c(region_afd, region, sub_region, iso3, group, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, starts_with(colfc.prefix), res_m2)) %>%
     pivot_longer(cols = c(starts_with(colfc.prefix)),
                  names_to = c("var", "year"),
                  names_sep = colfc.bind,
@@ -1459,6 +1466,9 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
     summarise(avgFC = mean(fc_ha, na.rm=TRUE), n = n(), matched = FALSE)
   
   df.trend = rbind(df.matched.trend, df.unmatched.trend)
+  
+  #Extract spatial resolution of pixels
+  res_m2 = mf[1, "res_m2"]
   
   #Extract treatment year
   treatment.year = mf %>% 
