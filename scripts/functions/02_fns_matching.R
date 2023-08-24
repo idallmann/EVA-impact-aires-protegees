@@ -178,9 +178,10 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
     #celanign of PAs from the wdap_clean function :
     #Status filtering is performed manually juste after. 
     #The geometry precision is set to default. Used to be 1000 in Kemmeng code
+    # Overlaps are not erased because we rasterize polygons
     #UNESCO Biosphere Reserves are not excluded so that our analysis of AFD portfolio is the most extensive
     wdpa_clean(retain_status = NULL,
-               erase_overlaps = TRUE,
+               erase_overlaps = FALSE,
                exclude_unesco = FALSE,
                verbose = TRUE) %>% 
     # Remove the PAs that are only proposed, or have geometry type "point"
@@ -255,7 +256,7 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
     rename(group = mode)
   grid.wdpaid = exact_extract(x=r.wdpaid, y=grid, fun="mode", append_cols="gridID") %>%
     rename(wdpaid = mode)
-  
+
   # Randomly select background pixels as potential control pixels
   ##Take the list of background pixels, the  number of background and treatment pixels
   list_back_ID = grid.group.ini[grid.group.ini$group == 0 & is.na(grid.group.ini$group) == FALSE,]$gridID
@@ -295,8 +296,9 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
   #                            TRUE ~ group)) %>%
   
   #/!\ For the moment, a pixel both non-funded and funded is considered funded !
-  #But if funded not analyzed AND funded analyzed, then funded not analyzed
-  # -> Check with the others if that seems OK
+  #But if funded not analyzed AND funded analyzed, then funded not analyzed.
+  #Idea : the pixel could be treated out of the period considered, so not comparable to toher treatment pixels considered in funded, analyzed.
+  # -> Check with Léa, Ingrid and PY if that seems OK
   grid.param = grid.param.ini %>%
     mutate(group = case_when(wdpaid %in% wdpaID_afd_no_ie & group == 2 ~ 3,
                              TRUE ~ group)) %>%
