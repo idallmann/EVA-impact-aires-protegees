@@ -108,7 +108,7 @@ wdpa_wld_raw = s3read_using(
 buffer_m = 10000
 # Specify the grid cell size in meter
 #gridSize = 10000 
-n_sampling = 1000
+n_sampling = 10
 
 #Load data 
 data_pa = 
@@ -170,8 +170,8 @@ tic_pre = tic() #Start timer
 
 #Create a log to track progress
 log = fn_pre_log(list_iso,
-                 name = paste0("log-", Sys.Date(), "-Africa-full.txt"),
-                 notes = "Perform an analysis on all PAs in Africa.")
+                 name = paste0("log-", Sys.Date(), "-debug.txt"),
+                 notes = "debugging.")
 
 for (i in list_iso)
 {

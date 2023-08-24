@@ -170,50 +170,57 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
   output = withCallingHandlers(
     
     {
-  # wdpa_prj = wdpa_raw %>%
-  #   filter(ISO3 == iso) %>%
-  #   dplyr::select(c("WDPAID", "MARINE", "PA_DEF", "STATUS_YR", "NO_TK_AREA"))
-  # mapview(wdpa_prj)
-  # PAs are projected, and column "geometry_type" is added
+
+  # The polygons of PAs are taken from WDPA, cleaned
   wdpa_prj = wdpa_raw %>%
     filter(ISO3 == iso) %>%
     #st_make_valid() %>%
-    wdpa_clean() %>% #the geometry precision is set to default. Used to be 1000 in Kemmeng code
+    #celanign of PAs from the wdap_clean function :
+    #Status filtering is performed manually juste after. 
+    #The geometry precision is set to default. Used to be 1000 in Kemmeng code
+    #UNESCO Biosphere Reserves are not excluded so that our analysis of AFD portfolio is the most extensive
+    wdpa_clean(retain_status = NULL,
+               erase_overlaps = TRUE,
+               exclude_unesco = FALSE,
+               verbose = TRUE) %>% 
     # Remove the PAs that are only proposed, or have geometry type "point"
-    filter(STATUS != "Proposed") %>%
+    filter(STATUS != "Proposed") %>%  #24/08/2023 : "Proposed" status concerns only 6 PAs in the sample, including one implemented after 2000.
     filter(GEOMETRY_TYPE != "POINT") %>%
     # Project PA polygons to the previously determined UTM zone
     st_transform(crs = utm_code) 
   
   # Make Buffers around all protected areas
   buffer = st_buffer(wdpa_prj, dist = buffer_m) %>% 
-    # Assign an ID "3" to the buffer group
+    # Assign an ID "5" to the buffer group
     mutate(group=5,
            group_name = "Buffer")
   
   # Separate funded and non-funded protected areas
   ##PAs funded by AFD 
-  ###... which can bu used in impact evaluation
+  ###... which can bu used in impact evaluation : in the country of interest, wdpaid known, area above 1km² (Wolf et al. 2021), implemented after yr_min defined by the user, non-marine (terrestrial or coastal, Wolf et al. 2021)
   pa_afd_ie = data_pa %>%
     filter(iso3 == iso & is.na(wdpaid) == FALSE & area_km2 > 1 & status_yr >= yr_min & marine %in% c(0,1))
   wdpaID_afd_ie = pa_afd_ie[pa_afd_ie$iso3 == iso,]$wdpaid
   wdpa_afd_ie = wdpa_prj %>% filter(WDPAID %in% wdpaID_afd_ie) %>%
     mutate(group=2,
-           group_name = "Funded PA, analyzed") # Assign an ID "1" to the funded PA group
+           group_name = "Funded PA, analyzed") # Assign an ID "2" to the funded PA group
   ###...which cannot
   pa_afd_no_ie = data_pa %>%
     filter(iso3 == iso & (is.na(wdpaid) == TRUE | area_km2 <= 1 | is.na(area_km2) | status_yr < yr_min | marine == 2)) #PAs not in WDPA, of area less than 1km2 (Wolf et al 2020), not terrestrial/coastal or implemented after yr_min are not analyzed
   wdpaID_afd_no_ie = pa_afd_no_ie[pa_afd_no_ie$iso3 == iso,]$wdpaid 
   wdpa_afd_no_ie = wdpa_prj %>% filter(WDPAID %in% wdpaID_afd_no_ie) %>%
     mutate(group=3,
-           group_name = "Funded PA, not analyzed") # Assign an ID "2" to the funded PA group which cannot be stuided in the impact evaluation
+           group_name = "Funded PA, not analyzed") # Assign an ID "3" to the funded PA group which cannot be stuided in the impact evaluation
   ##PAs not funded by AFD
   wdpa_no_afd = wdpa_prj %>% filter(!WDPAID %in% c(wdpaID_afd_ie, wdpaID_afd_no_ie)) %>% 
     mutate(group=4,
-           group_name = "Non-funded PA") # Assign an ID "3" to the non-funded PA group
+           group_name = "Non-funded PA") # Assign an ID "4" to the non-funded PA group
   wdpaID_no_afd = wdpa_no_afd$WDPAID
   
   # Merge the dataframes of funded PAs, non-funded PAs and buffers
+  # CAREFUL : the order of the arguments does matter. 
+  ## During rasterization, in case a cell of the raster is on both funded analysed and non-funded, we want to cell to take the WDPAID of the funded analysed.
+  ## Same funded, not analyzed. As the first layer is taken, wdpa_afd_ie needs to be first !
   wdpa_groups = rbind(wdpa_afd_ie, wdpa_afd_no_ie, wdpa_no_afd, buffer)
   # Subset to polygons that intersect with country boundary
   wdpa.sub = wdpa_groups %>% 
@@ -238,7 +245,8 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
   names(r.group) = "group"
   
   # Rasterize wdpaid
-  r.wdpaid = rasterize(wdpa_prj, r.ini, field="WDPAID", fun="first", background=0) %>%
+  ## CAREFUL : as stated above, the wdpa_groups raster is ordered so that the first layer is the one of funded, analyzed PA. Thus one needs to have fun = "first"
+  r.wdpaid = rasterize(wdpa_groups, r.ini, field="WDPAID", fun="first", background=0) %>%
     mask(., gadm_prj)
   names(r.wdpaid) = "wdpaid"
   
@@ -277,7 +285,7 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
     #Add treatment year variable
     left_join(dplyr::select(data_pa, c(region_afd, region, sub_region, country_en, iso3, wdpaid, status_yr, year_funding_first, year_funding_all)), by = "wdpaid")
   
-  # If two PAs in different groups overlap, then the rasterization with fun = "min" (as in r.group definition) can lead to bad assgnment of pixels.
+  # If two PAs in different groups overlap, then the rasterization with fun = "min" (as in r.group definition) can lead to bad assignment of pixels.
   # For instance, if a PA non-funded (group = 4) overlaps with a funded, analyzed one (group = 2), then the pixel will be assigned to the group 2
   # Same for group 3 (funded, not analyzed). Then, the following correction is applied.
   # Finally, each group is given a name for later plotting
