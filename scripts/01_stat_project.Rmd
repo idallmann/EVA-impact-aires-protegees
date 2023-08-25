@@ -28,9 +28,11 @@ install.packages(c("stargazer", "janitor", "questionr", "countrycode"))
 library(tidyverse)
 library(stargazer)
 library(dplyr)
+library(sf)
 library(ggplot2)
 library(ggrepel)
 library(RColorBrewer)
+library(countrycode)
 library(data.table)
 #library(readxl)
 #library(splitstackshape) 
@@ -56,6 +58,34 @@ data_stat_nodupl =
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
 
+#Import WDPA data
+# data_wdpa = wdpa_fetch(x = "global", wait = TRUE, download_dir = "data_raw",
+#                        page_wait = 2, verbose = TRUE)
+# st_write(wdpa,
+#          dsn = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
+#          delete_dsn = TRUE)
+data_wdpa = 
+  #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
+  s3read_using(sf::st_read,
+              object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = "")) %>%
+  st_drop_geometry() %>%
+  clean_names() %>%
+  #Add region, sub-region and country names 
+  mutate(region = countrycode(sourcevar = iso3,
+                              origin = "iso3c",
+                              destination = "un.region.name"),
+         sub_region = countrycode(sourcevar = iso3,
+                              origin = "iso3c",
+                              destination = "un.regionsub.name"),
+         country_en = countrycode(sourcevar = iso3,
+                              origin = "iso3c",
+                              destination = "un.name.en"),
+         country_fr = countrycode(sourcevar = iso3,
+                              origin = "iso3c",
+                              destination = "un.name.fr"),
+         .after = "iso3") %>%
 
 ##Datasets on aggregated size per country/region/year and at world level, taking into account the overlap.
 pa_area_ctry = 
@@ -2044,6 +2074,94 @@ for(f in files)
 #Erase the files in the temp directory
 
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+```
+
+#### Statistics at region level (non-marine, WDPA vs AFD)
+
+```{r, eval = FALSE}
+#For AFD funded PAs
+data_distrib_reg_afd = data_stat_nodupl %>%
+  filter(marine %in% c(0,1)) %>%
+  group_by(region) %>%
+  summarize(n_afd = n(),
+            freq_afd = round(n/nrow(.), 3)*100) %>%
+  ungroup()
+
+data_distrib_reg_afd_top = data_distrib_reg %>%
+  arrange(-freq_afd) %>%
+  slice(1:5)
+
+#For WDPA PAs
+data_distrib_reg_wdpa = data_wdpa %>%
+  filter(marine %in% c(0,1)) %>%
+  group_by(region) %>%
+  summarize(n_wdpa = n(),
+            freq_wdpa = round(n/nrow(.), 3)*100) %>%
+  ungroup()
+
+data_distrib_reg_wdpa_top = data_distrib_reg %>%
+  arrange(-freq_wdpa) %>%
+  slice(1:5)
+
+#Tehn create a plotting dataset with both WDPA and AFD distribution
+data_distrib_reg = data_distrib_reg_afd %>%
+  left_join(data_distrib_reg_wdpa, by = "region")
+
+data_distrib_reg_top = data_distrib_reg_afd_top %>%
+  left_join(data_distrib_reg_wdpa_top, by = "region")
+
+
+#Histogram in share (in French) for top countries
+hist_distrib_reg_top_shr = ggplot(data_distrib_reg_top, 
+                     aes(x = reorder(region, -freq), y = freq, fill = region)) %>%
++ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
++ geom_text(aes(label = paste(n, "PAs"), y = freq), 
+        vjust = -0.1, color="black",
+        size=3.5) %>%
++ labs(title = "Regions funding most non-marine protected areas",
+       subtitle = paste("Sample :", sum(data_distrib_reg$n), "non-marine protected areas. Numbers indicated above bars."),
+         x = "",
+         y = "Share of protected areas (%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 0,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_distrib_reg_top_shr
+
+
+#Histogram in number
+hist_distrib_reg_n = ggplot(data_distrib_reg, 
+                     aes(x = reorder(region, -n), y = n, fill = region)) %>%
++ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
++ geom_text(aes(label = n, y = n), 
+        vjust = -0.1, color="black",
+        size=3.5) %>%
++ labs(title = "Distribution of non-marine protected areas across regions",
+       subtitle = paste("Sample :", sum(data_distrib_ctry$n), "non-marine protected areas."),
+         x = "",
+         y = "# of protected areas") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_distrib_reg_n
+
+```
+
+```{r}
+
 ```
 
 ### Surface of PAs

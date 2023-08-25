@@ -806,7 +806,7 @@ s3write_using(x = data_fund_pa_nodupl,
               opts = list("region" = ""))
 ```
 
-### A polygon dataset 
+### A polygon dataset
 
 The funding and non-funding datasets with polygon, for maps creation.
 
