@@ -1486,7 +1486,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
     #First, compute deforestation relative to 2000 for each pixel (deforestation as computed in Wolf et al. 2021)
     group_by(assetid) %>%
     mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100,
-           fper = fc_ha/res_ha*100) %>%
+           fper = fc_ha/res_ha*100)
     ungroup() %>%
     #Then compute the average forest cover and deforestation in each year, for treated and control groups
     #Standard deviation and 95% confidence interval is also computed for each variable
@@ -1511,7 +1511,6 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
   df.unmatched.trend = unmatched.long %>%
     #First, compute deforestation relative to 2000 for each pixel (deforestation as computed in Wolf et al. 2021)
     #Compute share of forest in the given pixel by dividing by pixel area in ha (!)
-    group_by(assetid) %>%
     mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100,
            fper = fc_ha/res_ha*100) %>%
     ungroup() %>%
@@ -1556,7 +1555,6 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
                labeller = labeller(matched = fct.labs)) +
     labs(title = "Evolution of forest cover",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-         caption = "Orange plain line : year the protected area is implemented\nGrey dashed line : year(s) of AFD funding",
          x = "Year", y = "Average forest cover (ha)", color = "Group") +
     theme_bw() +
     theme(

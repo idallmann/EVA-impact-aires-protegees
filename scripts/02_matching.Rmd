@@ -36,7 +36,7 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 
 ```{r eval=, message=FALSE, warning=FALSE}
 #Install some libraries
-install.packages(c("tictoc", "geodata", "wdpar", "exactextractr", "MatchIt", "fixest", "cobalt", "future", "progressr", "mapme.biodiversity", "future.callr", "janitor"))
+install.packages(c("tictoc", "geodata", "wdpar", "exactextractr", "MatchIt", "fixest", "cobalt", "future", "progressr", "mapme.biodiversity", "future.callr", "janitor", "geomtextpath"))
 #remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
 #remotes::install_github("prioritizr/wdpar", upgrade="always")
 
@@ -51,7 +51,7 @@ library(xtable)
 library(tidyr)
 library(stringr)
 library(ggplot2) # For plotting
-library(geomtextpath)
+library(geomtextpath) #For annoted vertical lines in ggplot
 library(RColorBrewer)
 library(ggrepel)
 library(sf) # For handling vector data
@@ -176,8 +176,8 @@ tic_pre = tic() #Start timer
 
 #Create a log to track progress
 log = fn_pre_log(list_iso,
-                 name = paste0("log-", Sys.Date(), "-COM-test.txt"),
-                 notes = "Test with other outcomes")
+                 name = paste0("log-", Sys.Date(), "-afrcia-full.txt"),
+                 notes = "Attempt to perform full analysis on Africa PAs.")
 
 for (i in list_iso)
 {
