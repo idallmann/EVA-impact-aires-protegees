@@ -51,6 +51,7 @@ library(xtable)
 library(tidyr)
 library(stringr)
 library(ggplot2) # For plotting
+library(geomtextpath)
 library(RColorBrewer)
 library(ggrepel)
 library(sf) # For handling vector data
