@@ -1918,14 +1918,27 @@ hist_distrib_ctry_top_both_shr
 
 tmp = paste(tempdir(), "fig", sep = "/")
 
-ggsave(paste(tmp, "hist_distrib_ctry_top_shr.png", sep = "/"),
-       plot = hist_distrib_ctry_top_shr,
+ggsave(paste(tmp, "hist_distrib_ctry_top_n_shr.png", sep = "/"),
+       plot = hist_distrib_ctry_top_n_shr,
        device = "png",
        height = 6, width = 9)
-ggsave(paste(tmp, "hist_distrib_ctry_n.png", sep = "/"),
-       plot = hist_distrib_ctry_n,
+ggsave(paste(tmp, "hist_distrib_ctry_top_area_shr.png", sep = "/"),
+       plot = hist_distrib_ctry_top_area_shr,
        device = "png",
        height = 6, width = 9)
+ggsave(paste(tmp, "hist_distrib_ctry_n_shr.png", sep = "/"),
+       plot = hist_distrib_ctry_top_n_shr,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "hist_distrib_ctry_area_shr.png", sep = "/"),
+       plot = hist_distrib_ctry_top_area_shr,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "hist_distrib_ctry_top_both_shr.png", sep = "/"),
+       plot = hist_distrib_ctry_top_both_shr,
+       device = "png",
+       height = 6, width = 9)
+
 
 #Export to S3 storage
 
@@ -2073,7 +2086,7 @@ hist_distrib_ctry_area_shr = ggplot(filter(data_distrib_ctry, metric == "freq_ar
 hist_distrib_ctry_area_shr
 
 ## Both
-hist_distrib_ctry_top_both_shr = ggplot(filter(data_distrib_ctry, metric %in% c("freq_area", "freq_n")), 
+hist_distrib_ctry_both_shr = ggplot(filter(data_distrib_ctry, metric %in% c("freq_area", "freq_n")), 
                      aes(x = reorder(iso3, -value), y = value, fill = metric)) %>%
 + geom_bar(position="dodge", stat="identity") %>%
 # + geom_text(aes(label = paste(value, "PAs"), y = value), 
@@ -2095,7 +2108,7 @@ hist_distrib_ctry_top_both_shr = ggplot(filter(data_distrib_ctry, metric %in% c(
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-hist_distrib_ctry_top_both_shr
+hist_distrib_ctry_both_shr
 ```
 
 ```{r, eval = FALSE}
@@ -2120,7 +2133,7 @@ ggsave(paste(tmp, "hist_distrib_ctry_area_shr.png", sep = "/"),
        device = "png",
        height = 6, width = 9)
 ggsave(paste(tmp, "hist_distrib_ctry_both_shr.png", sep = "/"),
-       plot = hist_distrib_ctry_top_both_shr,
+       plot = hist_distrib_ctry_both_shr,
        device = "png",
        height = 6, width = 9)
 
