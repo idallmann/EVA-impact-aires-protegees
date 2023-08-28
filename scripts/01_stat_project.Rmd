@@ -85,7 +85,7 @@ data_wdpa =
          country_fr = countrycode(sourcevar = iso3,
                               origin = "iso3c",
                               destination = "un.name.fr"),
-         .after = "iso3") %>%
+         .after = "iso3") 
 
 ##Datasets on aggregated size per country/region/year and at world level, taking into account the overlap.
 pa_area_ctry = 
@@ -1565,7 +1565,7 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 ```
 
-### Distribution of PAs across countries and regions
+### Distribution (\# and surface) of PAs across countries and regions
 
 Number/share of PAs in the different countries/regions.
 
@@ -1575,25 +1575,39 @@ For all PAs in the world.
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
 
+#Surface and number of PAs by country
 data_distrib_ctry = data_stat_nodupl %>%
   group_by(iso3, country_en, country_fr) %>%
   summarize(n = n(),
-            freq = round(n/nrow(data_stat_nodupl), 2)*100) %>%
-  ungroup() 
+            area_km2 = sum(area_km2, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(n_tot = sum(n, na.rm = TRUE),
+         area_tot_km2 = sum(area_km2, na.rm = TRUE),
+         freq_n = round(n/n_tot*100, 2),
+         freq_area = round(area_km2/area_tot_km2*100, 2)) %>%
+  pivot_longer(cols = c("n", "freq_n", "area_km2", "freq_area"),
+               names_to = "metric")
 
-data_distrib_ctry_top = data_distrib_ctry %>%
-    arrange(-freq) %>%
+#Top targeted countries in terms of number/surface of PAs
+data_distrib_ctry_top_n = data_distrib_ctry %>%
+  filter(metric == "freq_n") %>%
+  arrange(-value) %>%
+  slice(1:5)
+data_distrib_ctry_top_area = data_distrib_ctry %>%
+  filter(metric == "freq_area") %>%
+  arrange(-value) %>%
   slice(1:5)
 
 #Histogram in share (in French) for top countries
-hist_distrib_ctry_top_shr = ggplot(data_distrib_ctry_top, 
-                     aes(x = reorder(country_en, -freq), y = freq, fill = freq)) %>%
+##Number of PAs
+hist_distrib_ctry_top_n_shr = ggplot(data_distrib_ctry_top_n, 
+                     aes(x = reorder(country_en, -value), y = value, fill = value)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ geom_text(aes(label = paste(n, "PAs"), y = freq), 
-        vjust = -0.1, color="black",
-        size=3.5) %>%
+# + geom_text(aes(label = paste(value, "PAs"), y = value), 
+#         vjust = -0.1, color="black",
+#         size=3.5) %>%
 + labs(title = "Countries most targeted by AFD funded protected areas",
-       subtitle = paste("Sample :", sum(data_distrib_ctry$n), "protected areas. Numbers indicated above bars."),
+       subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
          x = "Countries",
          y = "Share of protected areas (%)") %>%
   + theme(legend.position = "bottom",
@@ -1606,21 +1620,43 @@ hist_distrib_ctry_top_shr = ggplot(data_distrib_ctry_top,
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-hist_distrib_ctry_top_shr
-# 
+hist_distrib_ctry_top_n_shr
 
-
-#Histogram in number
-hist_distrib_ctry_n = ggplot(data_distrib_ctry, 
-                     aes(x = reorder(iso3, -n), y = n, fill = iso3)) %>%
+##Area of PAs
+hist_distrib_ctry_top_area_shr = ggplot(data_distrib_ctry_top_area, 
+                     aes(x = reorder(country_en, -value), y = value, fill = value)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ geom_text(aes(label = n, y = n), 
-        vjust = -0.1, color="black",
-        size=3) %>%
-+ labs(title = "Distribution of protected areas by countries",
-       subtitle = paste("Sample :", sum(data_distrib_ctry$n), "protected areas."),
+# + geom_text(aes(label = paste(value, "PAs"), y = value), 
+#         vjust = -0.1, color="black",
+#         size=3.5) %>%
++ labs(title = "Countries most targeted by AFD funded protected areas",
+       subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
          x = "Countries",
-         y = "# of protected areas (%)") %>%
+         y = "Share of area funded (%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 0,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_distrib_ctry_top_area_shr
+
+#Histogram for all countries
+#Histogram in number
+hist_distrib_ctry_n_shr = ggplot(filter(data_distrib_ctry, metric == "freq_n"), 
+                     aes(x = reorder(iso3, -value), y = value, fill = iso3)) %>%
++ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
+# + geom_text(aes(label = n, y = n), 
+#         vjust = -0.1, color="black",
+#         size=3) %>%
++ labs(title = "Distribution of protected areas by country",
+       subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
+         x = "Countries",
+         y = "Share of protected areas (%)") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
       plot.title = element_text(size = 14, face = "bold"), 
@@ -1631,8 +1667,54 @@ hist_distrib_ctry_n = ggplot(data_distrib_ctry,
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-hist_distrib_ctry_n
-# 
+hist_distrib_ctry_n_shr
+# Histogram in surfaces
+hist_distrib_ctry_area_shr = ggplot(filter(data_distrib_ctry, metric == "freq_area"), 
+                     aes(x = reorder(iso3, -value), y = value, fill = iso3)) %>%
++ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
+# + geom_text(aes(label = n, y = n), 
+#         vjust = -0.1, color="black",
+#         size=3) %>%
++ labs(title = "Distribution of protected areas by country",
+       subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
+         x = "Countries",
+         y = "Share of area funded (%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_distrib_ctry_area_shr
+
+## Both
+hist_distrib_ctry_top_both_shr = ggplot(filter(data_distrib_ctry, metric %in% c("freq_n", "freq_area")), 
+                     aes(x = reorder(iso3, -value), y = value, fill = metric)) %>%
++ geom_bar(position="dodge", stat="identity") %>%
+# + geom_text(aes(label = paste(value, "PAs"), y = value), 
+#         vjust = -0.1, color="black",
+#         size=3.5) %>%
++ labs(title = "Distribution of AFD funded protected areas by country",
+       subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
+         x = "",
+         y = "Share of protected areas (%)") %>%
++ scale_fill_brewer(name = "", labels = c("Surface", "Number"),
+                    type = "seq", palette = "Blues") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_distrib_ctry_top_both_shr
 ```
 
 ```{r, eval = FALSE}
@@ -1640,12 +1722,24 @@ hist_distrib_ctry_n
 
 tmp = paste(tempdir(), "fig", sep = "/")
 
-ggsave(paste(tmp, "hist_distrib_ctry_top_shr.png", sep = "/"),
-       plot = hist_distrib_ctry_top_shr,
+ggsave(paste(tmp, "hist_distrib_ctry_top_n_shr.png", sep = "/"),
+       plot = hist_distrib_ctry_top_n_shr,
        device = "png",
        height = 6, width = 9)
-ggsave(paste(tmp, "hist_distrib_ctry_n.png", sep = "/"),
-       plot = hist_distrib_ctry_n,
+ggsave(paste(tmp, "hist_distrib_ctry_top_area_shr.png", sep = "/"),
+       plot = hist_distrib_ctry_top_area_shr,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "hist_distrib_ctry_n_shr.png", sep = "/"),
+       plot = hist_distrib_ctry_n_shr,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "hist_distrib_ctry_area_shr.png", sep = "/"),
+       plot = hist_distrib_ctry_area_shr,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "hist_distrib_ctry_top_both_shr.png", sep = "/"),
+       plot = hist_distrib_ctry_top_both_shr,
        device = "png",
        height = 6, width = 9)
 
@@ -1676,26 +1770,40 @@ Non-marine PAs across the world.
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
 
+#Surface and number of PAs by country
 data_distrib_ctry = data_stat_nodupl %>%
   filter(marine %in% c(0,1)) %>%
   group_by(iso3, country_en, country_fr) %>%
   summarize(n = n(),
-            freq = round(n/nrow(.), 3)*100) %>%
-  ungroup() 
+            area_km2 = sum(area_km2, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(n_tot = sum(n, na.rm = TRUE),
+         area_tot_km2 = sum(area_km2, na.rm = TRUE),
+         freq_n = round(n/n_tot*100, 2),
+         freq_area = round(area_km2/area_tot_km2*100, 2)) %>%
+  pivot_longer(cols = c("n", "freq_n", "area_km2", "freq_area"),
+               names_to = "metric")
 
-data_distrib_ctry_top = data_distrib_ctry %>%
-  arrange(-freq) %>%
+#Top targeted countries in terms of number/surface of PAs
+data_distrib_ctry_top_n = data_distrib_ctry %>%
+  filter(metric == "freq_n") %>%
+  arrange(-value) %>%
+  slice(1:5)
+data_distrib_ctry_top_area = data_distrib_ctry %>%
+  filter(metric == "freq_area") %>%
+  arrange(-value) %>%
   slice(1:5)
 
 #Histogram in share (in French) for top countries
-hist_distrib_ctry_top_shr = ggplot(data_distrib_ctry_top, 
-                     aes(x = reorder(country_en, -freq), y = freq, fill = freq)) %>%
+##Number of PAs
+hist_distrib_ctry_top_n_shr = ggplot(data_distrib_ctry_top_n, 
+                     aes(x = reorder(country_en, -value), y = value, fill = value)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ geom_text(aes(label = paste(n, "PAs"), y = freq), 
-        vjust = -0.1, color="black",
-        size=3.5) %>%
-+ labs(title = "Countries most targeted by AFD funded non-marine protected areas",
-       subtitle = paste("Sample :", sum(data_distrib_ctry$n), "non-marine protected areas. Numbers indicated above bars."),
+# + geom_text(aes(label = paste(value, "PAs"), y = value), 
+#         vjust = -0.1, color="black",
+#         size=3.5) %>%
++ labs(title = "Countries most targeted by AFD funded, non-marine protected areas",
+       subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
          x = "Countries",
          y = "Share of protected areas (%)") %>%
   + theme(legend.position = "bottom",
@@ -1708,21 +1816,43 @@ hist_distrib_ctry_top_shr = ggplot(data_distrib_ctry_top,
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-hist_distrib_ctry_top_shr
-# 
+hist_distrib_ctry_top_n_shr
 
-
-#Histogram in number
-hist_distrib_ctry_n = ggplot(data_distrib_ctry, 
-                     aes(x = reorder(iso3, -n), y = n, fill = iso3)) %>%
+##Area of PAs
+hist_distrib_ctry_top_area_shr = ggplot(data_distrib_ctry_top_area, 
+                     aes(x = reorder(country_en, -value), y = value, fill = value)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ geom_text(aes(label = n, y = n), 
-        vjust = -0.1, color="black",
-        size=3) %>%
-+ labs(title = "Distribution of non-marine protected areas by countries",
-       subtitle = paste("Sample :", sum(data_distrib_ctry$n), "non-marine protected areas."),
+# + geom_text(aes(label = paste(value, "PAs"), y = value), 
+#         vjust = -0.1, color="black",
+#         size=3.5) %>%
++ labs(title = "Countries most targeted by AFD funded, non-marine protected areas",
+       subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
          x = "Countries",
-         y = "# of protected areas") %>%
+         y = "Share of area funded (%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 0,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_distrib_ctry_top_area_shr
+
+#Histogram for all countries
+#Histogram in number
+hist_distrib_ctry_n_shr = ggplot(filter(data_distrib_ctry, metric == "freq_n"), 
+                     aes(x = reorder(iso3, -value), y = value, fill = iso3)) %>%
++ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
+# + geom_text(aes(label = n, y = n), 
+#         vjust = -0.1, color="black",
+#         size=3) %>%
++ labs(title = "Distribution of AFD funded, non-marine protected areas by country",
+       subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
+         x = "Countries",
+         y = "Share of protected areas (%)") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
       plot.title = element_text(size = 14, face = "bold"), 
@@ -1733,9 +1863,54 @@ hist_distrib_ctry_n = ggplot(data_distrib_ctry,
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-hist_distrib_ctry_n
-# 
+hist_distrib_ctry_n_shr
+# Histogram in surfaces
+hist_distrib_ctry_area_shr = ggplot(filter(data_distrib_ctry, metric == "freq_area"), 
+                     aes(x = reorder(iso3, -value), y = value, fill = iso3)) %>%
++ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
+# + geom_text(aes(label = n, y = n), 
+#         vjust = -0.1, color="black",
+#         size=3) %>%
++ labs(title = "Distribution of AFD funded, non-marine protected areas by country",
+       subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
+         x = "Countries",
+         y = "Share of area funded (%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_distrib_ctry_area_shr
 
+## Both
+hist_distrib_ctry_top_both_shr = ggplot(filter(data_distrib_ctry, metric %in% c("freq_area", "freq_n")), 
+                     aes(x = reorder(iso3, -value), y = value, fill = metric)) %>%
++ geom_bar(position="dodge", stat="identity") %>%
+# + geom_text(aes(label = paste(value, "PAs"), y = value), 
+#         vjust = -0.1, color="black",
+#         size=3.5) %>%
++ labs(title = "Distribution of AFD funded, non-marine protected areas by country",
+       subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
+         x = "",
+         y = "Share of protected areas (%)") %>%
++ scale_fill_brewer(name = "", labels = c("Surface", "Number"),
+                    type = "seq", palette = "Blues") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_distrib_ctry_top_both_shr
 ```
 
 ```{r, eval = FALSE}
@@ -1780,26 +1955,40 @@ Non-marine PAs in a given region.
 
 roi = "Africa"
 
+#Surface and number of PAs by country
 data_distrib_ctry = data_stat_nodupl %>%
   filter(region == roi & marine %in% c(0,1)) %>%
   group_by(iso3, country_en, country_fr) %>%
   summarize(n = n(),
-            freq = round(n/nrow(.), 3)*100) %>%
-  ungroup() 
+            area_km2 = sum(area_km2, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(n_tot = sum(n, na.rm = TRUE),
+         area_tot_km2 = sum(area_km2, na.rm = TRUE),
+         freq_n = round(n/n_tot*100, 2),
+         freq_area = round(area_km2/area_tot_km2*100, 2)) %>%
+  pivot_longer(cols = c("n", "freq_n", "area_km2", "freq_area"),
+               names_to = "metric")
 
-data_distrib_ctry_top = data_distrib_ctry %>%
-  arrange(-freq) %>%
+#Top targeted countries in terms of number/surface of PAs
+data_distrib_ctry_top_n = data_distrib_ctry %>%
+  filter(metric == "freq_n") %>%
+  arrange(-value) %>%
+  slice(1:5)
+data_distrib_ctry_top_area = data_distrib_ctry %>%
+  filter(metric == "freq_area") %>%
+  arrange(-value) %>%
   slice(1:5)
 
 #Histogram in share (in French) for top countries
-hist_distrib_ctry_top_shr = ggplot(data_distrib_ctry_top, 
-                     aes(x = reorder(country_en, -freq), y = freq, fill = freq)) %>%
+##Number of PAs
+hist_distrib_ctry_top_n_shr = ggplot(data_distrib_ctry_top_n, 
+                     aes(x = reorder(country_en, -value), y = value, fill = value)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ geom_text(aes(label = paste(n, "PAs"), y = freq), 
-        vjust = -0.1, color="black",
-        size=3.5) %>%
-+ labs(title = paste0("Countries most targeted by AFD funded non-marine protected areas\n", roi),
-       subtitle = paste("Sample :", sum(data_distrib_ctry$n), "non-marine protected areas. Numbers indicated above bars."),
+# + geom_text(aes(label = paste(value, "PAs"), y = value), 
+#         vjust = -0.1, color="black",
+#         size=3.5) %>%
++ labs(title = paste0("Countries most targeted by AFD funded, non-marine protected areas\n", roi),
+       subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
          x = "Countries",
          y = "Share of protected areas (%)") %>%
   + theme(legend.position = "bottom",
@@ -1812,21 +2001,43 @@ hist_distrib_ctry_top_shr = ggplot(data_distrib_ctry_top,
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-hist_distrib_ctry_top_shr
-# 
+hist_distrib_ctry_top_n_shr
 
-
-#Histogram in number
-hist_distrib_ctry_n = ggplot(data_distrib_ctry, 
-                     aes(x = reorder(iso3, -n), y = n, fill = iso3)) %>%
+##Area of PAs
+hist_distrib_ctry_top_area_shr = ggplot(data_distrib_ctry_top_area, 
+                     aes(x = reorder(country_en, -value), y = value, fill = value)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ geom_text(aes(label = n, y = n), 
-        vjust = -0.1, color="black",
-        size=3) %>%
-+ labs(title = paste0("Distribution of non-marine protected areas by countries \n", roi),
-       subtitle = paste("Sample :", sum(data_distrib_ctry$n), "non-marine protected areas."),
+# + geom_text(aes(label = paste(value, "PAs"), y = value), 
+#         vjust = -0.1, color="black",
+#         size=3.5) %>%
++ labs(title = paste0("Countries most targeted by AFD funded, non-marine protected areas\n", roi),
+       subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
          x = "Countries",
-         y = "# of protected areas") %>%
+         y = "Share of area funded (%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 0,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_distrib_ctry_top_area_shr
+
+#Histogram for all countries
+#Histogram in number
+hist_distrib_ctry_n_shr = ggplot(filter(data_distrib_ctry, metric == "freq_n"), 
+                     aes(x = reorder(iso3, -value), y = value, fill = iso3)) %>%
++ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
+# + geom_text(aes(label = n, y = n), 
+#         vjust = -0.1, color="black",
+#         size=3) %>%
++ labs(title = paste0("Distribution of AFD funded, non-marine protected areas by country\n", roi),
+       subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
+         x = "Countries",
+         y = "Share of protected areas (%)") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
       plot.title = element_text(size = 14, face = "bold"), 
@@ -1837,10 +2048,54 @@ hist_distrib_ctry_n = ggplot(data_distrib_ctry,
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-hist_distrib_ctry_n
-# 
+hist_distrib_ctry_n_shr
+# Histogram in surfaces
+hist_distrib_ctry_area_shr = ggplot(filter(data_distrib_ctry, metric == "freq_area"), 
+                     aes(x = reorder(iso3, -value), y = value, fill = iso3)) %>%
++ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
+# + geom_text(aes(label = n, y = n), 
+#         vjust = -0.1, color="black",
+#         size=3) %>%
++ labs(title = paste0("Distribution of AFD funded, non-marine protected areas by country\n", roi),
+       subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
+         x = "Countries",
+         y = "Share of area funded (%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_distrib_ctry_area_shr
 
-
+## Both
+hist_distrib_ctry_top_both_shr = ggplot(filter(data_distrib_ctry, metric %in% c("freq_area", "freq_n")), 
+                     aes(x = reorder(iso3, -value), y = value, fill = metric)) %>%
++ geom_bar(position="dodge", stat="identity") %>%
+# + geom_text(aes(label = paste(value, "PAs"), y = value), 
+#         vjust = -0.1, color="black",
+#         size=3.5) %>%
++ labs(title = paste0("Distribution of AFD funded, non-marine protected areas by country\n", roi),
+       subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
+         x = "",
+         y = "Share of protected areas (%)") %>%
++ scale_fill_brewer(name = "", labels = c("Surface", "Number"),
+                    type = "seq", palette = "Blues") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_distrib_ctry_top_both_shr
 ```
 
 ```{r, eval = FALSE}
@@ -1848,12 +2103,24 @@ hist_distrib_ctry_n
 
 tmp = paste(tempdir(), "fig", sep = "/")
 
-ggsave(paste(tmp, "hist_distrib_ctry_top_shr.png", sep = "/"),
-       plot = hist_distrib_ctry_top_shr,
+ggsave(paste(tmp, "hist_distrib_ctry_top_n_shr.png", sep = "/"),
+       plot = hist_distrib_ctry_top_n_shr,
        device = "png",
        height = 6, width = 9)
-ggsave(paste(tmp, "hist_distrib_ctry_n.png", sep = "/"),
-       plot = hist_distrib_ctry_n,
+ggsave(paste(tmp, "hist_distrib_ctry_top_area_shr.png", sep = "/"),
+       plot = hist_distrib_ctry_top_area_shr,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "hist_distrib_ctry_n_shr.png", sep = "/"),
+       plot = hist_distrib_ctry_top_n_shr,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "hist_distrib_ctry_area_shr.png", sep = "/"),
+       plot = hist_distrib_ctry_top_area_shr,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "hist_distrib_ctry_both_shr.png", sep = "/"),
+       plot = hist_distrib_ctry_top_both_shr,
        device = "png",
        height = 6, width = 9)
 
@@ -1878,33 +2145,79 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 ```
 
-#### Statistics at region level (all)
-
-All PAs across the world.
+#### Statistics at country level (non-marine, WDPA vs AFD)
 
 ```{r, eval = FALSE}
-data_distrib_reg = data_stat_nodupl %>%
-  group_by(region) %>%
-  summarize(n = n(),
-            freq = round(n/nrow(data_stat_nodupl), 3)*100) %>%
-  ungroup()
+#For AFD funded PAs
+##Distribution across countries (all)
+data_distrib_ctry_afd = data_stat_nodupl %>%
+  filter(marine %in% c(0,1)) %>%
+  group_by(iso3, country_en) %>%
+  summarize(n_afd = n(),
+            area_km2_afd = sum(area_km2, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(n_tot_afd = sum(n_afd),
+         area_km2_afd_tot = sum(area_km2_afd, na.rm = TRUE),
+         freq_n_afd = round(n_afd/n_tot_afd*100, 2),
+         freq_area_afd = round(area_km2_afd/area_km2_afd_tot*100, 2))
+##Top 10 funded countries
+###Number
+data_distrib_ctry_afd_top_n = data_distrib_ctry_afd %>%
+  arrange(-freq_n_afd) %>%
+  slice(1:10)
+###Surface
+data_distrib_ctry_afd_top_area = data_distrib_ctry_afd %>%
+  arrange(-freq_area_afd) %>%
+  slice(1:10)
 
+#For WDPA PAs
+## All countries
+data_distrib_ctry_wdpa = data_wdpa %>%
+  filter(marine %in% c(0,1)) %>%
+  group_by(iso3, country_en) %>%
+  summarize(n_wdpa = n(),
+            area_km2_wdpa = sum(rep_area, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(n_tot_wdpa = sum(n_wdpa),
+         area_km2_wdpa_tot = sum(area_km2_wdpa, na.rm = TRUE),
+         freq_n_wdpa = round(n_wdpa/n_tot_wdpa*100, 2),
+         freq_area_wdpa = round(area_km2_wdpa/area_km2_wdpa_tot*100, 2))
+## Top 10 targeted countries
+data_distrib_ctry_wdpa_top_n = data_distrib_ctry_wdpa %>%
+  arrange(-freq_n_wdpa) %>%
+  slice(1:10)
+data_distrib_ctry_wdpa_top_area = data_distrib_ctry_wdpa %>%
+  arrange(-freq_area_wdpa) %>%
+  slice(1:10)
 
-data_distrib_reg_top = data_distrib_reg %>%
-  arrange(-freq) %>%
-  slice(1:5)
+#Then create a plotting dataset with WDPA vs AFD distribution
+##the distribution for top targeted countries by AFD
+### in terms of numbers
+data_distrib_ctry_vs_n = data_distrib_ctry_afd_top_n %>%
+  left_join(data_distrib_ctry_wdpa, c("iso3", "country_en")) %>%
+  select(-contains("area")) %>%
+  pivot_longer(cols = c("n_afd", "freq_n_afd", "n_wdpa", "freq_n_wdpa"),
+               names_to = "metric") 
+###in terms of areas
+data_distrib_ctry_vs_area = data_distrib_ctry_afd_top_area %>%
+  left_join(data_distrib_ctry_wdpa, c("iso3", "country_en")) %>%
+  select(-contains("n_")) %>%
+  pivot_longer(cols = c("area_km2_afd", "freq_area_afd", "area_km2_wdpa", "freq_area_wdpa"),
+               names_to = "metric") 
 
-#Histogram in share (in French) for top countries
-hist_distrib_reg_top_shr = ggplot(data_distrib_reg_top, 
-                     aes(x = reorder(region, -freq), y = freq, fill = region)) %>%
+#Histogram in share for top countries
+##For WDPA PAs
+### number
+hist_distrib_ctry_wdpa_top_n = ggplot(data_distrib_ctry_wdpa_top_n,
+                                  aes(x = reorder(iso3, -freq_n_wdpa), y = freq_n_wdpa, fill = freq_n_wdpa)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ geom_text(aes(label = paste(n, "PAs"), y = freq), 
-        vjust = -0.1, color="black",
-        size=3.5) %>%
-+ labs(title = "Regions funding most protected areas",
-       subtitle = paste("Sample :", sum(data_distrib_reg$n), "protected areas. Numbers indicated above bars."),
++ labs(title = "Top countries of non-marine protected areas",
+       subtitle = paste("Sample :", min(data_distrib_ctry_wdpa$n_tot_wdpa), "non-marine protected areas reported by WDPA, covering", format(min(data_distrib_ctry_wdpa$area_km2_wdpa_tot), scientific = TRUE, digits = 2), "km²"),
+       caption = "Note : we consider non-marine PAs reported by WDPA on the full period covered by the data.\nA subset of it is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
          x = "",
          y = "Share of protected areas (%)") %>%
++ scale_fill_brewer(name = "", labels = c("AFD funded", "All"),
+                    type = "seq", palette = "Blues") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
       plot.title = element_text(size = 14, face = "bold"), 
@@ -1914,21 +2227,208 @@ hist_distrib_reg_top_shr = ggplot(data_distrib_reg_top,
                                       linewidth = 0.5, linetype = 'solid'),
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
-      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-hist_distrib_reg_top_shr
-
-
-#Histogram in number
-hist_distrib_reg_n = ggplot(data_distrib_reg, 
-                     aes(x = reorder(region, -n), y = n, fill = region)) %>%
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+hist_distrib_ctry_wdpa_top_n 
+### Area
+hist_distrib_ctry_wdpa_top_area = ggplot(data_distrib_ctry_wdpa_top_area,
+                                  aes(x = reorder(iso3, -freq_area_wdpa), y = freq_area_wdpa, fill = freq_area_wdpa)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ geom_text(aes(label = n, y = n), 
-        vjust = -0.1, color="black",
-        size=3.5) %>%
-+ labs(title = "Distribution of protected areas across regions",
-       subtitle = paste("Sample :", sum(data_distrib_ctry$n), "protected areas."),
++ labs(title = "Top countries of non-marine protected areas",
+       subtitle = paste("Sample :", min(data_distrib_ctry_wdpa$n_tot_wdpa), "non-marine protected areas reported by WDPA, covering", format(min(data_distrib_ctry_wdpa$area_km2_wdpa_tot), scientific = TRUE, digits = 2), "km²"),
+       caption = "Note : we consider non-marine PAs reported by WDPA on the full period covered by the data.",
          x = "",
-         y = "# of protected areas") %>%
+         y = "Share of protected areas (%)") %>%
++ scale_fill_brewer(name = "", labels = c("AFD funded", "All"),
+                    type = "seq", palette = "Blues") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 0,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+hist_distrib_ctry_wdpa_top_area
+
+##For AFD funded PAs
+### number
+hist_distrib_ctry_afd_top_n = ggplot(data_distrib_ctry_afd_top_n,
+                                  aes(x = reorder(iso3, -freq_n_afd), y = freq_n_afd, fill = freq_n_afd)) %>%
++ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
++ labs(title = "Top countries of AFD funded, non-marine protected areas",
+       subtitle = paste("Sample :", min(data_distrib_ctry_afd$n_tot_afd), "non-marine protected areas reported by WDPA, covering", format(min(data_distrib_ctry_afd$area_km2_afd_tot), scientific = TRUE, digits = 2), "km²"),
+       caption = "Note : we consider non-marine PAs reported by WDPA on the full period covered by the data.\nA subset of it is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
+         x = "",
+         y = "Share of protected areas (%)") %>%
++ scale_fill_brewer(name = "", labels = c("AFD funded", "All"),
+                    type = "seq", palette = "Blues") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 0,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+hist_distrib_ctry_afd_top_n 
+### Area
+hist_distrib_ctry_afd_top_area = ggplot(data_distrib_ctry_afd_top_area,
+                                  aes(x = reorder(iso3, -freq_area_afd), y = freq_area_afd, fill = freq_area_afd)) %>%
++ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
++ labs(title = "Top countries of AFD funded, non-marine protected areas",
+       subtitle = paste("Sample :", min(data_distrib_ctry_afd$n_tot_afd), "non-marine protected areas reported by WDPA, covering", format(min(data_distrib_ctry_afd$area_km2_afd_tot), scientific = TRUE, digits = 2), "km²"),
+       caption = "Note : we consider non-marine PAs reported by WDPA on the full period covered by the data.\nA subset of it is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
+         x = "",
+         y = "Share of protected areas (%)") %>%
++ scale_fill_brewer(name = "", labels = c("AFD funded", "All"),
+                    type = "seq", palette = "Blues") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 0,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+hist_distrib_ctry_afd_top_area
+
+
+## For top AFD, comparison with WDPA in terms of numbers
+hist_distrib_ctry_vs_n = ggplot(filter(data_distrib_ctry_vs_n, grepl("freq", metric)),
+                                  aes(x = reorder(iso3, value), y = value, fill = metric)) %>%
++ geom_bar(position="dodge", stat="identity", na.rm = TRUE) %>%
++ labs(title = "Top countries targeted by AFD funded non-marine protected areas",
+       subtitle = paste("Sample :", min(data_distrib_ctry_wdpa$n_tot_wdpa), "non-marine protected areas reported by WDPA,",  min(data_distrib_ctry_afd$n_tot_afd), "funded by AFD"),
+       caption = "Note : we consider non-marine PAs reported by WDPA on the full period covered by the data.\nA subset of it is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
+         x = "",
+         y = "Share of protected areas (%)") %>%
++ scale_fill_brewer(name = "", labels = c("AFD funded", "All"),
+                    type = "seq", palette = "Blues") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 0,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+hist_distrib_ctry_vs_n 
+
+## For top AFD, comparison with WDPA in terms of area
+hist_distrib_ctry_vs_area = ggplot(filter(data_distrib_ctry_vs_area, grepl("freq", metric)),
+                                  aes(x = reorder(iso3, value), y = value, fill = metric)) %>%
++ geom_bar(position="dodge", stat="identity", na.rm = TRUE) %>%
++ labs(title = "Top countries targeted by AFD funded non-marine protected areas",
+       subtitle = paste("Sample :", min(data_distrib_ctry_wdpa$n_tot_wdpa), "non-marine protected areas reported by WDPA,",  min(data_distrib_ctry_afd$n_tot_afd), "funded by AFD"),
+       caption = "Note : we consider non-marine PAs reported by WDPA on the full period covered by the data.",
+         x = "",
+         y = "Share of funded areas (%)") %>%
++ scale_fill_brewer(name = "", labels = c("AFD funded", "All"),
+                    type = "seq", palette = "Blues") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 0,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+hist_distrib_ctry_vs_area
+
+
+```
+
+```{r, eval = FALSE}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+ggsave(paste(tmp, "hist_distrib_ctry_wdpa_top_n.png", sep = "/"),
+       plot = hist_distrib_ctry_wdpa_top_n,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "hist_distrib_ctry_wdpa_top_area.png", sep = "/"),
+       plot = hist_distrib_ctry_wdpa_top_area,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "hist_distrib_ctry_afd_top_n.png", sep = "/"),
+       plot = hist_distrib_ctry_afd_top_n,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "hist_distrib_ctry_afd_top_area.png", sep = "/"),
+       plot = hist_distrib_ctry_afd_top_area,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "hist_distrib_ctry_vs_n.png", sep = "/"),
+       plot = hist_distrib_ctry_vs_n,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "hist_distrib_ctry_vs_area.png", sep = "/"),
+       plot = hist_distrib_ctry_vs_area,
+       device = "png",
+       height = 6, width = 9)
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+count = 0
+for(f in files) 
+{
+  count = count+1
+  cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/distribution/wdpa_vs_afd/no_marine", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+```
+
+#### Statistics at region level (all)
+
+All PAs across the world.
+
+```{r, eval = FALSE}
+#Surface and number of PAs by country
+data_distrib_reg = data_stat_nodupl %>%
+  group_by(region) %>%
+  summarize(n = n(),
+            area_km2 = sum(area_km2, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(n_tot = sum(n, na.rm = TRUE),
+         area_tot_km2 = sum(area_km2, na.rm = TRUE),
+         freq_n = round(n/n_tot*100, 2),
+         freq_area = round(area_km2/area_tot_km2*100, 2)) %>%
+  pivot_longer(cols = c("n", "freq_n", "area_km2", "freq_area"),
+               names_to = "metric") %>%
+  filter(is.na(region) == FALSE)
+
+
+#Histogram for all countries
+#Histogram in number
+hist_distrib_reg_n_shr = ggplot(filter(data_distrib_reg, metric == "freq_n"), 
+                     aes(x = reorder(region, -value), y = value, fill = region)) %>%
++ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
+# + geom_text(aes(label = n, y = n), 
+#         vjust = -0.1, color="black",
+#         size=3) %>%
++ labs(title = "Distribution of protected areas by region",
+       subtitle = paste("Sample :", sum(filter(data_distrib_reg, metric == "n")$value), "protected areas covering", format(sum(filter(data_distrib_reg, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
+         x = "",
+         y = "Share of protected areas (%)") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
       plot.title = element_text(size = 14, face = "bold"), 
@@ -1939,8 +2439,55 @@ hist_distrib_reg_n = ggplot(data_distrib_reg,
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-hist_distrib_reg_n
+hist_distrib_reg_n_shr
 
+# Histogram in surfaces
+hist_distrib_reg_area_shr = ggplot(filter(data_distrib_reg, metric == "freq_area"), 
+                     aes(x = reorder(region, -value), y = value, fill = region)) %>%
++ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
+# + geom_text(aes(label = n, y = n), 
+#         vjust = -0.1, color="black",
+#         size=3) %>%
++ labs(title = "Distribution of protected areas by region",
+       subtitle = paste("Sample :", sum(filter(data_distrib_reg, metric == "n")$value), "protected areas covering", format(sum(filter(data_distrib_reg, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
+         x = "",
+         y = "Share of areas funded (%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_distrib_reg_area_shr
+
+## Both
+hist_distrib_reg_top_both_shr = ggplot(filter(data_distrib_reg, metric %in% c("freq_area", "freq_n")), 
+                     aes(x = reorder(region, -value), y = value, fill = metric)) %>%
++ geom_bar(position="dodge", stat="identity") %>%
+# + geom_text(aes(label = paste(value, "PAs"), y = value), 
+#         vjust = -0.1, color="black",
+#         size=3.5) %>%
++ labs(title = "Distribution of AFD funded protected areas by region",
+       subtitle = paste("Sample :", sum(filter(data_distrib_reg, metric == "n")$value), "protected areas covering", format(sum(filter(data_distrib_reg, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
+         x = "",
+         y = "Share of protected areas (%)") %>%
++ scale_fill_brewer(name = "", labels = c("Surface", "Number"),
+                    type = "seq", palette = "Blues") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_distrib_reg_top_both_shr
 ```
 
 ```{r, eval = FALSE}
@@ -1948,12 +2495,16 @@ hist_distrib_reg_n
 
 tmp = paste(tempdir(), "fig", sep = "/")
 
-ggsave(paste(tmp, "hist_distrib_reg_top_shr.png", sep = "/"),
-       plot = hist_distrib_reg_top_shr,
+ggsave(paste(tmp, "hist_distrib_reg_n_shr.png", sep = "/"),
+       plot = hist_distrib_reg_n_shr,
        device = "png",
        height = 6, width = 9)
-ggsave(paste(tmp, "hist_distrib_reg_n.png", sep = "/"),
-       plot = hist_distrib_reg_n,
+ggsave(paste(tmp, "hist_distrib_reg_area_shr.png", sep = "/"),
+       plot = hist_distrib_reg_area_shr,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "hist_distrib_reg_top_both_shr.png", sep = "/"),
+       plot = hist_distrib_reg_top_both_shr,
        device = "png",
        height = 6, width = 9)
 
@@ -1981,53 +2532,34 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 ```{r, eval = FALSE}
 
+#Surface and number of PAs by country
 data_distrib_reg = data_stat_nodupl %>%
   filter(marine %in% c(0,1)) %>%
   group_by(region) %>%
   summarize(n = n(),
-            freq = round(n/nrow(.), 3)*100) %>%
-  ungroup()
+            area_km2 = sum(area_km2, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(n_tot = sum(n, na.rm = TRUE),
+         area_tot_km2 = sum(area_km2, na.rm = TRUE),
+         freq_n = round(n/n_tot*100, 2),
+         freq_area = round(area_km2/area_tot_km2*100, 2)) %>%
+  pivot_longer(cols = c("n", "freq_n", "area_km2", "freq_area"),
+               names_to = "metric") %>%
+  filter(is.na(region) == FALSE)
 
 
-data_distrib_reg_top = data_distrib_reg %>%
-  arrange(-freq) %>%
-  slice(1:5)
-
-#Histogram in share (in French) for top countries
-hist_distrib_reg_top_shr = ggplot(data_distrib_reg_top, 
-                     aes(x = reorder(region, -freq), y = freq, fill = region)) %>%
+#Histogram for all countries
+#Histogram in number
+hist_distrib_reg_n_shr = ggplot(filter(data_distrib_reg, metric == "freq_n"), 
+                     aes(x = reorder(region, -value), y = value, fill = region)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ geom_text(aes(label = paste(n, "PAs"), y = freq), 
-        vjust = -0.1, color="black",
-        size=3.5) %>%
-+ labs(title = "Regions funding most non-marine protected areas",
-       subtitle = paste("Sample :", sum(data_distrib_reg$n), "non-marine protected areas. Numbers indicated above bars."),
+# + geom_text(aes(label = n, y = n), 
+#         vjust = -0.1, color="black",
+#         size=3) %>%
++ labs(title = "Distribution of non-marine protected areas by region",
+       subtitle = paste("Sample :", sum(filter(data_distrib_reg, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_reg, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
          x = "",
          y = "Share of protected areas (%)") %>%
-  + theme(legend.position = "bottom",
-      legend.key = element_rect(fill = "white"),
-      plot.title = element_text(size = 14, face = "bold"), 
-      axis.text.x = element_text(angle = 0,size=10, hjust = .5, vjust = .6),
-      axis.title.x = element_text(margin = margin(t = 10)),
-      panel.background = element_rect(fill = 'white', colour = 'white', 
-                                      linewidth = 0.5, linetype = 'solid'),
-      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
-      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
-      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-hist_distrib_reg_top_shr
-
-
-#Histogram in number
-hist_distrib_reg_n = ggplot(data_distrib_reg, 
-                     aes(x = reorder(region, -n), y = n, fill = region)) %>%
-+ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ geom_text(aes(label = n, y = n), 
-        vjust = -0.1, color="black",
-        size=3.5) %>%
-+ labs(title = "Distribution of non-marine protected areas across regions",
-       subtitle = paste("Sample :", sum(data_distrib_ctry$n), "non-marine protected areas."),
-         x = "",
-         y = "# of protected areas") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
       plot.title = element_text(size = 14, face = "bold"), 
@@ -2038,8 +2570,55 @@ hist_distrib_reg_n = ggplot(data_distrib_reg,
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-hist_distrib_reg_n
+hist_distrib_reg_n_shr
 
+# Histogram in surfaces
+hist_distrib_reg_area_shr = ggplot(filter(data_distrib_reg, metric == "freq_area"), 
+                     aes(x = reorder(region, -value), y = value, fill = region)) %>%
++ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
+# + geom_text(aes(label = n, y = n), 
+#         vjust = -0.1, color="black",
+#         size=3) %>%
++ labs(title = "Distribution of non-marine protected areas by region",
+       subtitle = paste("Sample :", sum(filter(data_distrib_reg, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_reg, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
+         x = "",
+         y = "Share of areas funded (%)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_distrib_reg_area_shr
+
+## Both
+hist_distrib_reg_top_both_shr = ggplot(filter(data_distrib_reg, metric %in% c("freq_area", "freq_n")), 
+                     aes(x = reorder(region, -value), y = value, fill = metric)) %>%
++ geom_bar(position="dodge", stat="identity") %>%
+# + geom_text(aes(label = paste(value, "PAs"), y = value), 
+#         vjust = -0.1, color="black",
+#         size=3.5) %>%
++ labs(title = "Distribution of AFD funded, non-marine protected areas by region",
+       subtitle = paste("Sample :", sum(filter(data_distrib_reg, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_reg, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
+         x = "",
+         y = "Share of protected areas (%)") %>%
++ scale_fill_brewer(name = "", labels = c("Surface", "Number"),
+                    type = "seq", palette = "Blues") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_distrib_reg_top_both_shr
 ```
 
 ```{r, eval = FALSE}
@@ -2047,12 +2626,16 @@ hist_distrib_reg_n
 
 tmp = paste(tempdir(), "fig", sep = "/")
 
-ggsave(paste(tmp, "hist_distrib_reg_top_shr.png", sep = "/"),
-       plot = hist_distrib_reg_top_shr,
+ggsave(paste(tmp, "hist_distrib_reg_n_shr.png", sep = "/"),
+       plot = hist_distrib_reg_n_shr,
        device = "png",
        height = 6, width = 9)
-ggsave(paste(tmp, "hist_distrib_reg_n.png", sep = "/"),
-       plot = hist_distrib_reg_n,
+ggsave(paste(tmp, "hist_distrib_reg_area_shr.png", sep = "/"),
+       plot = hist_distrib_reg_area_shr,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "hist_distrib_reg_top_both_shr.png", sep = "/"),
+       plot = hist_distrib_reg_top_both_shr,
        device = "png",
        height = 6, width = 9)
 
@@ -2078,50 +2661,63 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 #### Statistics at region level (non-marine, WDPA vs AFD)
 
+Distribution of PAs funded by the AFD across regions, is compared to the distribution of the full WDPA database. Note the comparison in terms of number instead of percentage is irrelevant. Indeed WDPA reports around 3e5 PAs, and about 100 are AFD funded.
+
 ```{r, eval = FALSE}
 #For AFD funded PAs
+##Distribution across countries (all)
 data_distrib_reg_afd = data_stat_nodupl %>%
   filter(marine %in% c(0,1)) %>%
   group_by(region) %>%
   summarize(n_afd = n(),
-            freq_afd = round(n/nrow(.), 3)*100) %>%
-  ungroup()
-
-data_distrib_reg_afd_top = data_distrib_reg %>%
-  arrange(-freq_afd) %>%
-  slice(1:5)
+            area_km2_afd = sum(area_km2, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(n_tot_afd = sum(n_afd),
+         area_km2_afd_tot = sum(area_km2_afd, na.rm = TRUE),
+         freq_n_afd = round(n_afd/n_tot_afd*100, 2),
+         freq_area_afd = round(area_km2_afd/area_km2_afd_tot*100, 2))
 
 #For WDPA PAs
+## All countries
 data_distrib_reg_wdpa = data_wdpa %>%
   filter(marine %in% c(0,1)) %>%
   group_by(region) %>%
   summarize(n_wdpa = n(),
-            freq_wdpa = round(n/nrow(.), 3)*100) %>%
-  ungroup()
+            area_km2_wdpa = sum(rep_area, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(n_tot_wdpa = sum(n_wdpa),
+         area_km2_wdpa_tot = sum(area_km2_wdpa, na.rm = TRUE),
+         freq_n_wdpa = round(n_wdpa/n_tot_wdpa*100, 2),
+         freq_area_wdpa = round(area_km2_wdpa/area_km2_wdpa_tot*100, 2))
 
-data_distrib_reg_wdpa_top = data_distrib_reg %>%
-  arrange(-freq_wdpa) %>%
-  slice(1:5)
+#Then create a plotting dataset with WDPA vs AFD distribution
+##the distribution for top targeted countries by AFD
+### in terms of numbers
+data_distrib_reg_vs_n = data_distrib_reg_wdpa %>%
+  left_join(data_distrib_reg_afd, by = "region") %>%
+  select(-contains("area")) %>%
+  pivot_longer(cols = c("n_afd", "freq_n_afd", "n_wdpa", "freq_n_wdpa"),
+               names_to = "metric") %>%
+  filter(is.na(region) == FALSE)
+ ###in terms of areas
+data_distrib_reg_vs_area = data_distrib_reg_wdpa %>%
+  left_join(data_distrib_reg_afd, by = "region") %>%
+  select(-contains("n_")) %>%
+  pivot_longer(cols = c("area_km2_afd", "freq_area_afd", "area_km2_wdpa", "freq_area_wdpa"),
+               names_to = "metric") %>%
+  filter(is.na(region) == FALSE)
 
-#Tehn create a plotting dataset with both WDPA and AFD distribution
-data_distrib_reg = data_distrib_reg_afd %>%
-  left_join(data_distrib_reg_wdpa, by = "region")
-
-data_distrib_reg_top = data_distrib_reg_afd_top %>%
-  left_join(data_distrib_reg_wdpa_top, by = "region")
-
-
-#Histogram in share (in French) for top countries
-hist_distrib_reg_top_shr = ggplot(data_distrib_reg_top, 
-                     aes(x = reorder(region, -freq), y = freq, fill = region)) %>%
-+ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ geom_text(aes(label = paste(n, "PAs"), y = freq), 
-        vjust = -0.1, color="black",
-        size=3.5) %>%
-+ labs(title = "Regions funding most non-marine protected areas",
-       subtitle = paste("Sample :", sum(data_distrib_reg$n), "non-marine protected areas. Numbers indicated above bars."),
+## For top AFD, comparison with WDPA in terms of numbers
+hist_distrib_reg_vs_n = ggplot(filter(data_distrib_reg_vs_n, grepl("freq", metric)),
+                                  aes(x = reorder(region, value), y = value, fill = metric)) %>%
++ geom_bar(position="dodge", stat="identity", na.rm = TRUE) %>%
++ labs(title = "Distribution of non-marine protected areas across regions",
+       subtitle = paste("Sample :", min(data_distrib_reg_wdpa$n_tot_wdpa), "non-marine protected areas reported by WDPA,",  min(data_distrib_reg_afd$n_tot_afd), "funded by AFD"),
+       caption = "Note : we consider non-marine PAs reported by WDPA on the full period covered by the data.\nA subset of it is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
          x = "",
          y = "Share of protected areas (%)") %>%
++ scale_fill_brewer(name = "", labels = c("AFD funded", "All"),
+                    type = "seq", palette = "Blues") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
       plot.title = element_text(size = 14, face = "bold"), 
@@ -2131,36 +2727,65 @@ hist_distrib_reg_top_shr = ggplot(data_distrib_reg_top,
                                       linewidth = 0.5, linetype = 'solid'),
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
-      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-hist_distrib_reg_top_shr
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+hist_distrib_reg_vs_n 
 
-
-#Histogram in number
-hist_distrib_reg_n = ggplot(data_distrib_reg, 
-                     aes(x = reorder(region, -n), y = n, fill = region)) %>%
-+ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ geom_text(aes(label = n, y = n), 
-        vjust = -0.1, color="black",
-        size=3.5) %>%
+## For top AFD, comparison with WDPA in terms of area
+hist_distrib_reg_vs_area = ggplot(filter(data_distrib_reg_vs_area, grepl("freq", metric)),
+                                  aes(x = reorder(region, value), y = value, fill = metric)) %>%
++ geom_bar(position="dodge", stat="identity", na.rm = TRUE) %>%
 + labs(title = "Distribution of non-marine protected areas across regions",
-       subtitle = paste("Sample :", sum(data_distrib_ctry$n), "non-marine protected areas."),
+       subtitle = paste("Sample :", min(data_distrib_reg_wdpa$n_tot_wdpa), "non-marine protected areas reported by WDPA -", format(min(data_distrib_reg_wdpa$area_km2_wdpa_tot), scientific = TRUE, digits = 2), "km² - \nand",  min(data_distrib_reg_afd$n_tot_afd), "funded by AFD -", format(min(data_distrib_reg_afd$area_km2_afd_tot) , scientific = TRUE, digits = 2), "km² -"),
+       caption = "Note : we consider non-marine PAs reported by WDPA on the full period covered by the data.\nA subset of it is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
          x = "",
-         y = "# of protected areas") %>%
+         y = "Share of areas (%)") %>%
++ scale_fill_brewer(name = "", labels = c("AFD funded", "All"),
+                    type = "seq", palette = "Blues") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
       plot.title = element_text(size = 14, face = "bold"), 
-      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.text.x = element_text(angle = 0,size=10, hjust = .5, vjust = .6),
       axis.title.x = element_text(margin = margin(t = 10)),
       panel.background = element_rect(fill = 'white', colour = 'white', 
                                       linewidth = 0.5, linetype = 'solid'),
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
-      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-hist_distrib_reg_n
-
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+hist_distrib_reg_vs_area
 ```
 
-```{r}
+```{r, eval = FALSE}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+ggsave(paste(tmp, "hist_distrib_reg_vs_area.png", sep = "/"),
+       plot = hist_distrib_reg_vs_area,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "hist_distrib_reg_vs_n.png", sep = "/"),
+       plot = hist_distrib_reg_vs_n,
+       device = "png",
+       height = 6, width = 9)
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+count = 0
+for(f in files) 
+{
+  count = count+1
+  cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/distribution/wdpa_vs_afd/no_marine", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 ```
 
