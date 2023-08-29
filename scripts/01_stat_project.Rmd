@@ -5,11 +5,18 @@
 In this document are performed and plotted the following descriptive statistics on the protected areas (PAs) funded by French Development Agency (AFD) :
 
 -   Distribution of PAs among IUCN categories, at country, region and world level.
+
 -   Distribution in terms of ecosystems
+
 -   Distribution of PAs across countries and regions, in terms of numbers
+
 -   Distribution of PAs across countries and regions, in terms of areas
+
 -   Temporal evolution in the number and area of PAs funded by the AFD
+
 -   Distribution in terms of governance types
+
+In general, PAs refer to AFD funded PAs. When all PAs reported through the world are considered (typically for comparative statistics between general PAs and AFD funded PAs), it will be precised.
 
 Some statistics are performed for all PAs across the world, while others are done for some regions and some specific PAs. Typically some statistics are performed for non-marine PAs, i.e terrestrial or coastal ones. These categories are defined by the WDPA and are indicative. A terrestrial PA has less than 10% of its area covered by sea or ocean, a marine one more than 90% and coastal PAs are in between.
 
@@ -1275,7 +1282,7 @@ pie_eco_en = ggplot(data_eco_hist,
              color = "black", position = position_stack(vjust = 0.55), 
              size=2.5, show.legend = FALSE) %>%
 + coord_polar("y", start=0) %>%
-+ labs(title = "Proportion of protected areas by ecosystem type \n(excluding non-referenced PAs)",
++ labs(title = "Proportion of protected areas by ecosystem type \n(excluding not referenced PAs)",
        subtitle = paste("Sample :", sum(data_eco_hist$n), "out of", nrow(data_stat_nodupl), "protected areas"),
          x = "Ecosystem type",
          y = "Proportion of protected areas") %>%
@@ -1429,7 +1436,7 @@ hist_eco_shr_en = ggplot(data_eco_hist,
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-#hist_eco_shr_en
+hist_eco_shr_en
 
 
   
@@ -1472,7 +1479,7 @@ hist_eco_n_en = ggplot(data_eco_hist,
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-#hist_eco_n_en
+hist_eco_n_en
 
 #Pie chart (in French)
 pie_eco_fr = ggplot(data_eco_hist, 
@@ -1606,7 +1613,7 @@ hist_distrib_ctry_top_n_shr = ggplot(data_distrib_ctry_top_n,
 # + geom_text(aes(label = paste(value, "PAs"), y = value), 
 #         vjust = -0.1, color="black",
 #         size=3.5) %>%
-+ labs(title = "Countries most targeted by AFD funded protected areas",
++ labs(title = "Countries most targeted by AFD funded protected areas (#)",
        subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
          x = "Countries",
          y = "Share of protected areas (%)") %>%
@@ -1629,7 +1636,7 @@ hist_distrib_ctry_top_area_shr = ggplot(data_distrib_ctry_top_area,
 # + geom_text(aes(label = paste(value, "PAs"), y = value), 
 #         vjust = -0.1, color="black",
 #         size=3.5) %>%
-+ labs(title = "Countries most targeted by AFD funded protected areas",
++ labs(title = "Countries most targeted by AFD funded protected areas (area)",
        subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
          x = "Countries",
          y = "Share of area funded (%)") %>%
@@ -1653,7 +1660,7 @@ hist_distrib_ctry_n_shr = ggplot(filter(data_distrib_ctry, metric == "freq_n"),
 # + geom_text(aes(label = n, y = n), 
 #         vjust = -0.1, color="black",
 #         size=3) %>%
-+ labs(title = "Distribution of protected areas by country",
++ labs(title = "Distribution of protected areas by country (#)",
        subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
          x = "Countries",
          y = "Share of protected areas (%)") %>%
@@ -1668,6 +1675,7 @@ hist_distrib_ctry_n_shr = ggplot(filter(data_distrib_ctry, metric == "freq_n"),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
 hist_distrib_ctry_n_shr
+
 # Histogram in surfaces
 hist_distrib_ctry_area_shr = ggplot(filter(data_distrib_ctry, metric == "freq_area"), 
                      aes(x = reorder(iso3, -value), y = value, fill = iso3)) %>%
@@ -1675,7 +1683,7 @@ hist_distrib_ctry_area_shr = ggplot(filter(data_distrib_ctry, metric == "freq_ar
 # + geom_text(aes(label = n, y = n), 
 #         vjust = -0.1, color="black",
 #         size=3) %>%
-+ labs(title = "Distribution of protected areas by country",
++ labs(title = "Distribution of protected areas by country (area)",
        subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
          x = "Countries",
          y = "Share of area funded (%)") %>%
@@ -1702,7 +1710,7 @@ hist_distrib_ctry_top_both_shr = ggplot(filter(data_distrib_ctry, metric %in% c(
        subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
          x = "",
          y = "Share of protected areas (%)") %>%
-+ scale_fill_brewer(name = "", labels = c("Surface", "Number"),
++ scale_fill_brewer(name = "", labels = c("Area", "Number"),
                     type = "seq", palette = "Blues") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
@@ -1802,7 +1810,7 @@ hist_distrib_ctry_top_n_shr = ggplot(data_distrib_ctry_top_n,
 # + geom_text(aes(label = paste(value, "PAs"), y = value), 
 #         vjust = -0.1, color="black",
 #         size=3.5) %>%
-+ labs(title = "Countries most targeted by AFD funded, non-marine protected areas",
++ labs(title = "Countries most targeted by AFD funded, non-marine protected areas (#)",
        subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
          x = "Countries",
          y = "Share of protected areas (%)") %>%
@@ -1825,7 +1833,7 @@ hist_distrib_ctry_top_area_shr = ggplot(data_distrib_ctry_top_area,
 # + geom_text(aes(label = paste(value, "PAs"), y = value), 
 #         vjust = -0.1, color="black",
 #         size=3.5) %>%
-+ labs(title = "Countries most targeted by AFD funded, non-marine protected areas",
++ labs(title = "Countries most targeted by AFD funded, non-marine protected areas (area)",
        subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
          x = "Countries",
          y = "Share of area funded (%)") %>%
@@ -1849,7 +1857,7 @@ hist_distrib_ctry_n_shr = ggplot(filter(data_distrib_ctry, metric == "freq_n"),
 # + geom_text(aes(label = n, y = n), 
 #         vjust = -0.1, color="black",
 #         size=3) %>%
-+ labs(title = "Distribution of AFD funded, non-marine protected areas by country",
++ labs(title = "Distribution of AFD funded, non-marine protected areas by country (#)",
        subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
          x = "Countries",
          y = "Share of protected areas (%)") %>%
@@ -1871,8 +1879,8 @@ hist_distrib_ctry_area_shr = ggplot(filter(data_distrib_ctry, metric == "freq_ar
 # + geom_text(aes(label = n, y = n), 
 #         vjust = -0.1, color="black",
 #         size=3) %>%
-+ labs(title = "Distribution of AFD funded, non-marine protected areas by country",
-       subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
++ labs(title = "Distribution of AFD funded, non-marine protected areas by country (area)",
+       subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
          x = "Countries",
          y = "Share of area funded (%)") %>%
   + theme(legend.position = "bottom",
@@ -1895,10 +1903,10 @@ hist_distrib_ctry_top_both_shr = ggplot(filter(data_distrib_ctry, metric %in% c(
 #         vjust = -0.1, color="black",
 #         size=3.5) %>%
 + labs(title = "Distribution of AFD funded, non-marine protected areas by country",
-       subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
+       subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
          x = "",
          y = "Share of protected areas (%)") %>%
-+ scale_fill_brewer(name = "", labels = c("Surface", "Number"),
++ scale_fill_brewer(name = "", labels = c("Area", "Number"),
                     type = "seq", palette = "Blues") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
@@ -2000,7 +2008,7 @@ hist_distrib_ctry_top_n_shr = ggplot(data_distrib_ctry_top_n,
 # + geom_text(aes(label = paste(value, "PAs"), y = value), 
 #         vjust = -0.1, color="black",
 #         size=3.5) %>%
-+ labs(title = paste0("Countries most targeted by AFD funded, non-marine protected areas\n", roi),
++ labs(title = paste0("Countries most targeted by AFD funded, non-marine protected areas (#) \n", roi),
        subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
          x = "Countries",
          y = "Share of protected areas (%)") %>%
@@ -2023,7 +2031,7 @@ hist_distrib_ctry_top_area_shr = ggplot(data_distrib_ctry_top_area,
 # + geom_text(aes(label = paste(value, "PAs"), y = value), 
 #         vjust = -0.1, color="black",
 #         size=3.5) %>%
-+ labs(title = paste0("Countries most targeted by AFD funded, non-marine protected areas\n", roi),
++ labs(title = paste0("Countries most targeted by AFD funded, non-marine protected areas (area)\n", roi),
        subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
          x = "Countries",
          y = "Share of area funded (%)") %>%
@@ -2047,7 +2055,7 @@ hist_distrib_ctry_n_shr = ggplot(filter(data_distrib_ctry, metric == "freq_n"),
 # + geom_text(aes(label = n, y = n), 
 #         vjust = -0.1, color="black",
 #         size=3) %>%
-+ labs(title = paste0("Distribution of AFD funded, non-marine protected areas by country\n", roi),
++ labs(title = paste0("Distribution of AFD funded, non-marine protected areas by country (#)\n", roi),
        subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
          x = "Countries",
          y = "Share of protected areas (%)") %>%
@@ -2069,8 +2077,8 @@ hist_distrib_ctry_area_shr = ggplot(filter(data_distrib_ctry, metric == "freq_ar
 # + geom_text(aes(label = n, y = n), 
 #         vjust = -0.1, color="black",
 #         size=3) %>%
-+ labs(title = paste0("Distribution of AFD funded, non-marine protected areas by country\n", roi),
-       subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
++ labs(title = paste0("Distribution of AFD funded, non-marine protected areas by country (area)\n", roi),
+       subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
          x = "Countries",
          y = "Share of area funded (%)") %>%
   + theme(legend.position = "bottom",
@@ -2093,10 +2101,10 @@ hist_distrib_ctry_both_shr = ggplot(filter(data_distrib_ctry, metric %in% c("fre
 #         vjust = -0.1, color="black",
 #         size=3.5) %>%
 + labs(title = paste0("Distribution of AFD funded, non-marine protected areas by country\n", roi),
-       subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
+       subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
          x = "",
          y = "Share of protected areas (%)") %>%
-+ scale_fill_brewer(name = "", labels = c("Surface", "Number"),
++ scale_fill_brewer(name = "", labels = c("Area", "Number"),
                     type = "seq", palette = "Blues") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
@@ -2224,9 +2232,9 @@ data_distrib_ctry_vs_area = data_distrib_ctry_afd_top_area %>%
 hist_distrib_ctry_wdpa_top_n = ggplot(data_distrib_ctry_wdpa_top_n,
                                   aes(x = reorder(iso3, -freq_n_wdpa), y = freq_n_wdpa, fill = freq_n_wdpa)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ labs(title = "Top countries of non-marine protected areas",
-       subtitle = paste("Sample :", min(data_distrib_ctry_wdpa$n_tot_wdpa), "non-marine protected areas reported by WDPA, covering", format(min(data_distrib_ctry_wdpa$area_km2_wdpa_tot), scientific = TRUE, digits = 2), "km²"),
-       caption = "Note : we consider non-marine PAs reported by WDPA on the full period covered by the data.\nA subset of it is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
++ labs(title = "Top countries of non-marine protected areas (#)",
+       subtitle = paste("Sample :", min(data_distrib_ctry_wdpa$n_tot_wdpa), "non-marine protected areas reported by the WDPA, covering", format(min(data_distrib_ctry_wdpa$area_km2_wdpa_tot), scientific = TRUE, digits = 2), "km²"),
+       caption = "Note : we consider non-marine PAs reported by the WDPA on the full period covered by the data.\nA subset of it is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
          x = "",
          y = "Share of protected areas (%)") %>%
 + scale_fill_brewer(name = "", labels = c("AFD funded", "All"),
@@ -2246,9 +2254,9 @@ hist_distrib_ctry_wdpa_top_n
 hist_distrib_ctry_wdpa_top_area = ggplot(data_distrib_ctry_wdpa_top_area,
                                   aes(x = reorder(iso3, -freq_area_wdpa), y = freq_area_wdpa, fill = freq_area_wdpa)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ labs(title = "Top countries of non-marine protected areas",
-       subtitle = paste("Sample :", min(data_distrib_ctry_wdpa$n_tot_wdpa), "non-marine protected areas reported by WDPA, covering", format(min(data_distrib_ctry_wdpa$area_km2_wdpa_tot), scientific = TRUE, digits = 2), "km²"),
-       caption = "Note : we consider non-marine PAs reported by WDPA on the full period covered by the data.",
++ labs(title = "Top countries of non-marine protected areas (area)",
+       subtitle = paste("Sample :", min(data_distrib_ctry_wdpa$n_tot_wdpa), "non-marine protected areas reported by the WDPA, covering", format(min(data_distrib_ctry_wdpa$area_km2_wdpa_tot), scientific = TRUE, digits = 2), "km²"),
+       caption = "Note : we consider non-marine PAs reported by the WDPA on the full period covered by the data.",
          x = "",
          y = "Share of protected areas (%)") %>%
 + scale_fill_brewer(name = "", labels = c("AFD funded", "All"),
@@ -2270,9 +2278,9 @@ hist_distrib_ctry_wdpa_top_area
 hist_distrib_ctry_afd_top_n = ggplot(data_distrib_ctry_afd_top_n,
                                   aes(x = reorder(iso3, -freq_n_afd), y = freq_n_afd, fill = freq_n_afd)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ labs(title = "Top countries of AFD funded, non-marine protected areas",
-       subtitle = paste("Sample :", min(data_distrib_ctry_afd$n_tot_afd), "non-marine protected areas reported by WDPA, covering", format(min(data_distrib_ctry_afd$area_km2_afd_tot), scientific = TRUE, digits = 2), "km²"),
-       caption = "Note : we consider non-marine PAs reported by WDPA on the full period covered by the data.\nA subset of it is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
++ labs(title = "Top countries of AFD funded, non-marine protected areas (#)",
+       subtitle = paste("Sample :", min(data_distrib_ctry_afd$n_tot_afd), "non-marine protected areas reported by the WDPA, covering", format(min(data_distrib_ctry_afd$area_km2_afd_tot), scientific = TRUE, digits = 2), "km²"),
+       caption = "Note : we consider non-marine PAs reported by the WDPA on the full period covered by the data.\nA subset of it is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
          x = "",
          y = "Share of protected areas (%)") %>%
 + scale_fill_brewer(name = "", labels = c("AFD funded", "All"),
@@ -2292,9 +2300,9 @@ hist_distrib_ctry_afd_top_n
 hist_distrib_ctry_afd_top_area = ggplot(data_distrib_ctry_afd_top_area,
                                   aes(x = reorder(iso3, -freq_area_afd), y = freq_area_afd, fill = freq_area_afd)) %>%
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
-+ labs(title = "Top countries of AFD funded, non-marine protected areas",
-       subtitle = paste("Sample :", min(data_distrib_ctry_afd$n_tot_afd), "non-marine protected areas reported by WDPA, covering", format(min(data_distrib_ctry_afd$area_km2_afd_tot), scientific = TRUE, digits = 2), "km²"),
-       caption = "Note : we consider non-marine PAs reported by WDPA on the full period covered by the data.\nA subset of it is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
++ labs(title = "Top countries of AFD funded, non-marine protected areas (area)",
+       subtitle = paste("Sample :", min(data_distrib_ctry_afd$n_tot_afd), "non-marine protected areas reported by the WDPA, covering", format(min(data_distrib_ctry_afd$area_km2_afd_tot), scientific = TRUE, digits = 2), "km²"),
+       caption = "Note : we consider non-marine PAs reported by the WDPA on the full period covered by the data.\nA subset of it is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
          x = "",
          y = "Share of protected areas (%)") %>%
 + scale_fill_brewer(name = "", labels = c("AFD funded", "All"),
@@ -2316,9 +2324,9 @@ hist_distrib_ctry_afd_top_area
 hist_distrib_ctry_vs_n = ggplot(filter(data_distrib_ctry_vs_n, grepl("freq", metric)),
                                   aes(x = reorder(iso3, value), y = value, fill = metric)) %>%
 + geom_bar(position="dodge", stat="identity", na.rm = TRUE) %>%
-+ labs(title = "Top countries targeted by AFD funded non-marine protected areas",
-       subtitle = paste("Sample :", min(data_distrib_ctry_wdpa$n_tot_wdpa), "non-marine protected areas reported by WDPA,",  min(data_distrib_ctry_afd$n_tot_afd), "funded by AFD"),
-       caption = "Note : we consider non-marine PAs reported by WDPA on the full period covered by the data.\nA subset of it is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
++ labs(title = "Top countries targeted by AFD funded non-marine protected areas (#)",
+       subtitle = paste("Sample :", min(data_distrib_ctry_wdpa$n_tot_wdpa), "non-marine protected areas reported by the WDPA,",  min(data_distrib_ctry_afd$n_tot_afd), "funded by AFD"),
+       caption = "Note : we consider non-marine PAs reported by the WDPA on the full period covered by the data.\nA subset of it is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
          x = "",
          y = "Share of protected areas (%)") %>%
 + scale_fill_brewer(name = "", labels = c("AFD funded", "All"),
@@ -2339,9 +2347,9 @@ hist_distrib_ctry_vs_n
 hist_distrib_ctry_vs_area = ggplot(filter(data_distrib_ctry_vs_area, grepl("freq", metric)),
                                   aes(x = reorder(iso3, value), y = value, fill = metric)) %>%
 + geom_bar(position="dodge", stat="identity", na.rm = TRUE) %>%
-+ labs(title = "Top countries targeted by AFD funded non-marine protected areas",
-       subtitle = paste("Sample :", min(data_distrib_ctry_wdpa$n_tot_wdpa), "non-marine protected areas reported by WDPA,",  min(data_distrib_ctry_afd$n_tot_afd), "funded by AFD"),
-       caption = "Note : we consider non-marine PAs reported by WDPA on the full period covered by the data.",
++ labs(title = "Top countries targeted by AFD funded non-marine protected areas (area)",
+       subtitle = paste("Sample :", min(data_distrib_ctry_wdpa$n_tot_wdpa), "non-marine protected areas reported by the the WDPA,",  min(data_distrib_ctry_afd$n_tot_afd), "funded by AFD"),
+       caption = "Note : we consider non-marine PAs reported by the WDPA on the full period covered by the data.",
          x = "",
          y = "Share of funded areas (%)") %>%
 + scale_fill_brewer(name = "", labels = c("AFD funded", "All"),
@@ -2438,7 +2446,7 @@ hist_distrib_reg_n_shr = ggplot(filter(data_distrib_reg, metric == "freq_n"),
 # + geom_text(aes(label = n, y = n), 
 #         vjust = -0.1, color="black",
 #         size=3) %>%
-+ labs(title = "Distribution of protected areas by region",
++ labs(title = "Distribution of protected areas by region (#)",
        subtitle = paste("Sample :", sum(filter(data_distrib_reg, metric == "n")$value), "protected areas covering", format(sum(filter(data_distrib_reg, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
          x = "",
          y = "Share of protected areas (%)") %>%
@@ -2461,7 +2469,7 @@ hist_distrib_reg_area_shr = ggplot(filter(data_distrib_reg, metric == "freq_area
 # + geom_text(aes(label = n, y = n), 
 #         vjust = -0.1, color="black",
 #         size=3) %>%
-+ labs(title = "Distribution of protected areas by region",
++ labs(title = "Distribution of protected areas by region (area)",
        subtitle = paste("Sample :", sum(filter(data_distrib_reg, metric == "n")$value), "protected areas covering", format(sum(filter(data_distrib_reg, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
          x = "",
          y = "Share of areas funded (%)") %>%
@@ -2488,7 +2496,7 @@ hist_distrib_reg_top_both_shr = ggplot(filter(data_distrib_reg, metric %in% c("f
        subtitle = paste("Sample :", sum(filter(data_distrib_reg, metric == "n")$value), "protected areas covering", format(sum(filter(data_distrib_reg, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
          x = "",
          y = "Share of protected areas (%)") %>%
-+ scale_fill_brewer(name = "", labels = c("Surface", "Number"),
++ scale_fill_brewer(name = "", labels = c("Area", "Number"),
                     type = "seq", palette = "Blues") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
@@ -2569,7 +2577,7 @@ hist_distrib_reg_n_shr = ggplot(filter(data_distrib_reg, metric == "freq_n"),
 # + geom_text(aes(label = n, y = n), 
 #         vjust = -0.1, color="black",
 #         size=3) %>%
-+ labs(title = "Distribution of non-marine protected areas by region",
++ labs(title = "Distribution of AFD funded, non-marine protected areas by region (#)",
        subtitle = paste("Sample :", sum(filter(data_distrib_reg, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_reg, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
          x = "",
          y = "Share of protected areas (%)") %>%
@@ -2592,7 +2600,7 @@ hist_distrib_reg_area_shr = ggplot(filter(data_distrib_reg, metric == "freq_area
 # + geom_text(aes(label = n, y = n), 
 #         vjust = -0.1, color="black",
 #         size=3) %>%
-+ labs(title = "Distribution of non-marine protected areas by region",
++ labs(title = "Distribution of AFD funded, non-marine protected areas by region (area)",
        subtitle = paste("Sample :", sum(filter(data_distrib_reg, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_reg, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
          x = "",
          y = "Share of areas funded (%)") %>%
@@ -2619,7 +2627,7 @@ hist_distrib_reg_top_both_shr = ggplot(filter(data_distrib_reg, metric %in% c("f
        subtitle = paste("Sample :", sum(filter(data_distrib_reg, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_reg, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
          x = "",
          y = "Share of protected areas (%)") %>%
-+ scale_fill_brewer(name = "", labels = c("Surface", "Number"),
++ scale_fill_brewer(name = "", labels = c("Area", "Number"),
                     type = "seq", palette = "Blues") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
@@ -2724,9 +2732,9 @@ data_distrib_reg_vs_area = data_distrib_reg_wdpa %>%
 hist_distrib_reg_vs_n = ggplot(filter(data_distrib_reg_vs_n, grepl("freq", metric)),
                                   aes(x = reorder(region, value), y = value, fill = metric)) %>%
 + geom_bar(position="dodge", stat="identity", na.rm = TRUE) %>%
-+ labs(title = "Distribution of non-marine protected areas across regions",
-       subtitle = paste("Sample :", min(data_distrib_reg_wdpa$n_tot_wdpa), "non-marine protected areas reported by WDPA,",  min(data_distrib_reg_afd$n_tot_afd), "funded by AFD"),
-       caption = "Note : we consider non-marine PAs reported by WDPA on the full period covered by the data.\nA subset of it is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
++ labs(title = "Distribution of non-marine protected areas across regions (#)",
+       subtitle = paste("Sample :", min(data_distrib_reg_wdpa$n_tot_wdpa), "non-marine protected areas reported by the WDPA,",  min(data_distrib_reg_afd$n_tot_afd), "funded by AFD"),
+       caption = "Note : we consider non-marine PAs reported by the WDPA on the full period covered by the data.\nA subset of it is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
          x = "",
          y = "Share of protected areas (%)") %>%
 + scale_fill_brewer(name = "", labels = c("AFD funded", "All"),
@@ -2747,9 +2755,9 @@ hist_distrib_reg_vs_n
 hist_distrib_reg_vs_area = ggplot(filter(data_distrib_reg_vs_area, grepl("freq", metric)),
                                   aes(x = reorder(region, value), y = value, fill = metric)) %>%
 + geom_bar(position="dodge", stat="identity", na.rm = TRUE) %>%
-+ labs(title = "Distribution of non-marine protected areas across regions",
-       subtitle = paste("Sample :", min(data_distrib_reg_wdpa$n_tot_wdpa), "non-marine protected areas reported by WDPA -", format(min(data_distrib_reg_wdpa$area_km2_wdpa_tot), scientific = TRUE, digits = 2), "km² - \nand",  min(data_distrib_reg_afd$n_tot_afd), "funded by AFD -", format(min(data_distrib_reg_afd$area_km2_afd_tot) , scientific = TRUE, digits = 2), "km² -"),
-       caption = "Note : we consider non-marine PAs reported by WDPA on the full period covered by the data.\nA subset of it is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
++ labs(title = "Distribution of non-marine protected areas across regions (area)",
+       subtitle = paste("Sample :", min(data_distrib_reg_wdpa$n_tot_wdpa), "non-marine protected areas reported by the WDPA -", format(min(data_distrib_reg_wdpa$area_km2_wdpa_tot), scientific = TRUE, digits = 2), "km² - \nand",  min(data_distrib_reg_afd$n_tot_afd), "funded by AFD -", format(min(data_distrib_reg_afd$area_km2_afd_tot) , scientific = TRUE, digits = 2), "km² -"),
+       caption = "Note : we consider non-marine PAs reported by the WDPA on the full period covered by the data.\nA subset of it is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
          x = "",
          y = "Share of areas (%)") %>%
 + scale_fill_brewer(name = "", labels = c("AFD funded", "All"),
@@ -3111,7 +3119,7 @@ fig_n_pa_fr = ggplot(subset(data_time_n, is.na(year_funding_first) == FALSE),
   #             color = "black", size=4, vjust = -0.3) %>%
   + labs(title = "Nombre d'aires protégées non-marines appuyées par année par l'AFD",
          subtitle = paste("Echantillon :", sum(subset(data_time_n, is.na(year_funding_first) == FALSE)$n), "aires protégées"),
-         caption = paste("Sur les", sum(data_time_n$n), "aires protégées financées recensées,", sum(subset(data_time_n, is.na(year_funding_first) == TRUE)$n, na.rm = TRUE), "ont une date de financement inconnue."),
+         caption = paste("Sur les", sum(data_time_n$n), "aires protégées non-marines financées recensées,", sum(subset(data_time_n, is.na(year_funding_first) == TRUE)$n, na.rm = TRUE), "ont une date de financement inconnue."),
          x = "Année",
          y = "Nombre d'aires protégées") %>%
   + theme(legend.position = "bottom",
@@ -3133,7 +3141,7 @@ fig_n_pa_en = ggplot(subset(data_time_n, is.na(year_funding_first) == FALSE),
   #             color = "black", size=4, vjust = -0.3) %>%
   + labs(title = "Number of non-marine protected areas funded each year by AFD",
          subtitle = paste("Sample :", sum(subset(data_time_n, is.na(year_funding_first) == FALSE)$n), "protected areas"),
-       caption = paste("Out of", sum(data_time_n$n), "known funded protected areas,", sum(subset(data_time_n, is.na(year_funding_first) == TRUE)$n, na.rm = TRUE), "have unknown funding year."),
+       caption = paste("Out of", sum(data_time_n$n), "known, non-marine funded protected areas,", sum(subset(data_time_n, is.na(year_funding_first) == TRUE)$n, na.rm = TRUE), "have unknown funding year."),
          x = "Year",
          y = "Number of protected areas") %>%
   + theme(legend.position = "bottom",
@@ -3160,7 +3168,7 @@ fig_ncum_pa_fr = ggplot(subset(data_time_n, is.na(year_funding_first) == FALSE),
               color = "black", size=3, vjust = -0.3) %>%
   + labs(title = "Evolution cumulée du nombre d'aires protégées non-marines appuyées par l'AFD",
          subtitle = paste("Echantillon :", sum(subset(data_time_n, is.na(year_funding_first) == FALSE)$n), "aires protégées"),
-         caption = paste("Sur les", sum(data_time_n$n), "aires protégées financées recensées,", sum(subset(data_time_n, is.na(year_funding_first) == TRUE)$n, na.rm = TRUE), "ont une date de financement inconnue."),
+         caption = paste("Sur les", sum(data_time_n$n), "aires protégées non-marines financées recensées,", sum(subset(data_time_n, is.na(year_funding_first) == TRUE)$n, na.rm = TRUE), "ont une date de financement inconnue."),
          x = "Année",
          y = "Nombre d'aires protégées") %>%
   + theme(legend.position = "bottom",
@@ -3184,7 +3192,7 @@ fig_ncum_pa_en = ggplot(subset(data_time_n, is.na(year_funding_first) == FALSE),
               color = "black", size=3, vjust = -0.3) %>%
   + labs(title = "Cumulative number of non-marine protected areas funded by AFD",
          subtitle = paste("Sample :", sum(subset(data_time_n, is.na(year_funding_first) == FALSE)$n), "protected areas"),
-       caption = paste("Out of", sum(data_time_n$n), "known funded protected areas,", sum(subset(data_time_n, is.na(year_funding_first) == TRUE)$n, na.rm = TRUE), "have unknown funding year."),
+       caption = paste("Out of", sum(data_time_n$n), "known, non-marine funded protected areas,", sum(subset(data_time_n, is.na(year_funding_first) == TRUE)$n, na.rm = TRUE), "have unknown funding year."),
          x = "Year",
          y = "Number of protected areas") %>%
   + theme(legend.position = "bottom",
@@ -3276,7 +3284,7 @@ fig_n_pa_fr = ggplot(subset(data_time_n, is.na(year_funding_first) == FALSE),
   #             color = "black", size=4, vjust = -0.3) %>%
   + labs(title = paste("Nombre d'aires protégées non-marines appuyées par année par l'AFD,", roi),
          subtitle = paste("Echantillon :", sum(subset(data_time_n, is.na(year_funding_first) == FALSE)$n), "aires protégées"),
-         caption = paste("Sur les", sum(data_time_n$n), "aires protégées financées recensées,", sum(subset(data_time_n, is.na(year_funding_first) == TRUE)$n, na.rm = TRUE), "ont une date de financement inconnue."),
+         caption = paste("Sur les", sum(data_time_n$n), "aires protégées non-marines financées recensées,", sum(subset(data_time_n, is.na(year_funding_first) == TRUE)$n, na.rm = TRUE), "ont une date de financement inconnue."),
          x = "Année",
          y = "Nombre d'aires protégées") %>%
   + theme(legend.position = "bottom",
@@ -3298,7 +3306,7 @@ fig_n_pa_en = ggplot(subset(data_time_n, is.na(year_funding_first) == FALSE),
   #             color = "black", size=4, vjust = -0.3) %>%
   + labs(title = paste("Number of non-marine protected areas funded each year by AFD,", roi),
          subtitle = paste("Sample :", sum(subset(data_time_n, is.na(year_funding_first) == FALSE)$n), "protected areas"),
-       caption = paste("Out of", sum(data_time_n$n), "known funded protected areas,", sum(subset(data_time_n, is.na(year_funding_first) == TRUE)$n, na.rm = TRUE), "have unknown funding year."),
+       caption = paste("Out of", sum(data_time_n$n), "known non-marine, funded protected areas,", sum(subset(data_time_n, is.na(year_funding_first) == TRUE)$n, na.rm = TRUE), "have unknown funding year."),
          x = "Year",
          y = "Number of protected areas") %>%
   + theme(legend.position = "bottom",
@@ -3325,7 +3333,7 @@ fig_ncum_pa_fr = ggplot(subset(data_time_n, is.na(year_funding_first) == FALSE),
               color = "black", size=3, vjust = -0.3) %>%
   + labs(title = paste("Evolution cumulée du nombre d'aires protégées non-marines,", roi),
          subtitle = paste("Echantillon :", sum(subset(data_time_n, is.na(year_funding_first) == FALSE)$n), "aires protégées"),
-         caption = paste("Sur les", sum(data_time_n$n), "aires protégées financées recensées,", sum(subset(data_time_n, is.na(year_funding_first) == TRUE)$n, na.rm = TRUE), "ont une date de financement inconnue."),
+         caption = paste("Sur les", sum(data_time_n$n), "aires protégées non-marines financées recensées,", sum(subset(data_time_n, is.na(year_funding_first) == TRUE)$n, na.rm = TRUE), "ont une date de financement inconnue."),
          x = "Année",
          y = "Nombre d'aires protégées") %>%
   + theme(legend.position = "bottom",
@@ -3349,7 +3357,7 @@ fig_ncum_pa_en = ggplot(subset(data_time_n, is.na(year_funding_first) == FALSE),
               color = "black", size=3, vjust = -0.3) %>%
   + labs(title = paste("Cumulated number of non-marine protected areas funded by AFD,", roi),
          subtitle = paste("Sample :", sum(subset(data_time_n, is.na(year_funding_first) == FALSE)$n), "protected areas"),
-       caption = paste("Out of", sum(data_time_n$n), "known funded protected areas,", sum(subset(data_time_n, is.na(year_funding_first) == TRUE)$n, na.rm = TRUE), "have unknown funding year."),
+       caption = paste("Out of", sum(data_time_n$n), "known non-marine, funded protected areas,", sum(subset(data_time_n, is.na(year_funding_first) == TRUE)$n, na.rm = TRUE), "have unknown funding year."),
          x = "Year",
          y = "Number of protected areas") %>%
   + theme(legend.position = "bottom",
