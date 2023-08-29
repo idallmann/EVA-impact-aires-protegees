@@ -468,7 +468,7 @@ s3write_using(x = data_siop_tidy,
 
 ### Dataset for non-confidential analysis
 
-Buld a dataset with one row per PA. In the list of PAs reported by AFD department, some PAs are also reported in the WDPA and are identified by a WDPA ID, some have no WDPAID but have a unique name, and other have neither name nor WDPAID. For the latter case, a PA is supposed to be identified by project ID and country. Thus we need to remove duplicates for each case. Also, the funding years of each PA is kept.
+Buld a dataset with one row per PA. In the list of PAs reported by AFD department, some PAs are also reported in the WDPA and are identified by a WDPA ID, some have no WDPAID but have a unique name, and other have neither name nor WDPAID. For the latter case, a PA is supposed to be identified by project ID and country. Thus we need to remove duplicates for each case. Also, the funding years of each PA is kept. Note that a few PAs have an entry with WDPAID, and an other with no WDPAID though they have the same name (e.g Parc National de Pongara). The duplicate without WDPAID is removed.
 
 For the impact analysis, we also need to take into account transboundary PAs (i.e PAs on more than one country). Indeed the analysis is performed country by country based on ISO3 code. Thus we need to divide the PAs across the country it is located in, and re-compute the area of the PA in each country
 
@@ -664,7 +664,7 @@ data_wdpa =
               opts = list("region" = "")) %>%
   clean_names() %>%
   select(c(wdpaid, geom)) %>%
-  filter(wdpaid %in% data_fund_pa_nodupl$wdpaid)
+  filter(wdpaid %in% data_pa_nofund_nodupl$wdpaid)
 
 #The PA WDPAID 555547988 is located in COG, CMR and CAF
 ##Create a frame with one line by country
@@ -852,7 +852,7 @@ data_pa_fund_shp = data_pa_fund_nodupl %>%
 s3write_using(x = data_pa_nofund_shp,
               FUN = sf::st_write,
               delim = ";",
-              object = "data_tidy/BDD_PA_AFD_nofund_shp.gpkg",
+              object = "data_tidy/BDD_PA_AFD_nofund_shp.geojson",
               bucket = "projet-afd-eva-ap",
               opts = list("region" = ""))
 
@@ -862,7 +862,7 @@ s3write_using(x = data_pa_nofund_shp,
 s3write_using(x = data_pa_fund_shp,
               FUN = sf::st_write,
               delim = ";",
-              object = "data_tidy/BDD_PA_AFD_fund_shp.gpkg",
+              object = "data_tidy/BDD_PA_AFD_fund_shp.geojson",
               bucket = "projet-afd-eva-ap",
               opts = list("region" = ""))
 ```
