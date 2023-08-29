@@ -1615,7 +1615,7 @@ hist_distrib_ctry_top_n_shr = ggplot(data_distrib_ctry_top_n,
 #         size=3.5) %>%
 + labs(title = "Countries most targeted by AFD funded protected areas (#)",
        subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
-         x = "Countries",
+         x = "",
          y = "Share of protected areas (%)") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
@@ -1638,7 +1638,7 @@ hist_distrib_ctry_top_area_shr = ggplot(data_distrib_ctry_top_area,
 #         size=3.5) %>%
 + labs(title = "Countries most targeted by AFD funded protected areas (area)",
        subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
-         x = "Countries",
+         x = "",
          y = "Share of area funded (%)") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
@@ -1662,7 +1662,7 @@ hist_distrib_ctry_n_shr = ggplot(filter(data_distrib_ctry, metric == "freq_n"),
 #         size=3) %>%
 + labs(title = "Distribution of protected areas by country (#)",
        subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
-         x = "Countries",
+         x = "",
          y = "Share of protected areas (%)") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
@@ -1685,7 +1685,7 @@ hist_distrib_ctry_area_shr = ggplot(filter(data_distrib_ctry, metric == "freq_ar
 #         size=3) %>%
 + labs(title = "Distribution of protected areas by country (area)",
        subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
-         x = "Countries",
+         x = "",
          y = "Share of area funded (%)") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
@@ -1812,7 +1812,7 @@ hist_distrib_ctry_top_n_shr = ggplot(data_distrib_ctry_top_n,
 #         size=3.5) %>%
 + labs(title = "Countries most targeted by AFD funded, non-marine protected areas (#)",
        subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
-         x = "Countries",
+         x = "",
          y = "Share of protected areas (%)") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
@@ -1835,7 +1835,7 @@ hist_distrib_ctry_top_area_shr = ggplot(data_distrib_ctry_top_area,
 #         size=3.5) %>%
 + labs(title = "Countries most targeted by AFD funded, non-marine protected areas (area)",
        subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
-         x = "Countries",
+         x = "",
          y = "Share of area funded (%)") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
@@ -1859,7 +1859,7 @@ hist_distrib_ctry_n_shr = ggplot(filter(data_distrib_ctry, metric == "freq_n"),
 #         size=3) %>%
 + labs(title = "Distribution of AFD funded, non-marine protected areas by country (#)",
        subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
-         x = "Countries",
+         x = "",
          y = "Share of protected areas (%)") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
@@ -2010,7 +2010,7 @@ hist_distrib_ctry_top_n_shr = ggplot(data_distrib_ctry_top_n,
 #         size=3.5) %>%
 + labs(title = paste0("Countries most targeted by AFD funded, non-marine protected areas (#) \n", roi),
        subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
-         x = "Countries",
+         x = "",
          y = "Share of protected areas (%)") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
@@ -2033,7 +2033,7 @@ hist_distrib_ctry_top_area_shr = ggplot(data_distrib_ctry_top_area,
 #         size=3.5) %>%
 + labs(title = paste0("Countries most targeted by AFD funded, non-marine protected areas (area)\n", roi),
        subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
-         x = "Countries",
+         x = "",
          y = "Share of area funded (%)") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
@@ -2057,7 +2057,7 @@ hist_distrib_ctry_n_shr = ggplot(filter(data_distrib_ctry, metric == "freq_n"),
 #         size=3) %>%
 + labs(title = paste0("Distribution of AFD funded, non-marine protected areas by country (#)\n", roi),
        subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
-         x = "Countries",
+         x = "",
          y = "Share of protected areas (%)") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
@@ -2079,7 +2079,7 @@ hist_distrib_ctry_area_shr = ggplot(filter(data_distrib_ctry, metric == "freq_ar
 #         size=3) %>%
 + labs(title = paste0("Distribution of AFD funded, non-marine protected areas by country (area)\n", roi),
        subtitle = paste("Sample :", sum(filter(data_distrib_ctry, metric == "n")$value), "non-marine protected areas covering", format(sum(filter(data_distrib_ctry, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
-         x = "Countries",
+         x = "",
          y = "Share of area funded (%)") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
@@ -3460,8 +3460,8 @@ fig_area_pa_fr = ggplot(subset(data_time_area, is.na(year_funding_first) == FALS
                         long = unit(2,"mm")) %>%
   + coord_cartesian(clip = "off") %>%
   + labs(title = "Evolution de la superficie financée par l'AFD",
-         subtitle = paste("Echantillon :", sum(data_time_area$n, na.rm = TRUE), "aires protégées couvrant", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km²"),
-         caption = paste0("Sur les ", sum(data_time_area$n), " aires protégées financées recensées, ", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), " ont une date de financement connue.\nSoit ", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km² sur ", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km²."),
+         subtitle = paste("Echantillon :", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), "aires protégées couvrant", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km²"),
+         caption = paste0("Sur les ", sum(data_time_area$n, na.rm = TRUE), " aires protégées financées recensées, ", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), " ont une date de financement connue.\nSoit ", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km² sur ", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km²."),
          x = "Année",
          y = "Superficie (km²)") %>%
   + theme(legend.position = "bottom",
@@ -3495,8 +3495,8 @@ fig_area_pa_en = ggplot(subset(data_time_area, is.na(year_funding_first) == FALS
                         long = unit(2,"mm")) %>%
   + coord_cartesian(clip = "off") %>%
   + labs(title = "Evolution of AFD funded area",
-         subtitle = paste("Sample :", sum(data_time_area$n, na.rm = TRUE), "protected areas covering", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km²"),
-         caption = paste0("Out of ", sum(data_time_area$n), " known funded protected areas, ", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), " have a known funding year.\nIn terms of area, ", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km² out of ", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km²."),
+         subtitle = paste("Sample :", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), "protected areas covering", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km²"),
+         caption = paste0("Out of ", sum(data_time_area$n, na.rm = TRUE), " known funded protected areas, ", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), " have a known funding year.\nIn terms of area, ", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km² out of ", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km²."),
          x = "Year",
          y = "Area (km²)") %>%
   + theme(legend.position = "bottom",
@@ -3527,7 +3527,7 @@ fig_area_cum_pa_fr = ggplot(subset(data_time_area, is.na(year_funding_first) == 
                                  scientific = TRUE)), 
               color = "black", size=2, vjust = -0.3) %>%
   + labs(title = "Evolution cumulée de la superficie des aires protégées, financées par l'AFD",
-          subtitle = paste("Echantillon :", sum(data_time_area$n, na.rm = TRUE), "aires protégées couvrant", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km²"),
+          subtitle = paste("Echantillon :", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), "aires protégées couvrant", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km²"),
          caption = paste0("Sur les ", sum(data_time_area$n), " aires protégées financées recensées, ", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), " ont une date de financement connue.\nSoit ", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km² sur ", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km²."),
          x = "Année",
          y = "Superficie (km²)") %>%
@@ -3555,7 +3555,7 @@ fig_area_cum_pa_en = ggplot(subset(data_time_area, is.na(year_funding_first) == 
                                  scientific = TRUE)), 
               color = "black", size=2, vjust = -0.3) %>%
   + labs(title = "Cumulative evolution of area funded by AFD",
-          subtitle = paste("Sample :", sum(data_time_area$n, na.rm = TRUE), "protected areas covering", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km²"),
+          subtitle = paste("Sample :", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), "protected areas covering", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km²"),
          caption = paste0("Out of ", sum(data_time_area$n), " known funded protected areas, ", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), " have a known funding year.\nIn terms of area, ", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km² out of ", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km²."),
          y = "Area (km²)") %>%
   + theme(legend.position = "bottom",
@@ -3658,8 +3658,8 @@ fig_area_pa_fr = ggplot(subset(data_time_area, is.na(year_funding_first) == FALS
                         long = unit(2,"mm")) %>%
   + coord_cartesian(clip = "off") %>%
   + labs(title = "Evolution de la superficie non-marine financée par l'AFD",
-         subtitle = paste("Echantillon :", sum(data_time_area$n, na.rm = TRUE), "aires protégées couvrant", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km²"),
-         caption = paste0("Sur les ", sum(data_time_area$n), " aires protégées financées recensées, ", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), " ont une date de financement connue.\nSoit ", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km² sur ", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km²."),
+         subtitle = paste("Echantillon :", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), "aires protégées couvrant", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km²"),
+         caption = paste0("Sur les ", sum(data_time_area$n, na.rm = TRUE), " aires protégées financées recensées, ", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), " ont une date de financement connue.\nSoit ", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km² sur ", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km²."),
          x = "Année",
          y = "Superficie (km²)") %>%
   + theme(legend.position = "bottom",
@@ -3693,8 +3693,8 @@ fig_area_pa_en = ggplot(subset(data_time_area, is.na(year_funding_first) == FALS
                         long = unit(2,"mm")) %>%
   + coord_cartesian(clip = "off") %>%
   + labs(title = "Evolution of AFD funded non-marine protected areas",
-         subtitle = paste("Sample :", sum(data_time_area$n, na.rm = TRUE), "protected areas covering", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km²"),
-         caption = paste0("Out of ", sum(data_time_area$n), " known funded protected areas, ", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), " have a known funding year.\nIn terms of area, ", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km² out of ", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km²."),
+         subtitle = paste("Sample :", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), "protected areas covering", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km²"),
+         caption = paste0("Out of ", sum(data_time_area$n, na.rm = TRUE), " known funded protected areas, ", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), " have a known funding year.\nIn terms of area, ", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km² out of ", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km²."),
          x = "Year",
          y = "Area (km²)") %>%
   + theme(legend.position = "bottom",
@@ -3725,8 +3725,8 @@ fig_area_cum_pa_fr = ggplot(subset(data_time_area, is.na(year_funding_first) == 
                                  scientific = TRUE)), 
               color = "black", size=2, vjust = -0.3) %>%
   + labs(title = "Evolution cumulée de la superficie des aires protégées non-marines, financées par l'AFD",
-          subtitle = paste("Echantillon :", sum(data_time_area$n, na.rm = TRUE), "aires protégées couvrant", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km²"),
-         caption = paste0("Sur les ", sum(data_time_area$n), " aires protégées financées recensées, ", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), " ont une date de financement connue.\nSoit ", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km² sur ", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km²."),
+          subtitle = paste("Echantillon :", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), "aires protégées couvrant", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km²"),
+         caption = paste0("Sur les ", sum(data_time_area$n, na.rm = TRUE), " aires protégées financées recensées, ", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), " ont une date de financement connue.\nSoit ", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km² sur ", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km²."),
          x = "Année",
          y = "Superficie (km²)") %>%
   + theme(legend.position = "bottom",
@@ -3753,8 +3753,8 @@ fig_area_cum_pa_en = ggplot(subset(data_time_area, is.na(year_funding_first) == 
                                  scientific = TRUE)), 
               color = "black", size=2, vjust = -0.3) %>%
   + labs(title = "Cumulated evolution of non-marine protected areas funded by AFD",
-          subtitle = paste("Sample :", sum(data_time_area$n, na.rm = TRUE), "protected areas covering", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km²"),
-         caption = paste0("Out of ", sum(data_time_area$n), " known funded protected areas, ", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), " have a known funding year.\nIn terms of area, ", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km² out of ", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km²."),
+          subtitle = paste("Sample :", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), "protected areas covering", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km²"),
+         caption = paste0("Out of ", sum(data_time_area$n, na.rm = TRUE), " known funded protected areas, ", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), " have a known funding year.\nIn terms of area, ", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km² out of ", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km²."),
          x = "Year",
          y = "Area (km²)") %>%
   + theme(legend.position = "bottom",
@@ -3857,8 +3857,8 @@ fig_area_pa_fr = ggplot(subset(data_time_area, is.na(year_funding_first) == FALS
                         long = unit(2,"mm")) %>%
   + coord_cartesian(clip = "off") %>%
   + labs(title = paste("Evolution de la superficie non-marine financée par l'AFD,", roi), 
-         subtitle = paste("Echantillon :", sum(data_time_area$n, na.rm = TRUE), "aires protégées couvrant", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km²"),
-         caption = paste0("Sur les ", sum(data_time_area$n), " aires protégées financées recensées, ", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), " ont une date de financement connue.\nSoit ", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km² sur ", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km²."),
+         subtitle = paste("Echantillon :", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), "aires protégées couvrant", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km²"),
+         caption = paste0("Sur les ", sum(data_time_area$n, na.rm = TRUE), " aires protégées financées recensées, ", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), " ont une date de financement connue.\nSoit ", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km² sur ", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km²."),
          x = "Année",
          y = "Superficie (km²)") %>%
   + theme(legend.position = "bottom",
@@ -3892,8 +3892,8 @@ fig_area_pa_en = ggplot(subset(data_time_area, is.na(year_funding_first) == FALS
                         long = unit(2,"mm")) %>%
   + coord_cartesian(clip = "off") %>%
   + labs(title = paste("Evolution of AFD funded non-marine protected areas,", roi),
-         subtitle = paste("Sample :", sum(data_time_area$n, na.rm = TRUE), "protected areas covering", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km²"),
-         caption = paste0("Out of ", sum(data_time_area$n), " known funded protected areas, ", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), " have a known funding year.\nIn terms of area, ", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km² out of ", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km²."),
+         subtitle = paste("Sample :", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), "protected areas covering", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km²"),
+         caption = paste0("Out of ", sum(data_time_area$n, na.rm = TRUE), " known funded protected areas, ", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), " have a known funding year.\nIn terms of area, ", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km² out of ", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km²."),
          x = "Year",
          y = "Area (km²)") %>%
   + theme(legend.position = "bottom",
@@ -3924,8 +3924,8 @@ fig_area_cum_pa_fr = ggplot(subset(data_time_area, is.na(year_funding_first) == 
                                  scientific = TRUE)), 
               color = "black", size=2, vjust = -0.3) %>%
   + labs(title = paste("Evolution cumulée de la superficie des aires protégées non-marines financées par l'AFD\n", roi),
-          subtitle = paste("Echantillon :", sum(data_time_area$n, na.rm = TRUE), "aires protégées couvrant", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km²"),
-         caption = paste0("Sur les ", sum(data_time_area$n), " aires protégées financées recensées, ", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), " ont une date de financement connue.\nSoit ", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km² sur ", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km²."),
+          subtitle = paste("Echantillon :", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), "aires protégées couvrant", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km²"),
+         caption = paste0("Sur les ", sum(data_time_area$n, na.rm = TRUE), " aires protégées financées recensées, ", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), " ont une date de financement connue.\nSoit ", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km² sur ", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km²."),
          x = "Année",
          y = "Superficie (km²)") %>%
   + theme(legend.position = "bottom",
@@ -3952,8 +3952,8 @@ fig_area_cum_pa_en = ggplot(subset(data_time_area, is.na(year_funding_first) == 
                                  scientific = TRUE)), 
               color = "black", size=2, vjust = -0.3) %>%
   + labs(title = paste("Cumulated evolution of non-marine protected areas funded by AFD,", roi),
-          subtitle = paste("Sample :", sum(data_time_area$n, na.rm = TRUE), "protected areas covering", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km²"),
-         caption = paste0("Out of ", sum(data_time_area$n), " known funded protected areas, ", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), " have a known funding year.\nIn terms of area, ", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km² out of ", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km²."),
+          subtitle = paste("Sample :", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), "protected areas covering", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), "km²"),
+         caption = paste0("Out of ", sum(data_time_area$n, na.rm = TRUE), " known funded protected areas, ", sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$n, na.rm = TRUE), " have a known funding year.\nIn terms of area, ", format(sum(subset(data_time_area, is.na(year_funding_first) == FALSE)$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km² out of ", format(sum(data_time_area$tot_area_noint_km2), digits = 1, scientific = FALSE, big.mark = " "), " km²."),
          x = "Year",
          y = "Area (km²)") %>%
   + theme(legend.position = "bottom",
@@ -4346,7 +4346,7 @@ print(xtable(tbl_gov_knwn_fr,
       file = paste(tmp, "tbl_gov_knwn_fr.tex", sep  ="/"))
 
 
-ggsave(paste(tmp, " pie_gov_knwn_en.png", sep = "/"),
+ggsave(paste(tmp, "pie_gov_knwn_en.png", sep = "/"),
        plot =  pie_gov_knwn_en,
        device = "png",
        height = 6, width = 9)
@@ -4532,7 +4532,7 @@ print(xtable(tbl_gov_knwn_fr,
              type = "latex"),
       file = paste(tmp, "tbl_gov_knwn_fr.tex", sep  ="/"))
 
-ggsave(paste(tmp, " pie_gov_knwn_en.png", sep = "/"),
+ggsave(paste(tmp, "pie_gov_knwn_en.png", sep = "/"),
        plot =  pie_gov_knwn_en,
        device = "png",
        height = 6, width = 9)
