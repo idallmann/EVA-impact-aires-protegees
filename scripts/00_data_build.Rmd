@@ -845,6 +845,10 @@ data_pa_nofund_shp = data_pa_nofund_nodupl %>%
 data_pa_fund_shp = data_pa_fund_nodupl %>%
   left_join(data_wdpa, by = c("wdpaid", "wdpa_pid"))
 
+#A dataset with only PAs with geometry
+data_pa_nofund_polygon_shp = data_pa_nofund_shp %>%
+  filter(geom_type == "MULTIPOLYGON")
+
 
 # st_write(pa_shp,
 #          dsn = "data_tidy/BDD_pa_afd_shp_pub.gpkg",
@@ -856,6 +860,16 @@ s3write_using(x = data_pa_nofund_shp,
               bucket = "projet-afd-eva-ap",
               opts = list("region" = ""))
 
+# st_write(pa_shp,
+#          dsn = "data_tidy/BDD_pa_afd_shp_pub.gpkg",
+#          delete_dsn = TRUE)
+s3write_using(x = data_pa_nofund_polygon_shp,
+              FUN = sf::st_write,
+              delim = ";",
+              object = "data_tidy/BDD_PA_AFD_nofund_polygon_shp.geojson",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
+    
 # st_write(pa_shp,
 #          dsn = "data_tidy/BDD_pa_afd_shp_pub.gpkg",
 #          delete_dsn = TRUE)
