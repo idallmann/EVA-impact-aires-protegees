@@ -36,22 +36,40 @@ source("scripts/functions/02_fns_did.R")
 ```
 
 ```{r}
-
+#Saving directories
+##Temporary
 tmp_did = paste(tempdir(), "did", sep = "/")
+##SSPCloud
+# save_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/")
+save_dir = paste("impact_analysis/matching", "2023-08-29", sep = "/")
 
 #Load data 
 data_pa = 
-  #fread("data_tidy/BDD_DesStat_nofund_nodupl.csv" , encoding = "UTF-8")
+  #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
   aws.s3::s3read_using(
   FUN = data.table::fread,
   encoding = "UTF-8",
-  object = "data_tidy/BDD_nofund_nodupl.csv",
+  object = "data_tidy/BDD_PA_AFD_ie.csv",
   bucket = "projet-afd-eva-ap",
-  opts = list("region" = "")) 
+  opts = list("region" = "")) %>%
+  #Sangha trinational (555547988) created in 2012 actually gathers three former PAs 
+  #in CAF (31458), CMR (1245) and COG (72332) implemented in 
+  #1990, 2001 and 1993 respectively.
+  # Evaluating the trinational PA is not relevant here : our method relies on pre-treatment obervsations (for matching and DiD) and the outcome is likely to be affected by the initial PAs. On the other hand, evaluating the three earlier PAs might be irrelevant for us : are they funded by the AFD ?? In a first approach, the trinational is removed.
+  filter(is.na(wdpaid) == TRUE | wdpaid != 555547988)
 
 list_iso = c("CMR")
 
+#Specify the period of study to create the mapme.bidiversity portfolio
+## Start year
+yr_first = 2000
+## End year
+yr_last = 2021
 
+#Minimum treatment year
+#At least two pre-treatment periods of forest cover are needed to compute average pre-treatment deforestation
+yr_T_min = yr_first+2
+yr_T_max = yr_last
 ```
 
 ## Computing treatment effects at PA level
@@ -70,7 +88,7 @@ for (i in list_iso)
   
   #Load the matching frame
   print("--Loading the list of PAs in the country considered")
-  df_pa_i = fn_did_list_pa(iso = i)
+  df_pa_i = fn_did_list_pa(iso = i, save_dir = save_dir)
   list_pa_i = df_pa_i$wdpaid
   
   count_j = 0
@@ -86,10 +104,23 @@ for (i in list_iso)
     print("--Loading the working datasets")
     df_j = fn_did_load_df(iso = i,
                           wdpaid = j, 
+                          save_dir = save_dir,
                           ext_output = ".csv")
     
     df_wide_m_j = df_j$df_matched_wide
+    df_long_m_j = df_j$df_matched_long
     df_wide_unm_j = df_j$df_unmatched_wide
+    df_long_unm_j = df_j$df_unmatched_long
+    
+    #Compute treatment effects
+    print("--Compute treatment effects")
+    df_TE = fn_did_te(iso = i, wdpaid = j, 
+                      df_long_m = df_long_m_j,
+                      dt_start = yr_first,
+                      dt_end = yr_last,
+                      yr_T_min = yr_T_min,
+                      yr_T_max = dt_end,
+                      save_dir = save_dir, ext_output = ".csv")
     
     #Ensuite :
     ## Mettre sous une forme pre/post traitement

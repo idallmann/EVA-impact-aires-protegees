@@ -1371,7 +1371,7 @@ fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpa
   
   # Pivot Wide ==> Pivot Long
   matched.long = matched.wide %>%
-    dplyr::select(c(region_afd, region, sub_region, iso3, group, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, weights, starts_with(colfc.prefix), res_m)) %>%
+    dplyr::select(c(region_afd, region, sub_region, country_en, iso3, group, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, weights, starts_with(colfc.prefix), res_m)) %>%
     pivot_longer(cols = c(starts_with(colfc.prefix)),
                  names_to = c("var", "year"),
                  names_sep = colfc.bind,
@@ -1382,7 +1382,7 @@ fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpa
   
   # Pivot Wide ==> Pivot Long
   unmatched.long = unmatched.wide %>%
-    dplyr::select(c(region_afd, region, sub_region, iso3, group, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, starts_with(colfc.prefix), res_m)) %>%
+    dplyr::select(c(region_afd, region, sub_region, iso3, country_en, group, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, starts_with(colfc.prefix), res_m)) %>%
     pivot_longer(cols = c(starts_with(colfc.prefix)),
                  names_to = c("var", "year"),
                  names_sep = colfc.bind,
