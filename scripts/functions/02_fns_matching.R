@@ -1480,13 +1480,16 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
         slice(1)
       country.name = country.name$country_en
       
-      
+     #Open a multisession for dataframe computations
+      plan(multisession, gc = TRUE, workers = 6)
+      with_progress({
+ 
   # Make dataframe for plotting Trend
-  df.matched.trend = matched.long %>%
+  df.matched.trend  %<-% { matched.long %>%
     #First, compute deforestation relative to 2000 for each pixel (deforestation as computed in Wolf et al. 2021)
     group_by(assetid) %>%
     mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100,
-           fper = fc_ha/res_ha*100)
+           fper = fc_ha/res_ha*100) %>%
     ungroup() %>%
     #Then compute the average forest cover and deforestation in each year, for treated and control groups
     #Standard deviation and 95% confidence interval is also computed for each variable
@@ -1506,9 +1509,9 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
               ciFL_up = avgFL_2000_cum + qt(0.975,df=n-1)*sdFL_2000_cum/sqrt(n),
               matched = TRUE) %>%
     ungroup() %>%
-    st_drop_geometry()
+    st_drop_geometry() }
   
-  df.unmatched.trend = unmatched.long %>%
+  df.unmatched.trend  %<-% { unmatched.long %>%
     #First, compute deforestation relative to 2000 for each pixel (deforestation as computed in Wolf et al. 2021)
     #Compute share of forest in the given pixel by dividing by pixel area in ha (!)
     mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100,
@@ -1532,9 +1535,15 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
               ciFL_up = avgFL_2000_cum + qt(0.975,df=n-1)*sdFL_2000_cum/sqrt(n),
               matched = FALSE) %>%
     ungroup() %>%
-    st_drop_geometry()
+    st_drop_geometry() }
+  
+      })
   
   df.trend = rbind(df.matched.trend, df.unmatched.trend)
+     
+  
+  #Close multisession
+  plan(sequential)
   
   #Plot
   ## Change Facet Labels
@@ -1555,12 +1564,15 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
                labeller = labeller(matched = fct.labs)) +
     labs(title = "Evolution of forest cover",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+         caption = "Ribbons represent 95% confidence intervals.",
          x = "Year", y = "Average forest cover (ha)", color = "Group") +
     theme_bw() +
     theme(
       axis.text.x = element_text(angle = -20, hjust = 0.5, vjust = 0.5),
       axis.text=element_text(size=11),
       axis.title=element_text(size=14),
+      
+      plot.caption = element_text(hjust = 0),
       
       #legend.position = "bottom",
       legend.title = element_blank(),
@@ -1592,12 +1604,15 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
                labeller = labeller(matched = fct.labs)) +
     labs(title = "Evolution of forest share",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+         caption = "Ribbons represent 95% confidence intervals.",
          x = "Year", y = "Average forest cover (%)", color = "Group") +
     theme_bw() +
     theme(
       axis.text.x = element_text(angle = -20, hjust = 0.5, vjust = 0.5),
       axis.text=element_text(size=11),
       axis.title=element_text(size=14),
+      
+      plot.caption = element_text(hjust = 0),
       
       #legend.position = "bottom",
       legend.title = element_blank(),
@@ -1629,12 +1644,15 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
                labeller = labeller(matched = fct.labs)) +
     labs(title = "Cumulated deforestation relative to 2000",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+         caption = "Ribbons represent 95% confidence intervals.",
          x = "Year", y = "Forest loss relative to 2000 (%)", color = "Group") +
     theme_bw() +
     theme(
       axis.text.x = element_text(angle = -20, hjust = 0.5, vjust = 0.5),
       axis.text=element_text(size=11),
       axis.title=element_text(size=14),
+      
+      plot.caption = element_text(hjust = 0),
       
       #legend.position = "bottom",
       legend.title = element_blank(),
@@ -1669,12 +1687,15 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
     
     labs(title = "Evolution of forest cover, matched units",
          subtitle = paste0("Protected area in ", country.name, ", WDPA ID ", wdpaid),
+         caption = "Ribbons represent 95% confidence intervals.",
          x = "Year", y = "Average forest cover (ha)", color = "Group") +
     theme_bw() +
     theme(
       axis.text.x = element_text(angle = -20, hjust = 0.5, vjust = 0.5),
       axis.text=element_text(size=11),
       axis.title=element_text(size=14),
+      
+      plot.caption = element_text(hjust = 0),
       
       #legend.position = "bottom",
       legend.title = element_blank(),
@@ -1705,12 +1726,15 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
     
     labs(title = "Evolution of forest share, matched units",
          subtitle = paste0("Protected area in ", country.name, ", WDPA ID ", wdpaid),
+         caption = "Ribbons represent 95% confidence intervals.",
          x = "Year", y = "Average forest cover (%)", color = "Group") +
     theme_bw() +
     theme(
       axis.text.x = element_text(angle = -20, hjust = 0.5, vjust = 0.5),
       axis.text=element_text(size=11),
       axis.title=element_text(size=14),
+      
+      plot.caption = element_text(hjust = 0),
       
       #legend.position = "bottom",
       legend.title = element_blank(),
@@ -1740,12 +1764,15 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
     scale_color_hue(labels = c("Control", "Treatment")) +
     labs(title = "Cumulated deforestation relative to 2000, matched units",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+         caption = "Ribbons represent 95% confidence intervals.",
          x = "Year", y = "Forest loss relative to 2000 (%)", color = "Group") +
     theme_bw() +
     theme(
       axis.text.x = element_text(angle = -20, hjust = 0.5, vjust = 0.5),
       axis.text=element_text(size=11),
       axis.title=element_text(size=14),
+      
+      plot.caption = element_text(hjust = 0),
       
       #legend.position = "bottom",
       legend.title = element_blank(),

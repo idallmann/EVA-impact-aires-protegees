@@ -81,8 +81,8 @@ source("scripts/functions/02_fns_matching.R")
 # Define a directory where outputs are stored in SSPCloud.
 tmp_pre = paste(tempdir(), "matching_pre", sep = "/")
 tmp_post = paste(tempdir(), "matching_post", sep = "/")
-save_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/")
-#save_dir = paste("impact_analysis/matching", "2023-08-XX", sep = "/")
+#save_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/")
+save_dir = paste("impact_analysis/matching", "2023-08-29", sep = "/")
 
 #####
 ###Pre-processing
@@ -179,8 +179,8 @@ tic_pre = tic() #Start timer
 
 #Create a log to track progress
 log = fn_pre_log(list_iso,
-                 name = paste0("log-", Sys.Date(), "-afrcia-full.txt"),
-                 notes = "Attempt to perform full analysis on Africa PAs.")
+                 name = paste0("log-", Sys.Date(), "-test.txt"),
+                 notes = "tests.")
 
 for (i in list_iso)
 {
