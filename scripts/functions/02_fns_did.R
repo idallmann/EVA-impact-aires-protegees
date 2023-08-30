@@ -220,7 +220,7 @@ fn_did_te = function(iso, wdpaid, df_long_m, dt_start, dt_end, yr_T_min, yr_T_ma
     #Option 2 : utiliser le package did
     ####
     
-    install.packages(did)
+    install.packages("did")
     library(did)
     
     df_did = df_long_m %>%
@@ -233,9 +233,12 @@ fn_did_te = function(iso, wdpaid, df_long_m, dt_start, dt_end, yr_T_min, yr_T_ma
                       gname = "treatment_year",
                       idname = "assetid",
                       tname = "year",
+                      control_group = "nevertreated",
+                      xformla = ~1,
                       data = df_did)
     
-    
+    summary(pa_attgt)
+    ggdid(pa_attgt)
     
     
     
