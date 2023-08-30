@@ -127,7 +127,10 @@ data_pa =
   filter(is.na(wdpaid) == TRUE | wdpaid != 555547988)
 
 #List of countries in the sample
-list_iso = unique(data_pa[data_pa$region == "Africa", iso3])
+list_iso_africa = unique(data_pa[data_pa$region == "Africa", iso3])
+list_iso = list_iso_africa[1:8]
+# list_iso = list_iso_africa[9:16]
+# list_iso = list_iso_africa[17:24]
 
 #Specify the period of study to create the mapme.bidiversity portfolio
 ## Start year
@@ -187,7 +190,7 @@ for (i in list_iso)
   
   #Append the log to track progress of the process on country i
   cat(paste("#####\nCOUNTRY :", i, "\n#####\n\n"), file = log, append = TRUE)
-
+     
   
   #Generate observation units
   print("--Generating observation units")
@@ -232,8 +235,8 @@ for (i in list_iso)
   #Remove files in the session memory
   tmp_files = list.files(tmp_pre, include.dirs = T, full.names = T, recursive = T)
   file.remove(tmp_files)
-  
-}
+     
+}                            
 
   #End timer for pre-processing
   toc_pre = toc()
@@ -242,7 +245,7 @@ for (i in list_iso)
   cat(paste("END OF PRE-PROCESSING :", toc_pre$callback_msg, "\n\n"), 
       file = log, append = TRUE)
 
-
+   
 
 ```
 
@@ -430,14 +433,14 @@ aws.s3::put_object(file = log,
                    bucket = paste("projet-afd-eva-ap", save_dir, sep = "/"),
                    region = "",
                    show_progress = FALSE)
-
-
+                 
+                            
 #Notes
 ## Automate the definition of cutoffs for CEM
 ### Coder 5.5.3 de Iacus et al. 2012 ? Permet de savoir le gain de matched units pour une modification des seuils d'une variable
 ## Allow to enter a list of any covariates to perform the matching
 ## Function to plot Fig. 3 in Iacus et al. 2012
 ## On veut ATE ou ATT ?? Je dirai ATT car on ne veut pas estimer l'effet de mettre une AP, mais l'effet des AP financés par l'AFD 
-
-
+                                                                           
+                               
 ```
