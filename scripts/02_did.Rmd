@@ -15,7 +15,7 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 
 ```{r, eval = FALSE}
 #Install some libraries
-install.packages(c("tictoc", "fixest", "cobalt", "future", "progressr"))
+install.packages(c("tictoc", "fixest", "cobalt", "future", "progressr", "did"))
 
 # Load Libraries
 library(dplyr)
@@ -28,6 +28,7 @@ library(RColorBrewer)
 library(ggrepel)
 library(aws.s3)
 library(fixest) #For estimating the models
+library(did)
 ```
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
