@@ -52,296 +52,202 @@ fn_did_load_df = function(iso, wdpaid, save_dir, ext_output)
 
 
 #Compute the treatment effect for a given PA
-fn_did_te = function(iso, wdpaid, df_long_m, dt_start, dt_end, yr_T_min, yr_T_max, alpha, save_dir, ext_output)
+## INPUTS 
+### iso : the iso3 code for the country considered
+### wdpaid : the WDPAID of the PA considered
+### df_long_m : matched dataframe 
+### alpha : the threshold for confidence interval
+### save_dir : the saving directory in SSP Cloud
+### ext_output : the output extension
+## OUTPUTS
+### None
+
+fn_did_te = function(iso, wdpaid, df_long_m, alpha, save_dir, ext_output)
 {
   
-  ####
-  #1ere option : faire manuellement le calcul du TE à la Master Thesis
-  ####
-  
-  
   #First extract some relevant variables
-  #Extract spatial resolution of pixels res_m and define pixel area in ha
+  ##Extract spatial resolution of pixels res_m and define pixel area in ha
   res_m = unique(df_long_m$res_m)
   res_ha = res_m^2*1e-4
   
-  #Extract treatment year
+  ##Extract treatment year
   treatment.year = df_long_m %>% 
     filter(group == 2) %>% 
     slice(1)
   treatment.year = treatment.year$status_yr
   
-  #Extract funding years
+  ##Extract funding years
   funding.years = df_long_m %>% 
     filter(group == 2) %>% 
     slice(1)
   funding.years = funding.years$year_funding_first
   #funding.years = as.numeric(unlist(strsplit(funding.years$year_funding_all, split = ",")))
   
-  #Extract country name
+  ##Extract country name
   # country.name = df_long_m %>% 
   #   filter(group == 2) %>% 
   #   slice(1)
   # country.name = country.name$country_en
   
-  #Extract country iso
+  ##Extract country iso
   country.iso = df_long_m %>% 
     filter(group == 2) %>% 
     slice(1)
   country.iso = country.iso$iso3
   
-  #Extract region name
+  ##Extract region name
   region.name = df_long_m %>% 
     filter(group == 2) %>% 
     slice(1)
   region.name = region.name$region
-  
-  # Define the number of periods we can extract before and after treatment regarding 
-  #time period covered by the dataset [dt_start, dt_end]
-  nper_before = treatment.year - dt_start
-  nper_after = dt_end - treatment.year
-  #Creating relevant name for the variables (outcome before and after treatment in T and C)
-  ##For T
-  Tname_before = paste0("Tyear_", c((yr_T_max-dt_start):1))
-  Tname_inst = "Tyear+0"
-  Tname_after = paste0("Tyear+", c(1:(dt_end-yr_T_min)))
-  Tname = c(Tname_before, Tname_inst, Tname_after)
-  ##For C
-  Cname_before = paste0("Cyear_", c((yr_T_max-dt_start):1))
-  Cname_inst = "Cyear+0"
-  Cname_after = paste0("Cyear+", c(1:(dt_end-yr_T_min)))
-  Cname = c(Cname_before, Cname_inst, Cname_after)
-  
-  #Average evolution of forest cover in control and treated groups
-  df_fc = df_long_m %>%
-  #First, compute deforestation relative to 2000 for each pixel (deforestation as computed in Wolf et al. 2021)
-  group_by(assetid) %>%
-    # mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100,
-    #        fper = fc_ha/res_ha*100) %>%
-    ungroup() %>%
-    #Then compute the average forest cover and deforestation in each year, for treated and control groups
-    #Standard deviation and 95% confidence interval is also computed for each variable
-    group_by(group, year) %>%
-    summarise(n = n(),
-              avgFC = mean(fc_ha, na.rm=TRUE),
-              sdFC = sd(fc_ha, na.rm = TRUE),
-              # ciFC_low = avgFC - qt(0.975,df=n-1)*sdFC/sqrt(n),
-              # ciFC_up = avgFC + qt(0.975,df=n-1)*sdFC/sqrt(n),
-              # avgFCper = mean(fper, na.rm=TRUE),
-              # sdFCper = sd(fper, na.rm = TRUE),
-              # ciFCper_low = avgFCper - qt(0.975,df=n-1)*sdFCper/sqrt(n),
-              # ciFCper_up = avgFCper + qt(0.975,df=n-1)*sdFCper/sqrt(n),
-              # avgFL_2000_cum = mean(FL_2000_cum, na.rm = TRUE),
-              # sdFL_2000_cum = sd(FL_2000_cum, na.rm = TRUE),
-              # ciFL_low = avgFL_2000_cum - qt(0.975,df=n-1)*sdFL_2000_cum/sqrt(n),
-              # ciFL_up = avgFL_2000_cum + qt(0.975,df=n-1)*sdFL_2000_cum/sqrt(n),
-              matched = TRUE) %>%
-    mutate(year_treatment = treatment.year,
-           year_funding = funding.years,
-           .after = year) %>%
-    mutate(region = region.name,
-           iso3 = iso,
-           country_en = country.name,
-           .before = group) %>%
+    
+  #Then modify the dataframe before DiD computations
+  ## Set treatment year = 0 for controls (necessary for did package to consider "never treated" units)
+  ## Compute deforestation relative to 2000 forest cover (outcome where TE is computed)
+  df_did = df_long_m %>%
+    mutate(treatment_year = case_when(group == 1 ~0,
+                                      group == 2 ~status_yr), #Set treatment year to 0 for control units (required by did::att_gt)
+           .after = status_yr) %>%
+    group_by(assetid) %>%
+    mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100,
+           fper = fc_ha/res_ha*100) %>%
     ungroup()
+    
+  #Compute dynamic TE with did package. 
+  ## Control are "never treated" units, no covariate is added in the regression estimated with doubly-robust method
+  ## standard errors are computed with bootstrap, and confidence intervals computed from it.
+  ## No clustering is performed as it does not seem relevant in our case (https://blogs.worldbank.org/impactevaluations/when-should-you-cluster-standard-errors-new-wisdom-econometrics-oracle)
+  ## Pseudo ATT are computed for each pre-treatment year (varying base period)
   
-    test = df_fc %>%
-      mutate(group = case_when(group == 1 ~ "C",
-                               group == 2 ~ "T")) %>%
-      pivot_wider(names_from = "group",
-                  values_from = c("avgFC", "sdFC")) %>%
-      pivot_wider(names_from = "year",
-                values_from = c(starts_with("avgFC"), starts_with("sdFC")))
-    
-    df = test
-    
-    #Get the outcome for the years before and after the treatment year
-    #The sooner treatment period is yr_T_min, the later is yr_T_max. Then there are at most 
-    #yr_T_max-dt_start pre-treatment period, or yr_T_max-dt_start-nper_before for a given deal. 
-    #The same way, there at most dt_end-yr_T_min post treatment periods, and
-    #dt_end-yr_T_min-nper_after for a given deal. 
-    #So that all rows have the same number of columns, pre- and post-treatment period with no data
-    #are filled with NA
-    ##T
-    if(treatment.year != dt_start)
-    {
-      T_before = cbind(data.frame(matrix(NA, nrow = 1, ncol = yr_T_max-dt_start-nper_before)), df[1, paste0("avgFC_T_", (dt_start):(treatment.year - 1))])
-      C_before = cbind(data.frame(matrix(NA, nrow = 1, ncol = yr_T_max-dt_start-nper_before)), df[1, paste0("avgFC_C_", (treatment.year - nper_before):(treatment.year - 1))])
-      
-    }
-    if(treatment.year == dt_start)
-    {
-      T_before = data.frame(matrix(NA, nrow = 1, ncol = yr_T_max-dt_start-nper_before))
-      C_before = data.frame(matrix(NA, nrow = 1, ncol = yr_T_max-dt_start-nper_before))
-    }
-    if(treatment.year != dt_end)
-    {
-      T_after = cbind(df[1, paste0("avgFC_T_", (treatment.year + 1):(dt_end))], data.frame(matrix(NA, nrow = 1, ncol = dt_end-yr_T_min-nper_after)))
-      C_after = cbind(df[1, paste0("avgFC_C_", (treatment.year + 1):(treatment.year + nper_after))], data.frame(matrix(NA, nrow = 1, ncol = dt_end-yr_T_min-nper_after)))
-    }
-    if(treatment.year == dt_end)
-    {
-      T_after = data.frame(matrix(NA, nrow = 1, ncol = dt_end-yr_T_min-nper_after))
-      C_after = data.frame(matrix(NA, nrow = 1, ncol = dt_end-yr_T_min-nper_after))
-    }
-    
-    # T_before = ifelse(treatment.year == dt_start,
-    #                      yes = data.frame(matrix(NA, nrow = 1, ncol = yr_T_max-dt_start-nper_before)),
-    #                      no = cbind(data.frame(matrix(NA, nrow = 1, ncol = yr_T_max-dt_start-nper_before)), df[i, paste0("T_", (dt_start):(treatment.year - 1))]))
-    T_inst =  df[1, paste0("avgFC_T_", treatment.year)]
-    # T_after = ifelse(treatment.year == dt_end,
-    #                     yes = data.frame(matrix(NA, nrow = 1, ncol = dt_end-yr_T_min-nper_after)),
-    #                     no = cbind(df[i, paste0("T_", (treatment.year + 1):(dt_end))], data.frame(matrix(NA, nrow = 1, ncol = dt_end-yr_T_min-nper_after))))
-    ##C
-    # C_before = ifelse(treatment.year == dt_start,
-    #                       yes = data.frame(matrix(NA, nrow = 1, ncol = yr_T_max-dt_start-nper_before)),
-    #                       no = cbind(data.frame(matrix(NA, nrow = 1, ncol = yr_T_max-dt_start-nper_before)), df[i, paste0("C_", (treatment.year - nper_before):(treatment.year - 1))]))
-    C_inst =  df[1, paste0("avgFC_C_", treatment.year)]
-    # C_after = ifelse(treatment.year == dt_end,
-    #                     yes = data.frame(matrix(NA, nrow = 1, ncol = dt_end-yr_T_min-nper_after)),
-    #                     no = cbind(df[i, paste0("C_", (treatment.year + 1):(treatment.year + nper_after))], data.frame(matrix(NA, nrow = 1, ncol = dt_end-yr_T_min-nper_after))))
-    # Combine the outcome for T and C before and after treatment
-    df_did = cbind(T_before, T_inst, T_after, 
-                         C_before, C_inst, C_after) 
-    #Modify the names with pre- and post-treatment periods info
-    names(df_did) = c(Tname, Cname)
-    
-    df_did = df_did %>%
-      mutate(region = region.name, 
-             #country_en = country.name,
+  ##For forest cover
+  ### ATT computation
+  fc_attgt = did::att_gt(yname = "fc_ha",
+                    gname = "treatment_year",
+                    idname = "assetid",
+                    tname = "year",
+                    control_group = "nevertreated", #Thsi corresponds to control pixels as defined in the matching , with treatment year set to 0
+                    xformla = ~1,
+                    alp = alpha, #For 95% confidence interval
+                    allow_unbalanced_panel = TRUE, #Ensure no unit is dropped, though every pixel should have data for all years in the period
+                    bstrap=TRUE, #Compute bootstrap CI
+                    biters = 1000, #The number of bootstrap iteration, 1000 is default
+                    cband = TRUE, #Compute CI
+                    clustervars = NULL, #No clustering seems relevant to me 
+                    base_period = "varying",
+                    data = df_did,
+                    print_details = F)
+    ### Report results in a dataframe
+    ### confidence intervals are computed from bootstrap standard errors after a coefficient is applied.
+    ### This computation takes the one from did:::summary.MP function, line 15 and 16.
+    df_fc_attgt = data.frame("treatment_year" = fc_attgt$group,
+                             "year" = fc_attgt$t,
+                             "att" = fc_attgt$att,
+                             "c" = fc_attgt$c,
+                             "se" = fc_attgt$se,
+                             "n" = fc_attgt$n) %>%
+      #Compute time relative to treatment year
+      mutate(time = year - treatment_year,
+             .before = year) %>%
+      #Compute confidence intervals
+    mutate(cband_lower = round(att-c*se, 4),
+           cband_upper = round(att+c*se, 4),
+           sig = sign(cband_lower) == sign(cband_upper)) %>%
+      #Rename confidence interval variables to indicate its level from alpha argument
+      rename_with(.cols = c(cband_lower, cband_upper, sig),
+                  .fn = \(x) paste0(x, "_", gsub("0.", "", 1-alpha))) %>%
+      #Add region, iso3 and wdpaid
+      mutate(region = region.name,
              iso3 = country.iso,
-             .before = Tname[1])
+             wdpaid = wdpaid,
+             .before = "treatment_year")
     
     
-    
-    
-    ####
-    #Option 2 : utiliser le package did
-    ####
-    
-    #First extract some relevant variables
-    #Extract spatial resolution of pixels res_m and define pixel area in ha
-    res_m = unique(df_long_m$res_m)
-    res_ha = res_m^2*1e-4
-    
-    df_did = df_long_m %>%
-      mutate(treatment_year = case_when(group == 1 ~0,
-                                        group == 2 ~status_yr), #Set treatment year to 0 for control units (required by did::att_gt)
-             .after = status_yr) %>%
-      group_by(assetid) %>%
-      mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100,
-             fper = fc_ha/res_ha*100) %>%
-      ungroup()
-    
-    
-    fc_attgt = did::att_gt(yname = "fc_ha",
-                      gname = "treatment_year",
-                      idname = "assetid",
-                      tname = "year",
-                      control_group = "nevertreated", #Thsi corresponds to control pixels as defined in the matching , with treatment year set to 0
-                      xformla = ~1,
-                      alp = alpha, #For 95% confidence interval
-                      allow_unbalanced_panel = TRUE, #Ensure no unit is dropped, though every pixel should have data for all years in the period
-                      bstrap=TRUE, #Compute bootstrap CI
-                      biters = 1000, #The number of bootstrap iteration, 1000 is default
-                      cband = TRUE, #Compute classic CI
-                      clustervars = NULL, #No clustering seems relevant to me (https://blogs.worldbank.org/impactevaluations/when-should-you-cluster-standard-errors-new-wisdom-econometrics-oracle)
-                      base_period = "varying",
-                      data = df_did,
-                      print_details = F)
-    
-    ##Après : 
-    ## Extraire les variables pertinentes
-    
-    df_fc_attgt = data.frame("treatment_year" = fc_attgt$group,
-                             "year" = fc_attgt$t,
-                             "att" = fc_attgt$att,
-                             "se" = fc_attgt$se,
-                             "n" = fc_attgt$n)
-    
-    ##Calculer bootstrap et CI pour les ajouter ! En effet, data::tidy() calcle autrement les CI
-    inffunc = fc_attgt$inffunc
-    n = fc_attgt$n
-    V <- Matrix::t(inffunc) %*% inffunc/n
-    se = sqrt(Matrix::diag(V)/n)
-    se[se <= sqrt(.Machine$double.eps) * 10] <- NA
-    zero_na_sd_entry <- unique(which(is.na(se)))
-    bout <- did::mboot(inffunc, DIDparams = fc_attgt$DIDparams)
-    bres <- bout$bres
-    if (length(zero_na_sd_entry) > 0) {
-      se[-zero_na_sd_entry] <- bout$se[-zero_na_sd_entry]
-    }else {
-      se <- bout$se
-    }
-    se[se <= sqrt(.Machine$double.eps) * 10] <- NA
-    cval <- qnorm(1 - alpha/2)
-    bSigma <- apply(bres, 2, function(b) (quantile(b, 
-                                                   0.75, type = 1, na.rm = T) - quantile(b, 0.25, 
-                                                                                         type = 1, na.rm = T))/(qnorm(0.75) - qnorm(0.25)))
-    bSigma[bSigma <= sqrt(.Machine$double.eps) * 10] <- NA
-    bT <- apply(bres, 1, function(b) max(abs(b/bSigma), 
-                                         na.rm = TRUE))
-    cval <- quantile(bT, 1 - alp, type = 1, na.rm = T)
-    
-    
-    summary(fc_attgt)
-    did::ggdid(fc_attgt)
-    did::process_attgt(fc_attgt)
-    
-    test = did::tidy(fc_attgt)
-    test = fc_attgt$inffunc
-    did::att_gt
-    
-    df_fc_attgt = data.frame("treatment_year" = fc_attgt$group,
-                             "year" = fc_attgt$t,
-                             "att" = fc_attgt$att,
-                             "se" = fc_attgt$se,
-                             "n" = fc_attgt$n)
-    
+    ##For deforestation
+    ### ATT computation
     fl_attgt = did::att_gt(yname = "FL_2000_cum",
                            gname = "treatment_year",
                            idname = "assetid",
                            tname = "year",
-                           control_group = "nevertreated",
+                           control_group = "nevertreated", #Thsi corresponds to control pixels as defined in the matching , with treatment year set to 0
                            xformla = ~1,
-                           data = df_did)
+                           alp = alpha, #For 95% confidence interval
+                           allow_unbalanced_panel = TRUE, #Ensure no unit is dropped, though every pixel should have data for all years in the period
+                           bstrap=TRUE, #Compute bootstrap CI
+                           biters = 1000, #The number of bootstrap iteration, 1000 is default
+                           cband = TRUE, #Compute CI
+                           clustervars = NULL, #No clustering seems relevant to me 
+                           base_period = "varying",
+                           data = df_did,
+                           print_details = F)
     
-    summary(fl_attgt)
-    did::ggdid(fl_attgt)
+    fig_fc_att = did::ggdid(fc_attgt,
+                            ylab = "Avoided deforestation (ha)",
+                            title = "Treatment effect of the conservation",
+                            grtitle = paste("WDPA ID", wdpaid, "in", country.iso, "implemented in"),
+                            theming = TRUE)
+    
+    ### Report results in a dataframe
+    ### confidence intervals are computed from bootstrap standard errors after a coefficient is applied.
+    ### This computation takes the one from did:::summary.MP function, line 15 and 16.
+    df_fl_attgt = data.frame("treatment_year" = fl_attgt$group,
+                             "year" = fl_attgt$t,
+                             "att" = fl_attgt$att,
+                             "c" = fl_attgt$c,
+                             "se" = fl_attgt$se,
+                             "n" = fl_attgt$n) %>%
+      mutate(cband_lower = round(att-c*se, 4),
+             cband_upper = round(att+c*se, 4),
+             sig = sign(cband_lower) == sign(cband_upper)) %>%
+      rename_with(.cols = c(cband_lower, cband_upper, sig),
+                  .fn = \(x) paste0(x, "_", gsub("0.", "", 1-alpha))) %>%
+      mutate(region = region.name,
+             iso3 = country.iso,
+             wdpaid = wdpaid,
+             .before = "treatment_year")
+    
+    fig_fl_att = did::ggdid(fl_attgt,
+                      grtitle = NULL,
+                      theming = TRUE) %>%
+      + labs(title = "Treatment effect of the conservation",
+             subtitle = paste("WDPA ID", wdpaid, "in", country.iso, "implemented in", treatment.year),
+             caption = "Treatment effect is interpreted as the deforestation avoided thanks to the conservation program, in percentage points (p.p).\nFor instance if deforestation rate relative to 2000 is 0% before treatment, 1% in treated group after 5 years and 5% in control group after five years, then the treatment effect is 4 p.p.",
+             y = "Avoided deforestation (pp)") %>%
+      + theme(
+        axis.text.x = element_text(angle = -20, hjust = 0.5, vjust = 0.5),
+        axis.text=element_text(size=11, color = "black"),
+        axis.title=element_text(size=14, color = "black", face = "plain"),
+        
+        plot.caption = element_text(hjust = 0),
+        plot.title = element_text(size=16, color = "black", face = "plain", hjust = 0),
+        plot.subtitle = element_text(size=12, color = "black", face = "plain", hjust = 0),
+        
+        strip.text = element_blank(),
+        
+        #legend.position = "bottom",
+        legend.title = element_blank(),
+        legend.text=element_text(size=10),
+        #legend.spacing.x = unit(1.0, 'cm'),
+        legend.spacing.y = unit(0.75, 'cm'),
+        legend.key.size = unit(2, 'line'),
+        
+        panel.grid.major.x = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+        panel.grid.minor.x = element_line(color = 'grey80', linewidth = 0.2, linetype = 2),
+        panel.grid.major.y = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+        panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2),
+        
+      )
     
     
-    
-    
-  
-  #Average deforestation in control and treated groups
-  df_defo = df_long_m %>%
-    #First, compute deforestation relative to 2000 for each pixel (deforestation as computed in Wolf et al. 2021)
-    group_by(assetid) %>%
-    mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100) %>%
-    ungroup() %>%
-    #Then compute the average forest cover and deforestation in each year, for treated and control groups
-    #Standard deviation and 95% confidence interval is also computed for each variable
-    group_by(group, year) %>%
-    summarise(n = n(),
-              # avgFC = mean(fc_ha, na.rm=TRUE),
-              # sdFC = sd(fc_ha, na.rm = TRUE),
-              # ciFC_low = avgFC - qt(0.975,df=n-1)*sdFC/sqrt(n),
-              # ciFC_up = avgFC + qt(0.975,df=n-1)*sdFC/sqrt(n),
-              # avgFCper = mean(fper, na.rm=TRUE),
-              # sdFCper = sd(fper, na.rm = TRUE),
-              # ciFCper_low = avgFCper - qt(0.975,df=n-1)*sdFCper/sqrt(n),
-              # ciFCper_up = avgFCper + qt(0.975,df=n-1)*sdFCper/sqrt(n),
-              avgFL_2000_cum = mean(FL_2000_cum, na.rm = TRUE),
-              sdFL_2000_cum = sd(FL_2000_cum, na.rm = TRUE),
-              # ciFL_low = avgFL_2000_cum - qt(0.975,df=n-1)*sdFL_2000_cum/sqrt(n),
-              # ciFL_up = avgFL_2000_cum + qt(0.975,df=n-1)*sdFL_2000_cum/sqrt(n),
-              matched = TRUE) %>%
-    mutate(year_treatment = treatment.year,
-           year_funding = funding.years,
-           .after = year) %>%
-    ungroup()
-  
-  
+    #TEST : is ATT computed by the did package coherent with manual computations ? 
+    # --> YES :D
+    # test = df_did %>% 
+    #   group_by(group, year) %>%
+    #   summarize(avgFL_2000_cum = mean(FL_2000_cum, na.rm = TRUE),
+    #             avgFC_ha = mean(fc_ha, na.rm = TRUE)) %>%
+    #   ungroup() %>%
+    #   mutate(fc_te2 = (avgFC_ha[year == 2009 & group == 2] - avgFC_ha[year == 2006 & group == 2]) - (avgFC_ha[year == 2009 & group == 1] - avgFC_ha[year == 2006 & group == 1]),
+    #          fl_te2 = (avgFL_2000_cum[year == 2009 & group == 2] - avgFL_2000_cum[year == 2006 & group == 2]) - (avgFL_2000_cum[year == 2009 & group == 1] - avgFL_2000_cum[year == 2006 & group == 1]))
+    # 
 }
   
   
