@@ -42,7 +42,8 @@ source("scripts/functions/02_fns_did.R")
 tmp_did = paste(tempdir(), "did", sep = "/")
 ##SSPCloud
 # save_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/")
-save_dir = paste("impact_analysis/matching", "2023-08-29", sep = "/")
+load_dir = paste("impact_analysis/matching", "2023-08-29", sep = "/")
+save_dir = paste("impact_analysis/did", "2023-08-29", sep = "/")
 
 #Load data 
 data_pa = 
@@ -80,6 +81,9 @@ yr_T_max = yr_last
 count_i = 0 #Initialize counter
 max_i = length(list_iso) #Max value of the counter
 tic = tic() #Start timer
+#Initialize a dataframe to store ATT  of all PA analyzed
+df_fc_att = data.frame() #Effect on forest cover
+df_fl_att = data.frame() #Effect on deforestation relative to 2000
 
 for (i in list_iso)
 {
@@ -89,7 +93,7 @@ for (i in list_iso)
   
   #Load the matching frame
   print("--Loading the list of PAs in the country considered")
-  df_pa_i = fn_did_list_pa(iso = i, save_dir = save_dir)
+  df_pa_i = fn_did_list_pa(iso = i, load_dir = load_dir)
   list_pa_i = df_pa_i$wdpaid
   
   count_j = 0
@@ -105,8 +109,8 @@ for (i in list_iso)
     print("--Loading the working datasets")
     df_j = fn_did_load_df(iso = i,
                           wdpaid = j, 
-                          save_dir = save_dir,
-                          ext_output = ".csv")
+                          load_dir = load_dir,
+                          ext_input = ".csv")
     
     df_wide_m_j = df_j$df_matched_wide
     df_long_m_j = df_j$df_matched_long
@@ -115,13 +119,13 @@ for (i in list_iso)
     
     #Compute treatment effects
     print("--Compute treatment effects")
-    df_TE = fn_did_te(iso = i, wdpaid = j, 
+    df_att_j = fn_did_att(iso = i, wdpaid = j, 
                       df_long_m = df_long_m_j,
-                      dt_start = yr_first,
-                      dt_end = yr_last,
-                      yr_T_min = yr_T_min,
-                      yr_T_max = dt_end,
-                      save_dir = save_dir, ext_output = ".csv")
+                      alpha = 0.05,
+                      save_dir = save_dir)
+    
+    df_fc_att = rbind(df_fc_att, df_att_j$df_fc_att)
+    df_fl_att = rbind(df_fl_att, df_att_j$df_fl_att)
     
     #Ensuite :
     ## Mettre sous une forme pre/post traitement
@@ -136,4 +140,16 @@ for (i in list_iso)
   ## Ensuite, agréger niveau DR/monde
   
 }
+
+toc = toc()
+
+
+avg_att_fc = df_fc_att %>%
+  group_by(region, iso3, time) %>%
+  summarize(n_obs = n(),
+            att_mean = mean(att, na.rm = TRUE))
+avg_att_fl = df_fl_att %>%
+  group_by(region, iso3, time) %>%
+  summarize(n_obs = n(),
+            att_mean = mean(att, na.rm = TRUE))
 ```
