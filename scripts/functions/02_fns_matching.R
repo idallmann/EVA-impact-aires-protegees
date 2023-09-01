@@ -1556,7 +1556,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
     geom_ribbon(aes(ymin = ciFC_low, ymax = ciFC_up, group = group, fill = as.character(group)), alpha = .1, show.legend = FALSE) +
     geom_vline(aes(xintercept=as.character(treatment.year), size="Treatment year"), linetype=1, linewidth=0.5, color="orange") +
     geom_vline(aes(xintercept=as.character(funding.years), size="Funding year"), linetype=2, linewidth=0.5, color="grey30") +
-    scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) +
+    scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) + 
     scale_color_hue(labels = c("Control", "Treatment")) +
     facet_wrap(matched~., ncol = 2, #scales = 'free_x',
                labeller = labeller(matched = fct.labs)) +

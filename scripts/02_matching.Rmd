@@ -68,13 +68,13 @@ library(fixest) #For estimating the models
 library(cobalt) #To visualize density plots and covariate balance from MatchIt outcomes
 library(future) #For parallel computing in mapme.biodiversity
 library(future.callr)
-library(progressr) # To display progress bar
+library(progressr) # To display progress bar   
 library(rstac) #To downlad NASA SRTM data
 ```
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
 #Import functions
-source("scripts/functions/02_fns_matching.R")
+source("scripts/functions/02_fns_matching.R")      
 ```
 
 ```{r, eval = FALSE}
@@ -89,14 +89,14 @@ save_dir = paste("impact_analysis/matching", "2023-08-29", sep = "/")
 ###Pre-processing
 #####
 
-#(Down)load WDPA database
+#(Down)load WDPA database   
 ##Download
 # wdpa_wld_raw = wdpa_fetch(x = "global", wait = TRUE, download_dir = tmp_pre, page_wait = 2, verbose = TRUE)
 # s3write_using(wdpa_wld_raw,
 #               sf::st_write,
 #               delete_dsn = TRUE,
 #               object = paste0("data_raw/wdpa/wdpa_shp_global_raw.gpkg"),
-#               bucket = "projet-afd-eva-ap",
+#               bucket = "projet-afd-eva-ap",   
 #               opts = list("region" = ""))
 
 ##Load
@@ -130,7 +130,8 @@ data_pa =
 #List of countries in the sample
 list_iso_africa = unique(data_pa[data_pa$region == "Africa", iso3])
 #list_iso = list_iso_africa[1:8]
-list_iso = list_iso_africa[14:24]
+list_iso = c("TZA", "GAB")
+#list_iso = list_iso_africa[15:24]
 # list_iso = list_iso_africa[16:24]
 
 #Specify the period of study to create the mapme.bidiversity portfolio
@@ -180,8 +181,8 @@ tic_pre = tic() #Start timer
 
 #Create a log to track progress
 log = fn_pre_log(list_iso,
-                 name = paste0("log-", Sys.Date(), "-test.txt"),
-                 notes = "tests.")
+                 name = paste0("log-", Sys.Date(), "-Africa-full-2.txt"),
+                 notes = "Second part of Africa analysis")
 
 for (i in list_iso)            
 {
