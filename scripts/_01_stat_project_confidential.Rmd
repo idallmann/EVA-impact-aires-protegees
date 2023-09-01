@@ -17,20 +17,23 @@ In this document are performed and plotted descriptive statistics of confidentia
 knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 ```
 
-```{r message=FALSE, warning=FALSE}
-
+```{r message=FALSE, warning=FALSE, eval = FALSE}
+install.packages(c("stargazer", "janitor", "questionr", "countrycode"))
 library(tidyverse)
 library(stargazer)
 library(dplyr)
+library(sf)
 library(ggplot2)
 library(ggrepel)
 library(RColorBrewer)
+library(countrycode)
 library(data.table)
 #library(readxl)
 #library(splitstackshape) 
 library(janitor)
 library(xtable)
 library(questionr)
+library(aws.s3)
 ```
 
 # Importing datasets
@@ -38,29 +41,69 @@ library(questionr)
 ```{r}
 #Both datasets are imported also in UTF8 encoding, for some variables
 ##A first dataset with some PA on more than one row (one line per funding for instance)
+## Description of funding variables (Léa Poulin, mail 16/08/2023)
+### mt_global_projet_prevu_devise : total funding planned for the project (€), including local participation and cofunders
+### mt_fin_global_af_d_prevu_devise : total AFD funding for the project (€)
+### montant_prevu_concours_euro_octroi : planned funding in the concours considered
+### mt_part_cofinancier_prevu_euro : funding planed by the cofunder considered
 data_stat_fund = 
-  fread("data_tidy/BDD_fund.csv", encoding = "UTF-8")
-  # aws.s3::s3read_using(
-  # FUN = data.table::fread,
-  # encoding = "UTF-8",
-  # # Mettre les options de FUN ici
-  # object = "data_tidy/BDD_nopub.csv",
-  # bucket = "projet-afd-eva-ap",
-  # opts = list("region" = ""))
+  #fread("data_tidy/BDD_PA_AFD_fund.csv")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  # Mettre les options de FUN ici
+  object = "data_tidy/BDD_PA_AFD_fund.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
 
-pa_area_ctry = fread("data_tidy/area/pa_area_ctry.csv")
-pa_area_dr = fread("data_tidy/area/pa_area_dr.csv")
-pa_int_yr = fread("data_tidy/area/pa_int_yr.csv") 
-load("data_tidy/area/pa_area_wld.RDdata")
+##Datasets on aggregated size per country/region/year and at world level, taking into account the overlap.
+pa_area_ctry = 
+  #fread("data_tidy/area/pa_area_ctry.csv", encoding = "UTF-8")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  # Mettre les options de FUN ici
+  object = "data_tidy/area/pa_area_ctry.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
+
+pa_area_region =
+  #fread("data_tidy/area/pa_area_region.csv", encoding = "UTF-8")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  # Mettre les options de FUN ici
+  object = "data_tidy/area/pa_area_region.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
+
+pa_area_wld = 
+  #fread("data_tidy/area/pa_area_wld.csv", encoding = "UTF-8")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  # Mettre les options de FUN ici
+  object = "data_tidy/area/pa_area_wld.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
+
+pa_int_yr = 
+  #fread("data_tidy/area/pa_area_region.csv", encoding = "UTF-8")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  # Mettre les options de FUN ici
+  object = "data_tidy/area/pa_int_yr.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
+
 ```
 
 # Descriptive statistics
 
-## Funding
-
 This section provides several statistics on the funding of PAs : average funding by project, by contest, average funding by region or country, average funding by area, evolution over time, funding type.
 
-### Average funding
+## Statistics on project funding and concours
 
 Create a dataset with one row per project (funding is given by project, so duplicates are avoided)
 
@@ -76,14 +119,14 @@ Distribution of project funding
 ```{r}
 
 #Table
-tbl_fund_proj = summary(data_stat_projet_nodupl$montant_total_projet) %>%
-  format(scientific = FALSE) %>%
-  t() %>%
-  as.data.frame() %>%
-  dplyr::select(-c("1st Qu.","3rd Qu."))
+# tbl_fund_proj = summary(data_stat_projet_nodupl$mt_fin_global_af_d_prevu_devise) %>%
+#   format(scientific = FALSE) %>%
+#   t() %>%
+#   as.data.frame() %>%
+#   dplyr::select(-c("1st Qu.","3rd Qu."))
 
 # print(xtable(tbl_fund_proj, "Latex"),
-#       file = "DesStat/funding/tbl_fund_proj_stat.tex")
+#       file = "descriptive_stats/funding/tbl_fund_proj_stat.tex")
 
 ```
 
@@ -91,20 +134,20 @@ Average funds given by each concours
 
 ```{r}
 
-data_fund_concours = data_stat_fund %>%
-  group_by(id_concours) %>%
-  slice(1) %>%
-  ungroup()
-
-tbl_fund_concours = 
-  summary(data_fund_concours$montant_prevu_concours_euro_octroi) %>%
-  format(scientific = FALSE) %>%
-  t() %>%
-  as.data.frame() %>%
-  dplyr::select(-c("1st Qu.","3rd Qu."))
+# data_fund_concours = data_stat_fund %>%
+#   group_by(id_concours) %>%
+#   slice(1) %>%
+#   ungroup()
+# 
+# tbl_fund_concours = 
+#   summary(data_fund_concours$mt_fin_global_af_d_prevu_devise) %>%
+#   format(scientific = FALSE) %>%
+#   t() %>%
+#   as.data.frame() %>%
+#   dplyr::select(-c("1st Qu.","3rd Qu."))
 
 # print(xtable(tbl_fund_concours, "Latex"),
-#       file = "DesStat/funding/tbl_fund_concours_stat.tex")
+#       file = "descriptive_stats/funding/tbl_fund_concours_stat.tex")
 
 ```
 
@@ -114,11 +157,11 @@ tbl_fund_concours =
 
 # tbl_fund_project_concours = data_stat_fund %>%
 #   group_by(id_projet) %>%
-#   summarize(Mean = mean(montant_prevu_concours_euro_octroi))
+#   summarize(Mean = mean(mt_fin_global_af_d_prevu_devise))
 
 ```
 
-**Funding by country/region**
+## **Distribution of funding by region**
 
 ```{r}
 #Careful, a project can cover more than one countries. For instance ;
@@ -127,33 +170,31 @@ tbl_fund_concours =
 #From the data we have, it is not possible to decompose the funding of a project between the different countries. Thus only regional/world statistics are performed here.
 
 
-#By country ...
-# tbl_fund_avg_ctry = data_stat_projet_nodupl %>%
-#   group_by(pays, iso3) %>%
-#   summarize(avg_fund = mean(montant_total_projet, na.rm = TRUE)) %>%
-#   arrange(avg_fund)
-
 #By region
-##Average fund 
-###Creating dataset
-data_fund_avg_dr = data_stat_projet_nodupl %>%
-  group_by(direction_regionale) %>%
-  summarise(n_proj = n(),
-            avg_fund = mean(montant_total_projet, na.rm = TRUE)) %>%
-  arrange(avg_fund)
+##Number of fundings
+###Creating the plot dataset
+data_fund_n_region = data_stat_projet_nodupl %>%
+  group_by(region) %>%
+  summarise(n = n()) %>%
+  ungroup() %>%
+  mutate(freq_n = round(n/sum(n)*100, 2),
+         ypos_n = cumsum(freq_n) - 0.5*freq_n) %>%
+  mutate(region = case_when(is.na(region) ~ "Unknown",
+                            TRUE ~region))
 
 ###Figure
-fig_fund_avg_dr = ggplot(data = data_fund_avg_dr,
-                         aes(x = direction_regionale, y = avg_fund,
-                             fill = direction_regionale)) %>%
+fig_fund_n_region = ggplot(data = data_fund_n_region,
+                         aes(x = reorder(region, -n), y = n,
+                             fill = region)) %>%
   + geom_bar(stat = "identity", width = 0.50, fill="#3182BD") %>%
-  + geom_text(aes(label = n_proj, y = avg_fund), 
+  + geom_text(aes(label = format(n, digits = 2, scientific = TRUE), y = n), 
             vjust = -0.2, color="black",
             size=3.5) %>%
-  + labs(title = "Fonds moyens alloués aux projets par région",
-         subtitle = paste("Echantillon :", sum(data_fund_avg_dr$n_proj), "projets. Nombre de projets indiqué sur les barres."),
+  + labs(title = "Number of AFD projects related to protected areas by region",
+         subtitle = paste("Sample :", sum(data_fund_n_region$n), "projects"),
+         caption = "Unknown corresponds to projects supervised by 'DR Siege de Paris' and whose destination region is unknown.",
           x = "", 
-          y = "Montant (€)") %>%
+          y = "Number") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
       plot.title = element_text(size = 14, face = "bold"), 
@@ -162,45 +203,100 @@ fig_fund_avg_dr = ggplot(data = data_fund_avg_dr,
                                       linewidth = 0.5, linetype = 'solid'),
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
-      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-fig_fund_avg_dr
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+fig_fund_n_region
 
-# ggsave(plot = fig_fund_avg_dr,
-#        filename = "fig_fund_avg_dr.png",
-#        path = "DesStat/funding",
-#        device = "png",
-#        height = 6, width = 9)
+
+
+###Pie
+
+pie_fund_n_region = ggplot(data_fund_n_region, 
+                      aes(x="", y= freq_n, fill = region)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + coord_polar("y", start=0) %>%
+  + geom_label_repel(aes(x=1.2, label = paste0(round(freq_n, 1), "%")), 
+             color = "white", 
+             position = position_stack(vjust = 0.55), 
+             size=2.5, show.legend = FALSE) %>%
+  # + geom_label(aes(x=1.4, label = paste0(freq_iucn, "%")), 
+  #              color = "white", 
+  #              position = position_stack(vjust = 0.7), size=2.5, 
+  #              show.legend = FALSE) %>%
+  + labs(x = "", y = "",
+         title = "Distribution of AFD projects related to protected areas, by region",
+         subtitle = paste("Sample :", sum(data_fund_n_region$n), "projects"),
+         caption = "Unknown corresponds to projects supervised by 'DR Siege de Paris' and whose destination region is unknown.") %>%
+  + scale_fill_brewer(name = "Region", palette = "Dark2") %>%
+  + theme_void()
+pie_fund_n_region
+
+##Average fund 
+###Creating dataset
+data_fund_avg_region = data_stat_projet_nodupl %>%
+  group_by(region) %>%
+  summarise(n_proj = n(),
+            avg_fund = mean(mt_fin_global_af_d_prevu_devise, na.rm = TRUE)) %>%
+  arrange(avg_fund)
+
+
+###Figure
+fig_fund_avg_region = ggplot(data = data_fund_avg_region,
+                         aes(x = reorder(region, -avg_fund), y = avg_fund,
+                             fill = region)) %>%
+  + geom_bar(stat = "identity", width = 0.50, fill="#3182BD") %>%
+  + geom_text(aes(label = format(avg_fund, digits = 2, scientific = TRUE), y = avg_fund),
+            vjust = -0.2, color="black",
+            size=3.5) %>%
+  + labs(title = "Average AFD funding by region for project related to protected areas",
+         subtitle = paste("Sample :", sum(data_fund_avg_region$n_proj), "projects"),
+          x = "", 
+          y = "Amount (€)") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=9, hjust = .5, vjust = .6),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+fig_fund_avg_region
 
 ###Table
 
-tbl_fund_avg_dr = data_fund_avg_dr
-names(tbl_fund_avg_dr) = c("Direction régionale",
-                           "Nombre de projets",
-                           "Montant moyen (€)")
+# tbl_fund_avg_region = data_fund_avg_region
+# names(tbl_fund_avg_dr) = c("Region",
+#                            "Number of projetcs",
+#                            "Average amount (€)")
 
-# print(xtable(tbl_fund_avg_dr, type = "latex"),
-#       file = "DesStat/funding/tbl_fund_avg_dr.tex")
 
 ##Total fund
 ###Creating dataset
-data_fund_tot_dr = data_stat_projet_nodupl %>%
-  group_by(direction_regionale) %>%
+data_fund_tot_region = data_stat_projet_nodupl %>%
+  group_by(region) %>%
   summarise(n_proj = n(),
-            tot_fund = sum(montant_total_projet, na.rm = TRUE)) %>%
-  arrange(tot_fund)
+            tot_fund = sum(mt_fin_global_af_d_prevu_devise, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(freq_fund = round(tot_fund/sum(tot_fund)*100, 2),
+         ypos_fund = cumsum(freq_fund) - 0.5*freq_fund) %>%
+  mutate(region = case_when(is.na(region) ~ "Unknown",
+                            TRUE ~region))
+
+
 
 ###Figure
-fig_fund_tot_dr = ggplot(data = data_fund_tot_dr,
-                         aes(x = direction_regionale, y = tot_fund,
-                             fill = direction_regionale)) %>%
+fig_fund_tot_region = ggplot(data = data_fund_tot_region,
+                         aes(x = reorder(region, -tot_fund), y = tot_fund,
+                             fill = region)) %>%
   + geom_bar(stat = "identity", width = 0.50, fill="#3182BD") %>%
-  + geom_text(aes(label = n_proj, y = tot_fund), 
+  + geom_text(aes(label = format(tot_fund, big.mark = ","), y = tot_fund), 
             vjust = -0.2, color="black",
             size=3.5) %>%
-  + labs(title = "Total des fonds alloués aux projets par région",
-         subtitle = paste("Echantillon :", sum(data_fund_tot_dr$n_proj), "projets. Nombre de projets indiqué sur les barres."),
+  + labs(title = "Total AFD funding by region for project related to protected areas",
+         subtitle = paste("Total AFD funding :", format(sum(data_fund_tot_region$tot_fund), big.mark = ","), "€"),
+         caption = "Unknown corresponds to fund allocated by 'DR Siege de Paris' and whose destination region is unknown.",
           x = "", 
-          y = "Montant (€)") %>%
+          y = "Amount (€)") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
       plot.title = element_text(size = 14, face = "bold"), 
@@ -209,34 +305,104 @@ fig_fund_tot_dr = ggplot(data = data_fund_tot_dr,
                                       linewidth = 0.5, linetype = 'solid'),
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
-      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-fig_fund_tot_dr
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+fig_fund_tot_region
 
-# ggsave(plot = fig_fund_tot_dr,
-#        filename = "fig_fund_tot_dr.png",
-#        path = "DesStat/funding",
-#        device = "png",
-#        height = 6, width = 9)
+
+###Pie
+
+pie_fund_tot_region = ggplot(data_fund_tot_region, 
+                      aes(x="", y= freq_fund, fill = region)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + coord_polar("y", start=0) %>%
+  + geom_label_repel(aes(x=1.2, label = paste0(round(freq_fund, 1), "%")), 
+             color = "white", 
+             position = position_stack(vjust = 0.55), 
+             size=2.5, show.legend = FALSE) %>%
+  # + geom_label(aes(x=1.4, label = paste0(freq_iucn, "%")), 
+  #              color = "white", 
+  #              position = position_stack(vjust = 0.7), size=2.5, 
+  #              show.legend = FALSE) %>%
+  + labs(x = "", y = "",
+         title = "Distribution of AFD funding related to protected areas, by region",
+         subtitle = paste("Total AFD funding :", format(sum(data_fund_tot_region$tot_fund), big.mark = ","), "€"),
+         caption = "Unknown corresponds to fund allocated by 'DR Siege de Paris' and whose destination region is unknown.") %>%
+  + scale_fill_brewer(name = "Region", palette = "Dark2") %>%
+  + theme_void()
+pie_fund_tot_region
 
 ###Table
 
-###Table
+# tbl_fund_tot_region = data_fund_tot_region
+# names(tbl_fund_tot_dr) = c("Region",
+#                            "Number of projects",
+#                            "Total amount (€)")
 
-tbl_fund_tot_dr = data_fund_tot_dr
-names(tbl_fund_tot_dr) = c("Direction régionale",
-                           "Nombre de projets",
-                           "Montant total (€)")
 
-# print(xtable(tbl_fund_tot_dr, type = "latex"),
-#       file = "DesStat/funding/tbl_fund_tot_dr.tex")
 
 ```
 
-**Average funding per unit or area (marine and terrestrial), at regional and world level**
+```{r, eval = FALSE}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+ggsave(paste(tmp, "fig_fund_n_region.png", sep = "/"),
+       plot = fig_fund_n_region,
+       device = "png",
+       height = 6, width = 9)
+
+ggsave(paste(tmp, "pie_fund_n_region.png", sep = "/"),
+       plot = pie_fund_n_region,
+       device = "png",
+       height = 6, width = 9)
+
+ggsave(paste(tmp, "fig_fund_avg_region.png", sep = "/"),
+       plot = fig_fund_avg_region,
+       device = "png",
+       height = 6, width = 9)
+
+ggsave(paste(tmp, "fig_fund_tot_region.png", sep = "/"),
+       plot = fig_fund_tot_region,
+       device = "png",
+       height = 6, width = 9)
+
+ggsave(paste(tmp, "pie_fund_tot_region.png", sep = "/"),
+       plot = pie_fund_tot_region,
+       device = "png",
+       height = 6, width = 9)
+
+
+# print(xtable(tbl_fund_avg_region, type = "latex"),
+#       file = paste(tmp, "tbl_fund_avg_region.tex", sep = "/"))
+
+# print(xtable(tbl_fund_tot_region, type = "latex"),
+#       file = paste(tmp, "tbl_fund_tot_region.tex", sep = "/"))
+
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+for(f in files) 
+  {
+  cat("Uploading file", paste0("'", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/funding", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+```
+
+## **Average funding per unit of area (marine and terrestrial), at regional and world level**
 
 Some projects cover more than one country (e.g CZZ3012), but the total fund is given at project level. Thus it is not possible to compute funding per unit of area at country level for all countries.
 
-It is possible however at DR level. Note that the total surface at world level is different from the total surface from the DR, taking the overlap into account. Indeed, overlap between polygons from different DR is subtracted at world level but not at DR level.
+It is possible however at region level. Note that the total surface at world level is different from the total surface from the region, taking the overlap into account. Indeed, overlap between polygons from different region is subtracted at world level but not at region level.
 
 ```{r}
 #By country ...
@@ -250,33 +416,35 @@ It is possible however at DR level. Note that the total surface at world level i
 #   left_join(select(pa_area_ctry, c(iso3, sprfc_tot_noint_km2)), by = "iso3") %>%
 #   mutate(fund_per_area = tot_fund/sprfc_tot_noint_km2)
 # names(data_fund_per_area_ctry) = c("Pays", "ISO3", "Montant total (€)", "Superficie totale (km2)", "Financement moyen par km2 (€/km2)")
-#print(xtable(data_fund_per_area_ctry, type = "latex"), file = "DesStat/funding/tbl_fund_per_area_ctry.tex")
+#print(xtable(data_fund_per_area_ctry, type = "latex"), file = "descriptive_stats/funding/tbl_fund_per_area_ctry.tex")
 
 
 #By region 
 ##Creating the datasets
-data_fund_tot_dr = data_stat_projet_nodupl %>%
-  group_by(direction_regionale) %>%
+data_fund_tot_region = data_stat_projet_nodupl %>%
+  group_by(region) %>%
   summarise(n_proj = n(),
-            tot_fund = sum(montant_total_projet, na.rm = TRUE)) %>%
+            tot_fund = sum(mt_fin_global_af_d_prevu_devise, na.rm = TRUE)) %>%
   arrange(tot_fund)
 
-data_fund_per_area_dr = data_fund_tot_dr %>%
-  left_join(select(pa_area_dr, c(direction_regionale, sprfc_tot_noint_km2)), by = "direction_regionale") %>%
-  mutate(fund_per_area = tot_fund/sprfc_tot_noint_km2)
+data_fund_per_area_region = data_fund_tot_region %>%
+  left_join(select(pa_area_region, c(region, area_tot_noint_km2)), by = "region") %>%
+  mutate(fund_per_area = tot_fund/area_tot_noint_km2) %>%
+  mutate(region = case_when(is.na(region) ~ "Unknown",
+                            TRUE ~region))
 
 ##Figure
-fig_fund_per_area_dr = ggplot(data = data_fund_per_area_dr,
-                         aes(x = direction_regionale, y = fund_per_area,
-                             fill = direction_regionale)) %>%
+fig_fund_per_area_region = ggplot(data = data_fund_per_area_region,
+                         aes(x = region, y = fund_per_area,
+                             fill = region)) %>%
   + geom_bar(stat = "identity", width = 0.50, fill="#3182BD") %>%
-  + geom_text(aes(label = format(fund_per_area, scientific = TRUE, digits = 2),
+  + geom_text(aes(label = format(fund_per_area, big.mark = ",", digits = 1),
                   y = fund_per_area), 
             vjust = -0.2, color="black",
             size=2.5) %>%
-  + labs(title = "Fonds moyens alloués par km2",
+  + labs(title = "Average fund per unit of area",
           x = "", 
-          y = "Montant par surface (€/km2)") %>%
+          y = "Funding per area (€/km²)") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
       plot.title = element_text(size = 14, face = "bold"), 
@@ -286,51 +454,88 @@ fig_fund_per_area_dr = ggplot(data = data_fund_per_area_dr,
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-fig_fund_per_area_dr
+fig_fund_per_area_region
 
-# ggsave(plot = fig_fund_per_area_dr,
-#        filename = "fig_fund_per_area_dr.png",
-#        path = "DesStat/funding",
-#        device = "png",
-#        height = 6, width = 9)
 
 ##Table
-tbl_fund_per_area_dr = data.frame(data_fund_per_area_dr) %>%
-  select(-n_proj) %>%
-  format(digits = 4)
-names(tbl_fund_per_area_dr) = c("Direction régionale", "Montant total (€)", "Superficie totale (km2)", "Financement moyen par km2 (€/km2)")
+# tbl_fund_per_area_region = data.frame(data_fund_per_area_region) %>%
+#   select(-n_proj) %>%
+#   format(digits = 4)
+# names(tbl_fund_per_area_region) = c("Direction régionale", "Montant total (€)", "Superficie totale (km2)", "Financement moyen par km2 (€/km2)")
 
-# print(xtable(tbl_fund_per_area_dr, type = "latex"),
-#       file = "DesStat/funding/tbl_fund_per_area_dr.tex")
+# print(xtable(tbl_fund_per_area_region, type = "latex"),
+#       file = "descriptive_stats/funding/tbl_fund_per_area_region.tex")
 
 
 #At world level
 ##Table
-data_fund_per_area_wld = sum(data_stat_projet_nodupl$montant_total_projet)/pa_area_wld
-tbl_fund_per_area_wld = data.frame(data_fund_per_area_wld) %>% format(digits = 4)
-names(tbl_fund_per_area_wld) = c("Financement moyen par km2 (€/km2)")
+# data_fund_per_area_wld = sum(data_stat_projet_nodupl$mt_fin_global_af_d_prevu_devise)/pa_area_wld
+# tbl_fund_per_area_wld = data.frame(data_fund_per_area_wld) %>% format(digits = 4)
+# names(tbl_fund_per_area_wld) = c("Financement moyen par km2 (€/km2)")
 
 # print(xtable(tbl_fund_per_area_wld, type = "latex"),
-#       file = "DesStat/funding/tbl_fund_per_area_wld.tex")
+#       file = "descriptive_stats/funding/tbl_fund_per_area_wld.tex")
 
 ```
 
-### Evolution of funding over time
+```{r, eval = FALSE}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+ggsave(paste(tmp, "fig_fund_per_area_region.png", sep = "/"),
+       plot = fig_fund_per_area_region,
+       device = "png",
+       height = 6, width = 9)
+
+
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+for(f in files) 
+  {
+  cat("Uploading file", paste0("'", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/funding", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+```
+
+## Evolution of funding over time
 
 ```{r}
+
+data_time_range = data.frame(year = 
+                              c(min(data_stat_fund$year_funding, na.rm = TRUE):max(data_stat_fund$year_funding, na.rm = TRUE))
+)
+
 data_fund_year = data_stat_projet_nodupl %>%
-  group_by(annee_octroi) %>%
-  summarize(tot_fund = sum(montant_total_projet))
+  group_by(year_funding) %>%
+  summarize(tot_fund = sum(mt_fin_global_af_d_prevu_devise)) %>%
+  full_join(data_time_range, by = c("year_funding" = "year")) %>%
+  ungroup() %>%
+  mutate(tot_fund = case_when(is.na(tot_fund) ~0,
+                                    TRUE ~tot_fund)) %>%
+  drop_na() %>%
+  arrange(year_funding)
 
 #Total funding for each year
 fig_fund_year = ggplot(data = data_fund_year,
-                       aes(x = annee_octroi, y = tot_fund)) %>%
+                       aes(x = year_funding, y = tot_fund)) %>%
   + geom_bar(stat = 'identity', fill = "#3182BD") %>% 
-  + geom_text(aes(y = tot_fund, label = format(tot_fund, scientific = TRUE, digits = 2)),
+  + geom_text(aes(y = tot_fund, label = format(tot_fund, big.mark = ",", digits = 1)),
               color = "black", size=2.5, vjust = -0.3) %>%
-  + labs(title = "Evolution du financement des aires protégées",
-         x = "Année",
-         y = "Montants octroyés (€)") %>%
+  + labs(title = "Time evolution of AFD funding related to protected areas",
+         subtitle = paste(format(sum(data_fund_year$tot_fund), big.mark = ","), "€ total funding"),
+         x = "",
+         y = "Funding (€)") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
       plot.title = element_text(size = 14, face = "bold"), 
@@ -341,23 +546,19 @@ fig_fund_year = ggplot(data = data_fund_year,
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
-#fig_fund_year
+fig_fund_year
 
-# ggsave(plot = fig_fund_year,
-#        filename = "fig_fund_year.png",
-#        path = "DesStat/funding",
-#        device = "png",
-#        height = 6, width = 9)
 
 #Cumulative funding over time
 fig_fund_year_cum = ggplot(data = data_fund_year,
-                       aes(x = annee_octroi, y = cumsum(tot_fund))) %>%
+                       aes(x = year_funding, y = cumsum(tot_fund))) %>%
   + geom_bar(stat = 'identity', fill = "#3182BD") %>% 
-  + geom_text(aes(y = cumsum(tot_fund), label = format(cumsum(tot_fund), scientific = TRUE, digits = 2)),
+  + geom_text(aes(y = cumsum(tot_fund), label = format(cumsum(tot_fund), big.mark = ",", digits = 1)),
               color = "black", size=2.5, vjust = -0.3) %>%
-  + labs(title = "Evolution cumulée du financement des aires protégées",
-         x = "Année",
-         y = "Montants octroyés (€)") %>%
+  + labs(title = "Cumulative evolution of AFD funding related to protected areas",
+         subtitle = paste(format(sum(data_fund_year$tot_fund), big.mark = ","), "€ total funding"),
+         x = "",
+         y = "Funding (€)") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
       plot.title = element_text(size = 14, face = "bold"), 
@@ -370,20 +571,50 @@ fig_fund_year_cum = ggplot(data = data_fund_year,
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
 fig_fund_year_cum
 
-# ggsave(plot = fig_fund_year_cum,
-#        filename = "fig_fund_year_cum.png",
-#        path = "DesStat/funding",
-#        device = "png",
-#        height = 6, width = 9)
 
 ```
 
-### Type of funding
+```{r, eval = FALSE}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+ggsave(paste(tmp, "fig_fund_year.png", sep = "/"),
+       plot = fig_fund_year,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "fig_fund_year_cum.png", sep = "/"),
+       plot = fig_fund_year_cum,
+       device = "png",
+       height = 6, width = 9)
+
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+for(f in files) 
+  {
+  cat("Uploading file", paste0("'", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/funding", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+
+```
+
+## Type of funding
 
 Distribution of funding types
 
 ```{r}
 
+##Creating dataset
 data_type_prod = data_stat_projet_nodupl %>%
   group_by(libelle_produit) %>%
   #number of PAs per funding type
@@ -392,18 +623,21 @@ data_type_prod = data_stat_projet_nodupl %>%
   #Frequency of funding types
   mutate(n_pa = sum(n_type),
          freq = round(n_type/n_pa*100, 1),
-         libelle_produit = case_when(libelle_produit == "PRETS SOUVERAINS FMI COMPATIBLE" ~ "Prêts souverains FMI-compatible", TRUE ~ libelle_produit)) %>%
+         libelle_produit = case_when(libelle_produit == "PRETS SOUVERAINS FMI COMPATIBLE" ~ "Prêts souverains FMI-compatible", 
+                                     is.na(libelle_produit) ~"Non-renseigné",
+                                     TRUE ~ libelle_produit)) %>%
   arrange(desc(libelle_produit)) %>%
   select(-n_pa) %>%
   arrange(-freq)
 
-tbl_type_prod = data_type_prod
-names(tbl_type_prod) <- c("Type de financement","Projets", "Proportion (%)")
+##Table
+# tbl_type_prod = data_type_prod
+# names(tbl_type_prod) <- c("Type de financement","Projets", "Proportion (%)")
 
 # print(xtable(tbl_type_prod, type = "latex"),
-#       file = "DesStat/funding/tbl_fund_type.tex")
+#       file = "descriptive_stats/funding/tbl_fund_type.tex")
 
-#Pie chart INcluding non-referenced PAs
+#Pie chart 
 pie_type_prod = ggplot(data_type_prod, 
                       aes(x="", y= freq, fill = libelle_produit)) %>%
   + geom_bar(width = 1, stat = "identity", color="white") %>%
@@ -414,62 +648,171 @@ pie_type_prod = ggplot(data_type_prod,
              position = position_stack(vjust = 0.55), 
              size=2.5, show.legend = FALSE) %>%
   + labs(x = "", y = "",
-         title = "Type de financement") %>%
+         title = "Type de financement des projets liées à des aires protégées") %>%
   + scale_fill_brewer(name = "Catégories", palette = "Dark2") %>%
   + theme_void()
 pie_type_prod
 
-# ggsave(plot = pie_type_prod,
-#        filename = "pie_type_prod.png",
-#        path = "DesStat/funding",
-#        device = "png",
-#        height = 6, width = 9)
+```
+
+```{r, eval = FALSE}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+ggsave(paste(tmp, "pie_type_prod.png", sep = "/"),
+       plot = pie_type_prod,
+       device = "png",
+       height = 6, width = 9)
+
+# print(xtable(tbl_type_prod, type = "latex"),
+#       file = paste(tmp, "tbl_type_prod.tex", sep = "/"))
+
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+for(f in files) 
+  {
+  cat("Uploading file", paste0("'", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/funding", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
 Average fund by funding type
 
 ```{r}
 
-tbl_fund_avg_type = data_stat_projet_nodupl %>%
-  group_by(libelle_produit) %>%
-  summarize(n_type = n(),
-            tot_fund = sum(montant_total_projet)
-            ) %>%
-  mutate(n_pa = sum(n_type),
-         freq_pa = round(n_type/n_pa*100, 1),
-         freq_fund = round(tot_fund/sum(tot_fund)*100, 1),
-         libelle_produit = case_when(libelle_produit == "PRETS SOUVERAINS FMI COMPATIBLE" ~ "Prêts souverains FMI-compatible", TRUE ~ libelle_produit),
-         tot_fund = format(tot_fund, big.mark = " ")) %>%
-  select(c(libelle_produit, n_type, freq_pa, tot_fund, freq_fund)) %>%
-  arrange(-freq_pa) 
-names(tbl_fund_avg_type) = c("Type de financement","Projets", "Proportion d'AP (%)", "Montants (€)", "Proportion des montants (%)")
+# tbl_fund_avg_type = data_stat_projet_nodupl %>%
+#   group_by(libelle_produit) %>%
+#   summarize(n_type = n(),
+#             tot_fund = sum(mt_fin_global_af_d_prevu_devise)
+#             ) %>%
+#   mutate(n_pa = sum(n_type),
+#          freq_pa = round(n_type/n_pa*100, 1),
+#          freq_fund = round(tot_fund/sum(tot_fund)*100, 1),
+#          libelle_produit = case_when(libelle_produit == "PRETS SOUVERAINS FMI COMPATIBLE" ~ "Prêts souverains FMI-compatible", TRUE ~ libelle_produit),
+#          tot_fund = format(tot_fund, big.mark = " ")) %>%
+#   select(c(libelle_produit, n_type, freq_pa, tot_fund, freq_fund)) %>%
+#   arrange(-freq_pa) 
+# names(tbl_fund_avg_type) = c("Type de financement","Projets", "Proportion d'AP (%)", "Montants (€)", "Proportion des montants (%)")
 
 # print(xtable(tbl_fund_avg_type, type = "latex"),
-#       file = "DesStat/funding/tbl_fund_avg_type.tex")
+#       file = "descriptive_stats/funding/tbl_fund_avg_type.tex")
 
 ```
 
-### Co-funders
+## Co-funders
+
+We want to obtain the number of projects co-funded by KFW and FFEM, and the total/average amount given by KFW and FFEM. Unfortunately, for some projects we know KFW or FFEM are co-funder but the amount for the cofunder is not reported in SIOP. Example : ID projet CMR1213.
+
+Thus we only report the number of projects where KFW or FFEM were implied.
 
 ```{r}
-#Create a table with number of projects funded by AFD, FFEM and KfW. Total fundings and average funds are also reported
-tbl_fund_cofunder = 
-  data.frame(cof = c("FFEM", "KfW"),
-             n = c(nrow(subset(data_stat_projet_nodupl, ffem_bin == TRUE)),
-                   nrow(subset(data_stat_projet_nodupl, kfw_bin == TRUE))),
-             fund_tot = c(sum(subset(data_stat_projet_nodupl, ffem_bin == TRUE)$montant_total_projet, na.rm = TRUE),
-               sum(subset(data_stat_projet_nodupl, kfw_bin == TRUE)$montant_total_projet, na.rm = TRUE))
-                               
-                               ) %>%
-  mutate(n_tot = nrow(data_stat_projet_nodupl),
-         freq = round(n/n_tot*100, 1),
-         fund_avg = fund_tot/n,
-         fund_tot = format(fund_tot, big.mark = " "),
-         fund_avg = format(fund_avg, big.mark = " ")) %>%
-  select(c(cof, n, n_tot, freq, fund_tot, fund_avg))
-names(tbl_fund_cofunder) = c("Cofinancier", "Nombre projets", "Nombre total projets", "Prop. projets (%)","Montant total projets (€)","Montant moyen projets (€)")
+#Create a table with number of projects funded by FFEM and KfW.
 
-# print(xtable(tbl_fund_cofunder, type = "latex"), file = "DesStat/funding/tbl_fund_cofunder.tex")
+data_fund_cofunder = data_stat_fund %>%
+  #Keep one project per line only (for statistics on number !)
+  group_by(id_projet) %>%
+  slice(1) %>%
+  ungroup() %>%
+  mutate(cof_short = case_when(grepl("kfw", cofinanciers, ignore.case = TRUE) | grepl("kfw", cofinanciers_siop, ignore.case = TRUE) ~ "KfW",
+                               grepl("ffem", cofinanciers, ignore.case = TRUE) | grepl("ffem", cofinanciers_siop, ignore.case = TRUE) ~ "FFEM",
+                               TRUE ~ "Other")) %>%
+  group_by(cof_short) %>%
+  summarise(n = n()) %>%
+  ungroup() %>%
+  mutate(freq_n = round(n/sum(n)*100, 2),
+         ypos_n = cumsum(freq_n) - 0.5*freq_n)
+
+###Figure
+fig_cofund_n = ggplot(data = data_fund_cofunder,
+                         aes(x = reorder(cof_short, -n), y = n,
+                             fill = cof_short)) %>%
+  + geom_bar(stat = "identity", width = 0.50, fill="#3182BD") %>%
+  + geom_text(aes(label = n, y = n), 
+            vjust = -0.2, color="black",
+            size=3.5) %>%
+  + labs(title = "Number of AFD projects cofunded by KfW or FFEM",
+         subtitle = paste("Sample :", sum(data_fund_cofunder$n), "projects"),
+         caption = "Other corresponds to projet not co-funded or co-funded by institutions other than FFEM or KfW.",
+          x = "", 
+          y = "Number") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=9, hjust = .5, vjust = .6),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+fig_cofund_n
 
 
+
+###Pie
+
+pie_cofund_n = ggplot(data_fund_cofunder, 
+                      aes(x="", y= freq_n, fill = cof_short)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + coord_polar("y", start=0) %>%
+  + geom_label_repel(aes(x=1.2, label = paste0(round(freq_n, 1), "%")), 
+             color = "white", 
+             position = position_stack(vjust = 0.55), 
+             size=2.5, show.legend = FALSE) %>%
+  # + geom_label(aes(x=1.4, label = paste0(freq_iucn, "%")), 
+  #              color = "white", 
+  #              position = position_stack(vjust = 0.7), size=2.5, 
+  #              show.legend = FALSE) %>%
+  + labs(title = "Number of AFD projects cofunded by KfW or FFEM",
+         subtitle = paste("Sample :", sum(data_fund_cofunder$n), "projects"),
+         caption = "Other corresponds to projet not co-funded or co-funded by institutions other than FFEM or KfW.",
+          x = "", 
+          y = "") %>%
+  + scale_fill_brewer(name = "Co-funder", palette = "Dark2") %>%
+  + theme_void()
+pie_cofund_n
+```
+
+```{r, eval = FALSE}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+ggsave(paste(tmp, "fig_cofund_n.png", sep = "/"),
+       plot = fig_cofund_n,
+       device = "png",
+       height = 6, width = 9)
+
+ggsave(paste(tmp, "pie_cofund_n.png", sep = "/"),
+       plot = pie_cofund_n,
+       device = "png",
+       height = 6, width = 9)
+
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+for(f in files) 
+  {
+  cat("Uploading file", paste0("'", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/funding", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
