@@ -526,9 +526,6 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
                              range_traveltime = c("5k_110mio"))
   dl.tree = get_resources(aoi, resources = c("gfw_treecover", "gfw_lossyear"))
   
-  # httr::set_config(httr::config(ssl_verifypeer = 0L))
-  # options(download.file.method="curl", download.file.extra="--no-check-certificate")
-  
   dl.elevation = get_resources(aoi, "nasa_srtm")
   
   dl.tri = get_resources(aoi, "nasa_srtm")
@@ -541,6 +538,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   # Multisession with workers = 6 as in mapme.biodiversity tutorial : https://mapme-initiative.github.io/mapme.biodiversity/articles/quickstart.html?q=parall#enabling-parallel-computing
   
   plan(multisession, workers = 6, gc = TRUE)
+  
   with_progress({
     get.soil %<-% {calc_indicators(dl.soil,
                                 indicators = "soilproperties",
@@ -556,12 +554,12 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
                                min_size=1, # indicator-specific argument
                                min_cover=10)}
   
-    get.elevation %<-% calc_indicators(dl.elevation,
+    get.elevation %<-% {calc_indicators(dl.elevation,
                       indicators = "elevation",
-                      stats_elevation = c("mean"))
+                      stats_elevation = c("mean"))}
     
-    get.tri %<-% calc_indicators(dl.tri,
-                      indicators = "tri")
+    get.tri %<-% {calc_indicators(dl.tri,
+                      indicators = "tri")}
     
     })
   

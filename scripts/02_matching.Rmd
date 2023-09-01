@@ -36,12 +36,12 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 
 ```{r eval=, message=FALSE, warning=FALSE}
 #Install some libraries
-install.packages(c("tictoc", "geodata", "wdpar", "exactextractr", "MatchIt", "fixest", "cobalt", "future", "progressr", "mapme.biodiversity", "future.callr", "janitor", "geomtextpath"))
+install.packages(c("tictoc", "geodata", "wdpar", "exactextractr", "MatchIt", "fixest", "cobalt", "future", "progressr", "mapme.biodiversity", "future.callr", "janitor", "geomtextpath", "rstac"))
 #remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
 #remotes::install_github("prioritizr/wdpar", upgrade="always")
 
 #Install the web driver to download wdpa data directly
-webdriver::install_phantomjs()
+webdriver::install_phantomjs()  
 
 # Load Libraries
 library(dplyr)
@@ -69,6 +69,7 @@ library(cobalt) #To visualize density plots and covariate balance from MatchIt o
 library(future) #For parallel computing in mapme.biodiversity
 library(future.callr)
 library(progressr) # To display progress bar
+library(rstac) #To downlad NASA SRTM data
 ```
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
@@ -128,9 +129,9 @@ data_pa =
 
 #List of countries in the sample
 list_iso_africa = unique(data_pa[data_pa$region == "Africa", iso3])
-list_iso = list_iso_africa[1:8]
-# list_iso = list_iso_africa[9:16]
-# list_iso = list_iso_africa[17:24]
+#list_iso = list_iso_africa[1:8]
+list_iso = list_iso_africa[14:24]
+# list_iso = list_iso_africa[16:24]
 
 #Specify the period of study to create the mapme.bidiversity portfolio
 ## Start year
@@ -182,7 +183,7 @@ log = fn_pre_log(list_iso,
                  name = paste0("log-", Sys.Date(), "-test.txt"),
                  notes = "tests.")
 
-for (i in list_iso)
+for (i in list_iso)            
 {
   #Update counter and display progress
   count = count+1
@@ -235,7 +236,7 @@ for (i in list_iso)
   #Remove files in the session memory
   tmp_files = list.files(tmp_pre, include.dirs = T, full.names = T, recursive = T)
   file.remove(tmp_files)
-     
+                                  
 }                            
 
   #End timer for pre-processing
@@ -245,8 +246,8 @@ for (i in list_iso)
   cat(paste("END OF PRE-PROCESSING :", toc_pre$callback_msg, "\n\n"), 
       file = log, append = TRUE)
 
-   
-
+           
+ 
 ```
 
 ### Post-processing
@@ -434,7 +435,7 @@ aws.s3::put_object(file = log,
                    region = "",
                    show_progress = FALSE)
                  
-                            
+                               
 #Notes
 ## Automate the definition of cutoffs for CEM
 ### Coder 5.5.3 de Iacus et al. 2012 ? Permet de savoir le gain de matched units pour une modification des seuils d'une variable
