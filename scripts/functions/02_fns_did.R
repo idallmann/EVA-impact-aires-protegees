@@ -55,48 +55,64 @@ fn_did_load_df = function(iso, wdpaid, load_dir, ext_input)
 ## INPUTS 
 ### iso : the iso3 code for the country considered
 ### wdpaid : the WDPAID of the PA considered
-### df_long_m : matched dataframe 
+### df_long : matched dataframe 
 ### alpha : the threshold for confidence interval
 ### save_dir : the saving directory in SSP Cloud
 ### ext_output : the output extension
 ## OUTPUTS
 ### None
 
-fn_did_att = function(iso, wdpaid, df_long_m, data_pa, alpha, save_dir)
+fn_did_att = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_dir)
 {
+  
+  if(is_m == TRUE)
+  {
+    df_long = s3read_using(data.table::fread,
+                           object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("matched_long", "_", iso, "_", wdpaid, ext_input)),
+                           bucket = "projet-afd-eva-ap",
+                           opts = list("region" = "")) %>%
+      select(c(region, iso3, wdpaid, group, assetid, status_yr, year_funding_first, year_funding_all, res_m, year, var, fc_ha))
+    #select(c(region, country_en, iso3, wdpaid, group, status_yr, year_funding_first, year_funding_all, year, var, fc_ha))
+  } else{df_long = s3read_using(data.table::fread,
+                                object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("unmatched_long", "_", iso, "_", wdpaid, ext_input)),
+                                bucket = "projet-afd-eva-ap",
+                                opts = list("region" = "")) %>%
+           select(c(region, iso3, wdpaid, group, assetid, status_yr, year_funding_first, year_funding_all, year, res_m, var, fc_ha))
+         #select(c(region, country_en, iso3, wdpaid, group, status_yr, year_funding_first, year_funding_all, year, var, fc_ha))
+  }
   
   #First extract some relevant variables
   ##Extract spatial resolution of pixels res_m and define pixel area in ha
-  res_m = unique(df_long_m$res_m)
+  res_m = unique(df_long$res_m)
   res_ha = res_m^2*1e-4
   
   ##Extract treatment year
-  treatment.year = df_long_m %>% 
+  treatment.year = df_long %>% 
     filter(group == 2) %>% 
     slice(1)
   treatment.year = treatment.year$status_yr
   
   ##Extract funding years
-  funding.years = df_long_m %>% 
+  funding.years = df_long %>% 
     filter(group == 2) %>% 
     slice(1)
   funding.years = funding.years$year_funding_first
   #funding.years = as.numeric(unlist(strsplit(funding.years$year_funding_all, split = ",")))
   
   ##Extract country name
-  # country.name = df_long_m %>% 
+  # country.name = df_long %>% 
   #   filter(group == 2) %>% 
   #   slice(1)
   # country.name = country.name$country_en
   
   ##Extract country iso
-  country.iso = df_long_m %>% 
+  country.iso = df_long %>% 
     filter(group == 2) %>% 
     slice(1)
   country.iso = country.iso$iso3
   
   ##Extract region name
-  region.name = df_long_m %>% 
+  region.name = df_long %>% 
     filter(group == 2) %>% 
     slice(1)
   region.name = region.name$region
@@ -109,7 +125,7 @@ fn_did_att = function(iso, wdpaid, df_long_m, data_pa, alpha, save_dir)
   #Then modify the dataframe before DiD computations
   ## Set treatment year = 0 for controls (necessary for did package to consider "never treated" units)
   ## Compute deforestation relative to 2000 forest cover (outcome where TE is computed)
-  df_did = df_long_m %>%
+  df_did = df_long %>%
     mutate(treatment_year = case_when(group == 1 ~0,
                                       group == 2 ~status_yr), #Set treatment year to 0 for control units (required by did::att_gt)
            .after = status_yr) %>%
@@ -224,7 +240,9 @@ fn_did_att = function(iso, wdpaid, df_long_m, data_pa, alpha, save_dir)
       + geom_point(color = "#08519C") %>%
       + geom_ribbon(aes(ymin = cband_lower_pix_95, ymax = cband_upper_pix_95),
                     alpha=0.1, fill = "#FB6A4A", color = "black", linetype = "dotted") %>%
-      + labs(title = "Average treatment effect on the treated (ATT) of the conservation program",
+      + labs(title = ifelse(is_m == TRUE, 
+                            yes = "Average treatment effect on the treated (ATT) of the conservation program (matched)",
+                            no = "Average treatment effect on the treated (ATT) of the conservation program (unmatched)"),
              subtitle = paste("WDPA ID", wdpaid, "in", country.iso, "implemented in", treatment.year),
              caption = "Treatment effect is interpreted as the deforestation avoided at pixel level in hectare, due to the conservation program.\nA negative effect means the conservation program has caused higher deforestation.",
              y = "Avoided deforestation in a pixel (ha)",
@@ -262,7 +280,9 @@ fn_did_att = function(iso, wdpaid, df_long_m, data_pa, alpha, save_dir)
       + geom_point(color = "#08519C") %>%
       + geom_ribbon(aes(ymin = cband_lower_per_95, ymax = cband_upper_per_95),
                     alpha=0.1, fill = "#FB6A4A", color = "black", linetype = "dotted") %>%
-      + labs(title = "Average treatment effect on the treated (ATT) of the conservation program",
+      + labs(title = ifelse(is_m == TRUE, 
+                            yes = "Average treatment effect on the treated (ATT) of the conservation program (matched)",
+                            no = "Average treatment effect on the treated (ATT) of the conservation program (unmatched)"),
              subtitle = paste("WDPA ID", wdpaid, "in", country.iso, "implemented in", treatment.year),
              caption = "Treatment effect is interpreted like the deforestation avoided as a share of 2000 forest cover.\nA negative effect means the conservation program has caused higher deforestation.",
              y = "Avoided deforestation relative to 2000 f.c. (%)",
@@ -300,7 +320,9 @@ fn_did_att = function(iso, wdpaid, df_long_m, data_pa, alpha, save_dir)
       + geom_point(color = "#08519C") %>%
       + geom_ribbon(aes(ymin = cband_lower_pa_95, ymax = cband_upper_pa_95),
                     alpha=0.1, fill = "#FB6A4A", color = "black", linetype = "dotted") %>%
-      + labs(title = "Average treatment effect on the treated (ATT) of the conservation program",
+      + labs(title = ifelse(is_m == TRUE, 
+                            yes = "Average treatment effect on the treated (ATT) of the conservation program (matched)",
+                            no = "Average treatment effect on the treated (ATT) of the conservation program (unmatched)"),
              subtitle = paste("WDPA ID", wdpaid, "in", country.iso, "implemented in", treatment.year),
              caption = "Treatment effect is interpreted as the total deforestation avoided in the PA, in hectare (ha).\nThis measure is an extrapolation of avoided deforestation at pixel level, knowing the surface of the PA and the average share of forest in a pixel in 2000.\nA negative effect means the conservation program has caused higher deforestation.",
              y = "Total avoided deforestation (ha)",
@@ -411,15 +433,21 @@ fn_did_att = function(iso, wdpaid, df_long_m, data_pa, alpha, save_dir)
     ##Saving plots
     tmp = paste(tempdir(), "fig", sep = "/")
     
-    ggsave(paste(tmp, paste0("fig_att_pix_", iso, "_", wdpaid, ".png"), sep = "/"),
+    ggsave(ifelse(is_m == TRUE,
+                  yes = paste(tmp, paste0("fig_att_pix_", iso, "_", wdpaid, "_m", ".png"), sep = "/"),
+                  no = paste(tmp, paste0("fig_att_pix_", iso, "_", wdpaid, "_unm", ".png"), sep = "/")),
            plot = fig_att_pix,
            device = "png",
            height = 6, width = 9)
-    ggsave(paste(tmp, paste0("fig_att_pa_", iso, "_", wdpaid, ".png"), sep = "/"),
+    ggsave(ifelse(is_m == TRUE,
+                  yes = paste(tmp, paste0("fig_att_pa_", iso, "_", wdpaid, "_m", ".png"), sep = "/"),
+                  no = paste(tmp, paste0("fig_att_pa_", iso, "_", wdpaid, "_unm", ".png"), sep = "/")),
            plot = fig_att_pa,
            device = "png",
            height = 6, width = 9)
-    ggsave(paste(tmp, paste0("fig_att_per_", iso, "_", wdpaid, ".png"), sep = "/"),
+    ggsave(ifelse(is_m == TRUE,
+                  yes = paste(tmp, paste0("fig_att_per_", iso, "_", wdpaid, "_m", ".png"), sep = "/"),
+                  no = paste(tmp, paste0("fig_att_per_", iso, "_", wdpaid, "_unm", ".png"), sep = "/")),
            plot = fig_att_per,
            device = "png",
            height = 6, width = 9)
