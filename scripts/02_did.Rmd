@@ -59,8 +59,13 @@ data_pa =
   #1990, 2001 and 1993 respectively.
   # Evaluating the trinational PA is not relevant here : our method relies on pre-treatment obervsations (for matching and DiD) and the outcome is likely to be affected by the initial PAs. On the other hand, evaluating the three earlier PAs might be irrelevant for us : are they funded by the AFD ?? In a first approach, the trinational is removed.
   filter(is.na(wdpaid) == TRUE | wdpaid != 555547988)
+# 
+# list_iso = data_pa %>%
+#   filter(region == "Africa") %>%
+#   filter(!(iso3 %in% c("ZZ", "GAB")))
+# list_iso = unique(list_iso$iso3)
 
-list_iso = c("CMR")
+list_iso = c("CMR", "COM", "GNB")
 
 #Specify the period of study to create the mapme.bidiversity portfolio
 ## Start year
@@ -68,10 +73,6 @@ yr_first = 2000
 ## End year
 yr_last = 2021
 
-#Minimum treatment year
-#At least two pre-treatment periods of forest cover are needed to compute average pre-treatment deforestation
-yr_T_min = yr_first+2
-yr_T_max = yr_last
 ```
 
 ## Computing treatment effects at PA level
@@ -121,11 +122,12 @@ for (i in list_iso)
     print("--Compute treatment effects")
     df_att_j = fn_did_att(iso = i, wdpaid = j, 
                       df_long_m = df_long_m_j,
+                      data_pa = data_pa,
                       alpha = 0.05,
                       save_dir = save_dir)
     
     df_fc_att = rbind(df_fc_att, df_att_j$df_fc_att)
-    df_fl_att = rbind(df_fl_att, df_att_j$df_fl_att)
+    #df_fl_att = rbind(df_fl_att, df_att_j$df_fl_att)
     
     #Ensuite :
     ## Mettre sous une forme pre/post traitement
@@ -144,12 +146,21 @@ for (i in list_iso)
 toc = toc()
 
 
+#Finally ATT are aggregated by region and country
+#For total avoided deforestation in ha, ATT are summed and so are CI
+#For avoided deforestation in % of 2000 forest cover, ATT are averaged and so are CI
 avg_att_fc = df_fc_att %>%
   group_by(region, iso3, time) %>%
   summarize(n_obs = n(),
-            att_mean = mean(att, na.rm = TRUE))
-avg_att_fl = df_fl_att %>%
-  group_by(region, iso3, time) %>%
-  summarize(n_obs = n(),
-            att_mean = mean(att, na.rm = TRUE))
+            att_per_mean = mean(att_per, na.rm = TRUE),
+            cband_lower_per_95 = mean(cband_lower_per_95, na.rm = TRUE),
+            cband_upper_per_95 = mean(cband_upper_per_95, na.rm = TRUE),
+            att_pa_tot = sum(att_pa, na.rm = TRUE),
+            cband_lower_pa_95 = sum(cband_lower_pa_95, na.rm = TRUE),
+            cband_upper_pa_95 = sum(cband_upper_pa_95, na.rm = TRUE))
+
+# avg_att_fl = df_fl_att %>%
+#   group_by(region, iso3, time) %>%
+#   summarize(n_obs = n(),
+#             att_mean = mean(att, na.rm = TRUE))
 ```
