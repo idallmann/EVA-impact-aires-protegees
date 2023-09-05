@@ -65,7 +65,7 @@ data_pa =
 #   filter(!(iso3 %in% c("ZZ", "GAB")))
 # list_iso = unique(list_iso$iso3)
 
-list_iso = c("CMR", "COM", "GNB")
+list_iso = c("CMR")
 
 #Specify the period of study to create the mapme.bidiversity portfolio
 ## Start year
@@ -83,8 +83,9 @@ count_i = 0 #Initialize counter
 max_i = length(list_iso) #Max value of the counter
 tic = tic() #Start timer
 #Initialize a dataframe to store ATT  of all PA analyzed
-df_fc_att = data.frame() #Effect on forest cover
-df_fl_att = data.frame() #Effect on deforestation relative to 2000
+df_fc_att_m = data.frame() #Effect on forest cover for matched units
+df_fc_att_unm = data.frame() #Effect on forest cover for unmacthed units
+#df_fl_att = data.frame() #Effect on deforestation relative to 2000
 
 for (i in list_iso)
 {
@@ -107,27 +108,51 @@ for (i in list_iso)
     print(paste0("WDPA ID ", j, " : ", count_j, "/", max_j))
     
     #Load the datasets
-    print("--Loading the working datasets")
-    df_j = fn_did_load_df(iso = i,
-                          wdpaid = j, 
-                          load_dir = load_dir,
-                          ext_input = ".csv")
-    
-    df_wide_m_j = df_j$df_matched_wide
-    df_long_m_j = df_j$df_matched_long
-    df_wide_unm_j = df_j$df_unmatched_wide
-    df_long_unm_j = df_j$df_unmatched_long
+    # print("--Loading the working datasets")
+    # df_j = fn_did_load_df(iso = i,
+    #                       wdpaid = j, 
+    #                       load_dir = load_dir,
+    #                       ext_input = ".csv")
+    # 
+    # df_wide_m_j = df_j$df_matched_wide
+    # df_long_m_j = df_j$df_matched_long
+    # df_wide_unm_j = df_j$df_unmatched_wide
+    # df_long_unm_j = df_j$df_unmatched_long
     
     #Compute treatment effects
     print("--Compute treatment effects")
-    df_att_j = fn_did_att(iso = i, wdpaid = j, 
-                      df_long_m = df_long_m_j,
+    print("----For matched units")
+    df_att_m_j = fn_did_att(iso = i, wdpaid = j, 
+                          is_m = TRUE,
                       data_pa = data_pa,
                       alpha = 0.05,
+                      load_dir = load_dir,
+                      ext_input = ".csv",
                       save_dir = save_dir)
     
-    df_fc_att = rbind(df_fc_att, df_att_j$df_fc_att)
+    df_fc_att_m = rbind(df_fc_att_m, df_att_m_j$df_fc_att)
     #df_fl_att = rbind(df_fl_att, df_att_j$df_fl_att)
+        
+    print("----For unmatched units")
+    df_att_unm_j = fn_did_att(iso = i, wdpaid = j, 
+                          is_m = FALSE,
+                      data_pa = data_pa,
+                      alpha = 0.05,
+                      load_dir = load_dir,
+                      ext_input = ".csv",
+                      save_dir = save_dir)
+    
+    df_fc_att_unm = rbind(df_fc_att_unm, df_att_unm_j$df_fc_att)
+    
+    #Plot visual evidence before-after matching
+    print("--Plot visual evidence before-after matching")
+    fn_plot_forest_loss(iso = i, 
+                        wdpaid = j, 
+                        data_pa = data_pa, 
+                        load_dir = load_dir, 
+                        ext_input = ".csv", 
+                        save_dir = save_dir)
+
     
     #Ensuite :
     ## Mettre sous une forme pre/post traitement
@@ -147,17 +172,32 @@ toc = toc()
 
 
 #Finally ATT are aggregated by region and country
-#For total avoided deforestation in ha, ATT are summed and so are CI
+#For total avoided deforestation in ha, ATT are summed and so are CI.
+## If the CI of an ATT is NA, then the CI for total ATT is NA also. Otherwise CI will be ## downward biased
 #For avoided deforestation in % of 2000 forest cover, ATT are averaged and so are CI
-avg_att_fc = df_fc_att %>%
+## CI being NA is less a problem here as e use a mean, not a sum
+avg_att_fc_ctry_m = df_fc_att_m %>%
+  group_by(wdpaid) %>%
+  mutate(has_effect = att_pa[time == max(time)] > 0 & sig_95[time == max(time)] == TRUE) %>%
+  ungroup() %>%
   group_by(region, iso3, time) %>%
   summarize(n_obs = n(),
             att_per_mean = mean(att_per, na.rm = TRUE),
             cband_lower_per_95 = mean(cband_lower_per_95, na.rm = TRUE),
             cband_upper_per_95 = mean(cband_upper_per_95, na.rm = TRUE),
             att_pa_tot = sum(att_pa, na.rm = TRUE),
-            cband_lower_pa_95 = sum(cband_lower_pa_95, na.rm = TRUE),
-            cband_upper_pa_95 = sum(cband_upper_pa_95, na.rm = TRUE))
+            cband_lower_pa_95 = sum(cband_lower_pa_95, na.rm = FALSE),
+            cband_upper_pa_95 = sum(cband_upper_pa_95, na.rm = FALSE)) 
+
+avg_att_fc_region_m = df_fc_att_m %>%
+  group_by(region, time) %>%
+  summarize(n_obs = n(),
+            att_per_mean = mean(att_per, na.rm = TRUE),
+            cband_lower_per_95 = mean(cband_lower_per_95, na.rm = TRUE),
+            cband_upper_per_95 = mean(cband_upper_per_95, na.rm = TRUE),
+            att_pa_tot = sum(att_pa, na.rm = TRUE),
+            cband_lower_pa_95 = sum(cband_lower_pa_95, na.rm = FALSE),
+            cband_upper_pa_95 = sum(cband_upper_pa_95, na.rm = FALSE))
 
 # avg_att_fl = df_fl_att %>%
 #   group_by(region, iso3, time) %>%

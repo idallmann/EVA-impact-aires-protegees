@@ -16,39 +16,39 @@ fn_did_list_pa = function(iso, load_dir)
 }
 
 
-fn_did_load_df = function(iso, wdpaid, load_dir, ext_input)
-{
-  #Load matched datasets
-  df_matched_wide = s3read_using(data.table::fread,
-                                 object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("matched_wide", "_", iso, "_", wdpaid, ext_input)),
-                                 bucket = "projet-afd-eva-ap",
-                                 opts = list("region" = "")) %>%
-    select(c(region, country_en, iso3, wdpaid, group, assetid, status_yr, year_funding_first, year_funding_all, res_m, starts_with("treecover"), starts_with("treeloss")))
-  
-  df_unmatched_wide = s3read_using(data.table::fread,
-                                 object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("unmatched_wide", "_", iso, "_", wdpaid, ext_input)),
-                                 bucket = "projet-afd-eva-ap",
-                                 opts = list("region" = "")) %>%
-    select(c(region, country_en, iso3, wdpaid, group, assetid, status_yr, year_funding_first, year_funding_all, res_m, starts_with("treecover"), starts_with("treeloss")))
-  
-  df_matched_long = s3read_using(data.table::fread,
-                                 object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("matched_long", "_", iso, "_", wdpaid, ext_input)),
-                                 bucket = "projet-afd-eva-ap",
-                                 opts = list("region" = "")) %>%
-    select(c(region, iso3, wdpaid, group, assetid, status_yr, year_funding_first, year_funding_all, res_m, year, var, fc_ha))
-    #select(c(region, country_en, iso3, wdpaid, group, status_yr, year_funding_first, year_funding_all, year, var, fc_ha))
-  
-  df_unmatched_long = s3read_using(data.table::fread,
-                                 object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("unmatched_long", "_", iso, "_", wdpaid, ext_input)),
-                                 bucket = "projet-afd-eva-ap",
-                                 opts = list("region" = "")) %>%
-    select(c(region, iso3, wdpaid, group, assetid, status_yr, year_funding_first, year_funding_all, year, res_m, var, fc_ha))
-    #select(c(region, country_en, iso3, wdpaid, group, status_yr, year_funding_first, year_funding_all, year, var, fc_ha))
-  
-  return(list("df_matched_wide" = df_matched_wide, "df_unmatched_wide" = df_unmatched_wide,
-              "df_matched_long" = df_matched_long, "df_unmatched_long" = df_unmatched_long))
-
-}
+# fn_did_load_df = function(iso, wdpaid, load_dir, ext_input)
+# {
+#   #Load matched datasets
+#   df_matched_wide = s3read_using(data.table::fread,
+#                                  object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("matched_wide", "_", iso, "_", wdpaid, ext_input)),
+#                                  bucket = "projet-afd-eva-ap",
+#                                  opts = list("region" = "")) %>%
+#     select(c(region, country_en, iso3, wdpaid, group, assetid, status_yr, year_funding_first, year_funding_all, res_m, starts_with("treecover"), starts_with("treeloss")))
+#   
+#   df_unmatched_wide = s3read_using(data.table::fread,
+#                                  object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("unmatched_wide", "_", iso, "_", wdpaid, ext_input)),
+#                                  bucket = "projet-afd-eva-ap",
+#                                  opts = list("region" = "")) %>%
+#     select(c(region, country_en, iso3, wdpaid, group, assetid, status_yr, year_funding_first, year_funding_all, res_m, starts_with("treecover"), starts_with("treeloss")))
+#   
+#   df_matched_long = s3read_using(data.table::fread,
+#                                  object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("matched_long", "_", iso, "_", wdpaid, ext_input)),
+#                                  bucket = "projet-afd-eva-ap",
+#                                  opts = list("region" = "")) %>%
+#     select(c(region, iso3, wdpaid, group, assetid, status_yr, year_funding_first, year_funding_all, res_m, year, var, fc_ha))
+#     #select(c(region, country_en, iso3, wdpaid, group, status_yr, year_funding_first, year_funding_all, year, var, fc_ha))
+#   
+#   df_unmatched_long = s3read_using(data.table::fread,
+#                                  object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("unmatched_long", "_", iso, "_", wdpaid, ext_input)),
+#                                  bucket = "projet-afd-eva-ap",
+#                                  opts = list("region" = "")) %>%
+#     select(c(region, iso3, wdpaid, group, assetid, status_yr, year_funding_first, year_funding_all, year, res_m, var, fc_ha))
+#     #select(c(region, country_en, iso3, wdpaid, group, status_yr, year_funding_first, year_funding_all, year, var, fc_ha))
+#   
+#   return(list("df_matched_wide" = df_matched_wide, "df_unmatched_wide" = df_unmatched_wide,
+#               "df_matched_long" = df_matched_long, "df_unmatched_long" = df_unmatched_long))
+# 
+# }
 
 
 #Compute the treatment effect for a given PA
@@ -62,7 +62,7 @@ fn_did_load_df = function(iso, wdpaid, load_dir, ext_input)
 ## OUTPUTS
 ### None
 
-fn_did_att = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_dir)
+fn_did_att = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_input, save_dir)
 {
   
   if(is_m == TRUE)
@@ -495,7 +495,186 @@ fn_did_att = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_dir)
   
   
   
+#Plot the forest cover loss relative to 2000 in treated and control, before and after matching
+##INPUTS
+###
+##OUTPUTS
+###
+
+fn_plot_forest_loss = function(iso, wdpaid, data_pa, load_dir, ext_input, save_dir)
+{
   
+  #Loading matched and unmatched data frames
+  df_long_m_raw = s3read_using(data.table::fread,
+                               object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("matched_long", "_", iso, "_", wdpaid, ext_input)),
+                               bucket = "projet-afd-eva-ap",
+                               opts = list("region" = "")) %>%
+    select(c(region, iso3, wdpaid, group, assetid, status_yr, year_funding_first, year_funding_all, res_m, year, var, fc_ha))
+  
+  df_long_unm_raw = s3read_using(data.table::fread,
+                             object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("unmatched_long", "_", iso, "_", wdpaid, ext_input)),
+                             bucket = "projet-afd-eva-ap",
+                             opts = list("region" = "")) %>%
+    select(c(region, iso3, wdpaid, group, assetid, status_yr, year_funding_first, year_funding_all, year, res_m, var, fc_ha))
+  
+  wdpa_id = wdpaid
+  #Extract relevant information
+  ##Spatial resolution of pixels res_m and define pixel area in ha
+  res_m = unique(df_long_m_raw$res_m)
+  res_ha = res_m^2*1e-4
+  
+  ##treatment year
+  treatment.year = df_long_m_raw %>% 
+    filter(group == 2) %>% 
+    slice(1)
+  treatment.year = treatment.year$status_yr
+  
+  ##funding years
+  funding.years = df_long_m_raw %>% 
+    filter(group == 2) %>% 
+    slice(1)
+  funding.years = funding.years$year_funding_first
+  #funding.years = as.numeric(unlist(strsplit(funding.years$year_funding_all, split = ",")))
+  
+  ##country name
+  # country.name = df_long_m_raw %>% 
+  # filter(group == 2) %>% 
+  #   slice(1)
+  # country.name = country.name$country_en
+  
+  ##country iso
+  country.iso = df_long_m_raw %>% 
+    filter(group == 2) %>% 
+    slice(1)
+  country.iso = country.iso$iso3
+  
+  ##region name
+  region.name = df_long_m_raw %>% 
+    filter(group == 2) %>% 
+    slice(1)
+  region.name = region.name$region
+  
+  ##Area of the PA
+  area_ha = data_pa[data_pa$wdpaid == wdpa_id,]$area_km2*100
+  
+
+  
+  #Forest cover loss is computed for each pixel relative to 2000, then average forest cover evolution and loss is computed for treated and controls
+  df_long_m = df_long_m_raw %>%
+    #Compute forest loss relative to 2000 in ha for each pixel
+    group_by(assetid) %>%
+    mutate(fc_rel00_ha = fc_ha - fc_ha[year == 2000],
+           .after = "fc_ha") %>%
+    ungroup() %>%
+    #Compute average forest cover and forest cover loss relative to 2000 for each group, year
+    group_by(group, year) %>%
+    summarise(n= n(),
+              fc_ha = mean(fc_ha, na.rm = TRUE),
+              fc_rel00_ha = mean(fc_rel00_ha, na.rm = TRUE),
+              matched = T) %>%
+    #Compute total forest cover and forest loss relative to 2000, knowing area of the PA and average forest share in a pixel in 2000
+    #CI are computed at 95% confidence level
+    ungroup() %>%
+    mutate(per_fc_2000_avg = min(fc_ha[year == 2000]/res_ha, 1),
+           fc_tot_ha = fc_ha*(area_ha*per_fc_2000_avg/res_ha),
+           fc_tot_rel00_ha = fc_rel00_ha*(area_ha*per_fc_2000_avg/res_ha),
+           fc_tot_ha_ci =  qt(0.975,df=n-1)*sd(fc_tot_ha, na.rm = TRUE)/sqrt(n),
+           fc_tot_rel00_ha_ci = qt(0.975,df=n-1)*sd(fc_tot_rel00_ha, na.rm = TRUE)/sqrt(n))
+  
+df_long_unm = df_long_unm_raw %>%
+  #Compute forest loss relative to 2000 in ha for each pixel
+  group_by(assetid) %>%
+  mutate(fc_rel00_ha = fc_ha - fc_ha[year == 2000],
+         .after = "fc_ha") %>%
+  ungroup() %>%
+  #Compute average forest cover and forest cover loss relative to 2000 for each group, year
+  group_by(group, year) %>%
+  summarise(n= n(),
+            fc_ha = mean(fc_ha, na.rm = TRUE),
+            fc_rel00_ha = mean(fc_rel00_ha, na.rm = TRUE),
+            matched = F) %>%
+  #Compute total forest cover and forest loss relative to 2000, knowing area of the PA and average forest share in a pixel in 2000
+  #CI are computed at 95% confidence level
+  ungroup() %>%
+  mutate(per_fc_2000_avg = min(fc_ha[year == 2000]/res_ha, 1),
+         fc_tot_ha = fc_ha*(area_ha*per_fc_2000_avg/res_ha),
+         fc_tot_rel00_ha = fc_rel00_ha*(area_ha*per_fc_2000_avg/res_ha),
+         fc_tot_ha_ci =  qt(0.975,df=n-1)*sd(fc_tot_ha, na.rm = TRUE)/sqrt(n),
+         fc_tot_rel00_ha_ci = qt(0.975,df=n-1)*sd(fc_tot_rel00_ha, na.rm = TRUE)/sqrt(n))
+  
+  
+  #Define plotting dataset
+  df_plot = rbind(df_long_m, df_long_unm) %>%
+    mutate(group = case_when(group == 1 ~"Control",
+                             group == 2 ~"Treated"))
+  
+
+  #The period where deforestation is plotted
+  year.max = max(df_long_m$year)
+  
+  #Plot
+  
+  fct.labs <- c("Before Matching", "After Matching")
+  names(fct.labs) <- c(FALSE, TRUE)
+  
+  
+  fig = ggplot(data = filter(df_plot, year == year.max),
+               aes(y = abs(fc_tot_rel00_ha), fill = as.factor(group), x = group)) %>%
+    + geom_bar(position =  position_dodge(width = 0.8), stat = "identity", show.legend = FALSE) %>% 
+    + geom_label(aes(label = format(round(abs(fc_tot_rel00_ha), 0), big.mark = ","), y = abs(fc_tot_rel00_ha)), 
+                       color = "black",
+                 show.legend = FALSE) %>%
+    + scale_fill_brewer(name = "Group", palette = "Blues") %>%
+    + labs(x = "",
+           y = "Forest cover loss (ha)",
+           title = paste("Average area deforested between 2000 and", year.max),
+           subtitle = paste("WDPA ID", wdpaid, "in", country.iso, "implemented in", treatment.year, "and covering", format(area_ha, digits = 2, big.mark = ","), "ha"),) %>%
+    + facet_wrap(~matched,
+                 labeller = labeller(matched = fct.labs))  %>%
+     + theme_minimal() %>%
+    + theme(
+      axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
+      axis.text=element_text(size=11, color = "black"),
+      axis.title=element_text(size=14, color = "black", face = "plain"),
+
+      plot.caption = element_text(hjust = 0),
+      plot.title = element_text(size=16, color = "black", face = "plain", hjust = 0),
+      plot.subtitle = element_text(size=12, color = "black", face = "plain", hjust = 0),
+
+      strip.text = element_text(color = "black", size = 12),
+
+      #legend.position = "bottom",
+      #legend.title = element_blank(),
+      legend.text=element_text(size=10),
+      #legend.spacing.x = unit(1.0, 'cm'),
+      legend.spacing.y = unit(0.75, 'cm'),
+      legend.key.size = unit(2, 'line'),
+
+      panel.grid.major.x = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.x = element_line(color = 'grey80', linewidth = 0.2, linetype = 2),
+      panel.grid.major.y = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
+    )
+
+  ##Saving plots
+  tmp = paste(tempdir(), "fig", sep = "/")
+  
+  ggsave(paste(tmp, paste0("fig_fl_2000_", year.max, "_m_unm_", iso, "_", wdpaid, ".png"), sep = "/"),
+         plot = fig,
+         device = "png",
+         height = 6, width = 9)
+  
+  files <- list.files(tmp, full.names = TRUE)
+  ##Add each file in the bucket (same foler for every file in the temp)
+  for(f in files) 
+  {
+    cat("Uploading file", paste0("'", f, "'"), "\n")
+    aws.s3::put_object(file = f, 
+                       bucket = paste("projet-afd-eva-ap", save_dir, iso, wdpaid, sep = "/"),
+                       region = "", show_progress = TRUE)
+  }
+  do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+}
   
   
   
