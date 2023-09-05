@@ -1448,7 +1448,7 @@ fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpa
 ## OUTPUTS : 
 ### None
 
-fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log, save_dir) 
+fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wdpaid, log, save_dir) 
 {
   
   output = tryCatch(
@@ -1458,6 +1458,9 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
       #Extract spatial resolution of pixels res_m and define pixel area in ha
       res_m = unique(mf$res_m)
       res_ha = res_m^2*1e-4
+      
+      #Extract number of pixels in the PA
+      n_pix_pa = length(unique(filter(unmatched.long, group == 2)$assetid))
         
       #Extract treatment year
       treatment.year = mf %>% 
@@ -1478,30 +1481,33 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
         slice(1)
       country.name = country.name$country_en
       
+      ##Area of the PA
+      wdpa_id = wdpaid #Need to give a name to wdpaid (function argument) different from the varaible in the dataset (wdpaid)
+      area_ha = data_pa[data_pa$wdpaid == wdpa_id,]$area_km2*100
+      
      #Open a multisession for dataframe computations
       plan(multisession, gc = TRUE, workers = 6)
       with_progress({
  
   # Make dataframe for plotting Trend
-  df.matched.trend  %<-% { matched.long %>%
+  df.matched.trend  %<-% {matched.long %>%
     #First, compute deforestation relative to 2000 for each pixel (deforestation as computed in Wolf et al. 2021)
     group_by(assetid) %>%
-    mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100,
-           fper = fc_ha/res_ha*100) %>%
+    mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100) %>%
     ungroup() %>%
     #Then compute the average forest cover and deforestation in each year, for treated and control groups
     #Standard deviation and 95% confidence interval is also computed for each variable
     group_by(group, year) %>%
     summarise(n = n(),
-              avgFC = mean(fc_ha, na.rm=TRUE),
+              avgFC = mean(fc_ha, na.rm=TRUE), #Compute average forest cover in a pixel, its sd and ci
               sdFC = sd(fc_ha, na.rm = TRUE),
               ciFC_low = avgFC - qt(0.975,df=n-1)*sdFC/sqrt(n),
               ciFC_up = avgFC + qt(0.975,df=n-1)*sdFC/sqrt(n),
-              avgFCper = mean(fper, na.rm=TRUE),
-              sdFCper = sd(fper, na.rm = TRUE),
-              ciFCper_low = avgFCper - qt(0.975,df=n-1)*sdFCper/sqrt(n),
-              ciFCper_up = avgFCper + qt(0.975,df=n-1)*sdFCper/sqrt(n),
-              avgFL_2000_cum = mean(FL_2000_cum, na.rm = TRUE),
+              avgFC_tot = n_pix_pa*mean(fc_ha, na.rm=TRUE), #Compute total average forest cover, sd and CI
+              sdFC_tot = n_pix_pa*sdFC,
+              ciFC_tot_low = avgFC_tot - qt(0.975,df=n-1)*sdFC_tot/sqrt(n),
+              ciFC_tot_up = avgFC_tot + qt(0.975,df=n-1)*sdFC_tot/sqrt(n),
+              avgFL_2000_cum = mean(FL_2000_cum, na.rm = TRUE), #Compute average forest loss relative to 2000 (Wolf et al 2021), sd and CI
               sdFL_2000_cum = sd(FL_2000_cum, na.rm = TRUE),
               ciFL_low = avgFL_2000_cum - qt(0.975,df=n-1)*sdFL_2000_cum/sqrt(n),
               ciFL_up = avgFL_2000_cum + qt(0.975,df=n-1)*sdFL_2000_cum/sqrt(n),
@@ -1509,29 +1515,29 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
     ungroup() %>%
     st_drop_geometry() }
   
-  df.unmatched.trend  %<-% { unmatched.long %>%
-    #First, compute deforestation relative to 2000 for each pixel (deforestation as computed in Wolf et al. 2021)
-    #Compute share of forest in the given pixel by dividing by pixel area in ha (!)
-    mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100,
-           fper = fc_ha/res_ha*100) %>%
-    ungroup() %>%
+  df.unmatched.trend  %<-% {unmatched.long %>%
+      #First, compute deforestation relative to 2000 for each pixel (deforestation as computed in Wolf et al. 2021); compute percentage of forest cover in the pixel in 2000
+      group_by(assetid) %>%
+      mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100) %>%
+      ungroup() %>% #Compute average percentage of FC in a pixel in 2000, for each group. Compute also standard deviation
     #Then compute the average forest cover, average forest cover percentage, and deforestation in each year, for treated and control groups
     #Standard deviation and 95% confidence interval is also computed for each variable
     group_by(group, year) %>%
     summarise(n = n(),
-              avgFC = mean(fc_ha, na.rm=TRUE),
+              avgFC = mean(fc_ha, na.rm=TRUE), #Compute average forest cover in a pixel, its sd and ci
               sdFC = sd(fc_ha, na.rm = TRUE),
               ciFC_low = avgFC - qt(0.975,df=n-1)*sdFC/sqrt(n),
               ciFC_up = avgFC + qt(0.975,df=n-1)*sdFC/sqrt(n),
-              avgFCper = mean(fper, na.rm=TRUE),
-              sdFCper = sd(fper, na.rm = TRUE),
-              ciFCper_low = avgFCper - qt(0.975,df=n-1)*sdFCper/sqrt(n),
-              ciFCper_up = avgFCper + qt(0.975,df=n-1)*sdFCper/sqrt(n),
-              avgFL_2000_cum = mean(FL_2000_cum, na.rm = TRUE),
+              avgFC_tot = n_pix_pa*mean(fc_ha, na.rm=TRUE), #Compute total average forest cover, sd and CI
+              sdFC_tot = n_pix_pa*sdFC,
+              ciFC_tot_low = avgFC_tot - qt(0.975,df=n-1)*sdFC_tot/sqrt(n),
+              ciFC_tot_up = avgFC_tot + qt(0.975,df=n-1)*sdFC_tot/sqrt(n),
+              avgFL_2000_cum = mean(FL_2000_cum, na.rm = TRUE), #Compute average forest loss relative to 2000 (Wolf et al 2021), sd and CI
               sdFL_2000_cum = sd(FL_2000_cum, na.rm = TRUE),
               ciFL_low = avgFL_2000_cum - qt(0.975,df=n-1)*sdFL_2000_cum/sqrt(n),
               ciFL_up = avgFL_2000_cum + qt(0.975,df=n-1)*sdFL_2000_cum/sqrt(n),
               matched = FALSE) %>%
+      #Compute total forest cover loss, knowing area of the PA and average forest cover in 2000 in treated pixels
     ungroup() %>%
     st_drop_geometry() }
   
@@ -1549,8 +1555,8 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
   names(fct.labs) <- c(FALSE, TRUE)
   
   ## Trend Plot for unmatched data
-  ### Average forest cover
-  fig_trend_unm_fc = ggplot(data = df.trend, aes(x = year, y = avgFC)) +
+  ### Average forest cover in a pixel
+  fig_trend_unm_fc_pix = ggplot(data = df.trend, aes(x = year, y = avgFC)) +
     geom_line(aes(group = group, color = as.character(group))) +
     geom_point(aes(color = as.character(group))) +
     geom_ribbon(aes(ymin = ciFC_low, ymax = ciFC_up, group = group, fill = as.character(group)), alpha = .1, show.legend = FALSE) +
@@ -1560,9 +1566,9 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
     scale_color_hue(labels = c("Control", "Treatment")) +
     facet_wrap(matched~., ncol = 2, #scales = 'free_x',
                labeller = labeller(matched = fct.labs)) +
-    labs(title = "Evolution of forest cover",
+    labs(title = "Evolution of forest cover in a pixel (unmatched units)",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-         caption = "Ribbons represent 95% confidence intervals.",
+         caption = paste("Ribbons represent 95% confidence intervals.\nThe protected area has a surface of", area_ha, "ha and pixels have a resolution of", res_ha, "ha."),
          x = "Year", y = "Average forest cover (ha)", color = "Group") +
     theme_bw() +
     theme(
@@ -1589,20 +1595,20 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
       ) +
     guides(size = guide_legend(override.aes = list(color = c("grey30", "orange")))) # Add legend for geom_vline
   
-  ### Average forest share
-  fig_trend_unm_fper = ggplot(data = df.trend, aes(x = year, y = avgFCper)) +
+  ### Total forest cover
+  fig_trend_unm_fc_tot = ggplot(data = df.trend, aes(x = year, y = avgFC_tot)) +
     geom_line(aes(group = group, color = as.character(group))) +
     geom_point(aes(color = as.character(group))) +
-    geom_ribbon(aes(ymin = ciFCper_low, ymax = ciFCper_up, group = group, fill = as.character(group)), alpha = .1, show.legend = FALSE) +
+    geom_ribbon(aes(ymin = ciFC_tot_low, ymax = ciFC_tot_up, group = group, fill = as.character(group)), alpha = .1, show.legend = FALSE) +
     geom_vline(aes(xintercept=as.character(treatment.year), size="Treatment year"), linetype=1, linewidth=0.5, color="orange") +
     geom_vline(aes(xintercept=as.character(funding.years), size="Funding year"), linetype=2, linewidth=0.5, color="grey30") +
     scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) +
     scale_color_hue(labels = c("Control", "Treatment")) +
     facet_wrap(matched~., ncol = 2, #scales = 'free_x',
                labeller = labeller(matched = fct.labs)) +
-    labs(title = "Evolution of forest share",
+    labs(title = "Evolution of total forest cover (unmatched units)",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-         caption = "Ribbons represent 95% confidence intervals.",
+         caption = paste("Ribbons represent 95% confidence intervals. The protected area has a surface of", format(area_ha, big.mark = ","), "ha.\nTotal forest cover is extrapolated from average pixel forest cover, multiplied by the number of pixel in the protected area."),
          x = "Year", y = "Average forest cover (%)", color = "Group") +
     theme_bw() +
     theme(
@@ -1640,9 +1646,9 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
     scale_color_hue(labels = c("Control", "Treatment")) +
     facet_wrap(matched~., ncol = 2, #scales = 'free_x',
                labeller = labeller(matched = fct.labs)) +
-    labs(title = "Cumulated deforestation relative to 2000",
+    labs(title = "Cumulated deforestation relative to 2000 (unmatched units)",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-         caption = "Ribbons represent 95% confidence intervals.",
+         caption = paste("Ribbons represent 95% confidence intervals. The protected area has a surface of", format(area_ha, big.mark = ","), "ha."),
          x = "Year", y = "Forest loss relative to 2000 (%)", color = "Group") +
     theme_bw() +
     theme(
@@ -1671,21 +1677,18 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
   
   
   # Trend Plot for matched data
-  ## Average forest cover
-  fig_trend_m_fc = ggplot(df.matched.trend, aes(x = year, y = avgFC)) +
+  ### Average forest cover in a pixel
+  fig_trend_m_fc_pix = ggplot(data = df.matched.trend, aes(x = year, y = avgFC)) +
     geom_line(aes(group = group, color = as.character(group))) +
     geom_point(aes(color = as.character(group))) +
     geom_ribbon(aes(ymin = ciFC_low, ymax = ciFC_up, group = group, fill = as.character(group)), alpha = .1, show.legend = FALSE) +
     geom_vline(aes(xintercept=as.character(treatment.year), size="Treatment year"), linetype=1, linewidth=0.5, color="orange") +
-    geom_vline(aes(xintercept=as.character(funding.years), size="Funding year(s)"), linetype=2, linewidth=0.5, color="grey30") +
-    #scale_y_continuous(breaks=seq(0,100,10), labels=paste(seq(0,100,10)),
-    #                   expand=c(0,0), limits=c(0,100)) +
-    scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) +
+    geom_vline(aes(xintercept=as.character(funding.years), size="Funding year"), linetype=2, linewidth=0.5, color="grey30") +
+    scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) + 
     scale_color_hue(labels = c("Control", "Treatment")) +
-    
-    labs(title = "Evolution of forest cover, matched units",
-         subtitle = paste0("Protected area in ", country.name, ", WDPA ID ", wdpaid),
-         caption = "Ribbons represent 95% confidence intervals.",
+    labs(title = "Evolution of forest cover in a pixel (matched units)",
+         subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+         caption = paste("Ribbons represent 95% confidence intervals.\nThe protected area has a surface of", area_ha, "ha and pixels have a resolution of", res_ha, "ha."),
          x = "Year", y = "Average forest cover (ha)", color = "Group") +
     theme_bw() +
     theme(
@@ -1702,29 +1705,28 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
       legend.spacing.y = unit(0.75, 'cm'),
       legend.key.size = unit(2, 'line'),
       
+      
       panel.grid.major.x = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
       panel.grid.minor.x = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
       panel.grid.major.y = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
       panel.grid.minor.y = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
       
-    ) + 
+      strip.text.x = element_text(size = 12) # Facet Label
+    ) +
     guides(size = guide_legend(override.aes = list(color = c("grey30", "orange")))) # Add legend for geom_vline
   
-  ## Average Forest share
-  fig_trend_m_fper = ggplot(df.matched.trend, aes(x = year, y = avgFC)) +
+  ### Total forest cover
+  fig_trend_m_fc_tot = ggplot(data = df.matched.trend, aes(x = year, y = avgFC_tot)) +
     geom_line(aes(group = group, color = as.character(group))) +
     geom_point(aes(color = as.character(group))) +
-    geom_ribbon(aes(ymin = ciFC_low, ymax = ciFC_up, group = group, fill = as.character(group)), alpha = .1, show.legend = FALSE) +
+    geom_ribbon(aes(ymin = ciFC_tot_low, ymax = ciFC_tot_up, group = group, fill = as.character(group)), alpha = .1, show.legend = FALSE) +
     geom_vline(aes(xintercept=as.character(treatment.year), size="Treatment year"), linetype=1, linewidth=0.5, color="orange") +
-    geom_vline(aes(xintercept=as.character(funding.years), size="Funding year(s)"), linetype=2, linewidth=0.5, color="grey30") +
-    #scale_y_continuous(breaks=seq(0,100,10), labels=paste(seq(0,100,10)),
-    #                   expand=c(0,0), limits=c(0,100)) +
+    geom_vline(aes(xintercept=as.character(funding.years), size="Funding year"), linetype=2, linewidth=0.5, color="grey30") +
     scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) +
     scale_color_hue(labels = c("Control", "Treatment")) +
-    
-    labs(title = "Evolution of forest share, matched units",
-         subtitle = paste0("Protected area in ", country.name, ", WDPA ID ", wdpaid),
-         caption = "Ribbons represent 95% confidence intervals.",
+    labs(title = "Evolution of total forest cover (matched units)",
+         subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+         caption = paste("Ribbons represent 95% confidence intervals. The protected area has a surface of", format(area_ha, big.mark = ","), "ha.\nTotal forest cover is extrapolated from average pixel forest cover, multiplied by the number of pixel in the protected area."),
          x = "Year", y = "Average forest cover (%)", color = "Group") +
     theme_bw() +
     theme(
@@ -1741,28 +1743,28 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
       legend.spacing.y = unit(0.75, 'cm'),
       legend.key.size = unit(2, 'line'),
       
+      
       panel.grid.major.x = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
       panel.grid.minor.x = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
       panel.grid.major.y = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
       panel.grid.minor.y = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
       
-    ) + 
+      strip.text.x = element_text(size = 12) # Facet Label
+    ) +
     guides(size = guide_legend(override.aes = list(color = c("grey30", "orange")))) # Add legend for geom_vline
   
   ### Cumulative deforestation relative to 2000
-  fig_trend_m_defo = ggplot(df.matched.trend, aes(x = year, y = avgFL_2000_cum)) +
+  fig_trend_m_defo = ggplot(data = df.matched.trend, aes(x = year, y = avgFL_2000_cum)) +
     geom_line(aes(group = group, color = as.character(group))) +
     geom_point(aes(color = as.character(group))) +
     geom_ribbon(aes(ymin = ciFL_low, ymax = ciFL_up, group = group, fill = as.character(group)), alpha = .1, show.legend = FALSE) +
     geom_vline(aes(xintercept=as.character(treatment.year), size="Treatment year"), linetype=1, linewidth=0.5, color="orange") +
-    geom_vline(aes(xintercept=as.character(funding.years), size="Funding year(s)"), linetype=2, linewidth=0.5, color="grey30") +
-    #scale_y_continuous(breaks=seq(0,100,10), labels=paste(seq(0,100,10)),
-    #                   expand=c(0,0), limits=c(0,100)) +
+    geom_vline(aes(xintercept=as.character(funding.years), size="Funding year"), linetype=2, linewidth=0.5, color="grey30") +
     scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) +
     scale_color_hue(labels = c("Control", "Treatment")) +
-    labs(title = "Cumulated deforestation relative to 2000, matched units",
+    labs(title = "Cumulated deforestation relative to 2000 (matched units)",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-         caption = "Ribbons represent 95% confidence intervals.",
+         caption = paste("Ribbons represent 95% confidence intervals. The protected area has a surface of", format(area_ha, big.mark = ","), "ha."),
          x = "Year", y = "Forest loss relative to 2000 (%)", color = "Group") +
     theme_bw() +
     theme(
@@ -1779,32 +1781,34 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, iso, wdpaid, log
       legend.spacing.y = unit(0.75, 'cm'),
       legend.key.size = unit(2, 'line'),
       
+      
       panel.grid.major.x = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
       panel.grid.minor.x = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
       panel.grid.major.y = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
       panel.grid.minor.y = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
       
-    ) + 
+      strip.text.x = element_text(size = 12) # Facet Label
+    ) +
     guides(size = guide_legend(override.aes = list(color = c("grey30", "orange")))) # Add legend for geom_vline
   
   ##Saving plots
   tmp = paste(tempdir(), "fig", sep = "/")
   
   ggsave(paste(tmp, paste0("fig_trend_unmatched_avgFC_", iso, "_", wdpaid, ".png"), sep = "/"),
-         plot = fig_trend_unm_fc,
+         plot = fig_trend_unm_fc_pix,
          device = "png",
          height = 6, width = 9)
   ggsave(paste(tmp, paste0("fig_trend_matched_avgFC_", iso, "_", wdpaid, ".png"), sep = "/"),
-         plot = fig_trend_m_fc,
+         plot = fig_trend_m_fc_pix,
          device = "png",
          height = 6, width = 9)
   
-  ggsave(paste(tmp, paste0("fig_trend_unmatched_avgFCper_", iso, "_", wdpaid, ".png"), sep = "/"),
-         plot = fig_trend_unm_fper,
+  ggsave(paste(tmp, paste0("fig_trend_unmatched_avgFC_tot_", iso, "_", wdpaid, ".png"), sep = "/"),
+         plot = fig_trend_unm_fc_tot,
          device = "png",
          height = 6, width = 9)
-  ggsave(paste(tmp, paste0("fig_trend_matched_avgFCper_", iso, "_", wdpaid, ".png"), sep = "/"),
-         plot = fig_trend_m_fper,
+  ggsave(paste(tmp, paste0("fig_trend_matched_avgFC_tot_", iso, "_", wdpaid, ".png"), sep = "/"),
+         plot = fig_trend_m_fc_tot,
          device = "png",
          height = 6, width = 9)
   

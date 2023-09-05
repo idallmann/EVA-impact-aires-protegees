@@ -129,8 +129,7 @@ data_pa =
 
 #List of countries in the sample
 list_iso_africa = unique(data_pa[data_pa$region == "Africa", iso3])
-#list_iso = list_iso_africa[1:8]
-list_iso = c("TZA", "GAB")
+list_iso = list_iso_africa[c(1:13, 15:22, 24)] #All ISO except GAB and ZZ
 #list_iso = list_iso_africa[15:24]
 # list_iso = list_iso_africa[16:24]
 
@@ -181,8 +180,8 @@ tic_pre = tic() #Start timer
 
 #Create a log to track progress
 log = fn_pre_log(list_iso,
-                 name = paste0("log-", Sys.Date(), "-Africa-full-2.txt"),
-                 notes = "Second part of Africa analysis")
+                 name = paste0("log-", Sys.Date(), "-.txt"),
+                 notes = "")
 
 for (i in list_iso)            
 {
@@ -407,6 +406,7 @@ for (i in list_iso)
     output_trend = fn_post_plot_trend(matched.long = matched.long.j, 
                        unmatched.long = unmatched.long.j, 
                        mf = mf_j,
+                       data_pa = data_pa,
                        iso = i,
                        wdpaid = j,
                        log = log,
