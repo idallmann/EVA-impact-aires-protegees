@@ -204,7 +204,8 @@ fn_did_att = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_input, sa
     group_by(assetid) %>%
     # mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100,
     #        fc_2000 = fc_ha[year == 2000]) %>%
-    mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100) %>%
+    mutate(FL_2000_cum = case_when(fc_ha[year == 2000] > 0 ~ (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100, 
+                                   TRUE ~ NA)) %>%
     ungroup()
   
 
@@ -264,7 +265,7 @@ fn_did_att = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_input, sa
                            "year" = fc_attgt$t,
                            "att_pix" = fc_attgt$att,
                            "c" = fc_attgt$c,
-                           "se" = fc_attgt$se,
+                           "se" = fc_attgt$se,  
                            "n" = fc_attgt$n) %>%
     #Compute ATT at PA level and in share of pixel area
     ## att_pa : the total avoided deforestation is the avoided deforestation in ha in a given pixel, multiplied by the number of pixel in the PA.
@@ -282,8 +283,8 @@ fn_did_att = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_input, sa
            cband_lower_per = cband_lower_pix/(res_ha*n_pix_pa)*100,
            cband_upper_per = cband_upper_pix/(res_ha*n_pix_pa)*100,
            sig = sign(cband_lower_pix) == sign(cband_upper_pix),
-           sig_5 = sig[time == 5] == TRUE,
-           sig_10 = sig[time == 10] == TRUE,
+           sig_5 = ifelse(max(time) >=5, yes = sig[time == 5] == TRUE, no = NA),
+           sig_10 = ifelse(max(time) >= 10, yes = sig[time == 10] == TRUE, no = NA),
            sig_end = sig[time == max(time)] == TRUE) %>%
     #Rename confidence interval variables to indicate its level from alpha argument
     rename_with(.cols = c(cband_lower_pix, cband_lower_pa, cband_lower_per, cband_upper_pix, cband_upper_pa, cband_upper_per, sig),
@@ -303,8 +304,8 @@ fn_did_att = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_input, sa
     mutate(cband_lower = round(att-c*se, 4),
            cband_upper = round(att+c*se, 4),
            sig = sign(cband_lower_pix) == sign(cband_upper_pix),
-           sig_5 = sig[time == 5] == TRUE,
-           sig_10 = sig[time == 10] == TRUE,
+           sig_5 = ifelse(max(time) >=5, yes = sig[time == 5] == TRUE, no = NA),
+           sig_10 = ifelse(max(time) >= 10, yes = sig[time == 10] == TRUE, no = NA),
            sig_end = sig[time == max(time)] == TRUE) %>%
     rename_with(.cols = c(cband_lower, cband_upper, sig),
                 .fn = \(x) paste0(x, "_", gsub("0.", "", 1-alpha))) %>%
