@@ -31,7 +31,7 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 ```
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
-install.packages(c("stargazer", "janitor", "questionr", "countrycode"))
+install.packages(c("stargazer", "janitor", "questionr", "countrycode", "WDI"))
 library(tidyverse)
 library(stargazer)
 library(dplyr)
@@ -47,6 +47,7 @@ library(janitor)
 library(xtable)
 library(questionr)
 library(aws.s3)
+library(WDI)
 ```
 
 ## Importing datasets
@@ -135,6 +136,18 @@ pa_int_yr =
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
 
+#To perform statistics on the distribution of PAs reported by the WDPA across countries/regions, we focus on not high-income countries.
+#Precisely, we restrict to countries defined as low-income, lower middle-income, upper-middle income, minus Russia, and including Chile, Uruguay New Caledonia and Panama
+df_ctry_stat_wdpa = WDI(country = "all", start = "1960", end = "2022", extra = TRUE, language = "en") %>%
+  group_by(iso3c) %>%
+  slice(1) %>%
+  ungroup() %>%
+  select(c("iso3c", "income")) %>%
+  rename("iso3" = "iso3c",
+         "wb_inc_grp" = "income") %>%
+  filter((wb_inc_grp %in% c("Low income",  "Lower middle income", "Upper middle income") & iso3 != "RUS") | iso3 %in% c("CHL", "URY", "PAN", "NCL"))
+
+lst_ctry_stat_wdpa = df_ctry_stat_wdpa$iso3
 ```
 
 ## Performing descriptive statistics
@@ -2192,9 +2205,12 @@ data_distrib_ctry_afd_top_area = data_distrib_ctry_afd %>%
   slice(1:10)
 
 #For WDPA PAs
-## All countries
+## All countries in the list of interest
 data_distrib_ctry_wdpa = data_wdpa %>%
+  #Non-marine areas only
   filter(marine %in% c(0,1)) %>%
+  #Countries of interest only
+  filter(iso3 %in% lst_ctry_stat_wdpa) %>%
   group_by(iso3, country_en) %>%
   summarize(n_wdpa = n(),
             area_km2_wdpa = sum(rep_area, na.rm = TRUE)) %>%
@@ -2234,10 +2250,10 @@ hist_distrib_ctry_wdpa_top_n = ggplot(data_distrib_ctry_wdpa_top_n,
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
 + labs(title = "Top countries of non-marine protected areas (#)",
        subtitle = paste("Sample :", min(data_distrib_ctry_wdpa$n_tot_wdpa), "non-marine protected areas reported by the WDPA, covering", format(min(data_distrib_ctry_wdpa$area_km2_wdpa_tot), scientific = TRUE, digits = 2), "km²"),
-       caption = "Note : we consider non-marine PAs reported by the WDPA on the full period covered by the data.\nA subset of it is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
+       caption = "Note : we consider non-marine PAs reported by the WDPA on the full period covered by the data, in countries that are potential AFD partners.\nThese are low-, lower-middle, upper-middle countries according to the World Bank 2022 classification, \nexcluding Russia and including Uruguay, Panama, Chile, New Caledonia.\nA subset of these PAs is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
          x = "",
          y = "Share of protected areas (%)") %>%
-+ scale_fill_brewer(name = "", labels = c("AFD funded", "All"),
++ scale_fill_brewer(name = "", labels = c("AFD funded", "Low- to upper-middle income*"),
                     type = "seq", palette = "Blues") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
@@ -2256,10 +2272,10 @@ hist_distrib_ctry_wdpa_top_area = ggplot(data_distrib_ctry_wdpa_top_area,
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
 + labs(title = "Top countries of non-marine protected areas (area)",
        subtitle = paste("Sample :", min(data_distrib_ctry_wdpa$n_tot_wdpa), "non-marine protected areas reported by the WDPA, covering", format(min(data_distrib_ctry_wdpa$area_km2_wdpa_tot), scientific = TRUE, digits = 2), "km²"),
-       caption = "Note : we consider non-marine PAs reported by the WDPA on the full period covered by the data.",
+       caption = "Note : we consider non-marine PAs reported by the WDPA on the full period covered by the data, in countries that are potential AFD partners.\nThese are low-, lower-middle, upper-middle countries according to the World Bank 2022 classification, \nexcluding Russia and including Uruguay, Panama, Chile, New Caledonia.",
          x = "",
          y = "Share of protected areas (%)") %>%
-+ scale_fill_brewer(name = "", labels = c("AFD funded", "All"),
++ scale_fill_brewer(name = "", labels = c("AFD funded", "Low- to upper-middle income*"),
                     type = "seq", palette = "Blues") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
@@ -2280,10 +2296,10 @@ hist_distrib_ctry_afd_top_n = ggplot(data_distrib_ctry_afd_top_n,
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
 + labs(title = "Top countries of AFD funded, non-marine protected areas (#)",
        subtitle = paste("Sample :", min(data_distrib_ctry_afd$n_tot_afd), "non-marine protected areas reported by the WDPA, covering", format(min(data_distrib_ctry_afd$area_km2_afd_tot), scientific = TRUE, digits = 2), "km²"),
-       caption = "Note : we consider non-marine PAs reported by the WDPA on the full period covered by the data.\nA subset of it is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
+      caption = "Note : we consider non-marine PAs reported by the WDPA on the full period covered by the data, in countries that are potential AFD partners.\nThese are low-, lower-middle, upper-middle countries according to the World Bank 2022 classification, \nexcluding Russia and including Uruguay, Panama, Chile, New Caledonia.\nA subset of these PAs is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
          x = "",
          y = "Share of protected areas (%)") %>%
-+ scale_fill_brewer(name = "", labels = c("AFD funded", "All"),
++ scale_fill_brewer(name = "", labels = c("AFD funded", "Low- to upper-middle income*"),
                     type = "seq", palette = "Blues") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
@@ -2302,10 +2318,10 @@ hist_distrib_ctry_afd_top_area = ggplot(data_distrib_ctry_afd_top_area,
 + geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
 + labs(title = "Top countries of AFD funded, non-marine protected areas (area)",
        subtitle = paste("Sample :", min(data_distrib_ctry_afd$n_tot_afd), "non-marine protected areas reported by the WDPA, covering", format(min(data_distrib_ctry_afd$area_km2_afd_tot), scientific = TRUE, digits = 2), "km²"),
-       caption = "Note : we consider non-marine PAs reported by the WDPA on the full period covered by the data.\nA subset of it is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
+       caption = "Note : we consider non-marine PAs reported by the WDPA on the full period covered by the data, in countries that are potential AFD partners.\nThese are low-, lower-middle, upper-middle countries according to the World Bank 2022 classification, \nexcluding Russia and including Uruguay, Panama, Chile, New Caledonia.\nA subset of these PAs is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
          x = "",
          y = "Share of protected areas (%)") %>%
-+ scale_fill_brewer(name = "", labels = c("AFD funded", "All"),
++ scale_fill_brewer(name = "", labels = c("AFD funded", "Low- to upper-middle income*"),
                     type = "seq", palette = "Blues") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
@@ -2326,10 +2342,10 @@ hist_distrib_ctry_vs_n = ggplot(filter(data_distrib_ctry_vs_n, grepl("freq", met
 + geom_bar(position="dodge", stat="identity", na.rm = TRUE) %>%
 + labs(title = "Top countries targeted by AFD funded non-marine protected areas (#)",
        subtitle = paste("Sample :", min(data_distrib_ctry_wdpa$n_tot_wdpa), "non-marine protected areas reported by the WDPA,",  min(data_distrib_ctry_afd$n_tot_afd), "funded by AFD"),
-       caption = "Note : we consider non-marine PAs reported by the WDPA on the full period covered by the data.\nA subset of it is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
+       caption = "Note : we consider non-marine PAs reported by the WDPA on the full period covered by the data, in countries that are potential AFD partners.\n*These are low-, lower-middle, upper-middle countries according to the World Bank 2022 classification, \nexcluding Russia and including Uruguay, Panama, Chile, New Caledonia.\nA subset of these PAs is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
          x = "",
          y = "Share of protected areas (%)") %>%
-+ scale_fill_brewer(name = "", labels = c("AFD funded", "All"),
++ scale_fill_brewer(name = "", labels = c("AFD funded", "Low- to upper-middle income*"),
                     type = "seq", palette = "Blues") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
@@ -2349,10 +2365,10 @@ hist_distrib_ctry_vs_area = ggplot(filter(data_distrib_ctry_vs_area, grepl("freq
 + geom_bar(position="dodge", stat="identity", na.rm = TRUE) %>%
 + labs(title = "Top countries targeted by AFD funded non-marine protected areas (area)",
        subtitle = paste("Sample :", min(data_distrib_ctry_wdpa$n_tot_wdpa), "non-marine protected areas reported by the the WDPA,",  min(data_distrib_ctry_afd$n_tot_afd), "funded by AFD"),
-       caption = "Note : we consider non-marine PAs reported by the WDPA on the full period covered by the data.",
+       caption = "Note : we consider non-marine PAs reported by the WDPA on the full period covered by the data, in countries that are potential AFD partners.\n*These are low-, lower-middle, upper-middle countries according to the World Bank 2022 classification, \nexcluding Russia and including Uruguay, Panama, Chile, New Caledonia.\nA subset of these PAs is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
          x = "",
          y = "Share of funded areas (%)") %>%
-+ scale_fill_brewer(name = "", labels = c("AFD funded", "All"),
++ scale_fill_brewer(name = "", labels = c("AFD funded", "Low- to upper-middle income*"),
                     type = "seq", palette = "Blues") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
@@ -2701,7 +2717,10 @@ data_distrib_reg_afd = data_stat_nodupl %>%
 #For WDPA PAs
 ## All countries
 data_distrib_reg_wdpa = data_wdpa %>%
+  #Non-marine areas only
   filter(marine %in% c(0,1)) %>%
+  #Countries of interest only
+  filter(iso3 %in% lst_ctry_stat_wdpa) %>%
   group_by(region) %>%
   summarize(n_wdpa = n(),
             area_km2_wdpa = sum(rep_area, na.rm = TRUE)) %>%
@@ -2734,10 +2753,10 @@ hist_distrib_reg_vs_n = ggplot(filter(data_distrib_reg_vs_n, grepl("freq", metri
 + geom_bar(position="dodge", stat="identity", na.rm = TRUE) %>%
 + labs(title = "Distribution of non-marine protected areas across regions (#)",
        subtitle = paste("Sample :", min(data_distrib_reg_wdpa$n_tot_wdpa), "non-marine protected areas reported by the WDPA,",  min(data_distrib_reg_afd$n_tot_afd), "funded by AFD"),
-       caption = "Note : we consider non-marine PAs reported by the WDPA on the full period covered by the data.\nA subset of it is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
+       caption = "Note : we consider non-marine PAs reported by the WDPA on the full period covered by the data, in countries that are potential AFD partners.\n*These are low-, lower-middle, upper-middle countries according to the World Bank 2022 classification, \nexcluding Russia and including Uruguay, Panama, Chile, New Caledonia.\nA subset of these PAs is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
          x = "",
          y = "Share of protected areas (%)") %>%
-+ scale_fill_brewer(name = "", labels = c("AFD funded", "All"),
++ scale_fill_brewer(name = "", labels = c("AFD funded", "Low- to upper-middle income*"),
                     type = "seq", palette = "Blues") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
@@ -2757,10 +2776,10 @@ hist_distrib_reg_vs_area = ggplot(filter(data_distrib_reg_vs_area, grepl("freq",
 + geom_bar(position="dodge", stat="identity", na.rm = TRUE) %>%
 + labs(title = "Distribution of non-marine protected areas across regions (area)",
        subtitle = paste("Sample :", min(data_distrib_reg_wdpa$n_tot_wdpa), "non-marine protected areas reported by the WDPA -", format(min(data_distrib_reg_wdpa$area_km2_wdpa_tot), scientific = TRUE, digits = 2), "km² - \nand",  min(data_distrib_reg_afd$n_tot_afd), "funded by AFD -", format(min(data_distrib_reg_afd$area_km2_afd_tot) , scientific = TRUE, digits = 2), "km² -"),
-       caption = "Note : we consider non-marine PAs reported by the WDPA on the full period covered by the data.\nA subset of it is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
+       caption = "Note : we consider non-marine PAs reported by the WDPA on the full period covered by the data, in countries that are potential AFD partners.\n*These are low-, lower-middle, upper-middle countries according to the World Bank 2022 classification, \nexcluding Russia and including Uruguay, Panama, Chile, New Caledonia.\nA subset of these PAs is AFD funded, though some PAs funded by the AFD are not reported by the WDPA.",
          x = "",
          y = "Share of areas (%)") %>%
-+ scale_fill_brewer(name = "", labels = c("AFD funded", "All"),
++ scale_fill_brewer(name = "", labels = c("AFD funded", "Low- to upper-middle income*"),
                     type = "seq", palette = "Blues") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
