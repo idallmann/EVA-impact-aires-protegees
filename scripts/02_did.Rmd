@@ -65,7 +65,7 @@ data_pa =
 #   filter(!(iso3 %in% c("ZZ", "GAB")))
 # list_iso = unique(list_iso$iso3)
 
-list_iso = c("CMR")
+list_iso = c("KEN")
 
 #Specify the period of study to create the mapme.bidiversity portfolio
 ## Start year
@@ -82,10 +82,12 @@ yr_last = 2021
 count_i = 0 #Initialize counter
 max_i = length(list_iso) #Max value of the counter
 tic = tic() #Start timer
+#Initialize a dataframe to store annual deforestation rate for each PA
+df_fl_annual_wolf = data.frame()
 #Initialize a dataframe to store ATT  of all PA analyzed
 df_fc_att_m = data.frame() #Effect on forest cover for matched units
 df_fc_att_unm = data.frame() #Effect on forest cover for unmacthed units
-#df_fl_att = data.frame() #Effect on deforestation relative to 2000
+df_fl_att = data.frame() #Effect on deforestation relative to 2000
 
 for (i in list_iso)
 {
@@ -119,6 +121,16 @@ for (i in list_iso)
     # df_wide_unm_j = df_j$df_unmatched_wide
     # df_long_unm_j = df_j$df_unmatched_long
     
+    #Compute annual deforestation rates in treated and control matched areas
+    print("--Compute average deforestation rates à la Wolf et al. 2021")
+    df_fl_wolf_m_j = fn_fl_wolf(iso = i, 
+                                wdpaid = j, 
+                                alpha = 0.05, 
+                                load_dir = load_dir,
+                                ext_input = ".csv")
+    
+    df_fl_annual_wolf = rbind(df_fl_annual_wolf, df_fl_wolf_m_j)
+    
     #Compute treatment effects
     print("--Compute treatment effects")
     print("----For matched units")
@@ -131,7 +143,7 @@ for (i in list_iso)
                       save_dir = save_dir)
     
     df_fc_att_m = rbind(df_fc_att_m, df_att_m_j$df_fc_att)
-    #df_fl_att = rbind(df_fl_att, df_att_j$df_fl_att)
+    df_fl_att = rbind(df_fl_att, df_att_m_j$df_fl_att)
         
     print("----For unmatched units")
     df_att_unm_j = fn_did_att(iso = i, wdpaid = j, 
@@ -143,6 +155,7 @@ for (i in list_iso)
                       save_dir = save_dir)
     
     df_fc_att_unm = rbind(df_fc_att_unm, df_att_unm_j$df_fc_att)
+    df_fl_att_unm = rbind(df_fl_att, df_att_unm_j$df_fl_att)
     
     #Plot visual evidence before-after matching
     print("--Plot visual evidence before-after matching")
@@ -153,18 +166,8 @@ for (i in list_iso)
                         ext_input = ".csv", 
                         save_dir = save_dir)
 
-    
-    #Ensuite :
-    ## Mettre sous une forme pre/post traitement
-    ## Calculer did pour pre/post -> voir ce que j'ai fait pour MT
-    ## Bootstrap à mettre en place(+ tard)
-    ## Faire graphe pre/post
-    ## Le df avec TE doit être retourné pour chaque AP, pour ensuite être aggrégée au niveau pays
   }
 
-    # A faire
-  ## Agréger au niveau pays les TE, avec CI à calculer 
-  ## Ensuite, agréger niveau DR/monde
   
 }
 
@@ -199,8 +202,10 @@ avg_att_fc_region_m = df_fc_att_m %>%
             cband_lower_pa_95 = sum(cband_lower_pa_95, na.rm = FALSE),
             cband_upper_pa_95 = sum(cband_upper_pa_95, na.rm = FALSE))
 
-# avg_att_fl = df_fl_att %>%
-#   group_by(region, iso3, time) %>%
-#   summarize(n_obs = n(),
-#             att_mean = mean(att, na.rm = TRUE))
+avg_att_fl = df_fl_att %>%
+  group_by(region, iso3, time) %>%
+  summarize(n_obs = n(),
+            att_mean = mean(att, na.rm = TRUE))
+
+avg_fl_annual_wolf = df_fl_annual_wolf
 ```
