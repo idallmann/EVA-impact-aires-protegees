@@ -1440,7 +1440,7 @@ fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpa
   
   return(output)
   
-}
+}   
 
 #Plot the average trend of control and treated units in a given country, before and after the matching
 ## INPUTS :
@@ -1566,10 +1566,10 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
     scale_color_hue(labels = c("Control", "Treatment")) +
     facet_wrap(matched~., ncol = 2, #scales = 'free_x',
                labeller = labeller(matched = fct.labs)) +
-    labs(title = "Evolution of forest cover in a pixel (unmatched units)",
+    labs(title = "Evolution of forest cover in a pixel on average (unmatched units)",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-         caption = paste("Ribbons represent 95% confidence intervals.\nThe protected area has a surface of", area_ha, "ha and pixels have a resolution of", res_ha, "ha."),
-         x = "Year", y = "Average forest cover (ha)", color = "Group") +
+         caption = paste("Ribbons represent 95% confidence intervals.\nThe protected area has a surface of", format(area_ha, big.mark  = ","), "ha and pixels have a resolution of", res_ha, "ha."),
+         x = "Year", y = "Forest cover (ha)", color = "Group") +
     theme_bw() +
     theme(
       axis.text.x = element_text(angle = -20, hjust = 0.5, vjust = 0.5),
@@ -1609,7 +1609,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
     labs(title = "Evolution of total forest cover (unmatched units)",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
          caption = paste("Ribbons represent 95% confidence intervals. The protected area has a surface of", format(area_ha, big.mark = ","), "ha.\nTotal forest cover is extrapolated from average pixel forest cover, multiplied by the number of pixel in the protected area."),
-         x = "Year", y = "Average forest cover (%)", color = "Group") +
+         x = "Year", y = "Forest cover (ha)", color = "Group") +
     theme_bw() +
     theme(
       axis.text.x = element_text(angle = -20, hjust = 0.5, vjust = 0.5),
@@ -1686,10 +1686,10 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
     geom_vline(aes(xintercept=as.character(funding.years), size="Funding year"), linetype=2, linewidth=0.5, color="grey30") +
     scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) + 
     scale_color_hue(labels = c("Control", "Treatment")) +
-    labs(title = "Evolution of forest cover in a pixel (matched units)",
+    labs(title = "Evolution of forest cover in a pixel on average (matched units)",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-         caption = paste("Ribbons represent 95% confidence intervals.\nThe protected area has a surface of", area_ha, "ha and pixels have a resolution of", res_ha, "ha."),
-         x = "Year", y = "Average forest cover (ha)", color = "Group") +
+         caption = paste("Ribbons represent 95% confidence intervals.\nThe protected area has a surface of", format(area_ha, big.mark  = ","), "ha and pixels have a resolution of", res_ha, "ha."),
+         x = "Year", y = "Forest cover (ha)", color = "Group") +
     theme_bw() +
     theme(
       axis.text.x = element_text(angle = -20, hjust = 0.5, vjust = 0.5),
@@ -1727,7 +1727,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
     labs(title = "Evolution of total forest cover (matched units)",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
          caption = paste("Ribbons represent 95% confidence intervals. The protected area has a surface of", format(area_ha, big.mark = ","), "ha.\nTotal forest cover is extrapolated from average pixel forest cover, multiplied by the number of pixel in the protected area."),
-         x = "Year", y = "Average forest cover (%)", color = "Group") +
+         x = "Year", y = "Total forest cover (ha)", color = "Group") +
     theme_bw() +
     theme(
       axis.text.x = element_text(angle = -20, hjust = 0.5, vjust = 0.5),

@@ -132,7 +132,7 @@ list_iso_africa = unique(data_pa[data_pa$region == "Africa", iso3])
 list_iso = list_iso_africa[c(1:13, 15:22, 24)] #All ISO except GAB and ZZ
 #list_iso = list_iso_africa[15:24]
 # list_iso = list_iso_africa[16:24]
-
+      
 #Specify the period of study to create the mapme.bidiversity portfolio
 ## Start year
 yr_first = 2000
@@ -180,8 +180,8 @@ tic_pre = tic() #Start timer
 
 #Create a log to track progress
 log = fn_pre_log(list_iso,
-                 name = paste0("log-", Sys.Date(), "-.txt"),
-                 notes = "")
+                 name = paste0("log-", Sys.Date(), "-Africa-post-processing.txt"),
+                 notes = "Second phase : post-processing on PAs in Africa, except GAB")
 
 for (i in list_iso)            
 {
@@ -286,7 +286,7 @@ for (i in list_iso)
     #Append the log : list of PAs analyzed in the matching frame
   cat(paste("LIST OF WDPAIDs :", paste(list_pa, collapse = ", "), "\n#####\n\n"), 
       file = log, append = TRUE)
-  
+    
   #Initialization
   ##Counter
   count_j = 0
@@ -423,7 +423,7 @@ for (i in list_iso)
                     save_dir = save_dir)
    if(output_grid$is_ok == FALSE) {next}
   
-}    
+}       
 
 #End post-processing timer
 toc_post = toc()
