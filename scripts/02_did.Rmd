@@ -60,12 +60,10 @@ data_pa =
   # Evaluating the trinational PA is not relevant here : our method relies on pre-treatment obervsations (for matching and DiD) and the outcome is likely to be affected by the initial PAs. On the other hand, evaluating the three earlier PAs might be irrelevant for us : are they funded by the AFD ?? In a first approach, the trinational is removed.
   filter(is.na(wdpaid) == TRUE | wdpaid != 555547988)
 # 
-# list_iso = data_pa %>%
-#   filter(region == "Africa") %>%
-#   filter(!(iso3 %in% c("ZZ", "GAB")))
-# list_iso = unique(list_iso$iso3)
-
-list_iso = c("MOZ")
+list_iso = data_pa %>%
+  filter(region == "Africa") %>%
+  filter(!(iso3 %in% c("ZZ")))
+list_iso = unique(list_iso$iso3)
 
 #Specify the period of study to create the mapme.bidiversity portfolio
 ## Start year
@@ -85,8 +83,8 @@ tic = tic() #Start timer
 #Initialize a dataframe to store annual deforestation rate for each PA
 df_fl_annual_wolf = data.frame()
 #Initialize a dataframe to store ATT  of all PA analyzed
-df_fc_att_m = data.frame() #Effect on forest cover for matched units
-df_fc_att_unm = data.frame() #Effect on forest cover for unmacthed units
+df_fc_att = data.frame() #Effect on forest cover for matched units
+#df_fc_att_unm = data.frame() #Effect on forest cover for unmacthed units
 df_fl_att = data.frame() #Effect on deforestation relative to 2000
 #Initialize a dataframe to store forest loss for visual evidence before/after matching
 df_plot_forest_loss = data.frame()
@@ -99,8 +97,8 @@ for (i in list_iso)
   
   #Load the matching frame
   print("--Loading the list of PAs in the country considered")
-  df_pa_i = fn_did_list_pa(iso = i, load_dir = load_dir)
-  list_pa_i = df_pa_i$wdpaid
+  output_pa_i = fn_did_list_pa(iso = i, load_dir = load_dir)
+  if(output_pa_i$is_ok == FALSE) {next} else list_pa_i = output_pa_i$list_pa
   
   count_j = 0
   max_j = length(list_pa_i)
@@ -136,7 +134,7 @@ for (i in list_iso)
     #Compute treatment effects
     print("--Compute treatment effects")
     print("----For matched units")
-    df_att_m_j = fn_did_att(iso = i, wdpaid = j, 
+    output_att_m_j = fn_did_att(iso = i, wdpaid = j, 
                           is_m = TRUE,
                       data_pa = data_pa,
                       alpha = 0.05,
@@ -144,7 +142,9 @@ for (i in list_iso)
                       ext_input = ".csv",
                       save_dir = save_dir)
     
-    df_fc_att_m = rbind(df_fc_att_m, df_att_m_j$df_fc_att)
+    if(output_att_m_j$is_ok == FALSE) {next} else df_att_m_j = output_att_m_j
+    
+    df_fc_att = rbind(df_fc_att, df_att_m_j$df_fc_att)
     df_fl_att = rbind(df_fl_att, df_att_m_j$df_fl_att)
         
     print("----For unmatched units")
@@ -167,7 +167,7 @@ for (i in list_iso)
                                                 load_dir = load_dir, 
                                                 ext_input = ".csv", 
                                                 save_dir = save_dir)
-    df_plot_forest_loss = rbind(df_plot_forest_loss_j)
+    df_plot_forest_loss = rbind(df_plot_forest_loss, df_plot_forest_loss_j)
 
   }
 
@@ -177,12 +177,33 @@ for (i in list_iso)
 toc = toc()
 
 
+```
+
+Some stats on the number of PAs analyzed
+
+```{r}
+data_pa_africa = data_pa %>%
+  filter(region == "Africa")
+n_pa_africa = nrow(data_pa_africa)
+n_pa_africa_wdpa = nrow(filter(data_pa_africa, is.na(wdpaid) == FALSE))
+n_pa_africa_nowdpa = nrow(filter(data_pa_africa, is.na(wdpaid) == TRUE))
+df_pa_africa_analyzed = data_pa_africa %>%
+  filter(is.na(wdpaid) == FALSE & area_km2 > 1 & marine %in% c(0,1) & status_yr >= 2002 & status != "Proposed")
+n_pa_africa_analyzed = nrow(df_pa_africa_analyzed)
+n_ctry_africa_analyzed = length(unique(df_pa_africa_analyzed$iso3))
+
+```
+
+Compute aggregated treatment effects at country and region level
+
+```{r, eval = FALSE}
+
 #Finally ATT are aggregated by region and country
 #For total avoided deforestation in ha, ATT are summed and so are CI.
 ## If the CI of an ATT is NA, then the CI for total ATT is NA also. Otherwise CI will be ## downward biased
 #For avoided deforestation in % of 2000 forest cover, ATT are averaged and so are CI
 ## CI being NA is less a problem here as e use a mean, not a sum
-avg_att_fc_ctry_m = df_fc_att_m %>%
+avg_att_fc_ctry = df_fc_att %>%
   # group_by(wdpaid) %>%
   # mutate(has_effect = att_pa[time == max(time)] > 0 & sig_95[time == max(time)] == TRUE) %>%
   # ungroup() %>%
@@ -195,7 +216,7 @@ avg_att_fc_ctry_m = df_fc_att_m %>%
             cband_lower_pa_95 = sum(cband_lower_pa_95, na.rm = FALSE),
             cband_upper_pa_95 = sum(cband_upper_pa_95, na.rm = FALSE)) 
   
-avg_att_fc_region_m = df_fc_att_m %>%
+avg_att_fc_region = df_fc_att %>%
   group_by(region, time) %>%
   summarize(n_obs = n(),
             att_per_mean = mean(att_per, na.rm = TRUE),
@@ -205,14 +226,71 @@ avg_att_fc_region_m = df_fc_att_m %>%
             cband_lower_pa_95 = sum(cband_lower_pa_95, na.rm = FALSE),
             cband_upper_pa_95 = sum(cband_upper_pa_95, na.rm = FALSE))
 
-avg_att_fl = df_fl_att %>%
+avg_att_fl_ctry = df_fl_att %>%
   group_by(region, iso3, time) %>%
   summarize(n_obs = n(),
-            att_mean = mean(att, na.rm = TRUE))
+            att_mean = mean(att, na.rm = TRUE),
+            cband_lower_95 = mean(cband_lower_95, na.rm = TRUE),
+            cband_upper_95 = mean(cband_upper_95, na.rm = TRUE))
+
+avg_att_fl_region = df_fl_att %>%
+  group_by(region, time) %>%
+  summarize(n_obs = n(),
+            att_mean = mean(att, na.rm = TRUE),
+            cband_lower_95 = mean(cband_lower_95, na.rm = TRUE),
+            cband_upper_95 = mean(cband_upper_95, na.rm = TRUE))
 
 avg_fl_annual_wolf = df_fl_annual_wolf
 
-# fig_forest_loss = df_plot_forest_loss %>%
-#   group_by(group, year) %>%
-#   summarize()
+df_plot_forest_loss_agg = df_plot_forest_loss %>%
+  group_by(matched, group, year) %>%
+  summarize(fc_tot_rel00_ha = sum(fc_tot_rel00_ha, na.rm = TRUE),
+            fc_tot_rel00_ha_ci_lower = sum(fc_tot_rel00_ha_ci_lower, na.rm = TRUE),
+            fc_tot_rel00_ha_ci_upper = sum(fc_tot_rel00_ha_ci_upper, na.rm = TRUE)) %>%
+  ungroup() 
+
+year.max = 2021
+n_pa  = length(unique(df_plot_forest_loss$wdpaid))
+area_tot_ha = sum(df_plot_forest_loss$area_ha, na.rm = TRUE)
+fig_forest_loss_agg = ggplot(data = filter(df_plot_forest_loss_agg, year == year.max),
+               aes(y = abs(fc_tot_rel00_ha), fill = as.factor(group), x = group)) %>%
+    + geom_bar(position =  position_dodge(width = 0.8), stat = "identity", show.legend = FALSE) %>% 
+    + geom_errorbar(aes(ymax=abs(fc_tot_rel00_ha_ci_upper), ymin=abs(fc_tot_rel00_ha_ci_lower)), width=0.3, colour="grey70", alpha=0.9, size=1) %>%
+    + geom_label(aes(label = format(round(abs(fc_tot_rel00_ha), 0), big.mark = ","), y = 0),
+                 vjust = -0.5,
+                 color = "white",
+                 show.legend = FALSE) %>%
+    + scale_fill_brewer(name = "Group", palette = "Blues") %>%
+    + labs(x = "",
+           y = "Forest cover loss (ha)",
+           title = paste("Average area deforested between 2000 and", year.max),
+           subtitle = paste("All protected areas in the analysis :", n_pa, "areas covering", format(area_tot_ha, big.mark = ","), "ha")) %>%
+    + facet_wrap(~matched,
+                 labeller = labeller(matched = fct.labs))  %>%
+    + theme_minimal() %>%
+    + theme(
+      axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
+      axis.text=element_text(size=11, color = "black"),
+      axis.title=element_text(size=14, color = "black", face = "plain"),
+      
+      plot.caption = element_text(hjust = 0),
+      plot.title = element_text(size=16, color = "black", face = "plain", hjust = 0),
+      plot.subtitle = element_text(size=12, color = "black", face = "plain", hjust = 0),
+      
+      strip.text = element_text(color = "black", size = 12),
+      
+      #legend.position = "bottom",
+      #legend.title = element_blank(),
+      legend.text=element_text(size=10),
+      #legend.spacing.x = unit(1.0, 'cm'),
+      legend.spacing.y = unit(0.75, 'cm'),
+      legend.key.size = unit(2, 'line'),
+      
+      panel.grid.major.x = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.x = element_line(color = 'grey80', linewidth = 0.2, linetype = 2),
+      panel.grid.major.y = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
+    )
+fig_forest_loss_agg
+
 ```

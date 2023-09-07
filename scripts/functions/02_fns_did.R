@@ -7,12 +7,30 @@
 ### list_pa : a dataframe with the PA matched
 fn_did_list_pa = function(iso, load_dir)
 {
+  output = tryCatch(
+    
+    {
+      
   list_pa = s3read_using(data.table::fread,
                          bucket = "projet-afd-eva-ap",
                          object = paste(load_dir, iso, paste0("list_pa_matched_", iso, ".csv"), sep = "/"),
-                         opts = list("region" = "")) 
+                         opts = list("region" = ""))
+  list_pa = unique(list_pa$wdpaid)
   
-  return(list_pa)
+  return(list("list_pa" = list_pa, "is_ok" = TRUE))
+    },
+  
+  error = function(e)
+  {
+    print(e)
+    #cat(paste("Error in loading the list of protected areas :\n", e, "\n"), file = log, append = TRUE)
+    print(paste("Error in loading the list of protected areas :\n", e, "\n"))
+    return(list("is_ok" = FALSE))
+  }
+  
+  )
+  
+  return(output)
 }
 
 
@@ -129,6 +147,10 @@ fn_fl_wolf = function(iso, wdpaid, alpha, load_dir, ext_input)
 fn_did_att = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_input, save_dir)
 {
   
+  output = tryCatch(
+    
+    {
+      
   df_long_m = s3read_using(data.table::fread,
                            object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("matched_long", "_", iso, "_", wdpaid, ext_input)),
                            bucket = "projet-afd-eva-ap",
@@ -521,12 +543,21 @@ fn_did_att = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_input, sa
   
   
   #Return outputs
-  output = list("df_fc_att" = df_fc_attgt, "df_fl_att"  = df_fl_attgt)
+  return(list("df_fc_att" = df_fc_attgt, "df_fl_att"  = df_fl_attgt, "is_ok" = TRUE))
+  
+    },
+  
+  error = function(e)
+  {
+    print(e)
+    #cat(paste("Error while computing/plotting DiD :\n", e, "\n"), file = log, append = TRUE)
+    print(paste("Error while computing/plotting DiD :\n", e, "\n"))
+    return(list("is_ok" = FALSE))
+  }
+  
+  )
   
   return(output)
-  
-  
-  
   
   #TEST : is ATT computed by the did package coherent with manual computations ? 
   # --> YES :D
@@ -538,7 +569,6 @@ fn_did_att = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_input, sa
   #   mutate(fc_te2 = (avgFC_ha[year == 2009 & group == 2] - avgFC_ha[year == 2006 & group == 2]) - (avgFC_ha[year == 2009 & group == 1] - avgFC_ha[year == 2006 & group == 1]),
   #          fl_te2 = (avgFL_2000_cum[year == 2009 & group == 2] - avgFL_2000_cum[year == 2006 & group == 2]) - (avgFL_2000_cum[year == 2009 & group == 1] - avgFL_2000_cum[year == 2006 & group == 1]))
   # 
-  
   
   
 }
@@ -678,7 +708,8 @@ fn_plot_forest_loss = function(iso, wdpaid, data_pa, load_dir, ext_input, save_d
                              group == 2 ~"Treated"),
            region = region.name,
            iso3 = country.iso,
-           wdpaid = wdpaid)
+           wdpaid = wdpaid, 
+           area_ha = area_ha)
   
   #The period where deforestation is plotted
   year.max = max(df_long_m$year)
