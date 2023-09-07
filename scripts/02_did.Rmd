@@ -179,7 +179,7 @@ toc = toc()
 
 ```
 
-Some stats on the number of PAs analyzed
+Some stats on the number of PAs analyzed. Check the number of pa analyzed eventually is coherent with the filter applied during the whole process.
 
 ```{r}
 data_pa_africa = data_pa %>%
@@ -293,4 +293,57 @@ fig_forest_loss_agg = ggplot(data = filter(df_plot_forest_loss_agg, year == year
     )
 fig_forest_loss_agg
 
+```
+
+Plot ATT for each PA
+
+```{r}
+list_ctry_plot = df_fc_att %>%
+  select(iso3, wdpaid) %>%
+  unique() %>%
+  group_by(iso3, wdpaid) %>%
+  summarize(time = c(5, 10)) %>%
+  ungroup()
+
+temp_fc = df_fc_att %>%
+  select(c(region, iso3, wdpaid, treatment_year, time, year, att_per, cband_lower_per_95, cband_upper_per_95, att_pa, cband_lower_pa_95, cband_upper_pa_95)) %>%
+  mutate(sig_pa = sign(cband_lower_pa_95) == sign(cband_upper_pa_95),
+         sig_per = sign(cband_lower_per_95) == sign(cband_upper_per_95)) %>%
+  filter(time %in% c(5, 10))
+
+temp_fl = df_fl_att %>%
+  select(c(region, iso3, wdpaid, treatment_year, time, year, att, cband_lower_95, cband_upper_95)) %>%
+  mutate(sig = sign(cband_lower_95) == sign(cband_upper_95)) %>%
+  filter(time %in% c(5, 10))
+
+df_plot_fc_att = left_join(list_ctry_plot, temp_fc, by = c("iso3", "wdpaid", "time"))
+df_plot_fl_att = left_join(list_ctry_plot, temp_fl, by = c("iso3", "wdpaid", "time"))
+
+fig_att_per = ggplot(df_plot_fc_att, 
+                    aes(x = att_per, y = iso3, 
+                     xmin = cband_lower_per_95, xmax = cband_upper_per_95)) %>%
+  + geom_errorbarh() %>%
+  + theme_minimal()
+fig_att_per
+
+fig_att_pa = ggplot(df_plot_fc_att, 
+                    aes(x = att_pa, y = iso3, 
+                     xmin = cband_lower_pa_95, xmax = cband_upper_pa_95)) %>%
+  + geom_errorbarh() %>%
+  + theme_minimal()
+fig_att_pa
+
+fig_att_fl = ggplot(df_plot_fl_att, 
+                    aes(x = att, y = as.factor(wdpaid), 
+                     xmin = cband_lower_95, xmax = cband_upper_95,
+                     group = sig)) %>%
+  + geom_point(aes(color = sig)) %>%
+  + geom_errorbarh(aes(color = sig)) %>% 
+  + facet_wrap(time~., ncol = 2, #scales = 'free_x'
+               ) %>%
+  + labs(x = "Averae treatment effect (p.p)",
+         y = "WDPA ID",
+         title = "") %>%
+  + theme_minimal()
+plot(fig_att_fl)
 ```

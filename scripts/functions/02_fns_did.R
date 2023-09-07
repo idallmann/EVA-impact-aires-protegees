@@ -315,6 +315,7 @@ fn_did_att = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_input, sa
     mutate(region = region.name,
            iso3 = country.iso,
            wdpaid = wdpaid,
+           res_ha = res_ha,
            .before = "treatment_year")
   
   df_fl_attgt = data.frame("treatment_year" = fl_attgt$group,
@@ -340,6 +341,7 @@ fn_did_att = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_input, sa
     mutate(region = region.name,
            iso3 = country.iso,
            wdpaid = wdpaid,
+           res_ha = res_ha,
            .before = "treatment_year")
   
   ###Plot results
@@ -434,7 +436,7 @@ fn_did_att = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_input, sa
                           yes = "Total deforestation avoided (matched)",
                           no = "Total deforestation avoided (unmatched)"),
            subtitle = paste("WDPA ID", wdpaid, "in", country.iso, "implemented in", treatment.year),
-           caption = "Treatment effect is interpreted as the total deforestation avoided in the PA, in hectare (ha).\nThis measure is an extrapolation of average avoided deforestation at pixel level, multiplied by the number of pixels in the protected area in the analysis.\nA negative effect means the conservation program has caused higher deforestation.",
+           caption = "Treatment effect is interpreted as the total deforestation avoided in the protected areas, in hectare (ha).\nThis measure is an extrapolation of average avoided deforestation at pixel level, multiplied by the number of pixels in the protected area in the analysis.\nA negative effect means the conservation program has caused higher deforestation.",
            y = "Forest area (ha)",
            x = "Year relative to treatment (t = 0)") %>%
     + scale_x_continuous(breaks=seq(min(df_fc_attgt$time),max(df_fc_attgt$time),by=1)) %>%
@@ -474,7 +476,8 @@ fn_did_att = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_input, sa
     + labs(title = "Effect of the conservation on the deforestation rate, relative to 2000",
            subtitle = paste("WDPA ID", wdpaid, "in", country.iso, "implemented in", treatment.year),
            caption = "Treatment effect is interpreted as the reduction of deforestation rate, relative to 2000, due to the conservation, in percentage points (pp).\nA negative effect means the conservation program has caused higher deforestation.",
-           y = "Reduction of deforestation rate (pp)") %>%
+           y = "Reduction of deforestation rate (pp)",
+           x = "Year relative to treatment (t = 0)") %>%
     + scale_x_continuous(breaks=seq(min(df_fc_attgt$time),max(df_fc_attgt$time),by=1)) %>%
     + theme_minimal() %>%
     + theme(
