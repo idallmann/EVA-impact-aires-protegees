@@ -110,7 +110,7 @@ wdpa_wld_raw = s3read_using(
 buffer_m = 10000
 # Specify the grid cell size in meter
 #gridSize = 10000 
-n_sampling = 1000
+n_sampling = 1000 #CAREFUL : DIVIDED BY 5 FOR GAB only !!!
 
 #Load data 
 data_pa = 
@@ -128,10 +128,12 @@ data_pa =
   filter(is.na(wdpaid) == TRUE | wdpaid != 555547988)  
 
 #List of countries in the sample
-list_iso_africa = unique(data_pa[data_pa$region == "Africa", iso3])
-list_iso = list_iso_africa[c(1:13, 15:22, 24)] #All ISO except GAB and ZZ
+# list_iso_africa = unique(data_pa[data_pa$region == "Africa", iso3])
+# list_iso = list_iso_africa[c(1:13, 15:22, 24)] #All ISO except GAB and ZZ
 #list_iso = list_iso_africa[15:24]
 # list_iso = list_iso_africa[16:24]
+
+list_iso = "GAB"
       
 #Specify the period of study to create the mapme.bidiversity portfolio
 ## Start year
@@ -180,8 +182,8 @@ tic_pre = tic() #Start timer
 
 #Create a log to track progress
 log = fn_pre_log(list_iso,
-                 name = paste0("log-", Sys.Date(), "-Africa-post-processing.txt"),
-                 notes = "Second phase : post-processing on PAs in Africa, except GAB")
+                 name = paste0("log-", Sys.Date(), "-GAB.txt"),
+                 notes = "GAB done alone with n_sampling = 1000/5 instead of 1000")
 
 for (i in list_iso)            
 {
@@ -413,7 +415,7 @@ for (i in list_iso)
                        save_dir = save_dir)
     if(output_trend$is_ok == FALSE) {next}
   }
-  
+    
   # Plot the grid with matched control and treated for the country 
   output_grid = fn_post_plot_grid(iso = i, wdpaid = j,
                     is_pa = FALSE,

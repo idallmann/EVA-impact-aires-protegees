@@ -309,7 +309,7 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
                                   group == 3 ~ "Funded PA, not analyzed",
                                   group == 4 ~ "Non-funded PA",
                                   group == 5 ~ "Buffer")) %>%
-  #Add spatial resolution in m2 : useful to compute share of forest area in a given pixel and extrapolate to the PA for instance
+  #Add spatial resolution in m : useful to compute share of forest area in a given pixel and extrapolate to the PA for instance
   mutate(res_m = gridSize)
   
   
@@ -1450,7 +1450,7 @@ fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpa
 
 fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wdpaid, log, save_dir) 
 {
-  
+    
   output = tryCatch(
     
     {
@@ -1458,9 +1458,6 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
       #Extract spatial resolution of pixels res_m and define pixel area in ha
       res_m = unique(mf$res_m)
       res_ha = res_m^2*1e-4
-      
-      #Extract number of pixels in the PA
-      n_pix_pa = length(unique(filter(unmatched.long, group == 2)$assetid))
         
       #Extract treatment year
       treatment.year = mf %>% 
@@ -1484,6 +1481,10 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
       ##Area of the PA
       wdpa_id = wdpaid #Need to give a name to wdpaid (function argument) different from the varaible in the dataset (wdpaid)
       area_ha = data_pa[data_pa$wdpaid == wdpa_id,]$area_km2*100
+      
+      #Extract number of pixels in the PA
+      #n_pix_pa = length(unique(filter(unmatched.long, group == 2)$assetid))
+      n_pix_pa = area_ha/res_ha #This measure is imperfect for extrapolation of total deforestation avoided, as part of a PA can be coastal. Indeed, this extrapolation assumes implicitly that all the PA is covered by forest potentially deforested in absence of the conservation 
       
      #Open a multisession for dataframe computations
       plan(multisession, gc = TRUE, workers = 6)
