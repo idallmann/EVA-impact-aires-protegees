@@ -65,7 +65,7 @@ data_pa =
 #   filter(!(iso3 %in% c("ZZ", "GAB")))
 # list_iso = unique(list_iso$iso3)
 
-list_iso = c("KEN")
+list_iso = c("MOZ")
 
 #Specify the period of study to create the mapme.bidiversity portfolio
 ## Start year
@@ -88,6 +88,8 @@ df_fl_annual_wolf = data.frame()
 df_fc_att_m = data.frame() #Effect on forest cover for matched units
 df_fc_att_unm = data.frame() #Effect on forest cover for unmacthed units
 df_fl_att = data.frame() #Effect on deforestation relative to 2000
+#Initialize a dataframe to store forest loss for visual evidence before/after matching
+df_plot_forest_loss = data.frame()
 
 for (i in list_iso)
 {
@@ -146,25 +148,26 @@ for (i in list_iso)
     df_fl_att = rbind(df_fl_att, df_att_m_j$df_fl_att)
         
     print("----For unmatched units")
-    df_att_unm_j = fn_did_att(iso = i, wdpaid = j, 
-                          is_m = FALSE,
-                      data_pa = data_pa,
-                      alpha = 0.05,
-                      load_dir = load_dir,
-                      ext_input = ".csv",
-                      save_dir = save_dir)
-    
-    df_fc_att_unm = rbind(df_fc_att_unm, df_att_unm_j$df_fc_att)
-    df_fl_att_unm = rbind(df_fl_att, df_att_unm_j$df_fl_att)
+    # df_att_unm_j = fn_did_att(iso = i, wdpaid = j, 
+    #                       is_m = FALSE,
+    #                   data_pa = data_pa,
+    #                   alpha = 0.05,
+    #                   load_dir = load_dir,
+    #                   ext_input = ".csv",
+    #                   save_dir = save_dir)
+    # 
+    # df_fc_att_unm = rbind(df_fc_att_unm, df_att_unm_j$df_fc_att)
+    # df_fl_att_unm = rbind(df_fl_att, df_att_unm_j$df_fl_att)
     
     #Plot visual evidence before-after matching
     print("--Plot visual evidence before-after matching")
-    fn_plot_forest_loss(iso = i, 
-                        wdpaid = j, 
-                        data_pa = data_pa, 
-                        load_dir = load_dir, 
-                        ext_input = ".csv", 
-                        save_dir = save_dir)
+    df_plot_forest_loss_j = fn_plot_forest_loss(iso = i, 
+                                                wdpaid = j, 
+                                                data_pa = data_pa, 
+                                                load_dir = load_dir, 
+                                                ext_input = ".csv", 
+                                                save_dir = save_dir)
+    df_plot_forest_loss = rbind(df_plot_forest_loss_j)
 
   }
 
@@ -180,9 +183,9 @@ toc = toc()
 #For avoided deforestation in % of 2000 forest cover, ATT are averaged and so are CI
 ## CI being NA is less a problem here as e use a mean, not a sum
 avg_att_fc_ctry_m = df_fc_att_m %>%
-  group_by(wdpaid) %>%
-  mutate(has_effect = att_pa[time == max(time)] > 0 & sig_95[time == max(time)] == TRUE) %>%
-  ungroup() %>%
+  # group_by(wdpaid) %>%
+  # mutate(has_effect = att_pa[time == max(time)] > 0 & sig_95[time == max(time)] == TRUE) %>%
+  # ungroup() %>%
   group_by(region, iso3, time) %>%
   summarize(n_obs = n(),
             att_per_mean = mean(att_per, na.rm = TRUE),
@@ -191,7 +194,7 @@ avg_att_fc_ctry_m = df_fc_att_m %>%
             att_pa_tot = sum(att_pa, na.rm = TRUE),
             cband_lower_pa_95 = sum(cband_lower_pa_95, na.rm = FALSE),
             cband_upper_pa_95 = sum(cband_upper_pa_95, na.rm = FALSE)) 
-
+  
 avg_att_fc_region_m = df_fc_att_m %>%
   group_by(region, time) %>%
   summarize(n_obs = n(),
@@ -208,4 +211,8 @@ avg_att_fl = df_fl_att %>%
             att_mean = mean(att, na.rm = TRUE))
 
 avg_fl_annual_wolf = df_fl_annual_wolf
+
+# fig_forest_loss = df_plot_forest_loss %>%
+#   group_by(group, year) %>%
+#   summarize()
 ```

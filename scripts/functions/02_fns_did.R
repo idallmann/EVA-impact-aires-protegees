@@ -150,9 +150,6 @@ fn_did_att = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_input, sa
   }
   
   #First extract some relevant variables
-  #Extract number of pixels in the PA
-  n_pix_pa = length(unique(filter(df_long_unm, group == 2)$assetid))
-  
   ##Extract spatial resolution of pixels res_m and define pixel area in ha
   res_m = unique(df_long$res_m)
   res_ha = res_m^2*1e-4
@@ -192,6 +189,9 @@ fn_did_att = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_input, sa
   wdpa_id = wdpaid #Need to give a name to wdpaid (function argument) different from the varaible in the dataset (wdpaid)
   area_ha = data_pa[data_pa$wdpaid == wdpa_id,]$area_km2*100
   
+  #Extract number of pixels in the PA
+  #n_pix_pa = length(unique(filter(df_long_unm, group == 2)$assetid))
+  n_pix_pa = area_ha/res_ha
   
   #Then modify the dataframe before DiD computations
   ## Set treatment year = 0 for controls (necessary for did package to consider "never treated" units)
@@ -301,9 +301,12 @@ fn_did_att = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_input, sa
                            "c" = fl_attgt$c,
                            "se" = fl_attgt$se,
                            "n" = fl_attgt$n) %>%
+    #Compute time relative to treatment year
+    mutate(time = year - treatment_year,
+           .before = year) %>%
     mutate(cband_lower = round(att-c*se, 4),
            cband_upper = round(att+c*se, 4),
-           sig = sign(cband_lower_pix) == sign(cband_upper_pix),
+           sig = sign(cband_lower) == sign(cband_upper),
            sig_5 = ifelse(max(time) >=5, yes = sig[time == 5] == TRUE, no = NA),
            sig_10 = ifelse(max(time) >= 10, yes = sig[time == 10] == TRUE, no = NA),
            sig_end = sig[time == max(time)] == TRUE) %>%
@@ -330,7 +333,7 @@ fn_did_att = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_input, sa
                           no = "Average deforestation avoided in a pixel (unmatched)"),
            subtitle = paste("WDPA ID", wdpaid, "in", country.iso, "implemented in", treatment.year),
            caption = "Treatment effect is interpreted as the deforestation avoided at pixel level in hectare, due to the conservation program.\nA negative effect means the conservation program has caused higher deforestation.",
-           y = "Avoided deforestation in a pixel (ha)",
+           y = "Forest area (ha)",
            x = "Year relative to treatment (t = 0)") %>%
     + scale_x_continuous(breaks=seq(min(df_fc_attgt$time),max(df_fc_attgt$time),by=1)) %>%
     + theme_minimal() %>%
@@ -370,7 +373,7 @@ fn_did_att = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_input, sa
                           no = "Average deforestation avoided in percentage of conserved area (unmatched)"),
            subtitle = paste("WDPA ID", wdpaid, "in", country.iso, "implemented in", treatment.year),
            caption = "Treatment effect is interpreted as the deforestation avoided in share of protected area terrestrial area.\nA negative effect means the conservation program has caused higher deforestation.",
-           y = "Avoided deforestation (%)",
+           y = "Forest area (%)",
            x = "Year relative to treatment (t = 0)") %>%
     + scale_x_continuous(breaks=seq(min(df_fc_attgt$time),max(df_fc_attgt$time),by=1)) %>%
     + theme_minimal() %>%
@@ -410,7 +413,7 @@ fn_did_att = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_input, sa
                           no = "Total deforestation avoided (unmatched)"),
            subtitle = paste("WDPA ID", wdpaid, "in", country.iso, "implemented in", treatment.year),
            caption = "Treatment effect is interpreted as the total deforestation avoided in the PA, in hectare (ha).\nThis measure is an extrapolation of average avoided deforestation at pixel level, multiplied by the number of pixels in the protected area in the analysis.\nA negative effect means the conservation program has caused higher deforestation.",
-           y = "Total avoided deforestation (ha)",
+           y = "Forest area (ha)",
            x = "Year relative to treatment (t = 0)") %>%
     + scale_x_continuous(breaks=seq(min(df_fc_attgt$time),max(df_fc_attgt$time),by=1)) %>%
     + theme_minimal() %>%
@@ -438,16 +441,22 @@ fn_did_att = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_input, sa
       panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
     )
   
-  
-  fig_fl_att = did::ggdid(fl_attgt,
-                          grtitle = NULL,
-                          theming = TRUE) %>%
+
+    
+  fig_fl_att = ggplot(data = df_fl_attgt,
+                      aes(x = time, y = att)) %>%
+    + geom_line(color = "#08519C") %>%
+    + geom_point(color = "#08519C") %>%
+    + geom_ribbon(aes(ymin = cband_lower_95, ymax = cband_upper_95),
+                  alpha=0.1, fill = "#FB6A4A", color = "black", linetype = "dotted") %>%
     + labs(title = "Effect of the conservation on the deforestation rate, relative to 2000",
            subtitle = paste("WDPA ID", wdpaid, "in", country.iso, "implemented in", treatment.year),
            caption = "Treatment effect is interpreted as the reduction of deforestation rate, relative to 2000, due to the conservation, in percentage points (pp).\nA negative effect means the conservation program has caused higher deforestation.",
            y = "Reduction of deforestation rate (pp)") %>%
+    + scale_x_continuous(breaks=seq(min(df_fc_attgt$time),max(df_fc_attgt$time),by=1)) %>%
+    + theme_minimal() %>%
     + theme(
-      axis.text.x = element_text(angle = -20, hjust = 0.5, vjust = 0.5),
+      axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
       axis.text=element_text(size=11, color = "black"),
       axis.title=element_text(size=14, color = "black", face = "plain"),
       
@@ -467,8 +476,7 @@ fn_did_att = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_input, sa
       panel.grid.major.x = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
       panel.grid.minor.x = element_line(color = 'grey80', linewidth = 0.2, linetype = 2),
       panel.grid.major.y = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
-      panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2),
-      
+      panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
     )
   
   
@@ -600,7 +608,6 @@ fn_plot_forest_loss = function(iso, wdpaid, data_pa, load_dir, ext_input, save_d
   area_ha = data_pa[data_pa$wdpaid == wdpa_id,]$area_km2*100
   
   
-  
   #Forest cover loss is computed for each pixel relative to 2000, then average forest cover evolution and loss is computed for treated and controls
   df_long_m = df_long_m_raw %>%
     #Compute forest loss relative to 2000 in ha for each pixel
@@ -611,17 +618,27 @@ fn_plot_forest_loss = function(iso, wdpaid, data_pa, load_dir, ext_input, save_d
     #Compute average forest cover and forest cover loss relative to 2000 for each group, year
     group_by(group, year) %>%
     summarise(n= n(),
-              fc_ha = mean(fc_ha, na.rm = TRUE),
-              fc_rel00_ha = mean(fc_rel00_ha, na.rm = TRUE),
+              avgfc_ha = mean(fc_ha, na.rm = TRUE),
+              sdfc_ha = sd(fc_ha, na.rm = TRUE),
+              avgfc_rel00_ha = mean(fc_rel00_ha, na.rm = TRUE),
+              sdfc_rel00_ha = sd(fc_rel00_ha, na.rm = TRUE),
+              fc_ha_ci_upper = avgfc_ha + qt(0.975,df=n-1)*sdfc_ha/sqrt(n),
+              fc_ha_ci_lower = avgfc_ha - qt(0.975,df=n-1)*sdfc_ha/sqrt(n),
+              fc_rel00_ha_ci_upper = avgfc_rel00_ha + qt(0.975,df=n-1)*sdfc_rel00_ha/sqrt(n),
+              fc_rel00_ha_ci_lower = avgfc_rel00_ha - qt(0.975,df=n-1)*sdfc_rel00_ha/sqrt(n),
               matched = T) %>%
     #Compute total forest cover and forest loss relative to 2000, knowing area of the PA and average forest share in a pixel in 2000
     #CI are computed at 95% confidence level
     ungroup() %>%
-    mutate(per_fc_2000_avg = min(fc_ha[year == 2000]/res_ha, 1),
-           fc_tot_ha = fc_ha*(area_ha*per_fc_2000_avg/res_ha),
-           fc_tot_rel00_ha = fc_rel00_ha*(area_ha*per_fc_2000_avg/res_ha),
-           fc_tot_ha_ci =  qt(0.975,df=n-1)*sd(fc_tot_ha, na.rm = TRUE)/sqrt(n),
-           fc_tot_rel00_ha_ci = qt(0.975,df=n-1)*sd(fc_tot_rel00_ha, na.rm = TRUE)/sqrt(n))
+    mutate(#per_fc_2000_avg = min(fc_ha[year == 2000]/res_ha, 1),
+      #fc_tot_ha = fc_ha*(area_ha*per_fc_2000_avg/res_ha),
+      fc_tot_ha = avgfc_ha*(area_ha/res_ha),
+      #fc_tot_rel00_ha = avgfc_rel00_ha*(area_ha*per_fc_2000_avg/res_ha),
+      fc_tot_rel00_ha = avgfc_rel00_ha*(area_ha/res_ha),
+      fc_tot_ha_ci_upper = fc_ha_ci_upper*(area_ha/res_ha),
+      fc_tot_ha_ci_upper = fc_ha_ci_lower*(area_ha/res_ha),
+      fc_tot_rel00_ha_ci_upper = fc_rel00_ha_ci_upper*(area_ha/res_ha),
+      fc_tot_rel00_ha_ci_lower = fc_rel00_ha_ci_lower*(area_ha/res_ha))
   
   df_long_unm = df_long_unm_raw %>%
     #Compute forest loss relative to 2000 in ha for each pixel
@@ -632,37 +649,48 @@ fn_plot_forest_loss = function(iso, wdpaid, data_pa, load_dir, ext_input, save_d
     #Compute average forest cover and forest cover loss relative to 2000 for each group, year
     group_by(group, year) %>%
     summarise(n= n(),
-              fc_ha = mean(fc_ha, na.rm = TRUE),
-              fc_rel00_ha = mean(fc_rel00_ha, na.rm = TRUE),
+              avgfc_ha = mean(fc_ha, na.rm = TRUE),
+              sdfc_ha = sd(fc_ha, na.rm = TRUE),
+              avgfc_rel00_ha = mean(fc_rel00_ha, na.rm = TRUE),
+              sdfc_rel00_ha = sd(fc_rel00_ha, na.rm = TRUE),
+              fc_ha_ci_upper = avgfc_ha + qt(0.975,df=n-1)*sdfc_ha/sqrt(n),
+              fc_ha_ci_lower = avgfc_ha - qt(0.975,df=n-1)*sdfc_ha/sqrt(n),
+              fc_rel00_ha_ci_upper = avgfc_rel00_ha + qt(0.975,df=n-1)*sdfc_rel00_ha/sqrt(n),
+              fc_rel00_ha_ci_lower = avgfc_rel00_ha - qt(0.975,df=n-1)*sdfc_rel00_ha/sqrt(n),
               matched = F) %>%
     #Compute total forest cover and forest loss relative to 2000, knowing area of the PA and average forest share in a pixel in 2000
     #CI are computed at 95% confidence level
     ungroup() %>%
-    mutate(per_fc_2000_avg = min(fc_ha[year == 2000]/res_ha, 1),
-           fc_tot_ha = fc_ha*(area_ha*per_fc_2000_avg/res_ha),
-           fc_tot_rel00_ha = fc_rel00_ha*(area_ha*per_fc_2000_avg/res_ha),
-           fc_tot_ha_ci =  qt(0.975,df=n-1)*sd(fc_tot_ha, na.rm = TRUE)/sqrt(n),
-           fc_tot_rel00_ha_ci = qt(0.975,df=n-1)*sd(fc_tot_rel00_ha, na.rm = TRUE)/sqrt(n))
+    mutate(#per_fc_2000_avg = min(fc_ha[year == 2000]/res_ha, 1),
+      #fc_tot_ha = fc_ha*(area_ha*per_fc_2000_avg/res_ha),
+      fc_tot_ha = avgfc_ha*(area_ha/res_ha),
+      #fc_tot_rel00_ha = avgfc_rel00_ha*(area_ha*per_fc_2000_avg/res_ha),
+      fc_tot_rel00_ha = avgfc_rel00_ha*(area_ha/res_ha),
+      fc_tot_ha_ci_upper = fc_ha_ci_upper*(area_ha/res_ha),
+      fc_tot_ha_ci_upper = fc_ha_ci_lower*(area_ha/res_ha),
+      fc_tot_rel00_ha_ci_upper = fc_rel00_ha_ci_upper*(area_ha/res_ha),
+      fc_tot_rel00_ha_ci_lower = fc_rel00_ha_ci_lower*(area_ha/res_ha))
   
   
   #Define plotting dataset
   df_plot = rbind(df_long_m, df_long_unm) %>%
     mutate(group = case_when(group == 1 ~"Control",
-                             group == 2 ~"Treated"))
-  
+                             group == 2 ~"Treated"),
+           region = region.name,
+           iso3 = country.iso,
+           wdpaid = wdpaid)
   
   #The period where deforestation is plotted
   year.max = max(df_long_m$year)
   
   #Plot
-  
   fct.labs <- c("Before Matching", "After Matching")
   names(fct.labs) <- c(FALSE, TRUE)
-  
   
   fig = ggplot(data = filter(df_plot, year == year.max),
                aes(y = abs(fc_tot_rel00_ha), fill = as.factor(group), x = group)) %>%
     + geom_bar(position =  position_dodge(width = 0.8), stat = "identity", show.legend = FALSE) %>% 
+    + geom_errorbar(aes(ymax=abs(fc_tot_rel00_ha_ci_upper), ymin=abs(fc_tot_rel00_ha_ci_lower)), width=0.4, colour="grey60", alpha=0.9, size=1.3) %>%
     + geom_label(aes(label = format(round(abs(fc_tot_rel00_ha), 0), big.mark = ","), y = abs(fc_tot_rel00_ha)), 
                  color = "black",
                  show.legend = FALSE) %>%
@@ -670,7 +698,7 @@ fn_plot_forest_loss = function(iso, wdpaid, data_pa, load_dir, ext_input, save_d
     + labs(x = "",
            y = "Forest cover loss (ha)",
            title = paste("Average area deforested between 2000 and", year.max),
-           subtitle = paste("WDPA ID", wdpaid, "in", country.iso, "implemented in", treatment.year, "and covering", format(area_ha, digits = 2, big.mark = ","), "ha"),) %>%
+           subtitle = paste("WDPA ID", wdpaid, "in", country.iso, "implemented in", treatment.year, "and covering", format(area_ha, big.mark = ","), "ha")) %>%
     + facet_wrap(~matched,
                  labeller = labeller(matched = fct.labs))  %>%
     + theme_minimal() %>%
@@ -716,6 +744,8 @@ fn_plot_forest_loss = function(iso, wdpaid, data_pa, load_dir, ext_input, save_d
                        region = "", show_progress = TRUE)
   }
   do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+  
+  return(df_plot)
 }
 
 
