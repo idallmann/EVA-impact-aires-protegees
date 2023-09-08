@@ -15,7 +15,7 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 
 ```{r, eval = FALSE}
 #Install some libraries
-install.packages(c("tictoc", "fixest", "cobalt", "future", "progressr", "did"))
+install.packages(c("tictoc", "fixest", "cobalt", "future", "progressr", "did", "latex2exp"))
 
 # Load Libraries
 library(dplyr)
@@ -29,6 +29,7 @@ library(ggrepel)
 library(aws.s3)
 library(fixest) #For estimating the models
 library(did)
+library(latex2exp)
 ```
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
@@ -70,6 +71,8 @@ list_iso = unique(list_iso$iso3)
 yr_first = 2000
 ## End year
 yr_last = 2021
+
+alpha = 0.05
 
 ```
 
@@ -125,7 +128,7 @@ for (i in list_iso)
     print("--Compute average deforestation rates à la Wolf et al. 2021")
     df_fl_wolf_m_j = fn_fl_wolf(iso = i, 
                                 wdpaid = j, 
-                                alpha = 0.05, 
+                                alpha = alpha, 
                                 load_dir = load_dir,
                                 ext_input = ".csv")
     
@@ -137,7 +140,7 @@ for (i in list_iso)
     output_att_m_j = fn_did_att(iso = i, wdpaid = j, 
                           is_m = TRUE,
                       data_pa = data_pa,
-                      alpha = 0.05,
+                      alpha = alpha,
                       load_dir = load_dir,
                       ext_input = ".csv",
                       save_dir = save_dir)
@@ -163,13 +166,14 @@ for (i in list_iso)
     print("--Plot visual evidence before-after matching")
     df_plot_forest_loss_j = fn_plot_forest_loss(iso = i, 
                                                 wdpaid = j, 
+                                                alpha = alpha,
                                                 data_pa = data_pa, 
                                                 load_dir = load_dir, 
                                                 ext_input = ".csv", 
                                                 save_dir = save_dir)
     df_plot_forest_loss = rbind(df_plot_forest_loss, df_plot_forest_loss_j)
 
-  }
+  }  
 
   
 }
@@ -182,16 +186,67 @@ toc = toc()
 Some stats on the number of PAs analyzed. Check the number of pa analyzed eventually is coherent with the filter applied during the whole process.
 
 ```{r}
+data_pa_nomarine = data_pa %>%
+  filter(marine %in% c(0,1))
+#Dataframe of PAs restricted to Africa
 data_pa_africa = data_pa %>%
   filter(region == "Africa")
+data_pa_africa_nomarine = data_pa %>%
+  filter(region == "Africa" & marine %in% c(0,1))
+#Number of PAs (total, WDPA, not WDPA)
 n_pa_africa = nrow(data_pa_africa)
 n_pa_africa_wdpa = nrow(filter(data_pa_africa, is.na(wdpaid) == FALSE))
 n_pa_africa_nowdpa = nrow(filter(data_pa_africa, is.na(wdpaid) == TRUE))
+#Dataframes of PA analyzed according to our criteria
 df_pa_africa_analyzed = data_pa_africa %>%
   filter(is.na(wdpaid) == FALSE & area_km2 > 1 & marine %in% c(0,1) & status_yr >= 2002 & status != "Proposed")
+#Number of PA analyzed, corresponding number of countries
 n_pa_africa_analyzed = nrow(df_pa_africa_analyzed)
 n_ctry_africa_analyzed = length(unique(df_pa_africa_analyzed$iso3))
 
+#Statistics on resolutions
+df_res = df_fc_att %>%
+  group_by(wdpaid) %>%
+  slice(1) %>%
+  ungroup() %>%
+  summarize(min_res_ha = min(res_ha),
+            max_res_ha = max(res_ha),
+            mean_res_ha = mean(res_ha),
+            med_res_ha = median(res_ha)) %>%
+  round(2)
+
+#Statisitcs on funding
+data_stat_fund = 
+  #fread("data_tidy/BDD_PA_AFD_fund.csv")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  # Mettre les options de FUN ici
+  object = "data_tidy/BDD_PA_AFD_fund.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
+
+wdpaid_marine = data_pa %>%
+  filter(is.na(wdpaid) == FALSE) %>%
+  select(c("wdpaid", "marine"))
+
+data_fund_africa = data_stat_fund %>%
+  dplyr::distinct(id_projet, .keep_all = TRUE) %>%
+  filter(region == "Africa")  
+tot_funding_africa = sum(data_fund_africa$mt_fin_global_af_d_prevu_devise, na.rm = TRUE)
+
+data_fund_africa_nomarine = data_stat_fund %>%
+  left_join(wdpaid_marine, by = "wdpaid") %>%
+  filter(marine %in% c(0,1)) %>%
+  dplyr::distinct(id_projet, .keep_all = TRUE) %>%
+  filter(region == "Africa") 
+tot_funding_africa_nomarine = sum(data_fund_africa_nomarine$mt_fin_global_af_d_prevu_devise, na.rm = TRUE)
+
+data_fund_nomarine = data_stat_fund %>%
+  left_join(wdpaid_marine, by = "wdpaid") %>%
+  filter(marine %in% c(0,1)) %>%
+  dplyr::distinct(id_projet, .keep_all = TRUE) 
+tot_funding_nomarine = sum(data_fund_nomarine$mt_fin_global_af_d_prevu_devise, na.rm = TRUE)
 ```
 
 Compute aggregated treatment effects at country and region level
@@ -203,44 +258,78 @@ Compute aggregated treatment effects at country and region level
 ## If the CI of an ATT is NA, then the CI for total ATT is NA also. Otherwise CI will be ## downward biased
 #For avoided deforestation in % of 2000 forest cover, ATT are averaged and so are CI
 ## CI being NA is less a problem here as e use a mean, not a sum
-avg_att_fc_ctry = df_fc_att %>%
-  # group_by(wdpaid) %>%
-  # mutate(has_effect = att_pa[time == max(time)] > 0 & sig_95[time == max(time)] == TRUE) %>%
-  # ungroup() %>%
-  group_by(region, iso3, time) %>%
-  summarize(n_obs = n(),
-            att_per_mean = mean(att_per, na.rm = TRUE),
-            cband_lower_per_95 = mean(cband_lower_per_95, na.rm = TRUE),
-            cband_upper_per_95 = mean(cband_upper_per_95, na.rm = TRUE),
-            att_pa_tot = sum(att_pa, na.rm = TRUE),
-            cband_lower_pa_95 = sum(cband_lower_pa_95, na.rm = FALSE),
-            cband_upper_pa_95 = sum(cband_upper_pa_95, na.rm = FALSE)) 
+# avg_att_fc_ctry = df_fc_att %>%
+#   # group_by(wdpaid) %>%
+#   # mutate(has_effect = att_pa[time == max(time)] > 0 & sig_95[time == max(time)] == TRUE) %>%
+#   # ungroup() %>%
+#   group_by(region, iso3, time) %>%
+#   summarize(n_obs = n(),
+#             att_per_mean = mean(att_per, na.rm = TRUE),
+#             cband_lower_per = mean(cband_lower_per, na.rm = TRUE),
+#             cband_upper_per = mean(cband_upper_per, na.rm = TRUE),
+#             att_pa_tot = sum(att_pa, na.rm = TRUE),
+#             cband_lower_pa = sum(cband_lower_pa, na.rm = FALSE),
+#             cband_upper_pa = sum(cband_upper_pa, na.rm = FALSE)) 
+#   
+# avg_att_fc_region = df_fc_att %>%
+#   group_by(region, time) %>%
+#   summarize(n_obs = n(),
+#             att_per_mean = mean(att_per, na.rm = TRUE),
+#             cband_lower_per = mean(cband_lower_per, na.rm = TRUE),
+#             cband_upper_per = mean(cband_upper_per, na.rm = TRUE),
+#             att_pa_tot = sum(att_pa, na.rm = TRUE),
+#             cband_lower_pa_95 = sum(cband_lower_pa, na.rm = FALSE),
+#             cband_upper_pa = sum(cband_upper_pa, na.rm = FALSE))
+# 
+# avg_att_fl_ctry = df_fl_att %>%
+#   group_by(region, iso3, time) %>%
+#   summarize(n_obs = n(),
+#             att_mean = mean(att, na.rm = TRUE),
+#             cband_lower = mean(cband_lower, na.rm = TRUE),
+#             cband_upper = mean(cband_upper, na.rm = TRUE))
+# 
+# avg_att_fl_region = df_fl_att %>%
+#   group_by(region, time) %>%
+#   summarize(n_obs = n(),
+#             att_mean = mean(att, na.rm = TRUE),
+#             cband_lower_95 = mean(cband_lower_95, na.rm = TRUE),
+#             cband_upper_95 = mean(cband_upper_95, na.rm = TRUE))
+
+avg_fl_annual_wolf_africa = df_fl_annual_wolf %>%
+  filter(group == "Treated") %>%
+  summarize(avg_FL_annual_wolf_pre = mean(avgFL_annual_wolf_pre, na.rm = TRUE),
+            avg_FL_annual_wolf_pre_ci_up = mean(avgFL_annual_wolf_pre, na.rm = TRUE) +  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_pre, na.rm = TRUE)/sqrt(21),
+            avg_FL_annual_wolf_pre_ci_lower = mean(avgFL_annual_wolf_pre, na.rm = TRUE) -  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_pre, na.rm = TRUE)/sqrt(21),
+            med_FL_annual_wolf_pre_ci_up = median(avgFL_annual_wolf_pre, na.rm = TRUE),
+            avg_FL_annual_wolf_tot = mean(avgFL_annual_wolf_tot, na.rm = TRUE),
+            avg_FL_annual_wolf_tot_ci_up = mean(avgFL_annual_wolf_tot, na.rm = TRUE) +  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_tot, na.rm = TRUE)/sqrt(21),
+            avg_FL_annual_wolf_tot_ci_lower = mean(avgFL_annual_wolf_tot, na.rm = TRUE) -  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_tot, na.rm = TRUE)/sqrt(21),
+            med_FL_annual_wolf_tot_ci_up = median(avgFL_annual_wolf_tot, na.rm = TRUE)) 
+
+avg_fl_annual_wolf_africa = df_fl_annual_wolf %>%
+  filter(group == "Control") %>%
+  summarize(avg_FL_annual_wolf_pre = mean(avgFL_annual_wolf_pre, na.rm = TRUE),
+            avg_FL_annual_wolf_pre_ci_up = mean(avgFL_annual_wolf_pre, na.rm = TRUE) +  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_pre, na.rm = TRUE)/sqrt(21),
+            avg_FL_annual_wolf_pre_ci_lower = mean(avgFL_annual_wolf_pre, na.rm = TRUE) -  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_pre, na.rm = TRUE)/sqrt(21),
+            med_FL_annual_wolf_pre_ci_up = median(avgFL_annual_wolf_pre, na.rm = TRUE),
+            avg_FL_annual_wolf_tot = mean(avgFL_annual_wolf_tot, na.rm = TRUE),
+            avg_FL_annual_wolf_tot_ci_up = mean(avgFL_annual_wolf_tot, na.rm = TRUE) +  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_tot, na.rm = TRUE)/sqrt(21),
+            avg_FL_annual_wolf_tot_ci_lower = mean(avgFL_annual_wolf_tot, na.rm = TRUE) -  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_tot, na.rm = TRUE)/sqrt(21),
+            med_FL_annual_wolf_tot_ci_up = median(avgFL_annual_wolf_tot, na.rm = TRUE))
+
+avg_fl_annual_wolf_country = df_fl_annual_wolf %>%
+  filter(group == "Treated") %>%
+  group_by(iso3) %>%
+  summarize(avg_FL_annual_wolf_pre = mean(avgFL_annual_wolf_pre, na.rm = TRUE),
+            avg_FL_annual_wolf_pre_ci_up = mean(avgFL_annual_wolf_pre, na.rm = TRUE) +  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_pre, na.rm = TRUE)/sqrt(21),
+            avg_FL_annual_wolf_pre_ci_lower = mean(avgFL_annual_wolf_pre, na.rm = TRUE) -  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_pre, na.rm = TRUE)/sqrt(21),
+            med_FL_annual_wolf_pre_ci_up = median(avgFL_annual_wolf_pre, na.rm = TRUE),
+            avg_FL_annual_wolf_tot = mean(avgFL_annual_wolf_tot, na.rm = TRUE),
+            avg_FL_annual_wolf_tot_ci_up = mean(avgFL_annual_wolf_tot, na.rm = TRUE) +  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_tot, na.rm = TRUE)/sqrt(21),
+            avg_FL_annual_wolf_tot_ci_lower = mean(avgFL_annual_wolf_tot, na.rm = TRUE) -  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_tot, na.rm = TRUE)/sqrt(21),
+            med_FL_annual_wolf_tot_ci_up = median(avgFL_annual_wolf_tot, na.rm = TRUE)) %>%
+  ungroup() 
   
-avg_att_fc_region = df_fc_att %>%
-  group_by(region, time) %>%
-  summarize(n_obs = n(),
-            att_per_mean = mean(att_per, na.rm = TRUE),
-            cband_lower_per_95 = mean(cband_lower_per_95, na.rm = TRUE),
-            cband_upper_per_95 = mean(cband_upper_per_95, na.rm = TRUE),
-            att_pa_tot = sum(att_pa, na.rm = TRUE),
-            cband_lower_pa_95 = sum(cband_lower_pa_95, na.rm = FALSE),
-            cband_upper_pa_95 = sum(cband_upper_pa_95, na.rm = FALSE))
-
-avg_att_fl_ctry = df_fl_att %>%
-  group_by(region, iso3, time) %>%
-  summarize(n_obs = n(),
-            att_mean = mean(att, na.rm = TRUE),
-            cband_lower_95 = mean(cband_lower_95, na.rm = TRUE),
-            cband_upper_95 = mean(cband_upper_95, na.rm = TRUE))
-
-avg_att_fl_region = df_fl_att %>%
-  group_by(region, time) %>%
-  summarize(n_obs = n(),
-            att_mean = mean(att, na.rm = TRUE),
-            cband_lower_95 = mean(cband_lower_95, na.rm = TRUE),
-            cband_upper_95 = mean(cband_upper_95, na.rm = TRUE))
-
-avg_fl_annual_wolf = df_fl_annual_wolf
 
 df_plot_forest_loss_agg = df_plot_forest_loss %>%
   group_by(matched, group, year) %>%
@@ -251,6 +340,9 @@ df_plot_forest_loss_agg = df_plot_forest_loss %>%
 
 year.max = 2021
 n_pa  = length(unique(df_plot_forest_loss$wdpaid))
+  fct.labs <- c("Before Matching", "After Matching")
+  names(fct.labs) <- c(FALSE, TRUE)
+  
 area_tot_ha = sum(df_plot_forest_loss$area_ha, na.rm = TRUE)
 fig_forest_loss_agg = ggplot(data = filter(df_plot_forest_loss_agg, year == year.max),
                aes(y = abs(fc_tot_rel00_ha), fill = as.factor(group), x = group)) %>%
@@ -258,13 +350,14 @@ fig_forest_loss_agg = ggplot(data = filter(df_plot_forest_loss_agg, year == year
     + geom_errorbar(aes(ymax=abs(fc_tot_rel00_ha_ci_upper), ymin=abs(fc_tot_rel00_ha_ci_lower)), width=0.3, colour="grey70", alpha=0.9, size=1) %>%
     + geom_label(aes(label = format(round(abs(fc_tot_rel00_ha), 0), big.mark = ","), y = 0),
                  vjust = -0.5,
-                 color = "white",
+                 color = "black",
                  show.legend = FALSE) %>%
     + scale_fill_brewer(name = "Group", palette = "Blues") %>%
     + labs(x = "",
            y = "Forest cover loss (ha)",
            title = paste("Average area deforested between 2000 and", year.max),
-           subtitle = paste("All protected areas in the analysis :", n_pa, "areas covering", format(area_tot_ha, big.mark = ","), "ha")) %>%
+           subtitle = paste0("Sample : all protected areas in the analysis (" , n_pa, " areas covering ", format(area_tot_ha, big.mark = ","), "ha)"),
+           caption = paste(((1-alpha)*100), "% confidence intervals")) %>%
     + facet_wrap(~matched,
                  labeller = labeller(matched = fct.labs))  %>%
     + theme_minimal() %>%
@@ -293,57 +386,51 @@ fig_forest_loss_agg = ggplot(data = filter(df_plot_forest_loss_agg, year == year
     )
 fig_forest_loss_agg
 
+
+
+```
+
+```{r}
+##Saving plots
+tmp = paste(tempdir(), "fig", sep = "/")
+
+ggsave(paste(tmp, "fig_forest_loss_agg.png", sep = "/"),
+       plot = fig_forest_loss_agg,
+       device = "png",
+       height = 6, width = 9)
+
+  files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+for(f in files) 
+{
+  cat("Uploading file", paste0("'", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = paste("projet-afd-eva-ap", save_dir, sep = "/"),
+                     region = "", show_progress = TRUE)
+}
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
 Plot ATT for each PA
 
 ```{r}
-list_ctry_plot = df_fc_att %>%
-  select(iso3, wdpaid) %>%
-  unique() %>%
-  group_by(iso3, wdpaid) %>%
-  summarize(time = c(5, 10)) %>%
-  ungroup()
+# Remove the PAs we do not xant to take (bad matching, bad pre-treatment parallel trend. This is done visually here, but we should have quantitative criteria in the future)
+list_wdpa_bad = c(109037, #not enough units for did computing
+                  124355,
+                  17367,
+                  313046,
+                  555651496,
+                  555555500, #Kenya : issue while did computing
+                  555555506,
+                  303878)
 
-temp_fc = df_fc_att %>%
-  select(c(region, iso3, wdpaid, treatment_year, time, year, att_per, cband_lower_per_95, cband_upper_per_95, att_pa, cband_lower_pa_95, cband_upper_pa_95)) %>%
-  mutate(sig_pa = sign(cband_lower_pa_95) == sign(cband_upper_pa_95),
-         sig_per = sign(cband_lower_per_95) == sign(cband_upper_per_95)) %>%
-  filter(time %in% c(5, 10))
+df_fc_att_tidy = df_fc_att %>%
+  filter(!wdpaid %in% list_wdpa_bad)
+df_fl_att_tidy = df_fl_att %>%
+  filter(!wdpaid %in% list_wdpa_bad)
 
-temp_fl = df_fl_att %>%
-  select(c(region, iso3, wdpaid, treatment_year, time, year, att, cband_lower_95, cband_upper_95)) %>%
-  mutate(sig = sign(cband_lower_95) == sign(cband_upper_95)) %>%
-  filter(time %in% c(5, 10))
-
-df_plot_fc_att = left_join(list_ctry_plot, temp_fc, by = c("iso3", "wdpaid", "time"))
-df_plot_fl_att = left_join(list_ctry_plot, temp_fl, by = c("iso3", "wdpaid", "time"))
-
-fig_att_per = ggplot(df_plot_fc_att, 
-                    aes(x = att_per, y = iso3, 
-                     xmin = cband_lower_per_95, xmax = cband_upper_per_95)) %>%
-  + geom_errorbarh() %>%
-  + theme_minimal()
-fig_att_per
-
-fig_att_pa = ggplot(df_plot_fc_att, 
-                    aes(x = att_pa, y = iso3, 
-                     xmin = cband_lower_pa_95, xmax = cband_upper_pa_95)) %>%
-  + geom_errorbarh() %>%
-  + theme_minimal()
-fig_att_pa
-
-fig_att_fl = ggplot(df_plot_fl_att, 
-                    aes(x = att, y = as.factor(wdpaid), 
-                     xmin = cband_lower_95, xmax = cband_upper_95,
-                     group = sig)) %>%
-  + geom_point(aes(color = sig)) %>%
-  + geom_errorbarh(aes(color = sig)) %>% 
-  + facet_wrap(time~., ncol = 2, #scales = 'free_x'
-               ) %>%
-  + labs(x = "Averae treatment effect (p.p)",
-         y = "WDPA ID",
-         title = "") %>%
-  + theme_minimal()
-plot(fig_att_fl)
+fn_plot_att(df_fc_att = df_fc_att_tidy,
+            df_fl_att = df_fl_att_tidy, 
+            alpha = alpha,
+            save_dir = save_dir)
 ```
