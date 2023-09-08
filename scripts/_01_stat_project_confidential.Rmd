@@ -398,6 +398,228 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
+For Asia
+
+```{r}
+#Careful, a project can cover more than one countries. For instance ;
+#CZZ1260; CZZ1282; CZZ1382; CZZ1419; CZZ1667; CZZ1879, CZZ1909; 	
+#CZZ1914; CZZ3012; CZZ3092 ...
+#From the data we have, it is not possible to decompose the funding of a project between the different countries. Thus only regional/world statistics are performed here.
+
+
+#By region
+##Number of fundings
+###Creating the plot dataset
+data_fund_n_country = data_stat_projet_nodupl %>%
+  filter(region == "Africa") %>%
+  group_by(country_en) %>%
+  summarise(n = n()) %>%
+  ungroup() %>%
+  mutate(freq_n = round(n/sum(n)*100, 2),
+         ypos_n = cumsum(freq_n) - 0.5*freq_n) %>%
+  mutate(country = case_when(is.na(country_en) ~ "Unknown",
+                            TRUE ~country_en))
+
+# ###Figure
+# fig_fund_n_region = ggplot(data = data_fund_n_region,
+#                          aes(x = reorder(region, -n), y = n,
+#                              fill = region)) %>%
+#   + geom_bar(stat = "identity", width = 0.50, fill="#3182BD") %>%
+#   + geom_text(aes(label = format(n, digits = 2, scientific = TRUE), y = n), 
+#             vjust = -0.2, color="black",
+#             size=3.5) %>%
+#   + labs(title = "Number of AFD projects related to protected areas by region",
+#          subtitle = paste("Sample :", sum(data_fund_n_region$n), "projects"),
+#          caption = "Unknown corresponds to projects supervised by 'DR Siege de Paris' and whose destination region is unknown.",
+#           x = "", 
+#           y = "Number") %>%
+#   + theme(legend.position = "bottom",
+#       legend.key = element_rect(fill = "white"),
+#       plot.title = element_text(size = 14, face = "bold"), 
+#       axis.text.x = element_text(angle = 45,size=9, hjust = .5, vjust = .6),
+#       panel.background = element_rect(fill = 'white', colour = 'white', 
+#                                       linewidth = 0.5, linetype = 'solid'),
+#       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+#       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+#       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+# fig_fund_n_region
+
+
+
+###Pie
+
+pie_fund_n_country = ggplot(data_fund_n_country, 
+                      aes(x="", y= freq_n, fill = country_en)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + coord_polar("y", start=0) %>%
+  + geom_label_repel(aes(x=1.2, label = paste0(round(freq_n, 1), "%")), 
+             color = "white", 
+             position = position_stack(vjust = 0.55), 
+             size=2.5, show.legend = FALSE) %>%
+  # + geom_label(aes(x=1.4, label = paste0(freq_iucn, "%")), 
+  #              color = "white", 
+  #              position = position_stack(vjust = 0.7), size=2.5, 
+  #              show.legend = FALSE) %>%
+  + labs(x = "", y = "",
+         title = "Distribution of AFD projects in Africa related to protected areas, by country",
+         subtitle = paste("Sample :", sum(data_fund_n_country$n), "projects")) %>%
+  # + scale_fill_brewer(name = "Country", palette = "Dark2") %>%
+  + theme_void()
+pie_fund_n_country
+
+# ##Average fund 
+# ###Creating dataset
+# data_fund_avg_region = data_stat_projet_nodupl %>%
+#   group_by(region) %>%
+#   summarise(n_proj = n(),
+#             avg_fund = mean(mt_fin_global_af_d_prevu_devise, na.rm = TRUE)) %>%
+#   arrange(avg_fund)
+# 
+# 
+# ###Figure
+# fig_fund_avg_region = ggplot(data = data_fund_avg_region,
+#                          aes(x = reorder(region, -avg_fund), y = avg_fund,
+#                              fill = region)) %>%
+#   + geom_bar(stat = "identity", width = 0.50, fill="#3182BD") %>%
+#   + geom_text(aes(label = format(avg_fund, digits = 2, scientific = TRUE), y = avg_fund),
+#             vjust = -0.2, color="black",
+#             size=3.5) %>%
+#   + labs(title = "Average AFD funding by region for project related to protected areas",
+#          subtitle = paste("Sample :", sum(data_fund_avg_region$n_proj), "projects"),
+#           x = "", 
+#           y = "Amount (€)") %>%
+#   + theme(legend.position = "bottom",
+#       legend.key = element_rect(fill = "white"),
+#       plot.title = element_text(size = 14, face = "bold"), 
+#       axis.text.x = element_text(angle = 45,size=9, hjust = .5, vjust = .6),
+#       panel.background = element_rect(fill = 'white', colour = 'white', 
+#                                       linewidth = 0.5, linetype = 'solid'),
+#       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+#       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+#       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+# fig_fund_avg_region
+# 
+# ###Table
+# 
+# # tbl_fund_avg_region = data_fund_avg_region
+# # names(tbl_fund_avg_dr) = c("Region",
+# #                            "Number of projetcs",
+# #                            "Average amount (€)")
+# 
+
+##Total fund
+###Creating dataset
+data_fund_tot_country = data_stat_projet_nodupl %>%
+  filter(region == "Africa") %>%
+  group_by(country_en) %>%
+  summarise(n_proj = n(),
+            tot_fund = sum(mt_fin_global_af_d_prevu_devise, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(freq_fund = round(tot_fund/sum(tot_fund)*100, 2),
+         ypos_fund = cumsum(freq_fund) - 0.5*freq_fund) %>%
+  mutate(country = case_when(is.na(country_en) ~ "Unknown",
+                            TRUE ~country_en))
+
+
+
+###Figure
+# fig_fund_tot_region = ggplot(data = data_fund_tot_region,
+#                          aes(x = reorder(region, -tot_fund), y = tot_fund,
+#                              fill = region)) %>%
+#   + geom_bar(stat = "identity", width = 0.50, fill="#3182BD") %>%
+#   + geom_text(aes(label = format(tot_fund, big.mark = ","), y = tot_fund), 
+#             vjust = -0.2, color="black",
+#             size=3.5) %>%
+#   + labs(title = "Total AFD funding by region for project related to protected areas",
+#          subtitle = paste("Total AFD funding :", format(sum(data_fund_tot_region$tot_fund), big.mark = ","), "€"),
+#          caption = "Unknown corresponds to fund allocated by 'DR Siege de Paris' and whose destination region is unknown.",
+#           x = "", 
+#           y = "Amount (€)") %>%
+#   + theme(legend.position = "bottom",
+#       legend.key = element_rect(fill = "white"),
+#       plot.title = element_text(size = 14, face = "bold"), 
+#       axis.text.x = element_text(angle = 45,size=9, hjust = .5, vjust = .6),
+#       panel.background = element_rect(fill = 'white', colour = 'white', 
+#                                       linewidth = 0.5, linetype = 'solid'),
+#       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+#       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+#       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+# fig_fund_tot_region
+
+
+###Pie
+
+pie_fund_tot_country = ggplot(data_fund_tot_country, 
+                      aes(x="", y= freq_fund, fill = country_en)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + coord_polar("y", start=0) %>%
+  + geom_label_repel(aes(x=1.2, label = paste0(round(freq_fund, 1), "%")), 
+             color = "white", 
+             position = position_stack(vjust = 0.55), 
+             size=2.5, show.legend = FALSE) %>%
+  # + geom_label(aes(x=1.4, label = paste0(freq_iucn, "%")), 
+  #              color = "white", 
+  #              position = position_stack(vjust = 0.7), size=2.5, 
+  #              show.legend = FALSE) %>%
+  + labs(x = "", y = "",
+         title = "Distribution of AFD funding in Africa related to protected areas, by country",
+         subtitle = paste("Total AFD funding :", format(sum(data_fund_tot_country$tot_fund), big.mark = ","), "€")) %>%
+  # + scale_fill_brewer(name = "Country", palette = "Dark2") %>%
+  + theme_void()
+pie_fund_tot_country
+
+###Table
+
+# tbl_fund_tot_region = data_fund_tot_region
+# names(tbl_fund_tot_dr) = c("Region",
+#                            "Number of projects",
+#                            "Total amount (€)")
+
+
+```
+
+```{r, eval = FALSE}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+ggsave(paste(tmp, "pie_fund_n_africa.png", sep = "/"),
+       plot = pie_fund_n_country,
+       device = "png",
+       height = 6, width = 9)
+
+
+ggsave(paste(tmp, "pie_fund_tot_africa.png", sep = "/"),
+       plot = pie_fund_tot_country,
+       device = "png",
+       height = 6, width = 9)
+
+
+# print(xtable(tbl_fund_avg_region, type = "latex"),
+#       file = paste(tmp, "tbl_fund_avg_region.tex", sep = "/"))
+
+# print(xtable(tbl_fund_tot_region, type = "latex"),
+#       file = paste(tmp, "tbl_fund_tot_region.tex", sep = "/"))
+
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+for(f in files) 
+  {
+  cat("Uploading file", paste0("'", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/funding", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+```
+
 ## **Average funding per unit of area (marine and terrestrial), at regional and world level**
 
 Some projects cover more than one country (e.g CZZ3012), but the total fund is given at project level. Thus it is not possible to compute funding per unit of area at country level for all countries.
