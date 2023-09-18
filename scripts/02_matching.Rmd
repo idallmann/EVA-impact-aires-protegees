@@ -127,6 +127,7 @@ data_pa =
   # Evaluating the trinational PA is not relevant here : our method relies on pre-treatment obervsations (for matching and DiD) and the outcome is likely to be affected by the initial PAs. On the other hand, evaluating the three earlier PAs might be irrelevant for us : are they funded by the AFD ?? In a first approach, the trinational is removed.
   filter(is.na(wdpaid) == TRUE | wdpaid != 555547988)  
 
+
 #List of countries in the sample
 # list_iso_africa = unique(data_pa[data_pa$region == "Africa", iso3])
 # list_iso = list_iso_africa[c(1:13, 15:22, 24)] #All ISO except GAB and ZZ
@@ -166,6 +167,75 @@ colfl.prefix = "treeloss"
 #Prefix of columns for average forest loss pre-funding
 colname.flAvg = "avgLoss_pre_fund"
 
+```
+
+PAs funded by FAPBM
+
+```{r}
+#The name of PAs funded by the FAPBM, as stated on their website (https://www.fapbm.org/aires-protegees-soutenues/, consulted the 2023-09-18).
+# I have removed any "-" and replace it by "".
+pa_fapbm_names = data.frame(name_pa = c("Ambohitantely", "Ibity", "Corridor Marojejy-Anjanaharibe Sud-Tsaratanana","Nosy Hara","Galoko Kalobinono","Analamerana"
+                   ,"Anjanaharibe Sud","Lokobe","Manongarivo", "Ambodivahibe"
+                   , "Andrafiamena Andavakoera", "Ankivonjy", "Ankarana", 
+                   "Montagne d’Ambre","Montagne des Français", "Loky Manambato"
+                   , "Tsaratanana", "Oronjia", "Masoala", "Marojejy", "Makira"
+                   , "Ivohibe", "Befotaka Midongy", "Andringitra", "Massif d’Itremo"
+                   , "Agnalazaha", "Ranomafana", "Manombo", "Zombitse Voabasia"
+                   , "Nosy Ve Androka", "Kalambatritra", "Cap Sainte Marie", 
+                   "Beza Mahafaly", "Andranomena", "Menabe Antimena", "Mikea"
+                   , "Isalo", "Tsimanampetsotse", "Complexe Mangoky Ihotry"
+                   , "Kirindy Mitea", "Andohahela", "Bombetoka", "Namoroka"
+                   , "Sahamalaza Îles Radama", "Complexe Tsimembo Manambolomaty"
+                   , "Mandrozo", "Complexe Mahavavy Kinkony", "Bemaraha"
+                   , "Beanka", "Baie de Baly", "Site bioculturel d’Antrema"
+                   , "Ankarafantsika", "Corridor Ankeniheny Zahamena", "Mangerivola"
+                   , "Betampona", "Andasibe Mantadia", "Analamazaotra", "Nosy Mangabe"
+                   , "Mananara Nord", "Zahamena", "Marotandrano", "Maromizaha"
+                   , "Analalava", "Ambatovaky")) %>%
+  #Change name for some PAs that are in WDPA but with slightly different name
+  #after cross-checking with polygon of WDPA on https://www.protectedplanet.net/
+  #and https://www.fapbm.org/aires-protegees-soutenues/
+  #Not found :
+  ## Corridor Marojejy-Anjanaharibe Sud-Tsaratanana
+  ## 
+  mutate(name_pa = case_when(name_pa == "Andasibe Mantadia" ~ "Mantadia",
+                             name_pa == "Bombetoka" ~ "Bombetoka Belemboka",
+                             name_pa == "Complexe Mahavavy Kinkony" ~ "Complexe Zones Humides Mahavavy Kinkony",
+                             name_pa == "Complexe Mangoky Ihotry" ~ "Complexe Zones Humides Mangoky Ihotry",
+                             name_pa == "Kalambatritra" ~ "Kalambatrika",
+                             name_pa == "Ibity" ~ "Massif d'Ibity",
+                             name_pa == "Kirindy Mitea" ~ "Kirindy Mite",
+                             name_pa == "Mandrozo" ~"Zone Humide de Mandrozo",
+                             name_pa == "Montagne des Français" ~"Ambohitr'Antsingy Montagne des Français",
+                             name_pa == "Tsimanampetsotse" ~ "Tsimanampesotse",
+                             name_pa == "Zombitse Voabasia" ~ "Zombitse Vohibasia",
+                             TRUE ~ name_pa)) %>%
+  mutate(name_pa_clean = janitor::make_clean_names(name_pa))
+
+#Filter the WDPA with PA funded by FAPBM
+data_pa_fapbm = wdpa_wld_raw %>%
+  filter(ISO3 == "MDG") %>%
+  janitor::clean_names() %>%
+  mutate(name_clean = make_clean_names(name), .after = "name") %>%
+  filter(name_clean %in% pa_fapbm_names$name_pa_clean) %>%
+  mutate(area_km2 = rep_area, .after = "rep_area")
+
+#The PA funded by FAPBM but not in the WDPA
+pa_fapbm_not_found = pa_fapbm_names %>%
+  filter(!(name_pa_clean %in% data_pa_fapbm$name_clean))
+
+#Statistics 
+## PA we can analyze with our methodology
+n_mdg_ie = wdpa_wld_raw %>%
+  filter(ISO3 == "MDG") %>%
+  janitor::clean_names() %>%
+  filter(status_yr >= yr_min & marine %in% c(0,1) & rep_area > 1 ) %>%
+  nrow()
+
+n_fapbm_ie = data_pa_fapbm %>%
+  filter(iso3 == "MDG") %>%
+  filter(status_yr >= yr_min & marine %in% c(0,1) & area_km2 > 1 ) %>%
+  nrow()
 ```
 
 ## Matching process
