@@ -643,6 +643,8 @@ s3write_using(x = data_nofund_nodupl,
 
 #### For impact analysis
 
+For AFD portfolio
+
 ```{r, eval = FALSE}
 
 #Import the non-confidential dataset with no duplicates
@@ -718,6 +720,112 @@ s3write_using(x = data_pa_ie,
               FUN = readr::write_delim,
               delim = ";",
               object = "data_tidy/BDD_PA_AFD_ie.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
+```
+
+FAPBM portfolio
+
+```{r, eval = FALSE}
+#The name of PAs funded by the FAPBM, as stated on their website (https://www.fapbm.org/aires-protegees-soutenues/, consulted the 2023-09-18).
+# I have removed any "-" and replace it by "".
+pa_fapbm_names = data.frame(name_pa = c("Ambohitantely", "Ibity", "Corridor Marojejy-Anjanaharibe Sud-Tsaratanana","Nosy Hara","Galoko Kalobinono","Analamerana"
+                   ,"Anjanaharibe Sud","Lokobe","Manongarivo", "Ambodivahibe"
+                   , "Andrafiamena Andavakoera", "Ankivonjy", "Ankarana", 
+                   "Montagne d’Ambre","Montagne des Français", "Loky Manambato"
+                   , "Tsaratanana", "Oronjia", "Masoala", "Marojejy", "Makira"
+                   , "Ivohibe", "Befotaka Midongy", "Andringitra", "Massif d’Itremo"
+                   , "Agnalazaha", "Ranomafana", "Manombo", "Zombitse Voabasia"
+                   , "Nosy Ve Androka", "Kalambatritra", "Cap Sainte Marie", 
+                   "Beza Mahafaly", "Andranomena", "Menabe Antimena", "Mikea"
+                   , "Isalo", "Tsimanampetsotse", "Complexe Mangoky Ihotry"
+                   , "Kirindy Mitea", "Andohahela", "Bombetoka", "Namoroka"
+                   , "Sahamalaza Îles Radama", "Complexe Tsimembo Manambolomaty"
+                   , "Mandrozo", "Complexe Mahavavy Kinkony", "Bemaraha"
+                   , "Beanka", "Baie de Baly", "Site bioculturel d’Antrema"
+                   , "Ankarafantsika", "Corridor Ankeniheny Zahamena", "Mangerivola"
+                   , "Betampona", "Andasibe Mantadia", "Analamazaotra", "Nosy Mangabe"
+                   , "Mananara Nord", "Zahamena", "Marotandrano", "Maromizaha"
+                   , "Analalava", "Ambatovaky")) %>%
+  #Change name for some PAs that are in WDPA but with slightly different name
+  #after cross-checking with polygon of WDPA on https://www.protectedplanet.net/
+  #and https://www.fapbm.org/aires-protegees-soutenues/
+  #Not found :
+  ## Corridor Marojejy-Anjanaharibe Sud-Tsaratanana
+  ## 
+  mutate(name_pa = case_when(name_pa == "Andasibe Mantadia" ~ "Mantadia",
+                             name_pa == "Bombetoka" ~ "Bombetoka Belemboka",
+                             name_pa == "Complexe Mahavavy Kinkony" ~ "Complexe Zones Humides Mahavavy Kinkony",
+                             name_pa == "Complexe Mangoky Ihotry" ~ "Complexe Zones Humides Mangoky Ihotry",
+                             name_pa == "Kalambatritra" ~ "Kalambatrika",
+                             name_pa == "Ibity" ~ "Massif d'Ibity",
+                             name_pa == "Kirindy Mitea" ~ "Kirindy Mite",
+                             name_pa == "Mandrozo" ~"Zone Humide de Mandrozo",
+                             name_pa == "Montagne des Français" ~"Ambohitr'Antsingy Montagne des Français",
+                             name_pa == "Tsimanampetsotse" ~ "Tsimanampesotse",
+                             name_pa == "Zombitse Voabasia" ~ "Zombitse Vohibasia",
+                             TRUE ~ name_pa)) %>%
+  mutate(name_pa_clean = janitor::make_clean_names(name_pa))
+
+#Filter the WDPA with PA funded by FAPBM
+data_pa_fapbm = data_wdpa %>%
+  janitor::clean_names() %>%
+  filter(iso3 == "MDG") %>%
+  mutate(name_clean = make_clean_names(name), .after = "name") %>%
+  filter(name_clean %in% pa_fapbm_names$name_pa_clean) %>%
+  mutate(area_km2 = rep_area, .after = "rep_area") %>%
+  mutate(region_afd = "DR OCEAN INDIEN", 
+         name_pa = name,
+         region = countrycode::countrycode(sourcevar = iso3,
+                              origin = "iso3c",
+                              destination = "un.region.name"),
+         sub_region = countrycode::countrycode(sourcevar = iso3,
+                              origin = "iso3c",
+                              destination = "un.regionsub.name"),
+         country_en = countrycode::countrycode(sourcevar = iso3,
+                              origin = "iso3c",
+                              destination = "un.name.en"),
+         country_fr = countrycode::countrycode(sourcevar = iso3,
+                              origin = "iso3c",
+                              destination = "un.name.fr"),
+         .after = "iso3") %>%
+  #Add the description of IUCN from its category
+    mutate(iucn_des_fr = case_when(
+  !is.na(wdpaid) & iucn_cat == "Ia" ~ "Réserve naturelle intégrale",
+  !is.na(wdpaid) & iucn_cat == "Ib" ~ "Zone de nature sauvage",
+  !is.na(wdpaid) & iucn_cat == "II" ~ "Parc national", 
+  !is.na(wdpaid) & iucn_cat == "III" ~ "Monument naturel",
+  !is.na(wdpaid) & iucn_cat == "IV" ~ "Gest. des habitats/espèces",
+  !is.na(wdpaid) & iucn_cat == "V" ~ "Paysage protégé",
+  !is.na(wdpaid) & iucn_cat == "VI" ~ "Gest. de ress. protégées",
+  !is.na(wdpaid) & iucn_cat == "Not Applicable" ~ "Non catégorisée",
+  !is.na(wdpaid) & iucn_cat == "Not Reported" ~ "Non catégorisée",
+  !is.na(wdpaid) & iucn_cat == "Not Assigned" ~ "Non catégorisée",
+  TRUE ~ "Non référencée"), .after = iucn_cat) %>%
+      mutate(iucn_des_en = case_when(
+  !is.na(wdpaid) & iucn_cat == "Ia" ~ "Strict nature reserve",
+  !is.na(wdpaid) & iucn_cat == "Ib" ~ "Wilderness area",
+  !is.na(wdpaid) & iucn_cat == "II" ~ "National park",
+  !is.na(wdpaid) & iucn_cat == "III" ~ "Natural monument or feature",
+  !is.na(wdpaid) & iucn_cat == "IV" ~ " Habitat or species management area",
+  !is.na(wdpaid) & iucn_cat == "V" ~ "Protected landscape or seascape",
+  !is.na(wdpaid) & iucn_cat == "VI" ~ "Protected area with sust. use of nat. res.",
+  !is.na(wdpaid) & iucn_cat == "Not Applicable" ~ "Not categorized",
+  !is.na(wdpaid) & iucn_cat == "Not Reported" ~ "Not categorized",
+  !is.na(wdpaid) & iucn_cat == "Not Assigned" ~ "Not categorized",
+  TRUE ~ "Not referenced"), .after = iucn_cat) %>%
+  mutate(year_funding_first = NA, year_funding_all = NA)
+
+
+#The PA funded by FAPBM but not in the WDPA
+pa_fapbm_not_found = pa_fapbm_names %>%
+  filter(!(name_pa_clean %in% data_pa$name_clean))
+
+#Save the dataset
+s3write_using(x = data_pa_fapbm,
+              FUN = readr::write_delim,
+              delim = ";",
+              object = "data_tidy/BDD_PA_FAPBM.csv",
               bucket = "projet-afd-eva-ap",
               opts = list("region" = ""))
 ```

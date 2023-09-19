@@ -164,7 +164,7 @@ fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log, save_dir)
 ##NOTES :
 ### Errors can arise from the wdpa_clean() function, during "formatting attribute data" step. Can be settled playing with geometry_precision parameter
 
-fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, data_pa, gadm_prj, grid, gridSize, log, save_dir)
+fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffer_m, data_pa, gadm_prj, grid, gridSize, log, save_dir)
 {
   
   output = withCallingHandlers(
@@ -180,12 +180,12 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
     #The geometry precision is set to default. Used to be 1000 in Kemmeng code
     # Overlaps are not erased because we rasterize polygons
     #UNESCO Biosphere Reserves are not excluded so that our analysis of AFD portfolio is the most extensive
-    wdpa_clean(retain_status = c("Proposed", "Designated", "Inscribed", "Established"), #NULL, #For some analysis, relevant to include Proposed PAs
+    wdpa_clean(retain_status = status, #NULL to remove proposed
                erase_overlaps = FALSE,
                exclude_unesco = FALSE,
                verbose = TRUE) %>% 
     # Remove the PAs that are only proposed, or have geometry type "point"
-    filter(STATUS != "Proposed") %>%  #24/08/2023 : "Proposed" status concerns only 6 PAs in the sample, including one implemented after 2000.
+    #filter(STATUS != "Proposed") %>%  #24/08/2023 : "Proposed" status concerns only 6 PAs in the sample, including one implemented after 2000.
     filter(GEOMETRY_TYPE != "POINT") %>%
     # Project PA polygons to the previously determined UTM zone
     st_transform(crs = utm_code) 
@@ -545,11 +545,11 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
                                 stats_soil = c("mean"),
                                 engine = "zonal")}
 
-    get.travelT  %<-% {calc_indicators(dl.travelT, 
+    get.travelT  %<-% {calc_indicators(dl.travelT,
                                   indicators = "traveltime",
-                                  stats_accessibility = c("median"))} 
-  
-    get.tree  %<-% { calc_indicators(dl.tree,
+                                  stats_accessibility = c("median"))}
+
+    get.tree  %<-% {calc_indicators(dl.tree,
                                indicators = "treecover_area",
                                min_size=1, # indicator-specific argument
                                min_cover=10)}
