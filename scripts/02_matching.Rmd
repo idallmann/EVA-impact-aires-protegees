@@ -82,8 +82,8 @@ source("scripts/functions/02_fns_matching.R")
 # Define a directory where outputs are stored in SSPCloud.
 tmp_pre = paste(tempdir(), "matching_pre", sep = "/")
 tmp_post = paste(tempdir(), "matching_post", sep = "/")
-#save_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/")
-save_dir = paste("impact_analysis/matching", "2023-08-29", sep = "/")
+save_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/")
+# save_dir = paste("impact_analysis/matching", "2023-08-29", sep = "/")
 
 #####
 ###Pre-processing
@@ -113,19 +113,19 @@ buffer_m = 10000
 n_sampling = 1000 #CAREFUL : DIVIDED BY 5 FOR GAB only !!!
 
 #Load data 
-data_pa = 
-  #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
-  aws.s3::s3read_using(
-  FUN = data.table::fread,
-  encoding = "UTF-8",
-  object = "data_tidy/BDD_PA_AFD_ie.csv",
-  bucket = "projet-afd-eva-ap",
-  opts = list("region" = "")) %>%
-  #Sangha trinational (555547988) created in 2012 actually gathers three former PAs 
-  #in CAF (31458), CMR (1245) and COG (72332) implemented in 
-  #1990, 2001 and 1993 respectively.
-  # Evaluating the trinational PA is not relevant here : our method relies on pre-treatment obervsations (for matching and DiD) and the outcome is likely to be affected by the initial PAs. On the other hand, evaluating the three earlier PAs might be irrelevant for us : are they funded by the AFD ?? In a first approach, the trinational is removed.
-  filter(is.na(wdpaid) == TRUE | wdpaid != 555547988)  
+# data_pa = 
+#   #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
+#   aws.s3::s3read_using(
+#   FUN = data.table::fread,
+#   encoding = "UTF-8",
+#   object = "data_tidy/BDD_PA_AFD_ie.csv",
+#   bucket = "projet-afd-eva-ap",
+#   opts = list("region" = "")) %>%
+#   #Sangha trinational (555547988) created in 2012 actually gathers three former PAs 
+#   #in CAF (31458), CMR (1245) and COG (72332) implemented in 
+#   #1990, 2001 and 1993 respectively.
+#   # Evaluating the trinational PA is not relevant here : our method relies on pre-treatment obervsations (for matching and DiD) and the outcome is likely to be affected by the initial PAs. On the other hand, evaluating the three earlier PAs might be irrelevant for us : are they funded by the AFD ?? In a first approach, the trinational is removed.
+#   filter(is.na(wdpaid) == TRUE | wdpaid != 555547988)  
 
 
 #List of countries in the sample
@@ -134,7 +134,7 @@ data_pa =
 #list_iso = list_iso_africa[15:24]
 # list_iso = list_iso_africa[16:24]
 
-list_iso = "GAB"
+list_iso = "MDG"
       
 #Specify the period of study to create the mapme.bidiversity portfolio
 ## Start year
@@ -220,6 +220,9 @@ data_pa_fapbm = wdpa_wld_raw %>%
   filter(name_clean %in% pa_fapbm_names$name_pa_clean) %>%
   mutate(area_km2 = rep_area, .after = "rep_area")
 
+#Define data_pa as this
+data_pa = data_pa_fapbm
+
 #The PA funded by FAPBM but not in the WDPA
 pa_fapbm_not_found = pa_fapbm_names %>%
   filter(!(name_pa_clean %in% data_pa_fapbm$name_clean))
@@ -252,8 +255,8 @@ tic_pre = tic() #Start timer
 
 #Create a log to track progress
 log = fn_pre_log(list_iso,
-                 name = paste0("log-", Sys.Date(), "-GAB.txt"),
-                 notes = "GAB done alone with n_sampling = 1000/5 instead of 1000")
+                 name = paste0("log-", Sys.Date(), "-FAPBM.txt"),
+                 notes = "Study of PA funded by FAPBM")
 
 for (i in list_iso)            
 {

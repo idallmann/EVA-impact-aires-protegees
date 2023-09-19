@@ -180,7 +180,7 @@ fn_pre_group = function(iso, wdpa_raw, yr_min, path_tmp, utm_code, buffer_m, dat
     #The geometry precision is set to default. Used to be 1000 in Kemmeng code
     # Overlaps are not erased because we rasterize polygons
     #UNESCO Biosphere Reserves are not excluded so that our analysis of AFD portfolio is the most extensive
-    wdpa_clean(retain_status = NULL,
+    wdpa_clean(retain_status = c("Proposed", "Designated", "Inscribed", "Established"), #NULL, #For some analysis, relevant to include Proposed PAs
                erase_overlaps = FALSE,
                exclude_unesco = FALSE,
                verbose = TRUE) %>% 
