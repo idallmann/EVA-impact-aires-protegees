@@ -819,7 +819,7 @@ data_pa_fapbm = data_wdpa %>%
 
 #The PA funded by FAPBM but not in the WDPA
 pa_fapbm_not_found = pa_fapbm_names %>%
-  filter(!(name_pa_clean %in% data_pa$name_clean))
+  filter(!(name_pa_clean %in% data_pa_fapbm$name_clean))
 
 #Save the dataset
 s3write_using(x = data_pa_fapbm,
@@ -833,8 +833,15 @@ s3write_using(x = data_pa_fapbm,
 For Madagascar
 
 ```{r}
+data_wdpa =
+  #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
+  s3read_using(sf::st_read,
+              object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = "")) %>%
+  clean_names()
+
 data_pa_mdg = data_wdpa %>%
-  janitor::clean_names() %>%
   filter(iso3 == "MDG") %>%
   mutate(name_clean = make_clean_names(name), .after = "name") %>%
   mutate(area_km2 = rep_area, .after = "rep_area") %>%
@@ -878,7 +885,12 @@ data_pa_mdg = data_wdpa %>%
   !is.na(wdpaid) & iucn_cat == "Not Reported" ~ "Not categorized",
   !is.na(wdpaid) & iucn_cat == "Not Assigned" ~ "Not categorized",
   TRUE ~ "Not referenced"), .after = iucn_cat) %>%
-  mutate(year_funding_first = NA, year_funding_all = NA)
+  mutate(year_funding_first = NA, year_funding_all = NA) %>%
+  #Finally compute centroid coordindates (to create maps) and dummy for FAPBM funded
+  mutate(coord = st_centroid(geom),
+        lon = unlist(map(coord,1)),
+        lat = unlist(map(coord,2)),
+         fapbm = wdpaid %in% data_pa_fapbm$wdpaid) 
 
 
 #Save the dataset
