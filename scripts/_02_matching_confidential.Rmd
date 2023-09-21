@@ -213,7 +213,7 @@ tic_pre = tic() #Start timer
 
 #Create a log to track progress
 log = fn_pre_log(list_iso,
-                 name = paste0("log-", Sys.Date(), "-MDG.txt"),
+                 name = paste0("log-", Sys.Date(), "-MDG-all-wdpa.txt"),
                  notes = "An analysis of all PAs in MDG reported by the WDPA. The idea is to compare the effectiveness of PAs funded by the FAPBM relative to other PAs in Madagascar. Note that the computations are performed on a session without time restrictions in the access to the S3 server.")
 
 for (i in list_iso)            
