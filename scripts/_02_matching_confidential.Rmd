@@ -74,6 +74,16 @@ library(progressr) # To display progress bar
 library(rstac) #To downlad NASA SRTM data
 ```
 
+Set the credentials to access to the storage. This is useful to get rid of the time restriction due to token expiration (24h). In the SSPCloud, it is necessary to create a R session without any temporary access configuration to s3 server, then to run the following code.
+
+```{r, eval = F}
+Sys.setenv("AWS_ACCESS_KEY_ID" = "Q4ssrrU8UxugYW73sIoT",
+           "AWS_SECRET_ACCESS_KEY" = "2WwG5OP7EyEWML5XmcQ8x0a0XWbZ1wvzoFWGNyT5",
+           "AWS_DEFAULT_REGION" = "us-east-1",
+           "AWS_S3_ENDPOINT"= "minio.lab.sspcloud.fr")
+bucketlist(region="")
+```
+
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
 #Import functions
 source("scripts/functions/02_fns_matching.R")      
