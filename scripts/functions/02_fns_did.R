@@ -144,7 +144,7 @@ fn_fl_wolf = function(iso, wdpaid, alpha, load_dir, ext_input)
 ## OUTPUTS
 ### None
 
-fn_did_att = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_input, save_dir)
+fn_did_att = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, is_m, load_dir, ext_input, save_dir)
 {
   
   output = tryCatch(
@@ -183,11 +183,11 @@ fn_did_att = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_input, sa
   treatment.year = treatment.year$status_yr
   
   ##Extract funding years
-  funding.years = df_long %>% 
+  df_fund_yr = df_long %>% 
     filter(group == 2) %>% 
     slice(1)
-  funding.years = funding.years$year_funding_first
-  #funding.years = as.numeric(unlist(strsplit(funding.years$year_funding_all, split = ",")))
+  funding.years = df_fund_yr$year_funding_first
+  list.funding.years = df_fund_yr$year_funding_all
   
   ##Extract country name
   # country.name = df_long %>% 
@@ -207,17 +207,79 @@ fn_did_att = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_input, sa
     slice(1)
   region.name = region.name$region
   
-  ##Area of the PA
+  ##Extract more information not in the matched dataframe
+  ### Area
   wdpa_id = wdpaid #Need to give a name to wdpaid (function argument) different from the varaible in the dataset (wdpaid)
   area_ha = data_pa[data_pa$wdpaid == wdpa_id,]$area_km2*100
+  ### Name of the PA
   pa.name = data_pa %>% 
     filter(wdpaid == wdpa_id) %>% 
     slice(1)
   pa.name = pa.name$name_pa
+  ### Country name
   country.name = data_pa %>% 
     filter(wdpaid == wdpa_id) %>% 
     slice(1)
   country.name = country.name$country_en
+  ### AFD project ID
+  id.project = data_pa %>% 
+    filter(wdpaid == wdpa_id) %>% 
+    slice(1)
+  id.project = id.project$id_projet
+  ### WDPA status
+  status.wdpa = data_pa %>% 
+    filter(wdpaid == wdpa_id) %>% 
+    slice(1)
+  status.wdpa = status.wdpa$status
+  ### IUCN category and description
+  iucn.wdpa = data_pa %>% 
+    filter(wdpaid == wdpa_id) %>% 
+    slice(1)
+  iucn.cat = iucn.wdpa$iucn_cat
+  iucn.des = iucn.wdpa$iucn_des_en
+  ### Ecosystem
+  eco.wdpa = data_pa %>% 
+    filter(wdpaid == wdpa_id) %>% 
+    slice(1)
+  eco.wdpa = eco.wdpa$marine
+  ### Governance
+  gov.wdpa = data_pa %>% 
+    filter(wdpaid == wdpa_id) %>% 
+    slice(1)
+  gov.wdpa = gov.wdpa$gov_type
+  ### Owner
+  own.wdpa = data_pa %>% 
+    filter(wdpaid == wdpa_id) %>% 
+    slice(1)
+  own.wdpa = own.wdpa$own_type
+  
+  ## Extract information on funding
+  ### Type of funding
+  fund.type = data_fund %>%
+    filter(id_projet == id.project) %>% 
+    slice(1)
+  fund.type = fund.type$libelle_produit
+  ### Cofunders
+  cofund = data_fund %>%
+    filter(id_projet == id.project) %>% 
+    slice(1)
+  cofund = cofund$cofinanciers
+  ### KfW ?
+  kfw = data_fund %>%
+    filter(id_projet == id.project) %>% 
+    slice(1)
+  kfw = kfw$kfw
+  ### FFEM ?
+  ffem = data_fund %>%
+    filter(id_projet == id.project) %>% 
+    slice(1)
+  ffem = ffem$ffem
+  
+  ## Extract reporting department
+  reporter = data_report %>%
+    filter(wdpaid == wdpa_id & id_projet == id.project & nom_ap == pa.name) %>%
+    slice(1) 
+  reporter = reporter$auteur_entree
   
   #Extract number of pixels in the PA
   #n_pix_pa = length(unique(filter(df_long_unm, group == 2)$assetid))
@@ -327,13 +389,27 @@ fn_did_att = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_input, sa
            sig_10 = ifelse(max(time) >= 10, yes = sig[time == 10] == TRUE, no = NA),
            sig_end = sig[time == max(time)] == TRUE,
            alpha = alpha) %>%
-    #Add region, iso3 and wdpaid
+    #Add relevant information
     mutate(region = region.name,
            country_en = country.name,
            iso3 = country.iso,
            name_pa = pa.name,
            wdpaid = wdpaid,
            res_ha = res_ha,
+           id_projet = id.project,
+           status_wdpa = status.wdpa,
+           iucn_cat = iucn.cat,
+           iucn_des_en = iucn.des,
+           gov_type = gov.wdpa,
+           own_type = own.wdpa,
+           marine = eco.wdpa,
+           cofund = cofund,
+           kfw = kfw,
+           ffem = ffem,
+           fund_type = fund.type,
+           dept_report = reporter,
+           funding_year = funding.years,
+           funding_year_list = list.funding.years,
            .before = "treatment_year")
   
   df_fl_attgt = data.frame("treatment_year" = fl_attgt$group,
@@ -355,12 +431,27 @@ fn_did_att = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_input, sa
     #Compute time relative to treatment year
     mutate(time = year - treatment_year,
            .before = year) %>%
+    #Add relevant information
     mutate(region = region.name,
            country_en = country.name,
            iso3 = country.iso,
            name_pa = pa.name,
            wdpaid = wdpaid,
            res_ha = res_ha,
+           id_projet = id.project,
+           status_wdpa = status.wdpa,
+           iucn_cat = iucn.cat,
+           iucn_des_en = iucn.des,
+           gov_type = gov.wdpa,
+           own_type = own.wdpa,
+           marine = eco.wdpa,
+           cofund = cofund,
+           kfw = kfw,
+           ffem = ffem,
+           fund_type = fund.type,
+           dept_report = reporter,
+           funding_year = funding.years,
+           funding_year_list = list.funding.years,
            .before = "treatment_year")
   
   ###Plot results
@@ -809,10 +900,8 @@ fn_plot_forest_loss = function(iso, wdpaid, data_pa, alpha, load_dir, ext_input,
 }
 
 
-######################
 # Plotting the ATT of each PA analyzed in the same graph
-
-fn_plot_att = function(df_fc_att, df_fl_att, alpha = 0.1, save_dir)
+fn_plot_att = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
 {
   
   #list of PAs and two time periods
@@ -1005,4 +1094,82 @@ fn_plot_att = function(df_fc_att, df_fl_att, alpha = 0.1, save_dir)
                        region = "", show_progress = TRUE)
   }
   do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+}
+
+
+
+# Table with information on each PA and the treatment effects
+fn_tbl_att = function(df_fc_att, df_fl_att, save_dir)
+{
+ 
+  tbl_fc_att_per = df_fc_att %>%
+    mutate(sig_per = case_when(sign(cband_lower_per) == sign(cband_upper_per) ~ "Yes",
+                               sign(cband_lower_per) != sign(cband_upper_per) ~ "No"),
+           iucn_wolf = case_when(iucn_cat %in% c("I", "II", "III", "IV") ~ "Strict",
+                                 iucn_cat %in% c("V", "VI") ~ "Non strict",
+                                 grepl("not", iucn_cat, ignore.case = TRUE) ~ "Unknown"),
+           dept_report = case_when(dept_report == "Léa Poulin,Pierre-Yves Durand,Ingrid Dallmann" ~ "Unknown",
+                                   TRUE ~ dept_report),
+           kfw = case_when(kfw == TRUE ~ "Yes", kfw == FALSE ~ "No"),
+           ffem = case_when(ffem == TRUE ~ "Yes", ffem == FALSE ~ "No")
+           ) %>%
+    select(c(name_pa, id_projet, dept_report, country_en, treatment_year, funding_year_list, fund_type, kfw, ffem, iucn_wolf, gov_type, time, att_per, sig_per)) %>%
+    filter(time %in% c(5, 10)) %>%
+    pivot_wider(values_from = c("att_per", "sig_per"), names_from = c("time", "time")) %>%
+    select(c(name_pa, id_projet, dept_report, country_en, treatment_year, funding_year_list, kfw, ffem, iucn_wolf, att_per_5, sig_per_5, att_per_10, sig_per_10)) %>%
+    #select(c(name_pa, id_projet, dept_report, country_en, treatment_year, funding_year_list, fund_type, kfw, ffem, iucn_wolf, gov_type, att_per_5, sig_per_5, att_per_10, sig_per_10)) %>%
+    rename("Effect (5 y., %)" = "att_per_5",
+           "Significance (5 y.)" = "sig_per_5",
+           "Effect (10 y., %)" = "att_per_10",
+           "Significance (10 y.)" = "sig_per_10") 
+  # names(tbl_fc_att_per) = c("Name", "Project ID", "Tech. div.", "Country", "Creation", "Funding year", "Type of funding", "KfW", "FFEM", "Protection", 
+  #                           "Governance", "Effect (5 y., %)", "Significance (5 y.)","Effect (10 y., %)", "Significance (10 y.)")
+  names(tbl_fc_att_per) = c("Name", "Project ID", "Tech. div.", "Country", "Creation", "Funding year", "KfW", "FFEM", "Protection", 
+                            "Effect (5 y., %)", "Significance (5 y.)","Effect (10 y., %)", "Significance (10 y.)")
+  
+  tbl_fc_att_pa = df_fc_att %>%
+    mutate(sig_pa = case_when(sign(cband_lower_pa) == sign(cband_upper_pa) ~ "Yes",
+                               sign(cband_lower_pa) != sign(cband_upper_pa) ~ "No"),
+           iucn_wolf = case_when(iucn_cat %in% c("I", "II", "III", "IV") ~ "Strict",
+                                 iucn_cat %in% c("V", "VI") ~ "Non strict",
+                                 grepl("not", iucn_cat, ignore.case = TRUE) ~ "Unknown"),
+           dept_report = case_when(dept_report == "Léa Poulin,Pierre-Yves Durand,Ingrid Dallmann" ~ "Unknown",
+                                   TRUE ~ dept_report),
+           kfw = case_when(kfw == TRUE ~ "Yes", kfw == FALSE ~ "No"),
+           ffem = case_when(ffem == TRUE ~ "Yes", ffem == FALSE ~ "No")
+    ) %>%
+    select(c(name_pa, id_projet, dept_report, country_en, treatment_year, funding_year_list, fund_type, kfw, ffem, iucn_wolf, gov_type, time, att_pa, sig_pa)) %>%
+    filter(time %in% c(5, 10)) %>%
+    pivot_wider(values_from = c("att_pa", "sig_pa"), names_from = c("time", "time")) %>%
+    # select(c(name_pa, id_projet, dept_report, country_en, treatment_year, funding_year_list, fund_type, kfw, ffem, iucn_wolf, gov_type, att_pa_5, sig_pa_5, att_pa_10, sig_pa_10)) %>%
+    select(c(name_pa, id_projet, dept_report, country_en, treatment_year, funding_year_list, kfw, ffem, iucn_wolf, att_pa_5, sig_pa_5, att_pa_10, sig_pa_10)) %>%
+    rename("Effect (5 y., %)" = "att_pa_5",
+           "Significance (5 y.)" = "sig_pa_5",
+           "Effect (10 y., %)" = "att_pa_10",
+           "Significance (10 y.)" = "sig_pa_10") 
+  # names(tbl_fc_att_pa) = c("Name", "Project ID", "Tech. div.", "Country", "Creation", "Funding year", "Type of funding", "KfW", "FFEM", "Protection", 
+  #                           "Governance", "Effect (5 y., ha)", "Significance (5 y.)","Effect (10 y., ha)", "Significance (10 y.)")
+  names(tbl_fc_att_pa) = c("Name", "Project ID", "Tech. div.", "Country", "Creation", "Funding year", "KfW", "FFEM", "Protection", 
+                            "Effect (5 y., ha)", "Significance (5 y.)","Effect (10 y., ha)", "Significance (10 y.)")
+
+  ##Saving tables
+  tmp = paste(tempdir(), "fig", sep = "/")
+  
+  print(xtable(tbl_fc_att_pa, type = "latex"),
+        file = paste(tmp, "tbl_fc_att_pa.tex", sep = "/"))
+  
+  print(xtable(tbl_fc_att_per, type = "latex"),
+        file = paste(tmp, "tbl_fc_att_per.tex", sep = "/"))
+  
+  files <- list.files(tmp, full.names = TRUE)
+  ##Add each file in the bucket (same foler for every file in the temp)
+  for(f in files) 
+  {
+    cat("Uploading file", paste0("'", f, "'"), "\n")
+    aws.s3::put_object(file = f, 
+                       bucket = paste("projet-afd-eva-ap", save_dir, sep = "/"),
+                       region = "", show_progress = TRUE)
+  }
+  do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+  
 }

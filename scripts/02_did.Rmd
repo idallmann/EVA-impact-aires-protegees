@@ -15,7 +15,7 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 
 ```{r, eval = FALSE}
 #Install some libraries
-install.packages(c("tictoc", "fixest", "cobalt", "future", "progressr", "did", "latex2exp"))
+install.packages(c("tictoc", "fixest", "cobalt", "future", "progressr", "did", "latex2exp", "janitor"))
 
 # Load Libraries
 library(dplyr)
@@ -30,6 +30,7 @@ library(aws.s3)
 library(fixest) #For estimating the models
 library(did)
 library(latex2exp)
+library(janitor)
 ```
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
@@ -47,7 +48,8 @@ load_dir = paste("impact_analysis/matching", "2023-08-29", sep = "/")
 save_dir = paste("impact_analysis/did", "2023-08-29", sep = "/")
 
 #Load data 
-data_pa = 
+## AFD
+data_pa =
   #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
   aws.s3::s3read_using(
   FUN = data.table::fread,
@@ -55,16 +57,50 @@ data_pa =
   object = "data_tidy/BDD_PA_AFD_ie.csv",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = "")) %>%
-  #Sangha trinational (555547988) created in 2012 actually gathers three former PAs 
-  #in CAF (31458), CMR (1245) and COG (72332) implemented in 
+  #Sangha trinational (555547988) created in 2012 actually gathers three former PAs
+  #in CAF (31458), CMR (1245) and COG (72332) implemented in
   #1990, 2001 and 1993 respectively.
   # Evaluating the trinational PA is not relevant here : our method relies on pre-treatment obervsations (for matching and DiD) and the outcome is likely to be affected by the initial PAs. On the other hand, evaluating the three earlier PAs might be irrelevant for us : are they funded by the AFD ?? In a first approach, the trinational is removed.
   filter(is.na(wdpaid) == TRUE | wdpaid != 555547988)
-# 
+
 list_iso = data_pa %>%
   filter(region == "Africa") %>%
   filter(!(iso3 %in% c("ZZ")))
 list_iso = unique(list_iso$iso3)
+
+#list_iso = "VNM"
+
+## SIOP project data 
+
+data_fund = 
+  #fread("data_tidy/BDD_PA_AFD_fund.csv")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  # Mettre les options de FUN ici
+  object = "data_tidy/BDD_PA_AFD_fund.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
+data_fund_nodupl = data_fund %>%
+  group_by(id_projet) %>%
+  slice(1) %>%
+  ungroup() %>%
+  select(-c("mt_part_cofinancier_prevu_euro", "cofinanciers_siop")) %>%
+  mutate(kfw = grepl("kfw", cofinanciers, ignore.case = TRUE),
+         ffem = grepl("ffem", cofinanciers, ignore.case = TRUE))
+
+## Report from technical departments
+data_pa_report = 
+  #read_delim("data_raw/BDD_PA_AFD.csv", delim = ";")
+  s3read_using(readr::read_delim,
+                delim = ";",
+               show_col_types = FALSE,
+                object = "data_raw/BDD_PA_AFD.csv",
+                bucket = "projet-afd-eva-ap",
+                opts = list("region" = "")) %>%
+  mutate(key = paste(id_projet, nom_ap, wdpaid, sep = "_")) %>%
+  group_by(key) %>%
+  slice(1)
 
 #Specify the period of study to create the mapme.bidiversity portfolio
 ## Start year
@@ -140,6 +176,8 @@ for (i in list_iso)
     output_att_m_j = fn_did_att(iso = i, wdpaid = j, 
                           is_m = TRUE,
                       data_pa = data_pa,
+                      data_fund = data_fund_nodupl,
+                      data_report = data_pa_report,
                       alpha = alpha,
                       load_dir = load_dir,
                       ext_input = ".csv",
@@ -424,6 +462,7 @@ list_wdpa_bad = c(109037, #not enough units for did computing
                   555555506,
                   303878)
 
+list_wdpa_bad = c()
 df_fc_att_tidy = df_fc_att %>%
   filter(!wdpaid %in% list_wdpa_bad)
 df_fl_att_tidy = df_fl_att %>%
@@ -433,4 +472,5 @@ fn_plot_att(df_fc_att = df_fc_att_tidy,
             df_fl_att = df_fl_att_tidy, 
             alpha = alpha,
             save_dir = save_dir)
+
 ```
