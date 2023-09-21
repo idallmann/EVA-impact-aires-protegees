@@ -32,3 +32,13 @@ data_tidy/*
 DesStat/*
 literature/*
 reports/*
+
+#Ignore specific scripts
+## Confidential access credentials to S3 server
+_02_matching_confidential.Rmd 
+## Confidential statistics performed here and not relevant for publishing publicly (though nothing confidential in the script per se)
+_01_stat_project_confidential.Rmd
+## Script to perform specific stats, not relevant to publish
+_01_stat_misc.Rmd
+## Old code to download data from mapme package
+_00_download_mapme_data.Rmd
