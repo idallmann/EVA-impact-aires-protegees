@@ -44,7 +44,7 @@ lonlat2UTM = function(lonlat)
 ### utm_code : UTM code of the country
 ### gridSize : the resolution of gridding, defined from the area of the PA with the lowest area
 
-fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log, save_dir)
+fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, gridSize, log, save_dir)
 {
   
   output = withCallingHandlers(
@@ -63,18 +63,18 @@ fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log, save_dir)
   gadm_prj = gadm %>% 
     st_transform(crs = utm_code)
   
-  #Determine relevant grid size
-  ##Select the PA in the country with minimum area. PAs with null areas, marine or treatment year before 2000 are discarded (not analyzed anyway)
-  pa_min = data_pa %>%
-    filter(iso3 == iso & is.na(wdpaid) == FALSE & status_yr >= yr_min & marine %in% c(0,1)) %>%
-    arrange(area_km2) %>%
-    slice(1)
-  ##From this minimum area, define the grid size. 
-  ##It depends on the sampling of the minimal area, i.e how many pixels we want to subdivide the PA with lowest area
-  ## To avoid a resolution higher than the one of our data, grid size is set to be 30m at least (resolution of tree cover data, Hansen et al. 2013)
-  area_min = pa_min$area_km2 #in kilometer
-  gridSize = max(1e3, round(sqrt(area_min/sampling)*1000, 0)) #Side of the pixel is expressed in meter and rounded, if above 1km. 
-  
+  # #Determine relevant grid size
+  # ##Select the PA in the country with minimum area. PAs with null areas, marine or treatment year before 2000 are discarded (not analyzed anyway)
+  # pa_min = data_pa %>%
+  #   filter(iso3 == iso & is.na(wdpaid) == FALSE & status_yr >= yr_min & marine %in% c(0,1)) %>%
+  #   arrange(area_km2) %>%
+  #   slice(1)
+  # ##From this minimum area, define the grid size. 
+  # ##It depends on the sampling of the minimal area, i.e how many pixels we want to subdivide the PA with lowest area
+  # ## To avoid a resolution higher than the one of our data, grid size is set to be 30m at least (resolution of tree cover data, Hansen et al. 2013)
+  # area_min = pa_min$area_km2 #in kilometer
+  # gridSize = max(1e3, round(sqrt(area_min/sampling)*1000, 0)) #Side of the pixel is expressed in meter and rounded, if above 1km. 
+
   # Make bounding box of projected country polygon
   bbox = st_bbox(gadm_prj) %>% st_as_sfc() %>% st_as_sf() 
   # Make a Grid to the extent of the bounding box
@@ -117,7 +117,6 @@ fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log, save_dir)
   #Return outputs
   list_output = list("ctry_shp_prj" = gadm_prj, 
                      "grid" = grid, 
-                     "gridSize" = gridSize, 
                      "utm_code" = utm_code,
                      "is_ok" = TRUE)
   return(list_output)
@@ -530,6 +529,8 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   
   dl.tri = get_resources(aoi, "nasa_srtm")
   
+  dl.biom = get_resources(aoi, "teow")
+  
   print("----Compute indicators")
   #Compute indicators
   
@@ -561,6 +562,9 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
     get.tri %<-% {calc_indicators(dl.tri,
                       indicators = "tri")}
     
+    get.biom %<-% {calc_indicators(dl.biom,
+                                  indicators = "biome")}
+    
     })
   
   print("----Build indicators' datasets")
@@ -591,6 +595,8 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
     mutate(elevation_mean = case_when(is.nan(elevation_mean) ~ NA,
                                 TRUE ~ elevation_mean))
   
+  data.biom = unnest(get.biom, biom)
+  
   ## End parallel plan : close parallel sessions, so must be done once indicators' datasets are built
   plan(sequential)
   
@@ -618,17 +624,16 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   df.soil = data.soil %>% mutate(x = NULL) %>% as.data.frame()
   df.elevation = data.elevation %>% mutate(x = NULL) %>% as.data.frame()
   df.tri = data.tri %>% mutate(x=NULL) %>% as.data.frame()
+  df.biom = data.biom %>% mutate(x=NULL) %>% as.data.frame()
   
   # Make a dataframe containing only "assetid" and geometry
   # Use data.soil instead of data.tree, as some pixels are removed in data.tree (NA values from get.tree)
   df.geom = data.soil[, c("assetid", "x")] %>% as.data.frame() 
   
   # Merge all output dataframes 
-  pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.elevation, df.tri, df.geom)) %>%
+  pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.elevation, df.tri, df.geom, df.biom)) %>%
     st_as_sf()
 
-  # pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.geom)) %>%
-  #   st_as_sf()
   # Make column Group ID and WDPA ID have data type "integer"
   pivot.all$group = as.integer(pivot.all$group)
   pivot.all$wdpaid = as.integer(pivot.all$wdpaid)
@@ -867,7 +872,7 @@ fn_post_match_auto = function(mf,
                               dummy_int,
                               th_mean, 
                               th_var_min, th_var_max,
-                              colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcIni, colname.flAvg,
+                              colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcIni, colname.flAvg, colname.biome,
                               log)
 {
 
@@ -885,7 +890,8 @@ fn_post_match_auto = function(mf,
                             +  .(as.name(colname.fcIni)) 
                             + .(as.name(colname.flAvg))
                             + .(as.name(colname.tri))
-                            + .(as.name(colname.elevation))))
+                            + .(as.name(colname.elevation))
+                            + .(as.name(colname.biome))))
       
       #Try to perform matching
       out.cem = matchit(formula,
@@ -954,7 +960,7 @@ fn_post_match_auto = function(mf,
 ### None
 
 fn_post_covbal = function(out.cem, mf, 
-                          colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, colname.tri, colname.elevation, 
+                          colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, colname.tri, colname.elevation, colname.biome, 
                           iso, path_tmp, wdpaid, log,
                           save_dir)
 {
@@ -989,9 +995,9 @@ fn_post_covbal = function(out.cem, mf,
   #Plot covariate balance
   colname.flAvg.new = paste0("Avg. Annual Forest \n Loss ",  year.start.prefund, "-", year.end.prefund)
   c_name = data.frame(old = c(colname.travelTime, colname.clayContent, colname.tri, colname.elevation,
-                              colname.fcIni, colname.flAvg),
+                              colname.fcIni, colname.flAvg, colname.biome),
                       new = c("Accessibility", "Clay Content", "Terrain Ruggedness Index (TRI)", "Elevation (m)", "Forest Cover in 2000",
-                              colname.flAvg.new))
+                              colname.flAvg.new, "Biome"))
   
   # Refer to cobalt::love.plot()
   # https://cloud.r-project.org/web/packages/cobalt/vignettes/cobalt.html#love.plot

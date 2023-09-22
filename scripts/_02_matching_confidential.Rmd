@@ -77,11 +77,11 @@ library(rstac) #To downlad NASA SRTM data
 Set the credentials to access to the storage. This is useful to get rid of the time restriction due to token expiration (24h). In the SSPCloud, it is necessary to create a R session without any temporary access configuration to s3 server, then to run the following code.
 
 ```{r, eval = F}
-Sys.setenv("AWS_ACCESS_KEY_ID" = "Q4ssrrU8UxugYW73sIoT",
-           "AWS_SECRET_ACCESS_KEY" = "2WwG5OP7EyEWML5XmcQ8x0a0XWbZ1wvzoFWGNyT5",
-           "AWS_DEFAULT_REGION" = "us-east-1",
-           "AWS_S3_ENDPOINT"= "minio.lab.sspcloud.fr")
-bucketlist(region="")
+# Sys.setenv("AWS_ACCESS_KEY_ID" = "Q4ssrrU8UxugYW73sIoT",
+#            "AWS_SECRET_ACCESS_KEY" = "2WwG5OP7EyEWML5XmcQ8x0a0XWbZ1wvzoFWGNyT5",
+#            "AWS_DEFAULT_REGION" = "us-east-1",
+#            "AWS_S3_ENDPOINT"= "minio.lab.sspcloud.fr")
+# bucketlist(region="")
 ```
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
@@ -121,8 +121,7 @@ wdpa_wld_raw = s3read_using(
 # Specify buffer width in meter
 buffer_m = 10000
 # Specify the grid cell size in meter
-#gridSize = 10000 
-n_sampling = 1000 #CAREFUL : DIVIDED BY 5 FOR GAB only !!!
+gridSize = 1e3
 
 #Load data
 ##AFD
@@ -186,6 +185,7 @@ colname.clayContent = "clay_0_5cm_mean"
 colname.elevation = "elevation_mean"
 colname.tri = "tri_mean"
 colname.fcIni = "treecover_2000"
+colname.biome = "biomes"
 
 
 # Prefix of columns for forest cover
@@ -232,7 +232,7 @@ for (i in list_iso)
                             yr_min = yr_min,
                             path_tmp = tmp_pre, 
                             data_pa = data_pa,
-                            sampling = n_sampling,
+                            gridSize = gridSize,
                             log = log,
                             save_dir = save_dir)
   if(output_grid$is_ok == FALSE) {next}
@@ -241,7 +241,6 @@ for (i in list_iso)
   utm_code = output_grid$utm_code
   gadm_prj = output_grid$ctry_shp_prj
   grid = output_grid$grid
-  gridSize = output_grid$gridSize
   
   #Determining Group IDs and WDPA IDs for all observation units
   print("--Determining Group IDs and WDPA IDs")
@@ -360,6 +359,7 @@ for (i in list_iso)
                                    colname.tri = colname.tri, 
                                    colname.fcIni = colname.fcIni, 
                                    colname.flAvg = colname.flAvg,
+                                   colname.biome = colname.biome,
                                    log = log)
     if(output_cem$is_ok == FALSE) {next} else out_cem_j = output_cem$out.cem
     
@@ -374,6 +374,7 @@ for (i in list_iso)
                    colname.flAvg = colname.flAvg,
                    colname.tri = colname.tri,
                    colname.elevation = colname.elevation,
+                   colname.biome = colname.biome,
                    iso = i,
                    path_tmp = tmp_post,
                    wdpaid = j,
