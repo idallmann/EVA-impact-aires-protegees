@@ -15,10 +15,11 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 
 ```{r, eval = FALSE}
 #Install some libraries
-install.packages(c("tictoc", "fixest", "cobalt", "future", "progressr", "did", "latex2exp", "janitor"))
+install.packages(c("tictoc", "fixest", "cobalt", "future", "progressr", "did", "latex2exp", "janitor", "stringi"))
 
 # Load Libraries
 library(dplyr)
+library(stringi)
 library(tictoc) #For timing
 library(xtable)
 library(tidyr)
@@ -221,72 +222,6 @@ toc = toc()
 
 ```
 
-Some stats on the number of PAs analyzed. Check the number of pa analyzed eventually is coherent with the filter applied during the whole process.
-
-```{r}
-data_pa_nomarine = data_pa %>%
-  filter(marine %in% c(0,1))
-#Dataframe of PAs restricted to Africa
-data_pa_africa = data_pa %>%
-  filter(region == "Africa")
-data_pa_africa_nomarine = data_pa %>%
-  filter(region == "Africa" & marine %in% c(0,1))
-#Number of PAs (total, WDPA, not WDPA)
-n_pa_africa = nrow(data_pa_africa)
-n_pa_africa_wdpa = nrow(filter(data_pa_africa, is.na(wdpaid) == FALSE))
-n_pa_africa_nowdpa = nrow(filter(data_pa_africa, is.na(wdpaid) == TRUE))
-#Dataframes of PA analyzed according to our criteria
-df_pa_africa_analyzed = data_pa_africa %>%
-  filter(is.na(wdpaid) == FALSE & area_km2 > 1 & marine %in% c(0,1) & status_yr >= 2002 & status != "Proposed")
-#Number of PA analyzed, corresponding number of countries
-n_pa_africa_analyzed = nrow(df_pa_africa_analyzed)
-n_ctry_africa_analyzed = length(unique(df_pa_africa_analyzed$iso3))
-
-#Statistics on resolutions
-df_res = df_fc_att %>%
-  group_by(wdpaid) %>%
-  slice(1) %>%
-  ungroup() %>%
-  summarize(min_res_ha = min(res_ha),
-            max_res_ha = max(res_ha),
-            mean_res_ha = mean(res_ha),
-            med_res_ha = median(res_ha)) %>%
-  round(2)
-
-#Statisitcs on funding
-data_stat_fund = 
-  #fread("data_tidy/BDD_PA_AFD_fund.csv")
-  aws.s3::s3read_using(
-  FUN = data.table::fread,
-  encoding = "UTF-8",
-  # Mettre les options de FUN ici
-  object = "data_tidy/BDD_PA_AFD_fund.csv",
-  bucket = "projet-afd-eva-ap",
-  opts = list("region" = ""))
-
-wdpaid_marine = data_pa %>%
-  filter(is.na(wdpaid) == FALSE) %>%
-  select(c("wdpaid", "marine"))
-
-data_fund_africa = data_stat_fund %>%
-  dplyr::distinct(id_projet, .keep_all = TRUE) %>%
-  filter(region == "Africa")  
-tot_funding_africa = sum(data_fund_africa$mt_fin_global_af_d_prevu_devise, na.rm = TRUE)
-
-data_fund_africa_nomarine = data_stat_fund %>%
-  left_join(wdpaid_marine, by = "wdpaid") %>%
-  filter(marine %in% c(0,1)) %>%
-  dplyr::distinct(id_projet, .keep_all = TRUE) %>%
-  filter(region == "Africa") 
-tot_funding_africa_nomarine = sum(data_fund_africa_nomarine$mt_fin_global_af_d_prevu_devise, na.rm = TRUE)
-
-data_fund_nomarine = data_stat_fund %>%
-  left_join(wdpaid_marine, by = "wdpaid") %>%
-  filter(marine %in% c(0,1)) %>%
-  dplyr::distinct(id_projet, .keep_all = TRUE) 
-tot_funding_nomarine = sum(data_fund_nomarine$mt_fin_global_af_d_prevu_devise, na.rm = TRUE)
-```
-
 Compute aggregated treatment effects at country and region level
 
 ```{r, eval = FALSE}
@@ -449,7 +384,7 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
-Plot ATT for each PA
+## Results in figures and tables
 
 ```{r}
 # Remove the PAs we do not xant to take (bad matching, bad pre-treatment parallel trend. This is done visually here, but we should have quantitative criteria in the future)
@@ -462,7 +397,6 @@ list_wdpa_bad = c(109037, #not enough units for did computing
                   555555506,
                   303878)
 
-list_wdpa_bad = c()
 df_fc_att_tidy = df_fc_att %>%
   filter(!wdpaid %in% list_wdpa_bad)
 df_fl_att_tidy = df_fl_att %>%
@@ -473,4 +407,70 @@ fn_plot_att(df_fc_att = df_fc_att_tidy,
             alpha = alpha,
             save_dir = save_dir)
 
+```
+
+## Old code
+
+```{r}
+data_pa_nomarine = data_pa %>%
+  filter(marine %in% c(0,1))
+#Dataframe of PAs restricted to Africa
+data_pa_africa = data_pa %>%
+  filter(region == "Africa")
+data_pa_africa_nomarine = data_pa %>%
+  filter(region == "Africa" & marine %in% c(0,1))
+#Number of PAs (total, WDPA, not WDPA)
+n_pa_africa = nrow(data_pa_africa)
+n_pa_africa_wdpa = nrow(filter(data_pa_africa, is.na(wdpaid) == FALSE))
+n_pa_africa_nowdpa = nrow(filter(data_pa_africa, is.na(wdpaid) == TRUE))
+#Dataframes of PA analyzed according to our criteria
+df_pa_africa_analyzed = data_pa_africa %>%
+  filter(is.na(wdpaid) == FALSE & area_km2 > 1 & marine %in% c(0,1) & status_yr >= 2002 & status != "Proposed")
+#Number of PA analyzed, corresponding number of countries
+n_pa_africa_analyzed = nrow(df_pa_africa_analyzed)
+n_ctry_africa_analyzed = length(unique(df_pa_africa_analyzed$iso3))
+
+#Statistics on resolutions
+df_res = df_fc_att %>%
+  group_by(wdpaid) %>%
+  slice(1) %>%
+  ungroup() %>%
+  summarize(min_res_ha = min(res_ha),
+            max_res_ha = max(res_ha),
+            mean_res_ha = mean(res_ha),
+            med_res_ha = median(res_ha)) %>%
+  round(2)
+
+#Statisitcs on funding
+data_stat_fund = 
+  #fread("data_tidy/BDD_PA_AFD_fund.csv")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  # Mettre les options de FUN ici
+  object = "data_tidy/BDD_PA_AFD_fund.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
+
+wdpaid_marine = data_pa %>%
+  filter(is.na(wdpaid) == FALSE) %>%
+  select(c("wdpaid", "marine"))
+
+data_fund_africa = data_stat_fund %>%
+  dplyr::distinct(id_projet, .keep_all = TRUE) %>%
+  filter(region == "Africa")  
+tot_funding_africa = sum(data_fund_africa$mt_fin_global_af_d_prevu_devise, na.rm = TRUE)
+
+data_fund_africa_nomarine = data_stat_fund %>%
+  left_join(wdpaid_marine, by = "wdpaid") %>%
+  filter(marine %in% c(0,1)) %>%
+  dplyr::distinct(id_projet, .keep_all = TRUE) %>%
+  filter(region == "Africa") 
+tot_funding_africa_nomarine = sum(data_fund_africa_nomarine$mt_fin_global_af_d_prevu_devise, na.rm = TRUE)
+
+data_fund_nomarine = data_stat_fund %>%
+  left_join(wdpaid_marine, by = "wdpaid") %>%
+  filter(marine %in% c(0,1)) %>%
+  dplyr::distinct(id_projet, .keep_all = TRUE) 
+tot_funding_nomarine = sum(data_fund_nomarine$mt_fin_global_af_d_prevu_devise, na.rm = TRUE)
 ```

@@ -906,29 +906,32 @@ fn_plot_att = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
   
   #list of PAs and two time periods
   list_ctry_plot = df_fc_att %>%
-    select(iso3, country_en, wdpaid) %>%
+    select(iso3, country_en, wdpaid, iucn_cat) %>%
     unique() %>%
     group_by(iso3, country_en, wdpaid) %>%
-    summarize(time = c(5, 10)) %>%
+    summarize(time = c(5, 10),
+              iucn_wolf = case_when(iucn_cat %in% c("I", "II", "III", "IV") ~ "Strict",
+                                    iucn_cat %in% c("V", "VI") ~ "Non strict",
+                                    grepl("not", iucn_cat, ignore.case = TRUE) ~ "Unknown")) %>%
     ungroup()
   
   #ATT for each wdpa (some have not on the two time periods)
   temp_fc = df_fc_att %>%
-    select(c(region, iso3, country_en, wdpaid, name_pa, treatment_year, time, year, att_per, cband_lower_per, cband_upper_per, att_pa, cband_lower_pa, cband_upper_pa)) %>%
+    select(c(region, iso3, country_en, wdpaid, name_pa, iucn_cat, treatment_year, time, year, att_per, cband_lower_per, cband_upper_per, att_pa, cband_lower_pa, cband_upper_pa)) %>%
     mutate(sig_pa = sign(cband_lower_pa) == sign(cband_upper_pa),
            sig_per = sign(cband_lower_per) == sign(cband_upper_per)) %>%
     filter(time %in% c(5, 10)) 
   temp_fl = df_fl_att %>%
-    select(c(region, iso3, country_en, wdpaid, name_pa, treatment_year, time, year, att, cband_lower, cband_upper)) %>%
+    select(c(region, iso3, country_en, wdpaid, name_pa, iucn_cat, treatment_year, time, year, att, cband_lower, cband_upper)) %>%
     mutate(sig = sign(cband_lower) == sign(cband_upper)) %>%
     filter(time %in% c(5, 10)) 
   
   #Att for each WDPAID, for each period (NA if no value)
-  df_plot_fc_att = left_join(list_ctry_plot, temp_fc, by = c("iso3", "country_en", "wdpaid", "time"))%>%
+  df_plot_fc_att = left_join(list_ctry_plot, temp_fc, by = c("iso3", "country_en", "wdpaid", "time")) %>%
     group_by(time, country_en) %>%
     arrange(country_en) %>%
     mutate(country_en = paste0(country_en, " (", LETTERS[row_number()], ")")) %>%
-    ungroup()
+    ungroup() 
   df_plot_fl_att = left_join(list_ctry_plot, temp_fl, by = c("iso3", "country_en", "wdpaid", "time"))%>%
     group_by(time, country_en) %>%
     arrange(country_en) %>%
@@ -936,9 +939,13 @@ fn_plot_att = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
     ungroup()
   
   #Plots
-  ## Att in share of 2000 forest cover
   names = c(`5` = "5 years after treatment",
-            `10` = "10 years after treatment")
+            `10` = "10 years after treatment",
+            `Strict` = "Strict\nIUCN cat. I-IV",
+            `Non strict` = "Non strict\nIUCN V-VI",
+            `Unknown` = "Unknown")
+  
+  ## Att in share of 2000 forest cover
   fig_att_per = ggplot(df_plot_fc_att, 
                        aes(x = att_per, 
                            y = factor(country_en, levels = unique(rev(sort(country_en)))),
@@ -949,8 +956,7 @@ fn_plot_att = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
     + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                            na.translate = F) %>%
     # + scale_x_continuous(breaks=seq(min(df_plot_fc_att$att_per, na.rm = TRUE),max(df_plot_fc_att$att_per, na.rm = TRUE),by=1)) %>%
-    + facet_wrap(~time, ncol = 2, #scales = 'free_x'
-                 labeller = as_labeller(names)) %>%
+    + facet_grid(~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
     + labs(title = "Deforestation avoided relative to 2000 forest cover",
            x = "%",
            y = "") %>%
@@ -965,6 +971,47 @@ fn_plot_att = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
       plot.subtitle = element_text(size=12, color = "black", face = "plain", hjust = 0),
       
       strip.text = element_text(color = "black", size = 12),
+      strip.clip = "off",
+      panel.spacing = unit(2, "lines"),
+      
+      #legend.position = "bottom",
+      legend.text=element_text(size=10),
+      #legend.spacing.x = unit(1.0, 'cm'),
+      #legend.spacing.y = unit(0.75, 'cm'),
+      legend.key.size = unit(2, 'line'),
+      
+      panel.grid.major.x = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.x = element_line(color = 'grey80', linewidth = 0.2, linetype = 2),
+      panel.grid.major.y = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
+    )
+  
+  fig_att_per_iucn = ggplot(df_plot_fc_att, 
+                       aes(x = att_per, 
+                           y = factor(country_en, levels = unique(rev(sort(country_en)))),
+                           xmin = cband_lower_per, xmax = cband_upper_per)) %>%
+    + geom_point(aes(color = sig_per)) %>%
+    + geom_vline(xintercept = 0) %>%
+    + geom_errorbarh(aes(color = sig_per)) %>% 
+    + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
+                           na.translate = F) %>%
+    # + scale_x_continuous(breaks=seq(min(df_plot_fc_att$att_per, na.rm = TRUE),max(df_plot_fc_att$att_per, na.rm = TRUE),by=1)) %>%
+    + facet_grid(iucn_wolf~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
+    + labs(title = "Deforestation avoided relative to 2000 forest cover",
+           x = "%",
+           y = "") %>%
+    + theme_minimal() %>%
+    + theme(
+      axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
+      axis.text=element_text(size=11, color = "black"),
+      axis.title=element_text(size=14, color = "black", face = "plain"),
+      
+      plot.caption = element_text(hjust = 0),
+      plot.title = element_text(size=16, color = "black", face = "plain", hjust = 0),
+      plot.subtitle = element_text(size=12, color = "black", face = "plain", hjust = 0),
+      
+      strip.text = element_text(color = "black", size = 12),
+      strip.clip = "off",
       panel.spacing = unit(2, "lines"),
       
       #legend.position = "bottom",
@@ -981,8 +1028,6 @@ fn_plot_att = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
 
     
   ##ATT : total deforestation avoided
-  names = c(`5` = "5 years after treatment",
-            `10` = "10 years after treatment")
   fig_att_pa = ggplot(df_plot_fc_att, 
                       aes(x = att_pa, 
                           y = factor(country_en, levels = unique(rev(sort(country_en)))),
@@ -992,8 +1037,7 @@ fn_plot_att = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
     + geom_errorbarh(aes(color = sig_pa)) %>% 
     + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                            na.translate = F) %>%
-    + facet_wrap(~time, ncol = 2, #scales = 'free_x'
-                 labeller = as_labeller(names)) %>%
+    + facet_grid(~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
     + labs(title = "Total deforestation avoided",
            x = "ha",
            y = "") %>%
@@ -1008,6 +1052,46 @@ fn_plot_att = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
       plot.subtitle = element_text(size=12, color = "black", face = "plain", hjust = 0),
       
       strip.text = element_text(color = "black", size = 12),
+      strip.clip = "off",
+      panel.spacing = unit(2, "lines"),
+      
+      #legend.position = "bottom",
+      legend.text=element_text(size=10),
+      #legend.spacing.x = unit(1.0, 'cm'),
+      #legend.spacing.y = unit(0.75, 'cm'),
+      legend.key.size = unit(2, 'line'),
+      
+      panel.grid.major.x = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.x = element_line(color = 'grey80', linewidth = 0.2, linetype = 2),
+      panel.grid.major.y = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
+    )
+  
+  fig_att_pa_iucn = ggplot(df_plot_fc_att, 
+                      aes(x = att_pa, 
+                          y = factor(country_en, levels = unique(rev(sort(country_en)))),
+                          xmin = cband_lower_pa, xmax = cband_upper_pa)) %>%
+    + geom_point(aes(color = sig_pa)) %>%
+    + geom_vline(xintercept = 0) %>%
+    + geom_errorbarh(aes(color = sig_pa)) %>% 
+    + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
+                           na.translate = F) %>%
+    + facet_grid(iucn_wolf~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
+    + labs(title = "Total deforestation avoided",
+           x = "ha",
+           y = "") %>%
+    + theme_minimal() %>%
+    + theme(
+      axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
+      axis.text=element_text(size=11, color = "black"),
+      axis.title=element_text(size=14, color = "black", face = "plain"),
+      
+      plot.caption = element_text(hjust = 0),
+      plot.title = element_text(size=16, color = "black", face = "plain", hjust = 0),
+      plot.subtitle = element_text(size=12, color = "black", face = "plain", hjust = 0),
+      
+      strip.text = element_text(color = "black", size = 12),
+      strip.clip = "off",
       panel.spacing = unit(2, "lines"),
       
       #legend.position = "bottom",
@@ -1023,8 +1107,6 @@ fn_plot_att = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
     )
   
   ##ATT : avoided deforestation in percentage points
-  names = c(`5` = "5 years after treatment",
-            `10` = "10 years after treatment")
   fig_att_fl = ggplot(df_plot_fl_att, 
                       aes(x = att, 
                           y = factor(country_en, levels = unique(rev(sort(country_en)))),
@@ -1034,8 +1116,7 @@ fn_plot_att = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
     + geom_errorbarh(aes(color = sig)) %>% 
     + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                            na.translate = F) %>%
-    + facet_wrap(~time, ncol = 2, #scales = 'free_x'
-                 labeller = as_labeller(names)) %>%
+    + facet_grid(~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
     + labs(title = "Reduction of deforestation due to the conservation",
            x = "p.p.",
            y = "") %>%
@@ -1050,6 +1131,7 @@ fn_plot_att = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
       plot.subtitle = element_text(size=12, color = "black", face = "plain", hjust = 0),
       
       strip.text = element_text(color = "black", size = 12),
+      strip.clip = "off",
       panel.spacing = unit(2, "lines"),
       
       #legend.position = "bottom",
@@ -1064,6 +1146,113 @@ fn_plot_att = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
       panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
     )
   
+  fig_att_fl_iucn = ggplot(df_plot_fl_att, 
+                      aes(x = att, 
+                          y = factor(country_en, levels = unique(rev(sort(country_en)))),
+                          xmin = cband_lower, xmax = cband_upper)) %>%
+    + geom_point(aes(color = sig)) %>%
+    + geom_vline(xintercept = 0) %>%
+    + geom_errorbarh(aes(color = sig)) %>% 
+    + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
+                           na.translate = F) %>%
+    + facet_grid(iucn_wolf~time, scales="free", space="free",  labeller= as_labeller(names)) %>%
+    + labs(title = "Reduction of deforestation due to the conservation",
+           x = "p.p.",
+           y = "") %>%
+    + theme_minimal() %>%
+    + theme(
+      axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
+      axis.text=element_text(size=11, color = "black"),
+      axis.title=element_text(size=14, color = "black", face = "plain"),
+      
+      plot.caption = element_text(hjust = 0),
+      plot.title = element_text(size=16, color = "black", face = "plain", hjust = 0),
+      plot.subtitle = element_text(size=12, color = "black", face = "plain", hjust = 0),
+      
+      strip.text = element_text(color = "black", size = 12),
+      strip.clip = "off",
+      panel.spacing = unit(2, "lines"),
+      
+      #legend.position = "bottom",
+      legend.text=element_text(size=10),
+      #legend.spacing.x = unit(1.0, 'cm'),
+      #legend.spacing.y = unit(0.75, 'cm'),
+      legend.key.size = unit(2, 'line'),
+      
+      panel.grid.major.x = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.x = element_line(color = 'grey80', linewidth = 0.2, linetype = 2),
+      panel.grid.major.y = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
+    )
+  
+  
+  #Tables 
+  ## ATT : percentage of deforestation avoided
+  tbl_fc_att_per = df_fc_att %>%
+    mutate(sig_per = case_when(sign(cband_lower_per) == sign(cband_upper_per) ~ "Yes",
+                               sign(cband_lower_per) != sign(cband_upper_per) ~ "No"),
+           iucn_wolf = case_when(iucn_cat %in% c("I", "II", "III", "IV") ~ "Strict",
+                                 iucn_cat %in% c("V", "VI") ~ "Non strict",
+                                 grepl("not", iucn_cat, ignore.case = TRUE) ~ "Unknown"),
+           dept_report = case_when(dept_report == "Léa Poulin,Pierre-Yves Durand,Ingrid Dallmann" ~ "Unknown",
+                                   TRUE ~ dept_report),
+           kfw = case_when(kfw == TRUE ~ "Yes", kfw == FALSE ~ "No"),
+           ffem = case_when(ffem == TRUE ~ "Yes", ffem == FALSE ~ "No"),
+           funding_year_list = case_when(is.na(funding_year_list) == TRUE ~ "Unknown",
+                                         TRUE ~ funding_year_list),
+           name_pa = case_when(nchar(name_pa) <= 25 ~ stri_trans_general(name_pa, id = "Latin-ASCII"),
+                               nchar(name_pa) > 25 ~ stri_trans_general(paste0(substr(name_pa, 1, 25), "..."),  id = "Latin-ASCII"))
+    ) %>%
+    select(c(name_pa, id_projet, dept_report, country_en, treatment_year, funding_year_list, fund_type, kfw, ffem, iucn_wolf, gov_type, time, att_per, sig_per)) %>%
+    filter(time %in% c(5, 10)) %>%
+    pivot_wider(values_from = c("att_per", "sig_per"), names_from = c("time", "time")) %>%
+    select(c(name_pa, id_projet, dept_report, country_en, treatment_year, funding_year_list, kfw, ffem, iucn_wolf, att_per_5, sig_per_5, att_per_10, sig_per_10)) %>%
+    #select(c(name_pa, id_projet, dept_report, country_en, treatment_year, funding_year_list, fund_type, kfw, ffem, iucn_wolf, gov_type, att_per_5, sig_per_5, att_per_10, sig_per_10)) %>%
+    mutate(across(.cols = starts_with(c("att", "sig")),
+                  .fns = \(x) case_when(is.na(x) == TRUE ~ "/", TRUE ~ as.character(format(x, digit = 1))))) %>%
+    rename("Effect (5 y., %)" = "att_per_5",
+           "Signi. (5 y.)" = "sig_per_5",
+           "Effect (10 y., %)" = "att_per_10",
+           "Signi. (10 y.)" = "sig_per_10") 
+  # names(tbl_fc_att_per) = c("Name", "Project ID", "Tech. div.", "Country", "Creation", "Funding year", "Type of funding", "KfW", "FFEM", "Protection", 
+  #                           "Governance", "Effect (5 y., %)", "Significance (5 y.)","Effect (10 y., %)", "Significance (10 y.)")
+  names(tbl_fc_att_per) = c("Name", "Project ID", "Tech. div.", "Country", "Creation", "Funding year", "KfW", "FFEM", "Protection", 
+                            "Effect (5 y., %)", "Signi. (5 y.)","Effect (10 y., %)", "Signi. (10 y.)")
+  
+  # ATT : total deforestation avoided 
+  tbl_fc_att_pa = df_fc_att %>%
+    mutate(sig_pa = case_when(sign(cband_lower_pa) == sign(cband_upper_pa) ~ "Yes",
+                              sign(cband_lower_pa) != sign(cband_upper_pa) ~ "No"),
+           iucn_wolf = case_when(iucn_cat %in% c("I", "II", "III", "IV") ~ "Strict",
+                                 iucn_cat %in% c("V", "VI") ~ "Non strict",
+                                 grepl("not", iucn_cat, ignore.case = TRUE) ~ "Unknown"),
+           dept_report = case_when(dept_report == "Léa Poulin,Pierre-Yves Durand,Ingrid Dallmann" ~ "Unknown",
+                                   TRUE ~ dept_report),
+           kfw = case_when(kfw == TRUE ~ "Yes", kfw == FALSE ~ "No"),
+           ffem = case_when(ffem == TRUE ~ "Yes", ffem == FALSE ~ "No"),
+           funding_year_list = case_when(is.na(funding_year_list) == TRUE ~ "Unknown",
+                                         TRUE ~ funding_year_list),
+           name_pa = case_when(nchar(name_pa) <= 25 ~ stri_trans_general(name_pa, id = "Latin-ASCII"),
+                               nchar(name_pa) > 25 ~ stri_trans_general(paste0(substr(name_pa, 1, 25), "..."),  id = "Latin-ASCII"))
+    ) %>%
+    select(c(name_pa, id_projet, dept_report, country_en, treatment_year, funding_year_list, fund_type, kfw, ffem, iucn_wolf, gov_type, time, att_pa, sig_pa)) %>%
+    filter(time %in% c(5, 10)) %>%
+    pivot_wider(values_from = c("att_pa", "sig_pa"), names_from = c("time", "time")) %>%
+    # select(c(name_pa, id_projet, dept_report, country_en, treatment_year, funding_year_list, fund_type, kfw, ffem, iucn_wolf, gov_type, att_pa_5, sig_pa_5, att_pa_10, sig_pa_10)) %>%
+    select(c(name_pa, id_projet, dept_report, country_en, treatment_year, funding_year_list, kfw, ffem, iucn_wolf, att_pa_5, sig_pa_5, att_pa_10, sig_pa_10)) %>%
+    mutate(across(.cols = starts_with(c("att", "sig")),
+                  .fns = \(x) case_when(is.na(x) == TRUE ~ "/", TRUE ~ as.character(format(x, digit = 1))))) %>%
+    rename("Effect (5 y., %)" = "att_pa_5",
+           "Signi. (5 y.)" = "sig_pa_5",
+           "Effect (10 y., %)" = "att_pa_10",
+           "Signi. (10 y.)" = "sig_pa_10") 
+  # names(tbl_fc_att_pa) = c("Name", "Project ID", "Tech. div.", "Country", "Creation", "Funding year", "Type of funding", "KfW", "FFEM", "Protection", 
+  #                           "Governance", "Effect (5 y., ha)", "Significance (5 y.)","Effect (10 y., ha)", "Significance (10 y.)")
+  names(tbl_fc_att_pa) = c("Name", "Project ID", "Tech. div.", "Country", "Creation", "Funding year", "KfW", "FFEM", "Protection", 
+                           "Effect (5 y., ha)", "Signi. (5 y.)","Effect (10 y., ha)", "Signi. (10 y.)")
+  
+  
+  
   #Saving plots
   
   ##Saving plots
@@ -1074,8 +1263,18 @@ fn_plot_att = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
          device = "png",
          height = 6, width = 9)
   
+  ggsave(paste(tmp, "fig_att_per_iucn.png", sep = "/"),
+         plot = fig_att_per_iucn,
+         device = "png",
+         height = 6, width = 9)
+  
   ggsave(paste(tmp, "fig_att_pa.png", sep = "/"),
          plot = fig_att_pa,
+         device = "png",
+         height = 6, width = 9)
+  
+  ggsave(paste(tmp, "fig_att_pa_iucn.png", sep = "/"),
+         plot = fig_att_pa_iucn,
          device = "png",
          height = 6, width = 9)
   
@@ -1084,78 +1283,13 @@ fn_plot_att = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
          device = "png",
          height = 6, width = 9)
   
-  files <- list.files(tmp, full.names = TRUE)
-  ##Add each file in the bucket (same foler for every file in the temp)
-  for(f in files) 
-  {
-    cat("Uploading file", paste0("'", f, "'"), "\n")
-    aws.s3::put_object(file = f, 
-                       bucket = paste("projet-afd-eva-ap", save_dir, sep = "/"),
-                       region = "", show_progress = TRUE)
-  }
-  do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
-}
-
-
-
-# Table with information on each PA and the treatment effects
-fn_tbl_att = function(df_fc_att, df_fl_att, save_dir)
-{
- 
-  tbl_fc_att_per = df_fc_att %>%
-    mutate(sig_per = case_when(sign(cband_lower_per) == sign(cband_upper_per) ~ "Yes",
-                               sign(cband_lower_per) != sign(cband_upper_per) ~ "No"),
-           iucn_wolf = case_when(iucn_cat %in% c("I", "II", "III", "IV") ~ "Strict",
-                                 iucn_cat %in% c("V", "VI") ~ "Non strict",
-                                 grepl("not", iucn_cat, ignore.case = TRUE) ~ "Unknown"),
-           dept_report = case_when(dept_report == "Léa Poulin,Pierre-Yves Durand,Ingrid Dallmann" ~ "Unknown",
-                                   TRUE ~ dept_report),
-           kfw = case_when(kfw == TRUE ~ "Yes", kfw == FALSE ~ "No"),
-           ffem = case_when(ffem == TRUE ~ "Yes", ffem == FALSE ~ "No")
-           ) %>%
-    select(c(name_pa, id_projet, dept_report, country_en, treatment_year, funding_year_list, fund_type, kfw, ffem, iucn_wolf, gov_type, time, att_per, sig_per)) %>%
-    filter(time %in% c(5, 10)) %>%
-    pivot_wider(values_from = c("att_per", "sig_per"), names_from = c("time", "time")) %>%
-    select(c(name_pa, id_projet, dept_report, country_en, treatment_year, funding_year_list, kfw, ffem, iucn_wolf, att_per_5, sig_per_5, att_per_10, sig_per_10)) %>%
-    #select(c(name_pa, id_projet, dept_report, country_en, treatment_year, funding_year_list, fund_type, kfw, ffem, iucn_wolf, gov_type, att_per_5, sig_per_5, att_per_10, sig_per_10)) %>%
-    rename("Effect (5 y., %)" = "att_per_5",
-           "Significance (5 y.)" = "sig_per_5",
-           "Effect (10 y., %)" = "att_per_10",
-           "Significance (10 y.)" = "sig_per_10") 
-  # names(tbl_fc_att_per) = c("Name", "Project ID", "Tech. div.", "Country", "Creation", "Funding year", "Type of funding", "KfW", "FFEM", "Protection", 
-  #                           "Governance", "Effect (5 y., %)", "Significance (5 y.)","Effect (10 y., %)", "Significance (10 y.)")
-  names(tbl_fc_att_per) = c("Name", "Project ID", "Tech. div.", "Country", "Creation", "Funding year", "KfW", "FFEM", "Protection", 
-                            "Effect (5 y., %)", "Significance (5 y.)","Effect (10 y., %)", "Significance (10 y.)")
+  ggsave(paste(tmp, "fig_att_fl_iucn.png", sep = "/"),
+         plot = fig_att_fl_iucn,
+         device = "png",
+         height = 6, width = 9)
   
-  tbl_fc_att_pa = df_fc_att %>%
-    mutate(sig_pa = case_when(sign(cband_lower_pa) == sign(cband_upper_pa) ~ "Yes",
-                               sign(cband_lower_pa) != sign(cband_upper_pa) ~ "No"),
-           iucn_wolf = case_when(iucn_cat %in% c("I", "II", "III", "IV") ~ "Strict",
-                                 iucn_cat %in% c("V", "VI") ~ "Non strict",
-                                 grepl("not", iucn_cat, ignore.case = TRUE) ~ "Unknown"),
-           dept_report = case_when(dept_report == "Léa Poulin,Pierre-Yves Durand,Ingrid Dallmann" ~ "Unknown",
-                                   TRUE ~ dept_report),
-           kfw = case_when(kfw == TRUE ~ "Yes", kfw == FALSE ~ "No"),
-           ffem = case_when(ffem == TRUE ~ "Yes", ffem == FALSE ~ "No")
-    ) %>%
-    select(c(name_pa, id_projet, dept_report, country_en, treatment_year, funding_year_list, fund_type, kfw, ffem, iucn_wolf, gov_type, time, att_pa, sig_pa)) %>%
-    filter(time %in% c(5, 10)) %>%
-    pivot_wider(values_from = c("att_pa", "sig_pa"), names_from = c("time", "time")) %>%
-    # select(c(name_pa, id_projet, dept_report, country_en, treatment_year, funding_year_list, fund_type, kfw, ffem, iucn_wolf, gov_type, att_pa_5, sig_pa_5, att_pa_10, sig_pa_10)) %>%
-    select(c(name_pa, id_projet, dept_report, country_en, treatment_year, funding_year_list, kfw, ffem, iucn_wolf, att_pa_5, sig_pa_5, att_pa_10, sig_pa_10)) %>%
-    rename("Effect (5 y., %)" = "att_pa_5",
-           "Significance (5 y.)" = "sig_pa_5",
-           "Effect (10 y., %)" = "att_pa_10",
-           "Significance (10 y.)" = "sig_pa_10") 
-  # names(tbl_fc_att_pa) = c("Name", "Project ID", "Tech. div.", "Country", "Creation", "Funding year", "Type of funding", "KfW", "FFEM", "Protection", 
-  #                           "Governance", "Effect (5 y., ha)", "Significance (5 y.)","Effect (10 y., ha)", "Significance (10 y.)")
-  names(tbl_fc_att_pa) = c("Name", "Project ID", "Tech. div.", "Country", "Creation", "Funding year", "KfW", "FFEM", "Protection", 
-                            "Effect (5 y., ha)", "Significance (5 y.)","Effect (10 y., ha)", "Significance (10 y.)")
-
-  ##Saving tables
-  tmp = paste(tempdir(), "fig", sep = "/")
-  
-  print(xtable(tbl_fc_att_pa, type = "latex"),
+  print(xtable(tbl_fc_att_pa, 
+               type = "latex"),
         file = paste(tmp, "tbl_fc_att_pa.tex", sep = "/"))
   
   print(xtable(tbl_fc_att_per, type = "latex"),
@@ -1171,5 +1305,6 @@ fn_tbl_att = function(df_fc_att, df_fl_att, save_dir)
                        region = "", show_progress = TRUE)
   }
   do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
-  
 }
+
+
