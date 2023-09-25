@@ -81,6 +81,10 @@ fn_did_list_pa = function(iso, load_dir)
 
 fn_fl_wolf = function(iso, wdpaid, alpha, load_dir, ext_input)
 {
+  output = tryCatch(
+    
+    {
+      
   #Import matched units
   df_long = s3read_using(data.table::fread,
                            object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("matched_long", "_", iso, "_", wdpaid, ext_input)),
@@ -130,7 +134,18 @@ fn_fl_wolf = function(iso, wdpaid, alpha, load_dir, ext_input)
     mutate(group = case_when(group == 1 ~ "Control",
                              group == 2 ~ "Treated"))
   
-  return(df_fl_annual_wolf)
+  return(list("df_fl_annual_wolf" = df_fl_annual_wolf, "is_ok" = TRUE))
+    },
+  
+  error = function(e)
+  {
+    print(e)
+    #cat(paste("Error while computing annual deforestation à la Wolf et al. 2021 :\n", e, "\n"), file = log, append = TRUE)
+    print(paste("Error while annual deforestation à la Wolf et al. 2021 :\n", e, "\n"))
+    return(list("is_ok" = FALSE))
+  }
+  
+  )
 }
 
 #Compute the treatment effect for a given PA
@@ -917,12 +932,12 @@ fn_plot_att = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
   
   #ATT for each wdpa (some have not on the two time periods)
   temp_fc = df_fc_att %>%
-    select(c(region, iso3, country_en, wdpaid, name_pa, iucn_cat, treatment_year, time, year, att_per, cband_lower_per, cband_upper_per, att_pa, cband_lower_pa, cband_upper_pa)) %>%
+    dplyr::select(c(region, iso3, country_en, wdpaid, name_pa, iucn_cat, treatment_year, time, year, att_per, cband_lower_per, cband_upper_per, att_pa, cband_lower_pa, cband_upper_pa)) %>%
     mutate(sig_pa = sign(cband_lower_pa) == sign(cband_upper_pa),
            sig_per = sign(cband_lower_per) == sign(cband_upper_per)) %>%
     filter(time %in% c(5, 10)) 
   temp_fl = df_fl_att %>%
-    select(c(region, iso3, country_en, wdpaid, name_pa, iucn_cat, treatment_year, time, year, att, cband_lower, cband_upper)) %>%
+    dplyr::select(c(region, iso3, country_en, wdpaid, name_pa, iucn_cat, treatment_year, time, year, att, cband_lower, cband_upper)) %>%
     mutate(sig = sign(cband_lower) == sign(cband_upper)) %>%
     filter(time %in% c(5, 10)) 
   

@@ -163,12 +163,13 @@ for (i in list_iso)
     
     #Compute annual deforestation rates in treated and control matched areas
     print("--Compute average deforestation rates à la Wolf et al. 2021")
-    df_fl_wolf_m_j = fn_fl_wolf(iso = i, 
+    output_wolf_m_j = fn_fl_wolf(iso = i, 
                                 wdpaid = j, 
                                 alpha = alpha, 
                                 load_dir = load_dir,
                                 ext_input = ".csv")
     
+    if(output_wolf_m_j$is_ok == FALSE) {next} else df_fl_wolf_m_j = output_wolf_m_j$df_fl_wolf_m_j
     df_fl_annual_wolf = rbind(df_fl_annual_wolf, df_fl_wolf_m_j)
     
     #Compute treatment effects
