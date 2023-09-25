@@ -1817,14 +1817,14 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
   do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 }
 
-fn_plot_att_general = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
+fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save_dir)
 {
   
   #list of PAs and two time periods
   list_ctry_plot = df_fc_att %>%
-    dplyr::select(iso3, country_en, wdpaid, iucn_cat) %>%
+    dplyr::select(iso3, country_en, wdpaid, name_pa, iucn_cat) %>%
     unique() %>%
-    group_by(iso3, country_en, wdpaid) %>%
+    group_by(iso3, country_en, wdpaid, name_pa) %>%
     summarize(time = c(5, 10),
               iucn_wolf = case_when(iucn_cat %in% c("I", "II", "III", "IV") ~ "Strict",
                                     iucn_cat %in% c("V", "VI") ~ "Non strict",
@@ -1833,38 +1833,51 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
   
   #ATT for each wdpa (some have not on the two time periods)
   temp_fc = df_fc_att %>%
-    dplyr::select(c(region, iso3, country_en, wdpaid, name_pa, iucn_cat, treatment_year, time, year, att_per, cband_lower_per, cband_upper_per, att_pa, cband_lower_pa, cband_upper_pa)) %>%
+    dplyr::select(c(region, iso3, country_en, wdpaid, name_pa,iucn_cat, treatment_year, time, year, att_per, cband_lower_per, cband_upper_per, att_pa, cband_lower_pa, cband_upper_pa)) %>%
     mutate(sig_pa = sign(cband_lower_pa) == sign(cband_upper_pa),
            sig_per = sign(cband_lower_per) == sign(cband_upper_per)) %>%
     filter(time %in% c(5, 10)) 
   temp_fl = df_fl_att %>%
-    dplyr::select(c(region, iso3, country_en, wdpaid, name_pa, iucn_cat, treatment_year, time, year, att, cband_lower, cband_upper)) %>%
+    dplyr::select(c(region, iso3, country_en, wdpaid, name_pa,iucn_cat, treatment_year, time, year, att, cband_lower, cband_upper)) %>%
     mutate(sig = sign(cband_lower) == sign(cband_upper)) %>%
     filter(time %in% c(5, 10)) 
   
   #Att for each WDPAID, for each period (NA if no value)
-  df_plot_fc_att = left_join(list_ctry_plot, temp_fc, by = c("iso3", "country_en", "wdpaid", "time")) %>%
+  ## For figures
+  df_plot_fc_att = left_join(list_ctry_plot, temp_fc, by = c("iso3", "country_en", "wdpaid", "name_pa", "time")) %>%
+    mutate(focus = case_when(wdpaid %in% list_focus ~ "focus",
+                             !(wdpaid %in% list_focus) ~ "not focus")) %>%
     group_by(time, country_en) %>%
-    arrange(country_en) %>%
-    mutate(country_en = paste0(country_en, " (", LETTERS[row_number()], ")")) %>%
-    ungroup() 
-  df_plot_fl_att = left_join(list_ctry_plot, temp_fl, by = c("iso3", "country_en", "wdpaid", "time"))%>%
-    group_by(time, country_en) %>%
-    arrange(country_en) %>%
-    mutate(country_en = paste0(country_en, " (", LETTERS[row_number()], ")")) %>%
+    arrange(country_en, focus) %>%
+    mutate(country_en = paste0(country_en, " (", row_number(), ")"),
+           n = row_number()) %>%
     ungroup()
+  
+  df_plot_fl_att = left_join(list_ctry_plot, temp_fl, by = c("iso3", "country_en", "wdpaid", "name_pa", "time"))%>%
+    mutate(focus = case_when(wdpaid %in% list_focus ~ "focus",
+                             !(wdpaid %in% list_focus) ~ "not focus")) %>%
+    group_by(time, country_en) %>%
+    arrange(country_en, focus) %>%
+    mutate(country_en = paste0(country_en, " (", row_number(), ")"),
+           n = row_number()) %>%
+    ungroup()
+  
   
   #Plots
   names = c(`5` = "5 years after treatment",
             `10` = "10 years after treatment",
             `Strict` = "Strict\nIUCN cat. I-IV",
             `Non strict` = "Non strict\nIUCN V-VI",
-            `Unknown` = "Unknown")
+            `Unknown` = "Unknown",
+            `focus` = "FAPBM funded",
+            `not focus` = "Others")
+  # df_colors = df_plot_fc_att %>% group_by(n) %>% slice(1)
+  # colors = ifelse(df_colors$wdpaid %in% list_focus,"#3182BD","black")
   
   ## Att in share of 2000 forest cover
   fig_att_per = ggplot(df_plot_fc_att, 
                        aes(x = att_per, 
-                           y = factor(country_en, levels = unique(rev(sort(country_en)))),
+                           y = factor(name_pa, levels = unique(rev(sort(name_pa)))),
                            xmin = cband_lower_per, xmax = cband_upper_per)) %>%
     + geom_point(aes(color = sig_per)) %>%
     + geom_vline(xintercept = 0) %>%
@@ -1873,6 +1886,48 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
                            na.translate = F) %>%
     # + scale_x_continuous(breaks=seq(min(df_plot_fc_att$att_per, na.rm = TRUE),max(df_plot_fc_att$att_per, na.rm = TRUE),by=1)) %>%
     + facet_grid(~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
+    + labs(title = "Deforestation avoided relative to 2000 forest cover",
+           #caption = "FAPBM funded protected areas are in blue, others are in black.",
+           x = "%",
+           y = "") %>%
+    + theme_minimal() %>%
+    + theme(
+      axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
+      #axis.text.y = element_text(color = rev(colors)),
+      axis.text=element_text(size=11, color = "black"),
+      axis.title=element_text(size=14, color = "black", face = "plain"),
+      
+      plot.caption = element_text(hjust = 0),
+      plot.title = element_text(size=16, color = "black", face = "plain", hjust = 0),
+      plot.subtitle = element_text(size=12, color = "black", face = "plain", hjust = 0),
+      
+      strip.text = element_text(color = "black", size = 12),
+      strip.clip = "off",
+      panel.spacing = unit(2, "lines"),
+      
+      #legend.position = "bottom",
+      legend.text=element_text(size=10),
+      #legend.spacing.x = unit(1.0, 'cm'),
+      #legend.spacing.y = unit(0.75, 'cm'),
+      legend.key.size = unit(2, 'line'),
+      
+      panel.grid.major.x = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.x = element_line(color = 'grey80', linewidth = 0.2, linetype = 2),
+      panel.grid.major.y = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
+    )
+
+  fig_att_per_focus_others = ggplot(df_plot_fc_att, 
+                       aes(x = att_per, 
+                           y = factor(name_pa, levels = unique(rev(sort(name_pa)))),
+                           xmin = cband_lower_per, xmax = cband_upper_per)) %>%
+    + geom_point(aes(color = sig_per)) %>%
+    + geom_vline(xintercept = 0) %>%
+    + geom_errorbarh(aes(color = sig_per)) %>% 
+    + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
+                           na.translate = F) %>%
+    # + scale_x_continuous(breaks=seq(min(df_plot_fc_att$att_per, na.rm = TRUE),max(df_plot_fc_att$att_per, na.rm = TRUE),by=1)) %>%
+    + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
     + labs(title = "Deforestation avoided relative to 2000 forest cover",
            x = "%",
            y = "") %>%
@@ -1902,9 +1957,51 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
       panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
     )
   
+  fig_att_per_focus = ggplot(filter(df_plot_fc_att, focus == "focus"),
+                                    aes(x = att_per, 
+                                        y = factor(name_pa, levels = unique(rev(sort(name_pa)))),
+                                        xmin = cband_lower_per, xmax = cband_upper_per)) %>%
+    + geom_point(aes(color = sig_per)) %>%
+    + geom_vline(xintercept = 0) %>%
+    + geom_errorbarh(aes(color = sig_per)) %>% 
+    + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
+                           na.translate = F) %>%
+    # + scale_x_continuous(breaks=seq(min(df_plot_fc_att$att_per, na.rm = TRUE),max(df_plot_fc_att$att_per, na.rm = TRUE),by=1)) %>%
+    + facet_grid(~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
+    + labs(title = "Deforestation avoided relative to 2000 forest cover",
+           subtitle = "Protected areas funded by the FAPBM only",
+           x = "%",
+           y = "") %>%
+    + theme_minimal() %>%
+    + theme(
+      axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
+      axis.text=element_text(size=11, color = "black"),
+      axis.title=element_text(size=14, color = "black", face = "plain"),
+      
+      plot.caption = element_text(hjust = 0),
+      plot.title = element_text(size=16, color = "black", face = "plain", hjust = 0),
+      plot.subtitle = element_text(size=12, color = "black", face = "plain", hjust = 0),
+      
+      strip.text = element_text(color = "black", size = 12),
+      strip.clip = "off",
+      panel.spacing = unit(2, "lines"),
+      
+      #legend.position = "bottom",
+      legend.text=element_text(size=10),
+      #legend.spacing.x = unit(1.0, 'cm'),
+      #legend.spacing.y = unit(0.75, 'cm'),
+      legend.key.size = unit(2, 'line'),
+      
+      panel.grid.major.x = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.x = element_line(color = 'grey80', linewidth = 0.2, linetype = 2),
+      panel.grid.major.y = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
+    )
+  
+  
   fig_att_per_iucn = ggplot(df_plot_fc_att, 
                             aes(x = att_per, 
-                                y = factor(country_en, levels = unique(rev(sort(country_en)))),
+                                y = factor(name_pa, levels = unique(rev(sort(name_pa)))),
                                 xmin = cband_lower_per, xmax = cband_upper_per)) %>%
     + geom_point(aes(color = sig_per)) %>%
     + geom_vline(xintercept = 0) %>%
@@ -1919,6 +2016,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
     + theme_minimal() %>%
     + theme(
       axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
+      #axis.text.y = element_text(color = rev(colors)),
       axis.text=element_text(size=11, color = "black"),
       axis.title=element_text(size=14, color = "black", face = "plain"),
       
@@ -1946,7 +2044,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
   ##ATT : total deforestation avoided
   fig_att_pa = ggplot(df_plot_fc_att, 
                       aes(x = att_pa, 
-                          y = factor(country_en, levels = unique(rev(sort(country_en)))),
+                          y = factor(name_pa, levels = unique(rev(sort(name_pa)))),
                           xmin = cband_lower_pa, xmax = cband_upper_pa)) %>%
     + geom_point(aes(color = sig_pa)) %>%
     + geom_vline(xintercept = 0) %>%
@@ -1983,9 +2081,88 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
       panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
     )
   
+  fig_att_pa_focus_others = ggplot(df_plot_fc_att, 
+                      aes(x = att_pa, 
+                          y = factor(name_pa, levels = unique(rev(sort(name_pa)))),
+                          xmin = cband_lower_pa, xmax = cband_upper_pa)) %>%
+    + geom_point(aes(color = sig_pa)) %>%
+    + geom_vline(xintercept = 0) %>%
+    + geom_errorbarh(aes(color = sig_pa)) %>% 
+    + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
+                           na.translate = F) %>%
+    + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
+    + labs(title = "Total deforestation avoided",
+           x = "ha",
+           y = "") %>%
+    + theme_minimal() %>%
+    + theme(
+      axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
+      axis.text=element_text(size=11, color = "black"),
+      axis.title=element_text(size=14, color = "black", face = "plain"),
+      
+      plot.caption = element_text(hjust = 0),
+      plot.title = element_text(size=16, color = "black", face = "plain", hjust = 0),
+      plot.subtitle = element_text(size=12, color = "black", face = "plain", hjust = 0),
+      
+      strip.text = element_text(color = "black", size = 12),
+      strip.clip = "off",
+      panel.spacing = unit(2, "lines"),
+      
+      #legend.position = "bottom",
+      legend.text=element_text(size=10),
+      #legend.spacing.x = unit(1.0, 'cm'),
+      #legend.spacing.y = unit(0.75, 'cm'),
+      legend.key.size = unit(2, 'line'),
+      
+      panel.grid.major.x = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.x = element_line(color = 'grey80', linewidth = 0.2, linetype = 2),
+      panel.grid.major.y = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
+    )
+  
+  fig_att_pa_focus = ggplot(filter(df_plot_fc_att, focus == "focus"), 
+                                   aes(x = att_pa, 
+                                       y = factor(name_pa, levels = unique(rev(sort(name_pa)))),
+                                       xmin = cband_lower_pa, xmax = cband_upper_pa)) %>%
+    + geom_point(aes(color = sig_pa)) %>%
+    + geom_vline(xintercept = 0) %>%
+    + geom_errorbarh(aes(color = sig_pa)) %>% 
+    + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
+                           na.translate = F) %>%
+    + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
+    + labs(title = "Total deforestation avoided",
+           subtitle = "Protected areas funded by the FAPBM only",
+           x = "ha",
+           y = "") %>%
+    + theme_minimal() %>%
+    + theme(
+      axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
+      axis.text=element_text(size=11, color = "black"),
+      axis.title=element_text(size=14, color = "black", face = "plain"),
+      
+      plot.caption = element_text(hjust = 0),
+      plot.title = element_text(size=16, color = "black", face = "plain", hjust = 0),
+      plot.subtitle = element_text(size=12, color = "black", face = "plain", hjust = 0),
+      
+      strip.text = element_text(color = "black", size = 12),
+      strip.clip = "off",
+      panel.spacing = unit(2, "lines"),
+      
+      #legend.position = "bottom",
+      legend.text=element_text(size=10),
+      #legend.spacing.x = unit(1.0, 'cm'),
+      #legend.spacing.y = unit(0.75, 'cm'),
+      legend.key.size = unit(2, 'line'),
+      
+      panel.grid.major.x = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.x = element_line(color = 'grey80', linewidth = 0.2, linetype = 2),
+      panel.grid.major.y = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
+    )
+  
   fig_att_pa_iucn = ggplot(df_plot_fc_att, 
                            aes(x = att_pa, 
-                               y = factor(country_en, levels = unique(rev(sort(country_en)))),
+                               y = factor(name_pa, levels = unique(rev(sort(name_pa)))),
                                xmin = cband_lower_pa, xmax = cband_upper_pa)) %>%
     + geom_point(aes(color = sig_pa)) %>%
     + geom_vline(xintercept = 0) %>%
@@ -2025,7 +2202,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
   ##ATT : avoided deforestation in percentage points
   fig_att_fl = ggplot(df_plot_fl_att, 
                       aes(x = att, 
-                          y = factor(country_en, levels = unique(rev(sort(country_en)))),
+                          y = factor(name_pa, levels = unique(rev(sort(name_pa)))),
                           xmin = cband_lower, xmax = cband_upper)) %>%
     + geom_point(aes(color = sig)) %>%
     + geom_vline(xintercept = 0) %>%
@@ -2062,9 +2239,88 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
       panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
     )
   
+  fig_att_fl_focus_others = ggplot(df_plot_fl_att, 
+                      aes(x = att, 
+                          y = factor(name_pa, levels = unique(rev(sort(name_pa)))),
+                          xmin = cband_lower, xmax = cband_upper)) %>%
+    + geom_point(aes(color = sig)) %>%
+    + geom_vline(xintercept = 0) %>%
+    + geom_errorbarh(aes(color = sig)) %>% 
+    + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
+                           na.translate = F) %>%
+    + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
+    + labs(title = "Reduction of deforestation due to the conservation",
+           x = "p.p.",
+           y = "") %>%
+    + theme_minimal() %>%
+    + theme(
+      axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
+      axis.text=element_text(size=11, color = "black"),
+      axis.title=element_text(size=14, color = "black", face = "plain"),
+      
+      plot.caption = element_text(hjust = 0),
+      plot.title = element_text(size=16, color = "black", face = "plain", hjust = 0),
+      plot.subtitle = element_text(size=12, color = "black", face = "plain", hjust = 0),
+      
+      strip.text = element_text(color = "black", size = 12),
+      strip.clip = "off",
+      panel.spacing = unit(2, "lines"),
+      
+      #legend.position = "bottom",
+      legend.text=element_text(size=10),
+      #legend.spacing.x = unit(1.0, 'cm'),
+      #legend.spacing.y = unit(0.75, 'cm'),
+      legend.key.size = unit(2, 'line'),
+      
+      panel.grid.major.x = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.x = element_line(color = 'grey80', linewidth = 0.2, linetype = 2),
+      panel.grid.major.y = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
+    )
+  
+  fig_att_fl_focus = ggplot(filter(df_plot_fl_att, focus == "focus"),
+                                   aes(x = att, 
+                                       y = factor(name_pa, levels = unique(rev(sort(name_pa)))),
+                                       xmin = cband_lower, xmax = cband_upper)) %>%
+    + geom_point(aes(color = sig)) %>%
+    + geom_vline(xintercept = 0) %>%
+    + geom_errorbarh(aes(color = sig)) %>% 
+    + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
+                           na.translate = F) %>%
+    + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
+    + labs(title = "Reduction of deforestation due to the conservation",
+           subtitle = "Protected areas funded by the FAPBM only",
+           x = "p.p.",
+           y = "") %>%
+    + theme_minimal() %>%
+    + theme(
+      axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
+      axis.text=element_text(size=11, color = "black"),
+      axis.title=element_text(size=14, color = "black", face = "plain"),
+      
+      plot.caption = element_text(hjust = 0),
+      plot.title = element_text(size=16, color = "black", face = "plain", hjust = 0),
+      plot.subtitle = element_text(size=12, color = "black", face = "plain", hjust = 0),
+      
+      strip.text = element_text(color = "black", size = 12),
+      strip.clip = "off",
+      panel.spacing = unit(2, "lines"),
+      
+      #legend.position = "bottom",
+      legend.text=element_text(size=10),
+      #legend.spacing.x = unit(1.0, 'cm'),
+      #legend.spacing.y = unit(0.75, 'cm'),
+      legend.key.size = unit(2, 'line'),
+      
+      panel.grid.major.x = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.x = element_line(color = 'grey80', linewidth = 0.2, linetype = 2),
+      panel.grid.major.y = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
+    )
+  
   fig_att_fl_iucn = ggplot(df_plot_fl_att, 
                            aes(x = att, 
-                               y = factor(country_en, levels = unique(rev(sort(country_en)))),
+                               y = factor(name_pa, levels = unique(rev(sort(name_pa)))),
                                xmin = cband_lower, xmax = cband_upper)) %>%
     + geom_point(aes(color = sig)) %>%
     + geom_vline(xintercept = 0) %>%
@@ -2105,7 +2361,9 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
   #Tables 
   ## ATT : percentage of deforestation avoided
   tbl_fc_att_per = df_fc_att %>%
-    mutate(sig_per = case_when(sign(cband_lower_per) == sign(cband_upper_per) ~ "Yes",
+    mutate(focus = case_when(wdpaid %in% list_focus ~ "Yes",
+                             !(wdpaid %in% list_focus) ~ "No"),
+           sig_per = case_when(sign(cband_lower_per) == sign(cband_upper_per) ~ "Yes",
                                sign(cband_lower_per) != sign(cband_upper_per) ~ "No"),
            iucn_wolf = case_when(iucn_cat %in% c("I", "II", "III", "IV") ~ "Strict",
                                  iucn_cat %in% c("V", "VI") ~ "Non strict",
@@ -2113,25 +2371,30 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
            name_pa = case_when(nchar(name_pa) <= 25 ~ stri_trans_general(name_pa, id = "Latin-ASCII"),
                                nchar(name_pa) > 25 ~ stri_trans_general(paste0(substr(name_pa, 1, 25), "..."),  id = "Latin-ASCII"))
     ) %>%
-    dplyr::select(c(name_pa, country_en, treatment_year, iucn_wolf, gov_type, time, att_per, sig_per)) %>%
+    dplyr::select(c(name_pa, focus, treatment_year, iucn_wolf, gov_type, time, att_per, sig_per)) %>%
     filter(time %in% c(5, 10)) %>%
     pivot_wider(values_from = c("att_per", "sig_per"), names_from = c("time", "time")) %>%
-    dplyr::select(c(name_pa, country_en, treatment_year, iucn_wolf, att_per_5, sig_per_5, att_per_10, sig_per_10)) %>%
+    dplyr::select(c(name_pa, focus, treatment_year, iucn_wolf, att_per_5, sig_per_5, att_per_10, sig_per_10)) %>%
     #dplyr::select(c(name_pa, country_en, treatment_year, iucn_wolf, gov_type, att_per_5, sig_per_5, att_per_10, sig_per_10)) %>%
-    mutate(across(.cols = starts_with(c("att", "sig")),
-                  .fns = \(x) case_when(is.na(x) == TRUE ~ "/", TRUE ~ as.character(format(x, digit = 1))))) %>%
+    mutate(across(.cols = starts_with(c("att")),
+                  .fns = \(x) case_when(is.na(x) == TRUE ~ "/", TRUE ~ as.character(format(round(x, 2), scientific = FALSE))))) %>%
+    mutate(across(.cols = starts_with(c("sig")),
+                  .fns = \(x) case_when(is.na(x) == TRUE ~ "/", TRUE ~ x))) %>%
     rename("Effect (5 y., %)" = "att_per_5",
            "Signi. (5 y.)" = "sig_per_5",
            "Effect (10 y., %)" = "att_per_10",
-           "Signi. (10 y.)" = "sig_per_10") 
-  # names(tbl_fc_att_per) = c("Name", "Country", "Creation",  "Protection", 
+           "Signi. (10 y.)" = "sig_per_10") %>%
+    arrange(focus, name_pa)
+  # names(tbl_fc_att_per) = c("Name", "FAPBM", "Creation",  "Protection", 
   #                           "Governance", "Effect (5 y., %)", "Significance (5 y.)","Effect (10 y., %)", "Significance (10 y.)")
-  names(tbl_fc_att_per) = c("Name", "Country", "Creation", "Protection", 
+  names(tbl_fc_att_per) = c("Name", "FAPBM", "Creation", "Protection", 
                             "Effect (5 y., %)", "Signi. (5 y.)","Effect (10 y., %)", "Signi. (10 y.)")
   
   # ATT : total deforestation avoided 
   tbl_fc_att_pa = df_fc_att %>%
-    mutate(sig_pa = case_when(sign(cband_lower_pa) == sign(cband_upper_pa) ~ "Yes",
+    mutate(focus = case_when(wdpaid %in% list_focus ~ "Yes",
+                             !(wdpaid %in% list_focus) ~ "No"),
+           sig_pa = case_when(sign(cband_lower_pa) == sign(cband_upper_pa) ~ "Yes",
                               sign(cband_lower_pa) != sign(cband_upper_pa) ~ "No"),
            iucn_wolf = case_when(iucn_cat %in% c("I", "II", "III", "IV") ~ "Strict",
                                  iucn_cat %in% c("V", "VI") ~ "Non strict",
@@ -2139,21 +2402,24 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
            name_pa = case_when(nchar(name_pa) <= 25 ~ stri_trans_general(name_pa, id = "Latin-ASCII"),
                                nchar(name_pa) > 25 ~ stri_trans_general(paste0(substr(name_pa, 1, 25), "..."),  id = "Latin-ASCII"))
     ) %>%
-    dplyr::select(c(name_pa, country_en, treatment_year, iucn_wolf, gov_type, time, att_pa, sig_pa)) %>%
+    dplyr::select(c(name_pa, focus, country_en, treatment_year, iucn_wolf, gov_type, time, att_pa, sig_pa)) %>%
     filter(time %in% c(5, 10)) %>%
     pivot_wider(values_from = c("att_pa", "sig_pa"), names_from = c("time", "time")) %>%
     # dplyr::select(c(name_pa, country_en, treatment_year, iucn_wolf, gov_type, att_pa_5, sig_pa_5, att_pa_10, sig_pa_10)) %>%
-    dplyr::select(c(name_pa, country_en, treatment_year, iucn_wolf, att_pa_5, sig_pa_5, att_pa_10, sig_pa_10)) %>%
-    mutate(across(.cols = starts_with(c("att", "sig")),
-                  .fns = \(x) case_when(is.na(x) == TRUE ~ "/", TRUE ~ as.character(format(x, digit = 1))))) %>%
+    dplyr::select(c(name_pa, focus, treatment_year, iucn_wolf, att_pa_5, sig_pa_5, att_pa_10, sig_pa_10)) %>%
+    mutate(across(.cols = starts_with(c("att")),
+                  .fns = \(x) case_when(is.na(x) == TRUE ~ "/", TRUE ~ as.character(format(round(x, 2), scientific = FALSE))))) %>%
+    mutate(across(.cols = starts_with(c("sig")),
+                  .fns = \(x) case_when(is.na(x) == TRUE ~ "/", TRUE ~ x))) %>%
     rename("Effect (5 y., %)" = "att_pa_5",
            "Signi. (5 y.)" = "sig_pa_5",
            "Effect (10 y., %)" = "att_pa_10",
-           "Signi. (10 y.)" = "sig_pa_10") 
-  # names(tbl_fc_att_pa) = c("Name", "Country", "Creation", "Protection", 
+           "Signi. (10 y.)" = "sig_pa_10") %>%
+  arrange(focus, name_pa)
+  # names(tbl_fc_att_pa) = c("Name", "FAPBM", "Creation",  "Protection", 
   #                           "Governance", "Effect (5 y., ha)", "Significance (5 y.)","Effect (10 y., ha)", "Significance (10 y.)")
-  names(tbl_fc_att_pa) = c("Name", "Country", "Creation", "Protection", 
-                           "Effect (5 y., ha)", "Signi. (5 y.)","Effect (10 y., ha)", "Signi. (10 y.)")
+  names(tbl_fc_att_pa) = c("Name", "FAPBM", "Creation", "Protection", 
+                            "Effect (5 y., ha)", "Signi. (5 y.)","Effect (10 y., ha)", "Signi. (10 y.)")
   
   
   
@@ -2165,38 +2431,69 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
   ggsave(paste(tmp, "fig_att_per.png", sep = "/"),
          plot = fig_att_per,
          device = "png",
-         height = 6, width = 9)
+         height = 8, width = 12)
+
+  ggsave(paste(tmp, "fig_att_per_focus.png", sep = "/"),
+         plot = fig_att_per_focus,
+         device = "png",
+         height = 6, width =9)
+  
+  ggsave(paste(tmp, "fig_att_per_focus_others.png", sep = "/"),
+         plot = fig_att_per_focus_others,
+         device = "png",
+         height = 8, width = 12)
   
   ggsave(paste(tmp, "fig_att_per_iucn.png", sep = "/"),
          plot = fig_att_per_iucn,
          device = "png",
-         height = 6, width = 9)
+         height = 8, width = 12)
   
   ggsave(paste(tmp, "fig_att_pa.png", sep = "/"),
          plot = fig_att_pa,
          device = "png",
+         height = 8, width = 12)
+  
+  ggsave(paste(tmp, "fig_att_pa_focus.png", sep = "/"),
+         plot = fig_att_pa_focus,
+         device = "png",
          height = 6, width = 9)
+  
+  ggsave(paste(tmp, "fig_att_pa_focus_others.png", sep = "/"),
+         plot = fig_att_pa_focus_others,
+         device = "png",
+         height = 8, width = 12)
   
   ggsave(paste(tmp, "fig_att_pa_iucn.png", sep = "/"),
          plot = fig_att_pa_iucn,
          device = "png",
-         height = 6, width = 9)
+         height = 8, width = 12)
   
   ggsave(paste(tmp, "fig_att_fl.png", sep = "/"),
          plot = fig_att_fl,
          device = "png",
+         height = 8, width = 12)
+  
+  ggsave(paste(tmp, "fig_att_fl_focus.png", sep = "/"),
+         plot = fig_att_fl_focus,
+         device = "png",
          height = 6, width = 9)
+  
+  ggsave(paste(tmp, "fig_att_fl_focus_others.png", sep = "/"),
+         plot = fig_att_fl_focus_others,
+         device = "png",
+         height = 8, width = 12)
   
   ggsave(paste(tmp, "fig_att_fl_iucn.png", sep = "/"),
          plot = fig_att_fl_iucn,
          device = "png",
-         height = 6, width = 9)
+         height = 8, width = 12)
   
   print(xtable(tbl_fc_att_pa, 
-               type = "latex"),
+               type = "latex",
+               auto = TRUE),
         file = paste(tmp, "tbl_fc_att_pa.tex", sep = "/"))
   
-  print(xtable(tbl_fc_att_per, type = "latex"),
+  print(xtable(tbl_fc_att_per, type = "latex", auto = TRUE),
         file = paste(tmp, "tbl_fc_att_per.tex", sep = "/"))
   
   files <- list.files(tmp, full.names = TRUE)

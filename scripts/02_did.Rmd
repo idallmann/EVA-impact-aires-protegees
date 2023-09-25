@@ -209,8 +209,6 @@ for (i in list_iso)
       output_att_m_j = fn_did_att_general(iso = i, wdpaid = j, 
                         is_m = TRUE,
                     data_pa = data_pa,
-                    data_fund = data_fund_nodupl,
-                    data_report = data_pa_report,
                     alpha = alpha,
                     load_dir = load_dir,
                     ext_input = ".csv",
@@ -432,22 +430,28 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 ```{r}
 # Remove the PAs we do not xant to take (bad matching, bad pre-treatment parallel trend. This is done visually here, but we should have quantitative criteria in the future)
-list_wdpa_bad = c(109037, #not enough units for did computing
-                  124355,
-                  17367,
-                  313046,
-                  555651496,
-                  555555500, #Kenya : issue while did computing
-                  555555506,
-                  303878)
+list_wdpa_bad = c(352240, #matching
+                  352240, #matching
+                  555542728, #pre-treatment parallel trend
+                  555548846 #no CI
+                  )
+list_wdpa_focus = unique(data_fapbm$wdpaid)
 
 df_fc_att_tidy = df_fc_att %>%
   filter(!wdpaid %in% list_wdpa_bad)
 df_fl_att_tidy = df_fl_att %>%
   filter(!wdpaid %in% list_wdpa_bad)
 
-fn_plot_att(df_fc_att = df_fc_att_tidy,
+#For AFD PAs (funding info)
+# fn_plot_att_afd(df_fc_att = df_fc_att_tidy,
+#             df_fl_att = df_fl_att_tidy, 
+#             alpha = alpha,
+#             save_dir = save_dir)
+
+#For non-AFD PAs (no funding info)
+fn_plot_att_general(df_fc_att = df_fc_att_tidy,
             df_fl_att = df_fl_att_tidy, 
+            list_focus = list_wdpa_focus,
             alpha = alpha,
             save_dir = save_dir)
 
