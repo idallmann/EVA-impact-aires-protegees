@@ -45,31 +45,49 @@ source("scripts/functions/02_fns_did.R")
 tmp_did = paste(tempdir(), "did", sep = "/")
 ##SSPCloud
 # save_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/")
-load_dir = paste("impact_analysis/matching", "2023-08-29", sep = "/")
-save_dir = paste("impact_analysis/did", "2023-08-29", sep = "/")
+load_dir = paste("impact_analysis/matching", "2023-09-21", sep = "/")
+save_dir = paste("impact_analysis/did", "2023-09-21", sep = "/")
 
 #Load data 
 ## AFD
+# data_pa =
+#   #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
+#   aws.s3::s3read_using(
+#   FUN = data.table::fread,
+#   encoding = "UTF-8",
+#   object = "data_tidy/BDD_PA_AFD_ie.csv",
+#   bucket = "projet-afd-eva-ap",
+#   opts = list("region" = "")) %>%
+#   #Sangha trinational (555547988) created in 2012 actually gathers three former PAs
+#   #in CAF (31458), CMR (1245) and COG (72332) implemented in
+#   #1990, 2001 and 1993 respectively.
+#   # Evaluating the trinational PA is not relevant here : our method relies on pre-treatment obervsations (for matching and DiD) and the outcome is likely to be affected by the initial PAs. On the other hand, evaluating the three earlier PAs might be irrelevant for us : are they funded by the AFD ?? In a first approach, the trinational is removed.
+#   filter(is.na(wdpaid) == TRUE | wdpaid != 555547988)
+##FAPBM
+data_fapbm =
+  #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  object = "data_tidy/BDD_PA_FAPBM.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
+##MDG
 data_pa =
   #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
   aws.s3::s3read_using(
   FUN = data.table::fread,
   encoding = "UTF-8",
-  object = "data_tidy/BDD_PA_AFD_ie.csv",
+  object = "data_tidy/BDD_PA_MDG.csv",
   bucket = "projet-afd-eva-ap",
-  opts = list("region" = "")) %>%
-  #Sangha trinational (555547988) created in 2012 actually gathers three former PAs
-  #in CAF (31458), CMR (1245) and COG (72332) implemented in
-  #1990, 2001 and 1993 respectively.
-  # Evaluating the trinational PA is not relevant here : our method relies on pre-treatment obervsations (for matching and DiD) and the outcome is likely to be affected by the initial PAs. On the other hand, evaluating the three earlier PAs might be irrelevant for us : are they funded by the AFD ?? In a first approach, the trinational is removed.
-  filter(is.na(wdpaid) == TRUE | wdpaid != 555547988)
+  opts = list("region" = ""))
 
-list_iso = data_pa %>%
-  filter(region == "Africa") %>%
-  filter(!(iso3 %in% c("ZZ")))
-list_iso = unique(list_iso$iso3)
+# list_iso = data_pa %>%
+#   filter(region == "Africa") %>%
+#   filter(!(iso3 %in% c("ZZ")))
+# list_iso = unique(list_iso$iso3)
 
-#list_iso = "VNM"
+list_iso = "MDG"
 
 ## SIOP project data 
 
@@ -86,7 +104,7 @@ data_fund_nodupl = data_fund %>%
   group_by(id_projet) %>%
   slice(1) %>%
   ungroup() %>%
-  select(-c("mt_part_cofinancier_prevu_euro", "cofinanciers_siop")) %>%
+  dplyr::select(-c("mt_part_cofinancier_prevu_euro", "cofinanciers_siop")) %>%
   mutate(kfw = grepl("kfw", cofinanciers, ignore.case = TRUE),
          ffem = grepl("ffem", cofinanciers, ignore.case = TRUE))
 
@@ -175,15 +193,28 @@ for (i in list_iso)
     #Compute treatment effects
     print("--Compute treatment effects")
     print("----For matched units")
-    output_att_m_j = fn_did_att(iso = i, wdpaid = j, 
-                          is_m = TRUE,
-                      data_pa = data_pa,
-                      data_fund = data_fund_nodupl,
-                      data_report = data_pa_report,
-                      alpha = alpha,
-                      load_dir = load_dir,
-                      ext_input = ".csv",
-                      save_dir = save_dir)
+    
+    #For AFD projects (funding info)
+    # output_att_m_j = fn_did_att_afd(iso = i, wdpaid = j, 
+    #                       is_m = TRUE,
+    #                   data_pa = data_pa,
+    #                   data_fund = data_fund_nodupl,
+    #                   data_report = data_pa_report,
+    #                   alpha = alpha,
+    #                   load_dir = load_dir,
+    #                   ext_input = ".csv",
+    #                   save_dir = save_dir)
+    
+    #For PAs in general (no funding info)
+      output_att_m_j = fn_did_att_general(iso = i, wdpaid = j, 
+                        is_m = TRUE,
+                    data_pa = data_pa,
+                    data_fund = data_fund_nodupl,
+                    data_report = data_pa_report,
+                    alpha = alpha,
+                    load_dir = load_dir,
+                    ext_input = ".csv",
+                    save_dir = save_dir)
     
     if(output_att_m_j$is_ok == FALSE) {next} else df_att_m_j = output_att_m_j
     
@@ -191,14 +222,26 @@ for (i in list_iso)
     df_fl_att = rbind(df_fl_att, df_att_m_j$df_fl_att)
         
     print("----For unmatched units")
-    # df_att_unm_j = fn_did_att(iso = i, wdpaid = j, 
+    
+    #For AFD PAs (funding info known)
+    # df_att_unm_j = fn_did_att_afd(iso = i, wdpaid = j, 
     #                       is_m = FALSE,
     #                   data_pa = data_pa,
     #                   alpha = 0.05,
     #                   load_dir = load_dir,
     #                   ext_input = ".csv",
     #                   save_dir = save_dir)
-    # 
+    # df_fc_att_unm = rbind(df_fc_att_unm, df_att_unm_j$df_fc_att)
+    # df_fl_att_unm = rbind(df_fl_att, df_att_unm_j$df_fl_att)
+    
+    #For genral PAs (funding info unknown)
+    # df_att_unm_j = fn_did_att_general(iso = i, wdpaid = j, 
+    #                       is_m = FALSE,
+    #                   data_pa = data_pa,
+    #                   alpha = 0.05,
+    #                   load_dir = load_dir,
+    #                   ext_input = ".csv",
+    #                   save_dir = save_dir)    
     # df_fc_att_unm = rbind(df_fc_att_unm, df_att_unm_j$df_fc_att)
     # df_fl_att_unm = rbind(df_fl_att, df_att_unm_j$df_fl_att)
     
