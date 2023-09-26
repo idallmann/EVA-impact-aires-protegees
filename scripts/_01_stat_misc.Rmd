@@ -13,7 +13,7 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 ```
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
-install.packages(c("stargazer", "janitor", "questionr", "countrycode", "WDI"))
+install.packages(c("stargazer", "janitor", "questionr", "countrycode", "WDI", "mapme.biodiversity"))
 library(tidyverse)
 library(stargazer)
 library(dplyr)
@@ -30,6 +30,7 @@ library(xtable)
 library(questionr)
 library(aws.s3)
 library(WDI)
+library(mapme.biodiversity)
 ```
 
 ## Importing datasets
@@ -69,7 +70,7 @@ data_wdpa =
               object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
               bucket = "projet-afd-eva-ap",
               opts = list("region" = "")) %>%
-  st_drop_geometry() %>%
+  #st_drop_geometry() %>%
   clean_names() %>%
   #Add region, sub-region and country names 
   mutate(region = countrycode(sourcevar = iso3,
@@ -1353,17 +1354,38 @@ In Madagascar PAs
 -   Compute evolution of forest cover with 2000 as base year
 
 ```{r}
-wdpa_mdg = data_wdpa %>%
-  filter(ISO3 == "MDG" & MARINE %in% c(0,1)) %>%
-  geom_
+#First try : export polygons of non-marine PAs in MDG and compute with GFW analysis tool (faster)
+wdpa_fapbm = data_wdpa %>%
+  filter(iso3 == "MDG" & marine %in% c(0,1) & st_geometry_type(geom) == "MULTIPOLYGON" & wdpaid %in% unique(data_pa_fapbm$wdpaid)) %>%
+  st_make_valid() %>%
+  st_cast(to = "POLYGON") %>%
+  mutate()
 
-aws.s3::s3write_using(
-FUN = data.table::fread,
-encoding = "UTF-8",
-# Mettre les options de FUN ici
-object = "data_tidy/GFW/MDG/treecover_extent_2000__ha.csv",
-bucket = "projet-afd-eva-ap",
-opts = list("region" = ""))
+wdpa_nofapbm = data_wdpa %>%
+  filter(iso3 == "MDG" & marine %in% c(0,1) & st_geometry_type(geom) == "MULTIPOLYGON" & !(wdpaid %in% unique(data_pa_fapbm$wdpaid))) %>%
+  st_make_valid() %>%
+  st_cast(to = "POLYGON")
+
+test = wdpa_mdg %>% slice(1)
+
+data.tree = init_portfolio(wdpa_fapbm,
+                     years = 2000:2022,
+                     add_resources = FALSE) %>%
+  get_resources(resources = c("gfw_treecover", "gfw_lossyear")) %>%
+  calc_indicators(indicators = "treecover_area",
+                  min_size=1, # indicator-specific argument
+                  min_cover=10) %>%
+  unnest(treecover_area) %>%
+  drop_na(treecover) %>% #get rid of units with NA values 
+  mutate(across(c("treecover"), \(x) round(x, 3))) %>% # Round numeric columns
+  pivot_wider(names_from = "years", values_from = "treecover", names_prefix = "treecover_")
+
+# aws.s3::s3write_using(
+# FUN = sf::st_write,
+# wdpa_mdg,
+# # Mettre les options de FUN ici
+# object = "data_tidy/GFW/MDG/BDD_PA_MDG_GFW.geojson",
+# bucket = "projet-afd-eva-ap",
+# opts = list("region" = ""))
   
-plot(wdpa_mdg$geom)
 ```
