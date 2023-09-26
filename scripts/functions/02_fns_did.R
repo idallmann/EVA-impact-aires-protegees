@@ -1822,23 +1822,28 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
   
   #list of PAs and two time periods
   list_ctry_plot = df_fc_att %>%
-    dplyr::select(iso3, country_en, wdpaid, name_pa, iucn_cat) %>%
+    dplyr::select(iso3, country_en, wdpaid, name_pa, iucn_cat, gov_type, own_type, treatment_year, status_wdpa) %>%
     unique() %>%
     group_by(iso3, country_en, wdpaid, name_pa) %>%
     summarize(time = c(5, 10),
+              iucn_cat = iucn_cat,
               iucn_wolf = case_when(iucn_cat %in% c("I", "II", "III", "IV") ~ "Strict",
                                     iucn_cat %in% c("V", "VI") ~ "Non strict",
-                                    grepl("not", iucn_cat, ignore.case = TRUE) ~ "Unknown")) %>%
+                                    grepl("not", iucn_cat, ignore.case = TRUE) ~ "Unknown"),
+              treatment_year = treatment_year,
+              gov_type = gov_type,
+              own_type = own_type,
+              status_wdpa = status_wdpa) %>%
     ungroup()
   
   #ATT for each wdpa (some have not on the two time periods)
   temp_fc = df_fc_att %>%
-    dplyr::select(c(region, iso3, country_en, wdpaid, name_pa,iucn_cat, treatment_year, time, year, att_per, cband_lower_per, cband_upper_per, att_pa, cband_lower_pa, cband_upper_pa)) %>%
+    dplyr::select(c(region, iso3, country_en, wdpaid, name_pa, time, year, att_per, cband_lower_per, cband_upper_per, att_pa, cband_lower_pa, cband_upper_pa)) %>%
     mutate(sig_pa = sign(cband_lower_pa) == sign(cband_upper_pa),
            sig_per = sign(cband_lower_per) == sign(cband_upper_per)) %>%
     filter(time %in% c(5, 10)) 
   temp_fl = df_fl_att %>%
-    dplyr::select(c(region, iso3, country_en, wdpaid, name_pa,iucn_cat, treatment_year, time, year, att, cband_lower, cband_upper)) %>%
+    dplyr::select(c(region, iso3, country_en, wdpaid, name_pa, time, year, att, cband_lower, cband_upper)) %>%
     mutate(sig = sign(cband_lower) == sign(cband_upper)) %>%
     filter(time %in% c(5, 10)) 
   
@@ -2360,7 +2365,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
   
   #Tables 
   ## ATT : percentage of deforestation avoided
-  tbl_fc_att_per = df_fc_att %>%
+  tbl_fc_att_per = df_plot_fc_att  %>%
     mutate(focus = case_when(wdpaid %in% list_focus ~ "Yes",
                              !(wdpaid %in% list_focus) ~ "No"),
            sig_per = case_when(sign(cband_lower_per) == sign(cband_upper_per) ~ "Yes",
@@ -2372,7 +2377,6 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
                                nchar(name_pa) > 25 ~ stri_trans_general(paste0(substr(name_pa, 1, 25), "..."),  id = "Latin-ASCII"))
     ) %>%
     dplyr::select(c(name_pa, focus, treatment_year, iucn_wolf, gov_type, time, att_per, sig_per)) %>%
-    filter(time %in% c(5, 10)) %>%
     pivot_wider(values_from = c("att_per", "sig_per"), names_from = c("time", "time")) %>%
     dplyr::select(c(name_pa, focus, treatment_year, iucn_wolf, att_per_5, sig_per_5, att_per_10, sig_per_10)) %>%
     #dplyr::select(c(name_pa, country_en, treatment_year, iucn_wolf, gov_type, att_per_5, sig_per_5, att_per_10, sig_per_10)) %>%
@@ -2391,7 +2395,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
                             "Effect (5 y., %)", "Signi. (5 y.)","Effect (10 y., %)", "Signi. (10 y.)")
   
   # ATT : total deforestation avoided 
-  tbl_fc_att_pa = df_fc_att %>%
+  tbl_fc_att_pa = df_plot_fc_att %>%
     mutate(focus = case_when(wdpaid %in% list_focus ~ "Yes",
                              !(wdpaid %in% list_focus) ~ "No"),
            sig_pa = case_when(sign(cband_lower_pa) == sign(cband_upper_pa) ~ "Yes",
@@ -2403,7 +2407,6 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
                                nchar(name_pa) > 25 ~ stri_trans_general(paste0(substr(name_pa, 1, 25), "..."),  id = "Latin-ASCII"))
     ) %>%
     dplyr::select(c(name_pa, focus, country_en, treatment_year, iucn_wolf, gov_type, time, att_pa, sig_pa)) %>%
-    filter(time %in% c(5, 10)) %>%
     pivot_wider(values_from = c("att_pa", "sig_pa"), names_from = c("time", "time")) %>%
     # dplyr::select(c(name_pa, country_en, treatment_year, iucn_wolf, gov_type, att_pa_5, sig_pa_5, att_pa_10, sig_pa_10)) %>%
     dplyr::select(c(name_pa, focus, treatment_year, iucn_wolf, att_pa_5, sig_pa_5, att_pa_10, sig_pa_10)) %>%
@@ -2421,7 +2424,35 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
   names(tbl_fc_att_pa) = c("Name", "FAPBM", "Creation", "Protection", 
                             "Effect (5 y., ha)", "Signi. (5 y.)","Effect (10 y., ha)", "Signi. (10 y.)")
   
-  
+  # ATT : avoided deforestation, in terms of difference in cumultaed deforestation rate 
+  tbl_fl_att = df_plot_fl_att %>%
+    mutate(focus = case_when(wdpaid %in% list_focus ~ "Yes",
+                             !(wdpaid %in% list_focus) ~ "No"),
+           sig = case_when(sign(cband_lower) == sign(cband_upper) ~ "Yes",
+                              sign(cband_lower) != sign(cband_upper) ~ "No"),
+           iucn_wolf = case_when(iucn_cat %in% c("I", "II", "III", "IV") ~ "Strict",
+                                 iucn_cat %in% c("V", "VI") ~ "Non strict",
+                                 grepl("not", iucn_cat, ignore.case = TRUE) ~ "Unknown"),
+           name_pa = case_when(nchar(name_pa) <= 25 ~ stri_trans_general(name_pa, id = "Latin-ASCII"),
+                               nchar(name_pa) > 25 ~ stri_trans_general(paste0(substr(name_pa, 1, 25), "..."),  id = "Latin-ASCII"))
+    ) %>%
+    dplyr::select(c(name_pa, focus, country_en, treatment_year, iucn_wolf, gov_type, time, att, sig)) %>%
+    pivot_wider(values_from = c("att", "sig"), names_from = c("time", "time")) %>%
+    # dplyr::select(c(name_pa, country_en, treatment_year, iucn_wolf, gov_type, att_5, sig_5, att_10, sig_10)) %>%
+    dplyr::select(c(name_pa, focus, treatment_year, iucn_wolf, att_5, sig_5, att_10, sig_10)) %>%
+    mutate(across(.cols = starts_with(c("att")),
+                  .fns = \(x) case_when(is.na(x) == TRUE ~ "/", TRUE ~ as.character(format(round(x, 2), scientific = FALSE))))) %>%
+    mutate(across(.cols = starts_with(c("sig")),
+                  .fns = \(x) case_when(is.na(x) == TRUE ~ "/", TRUE ~ x))) %>%
+    rename("Effect (5 y., %)" = "att_5",
+           "Signi. (5 y.)" = "sig_5",
+           "Effect (10 y., %)" = "att_10",
+           "Signi. (10 y.)" = "sig_10") %>%
+    arrange(focus, name_pa)
+  # names(tbl_fl_att) = c("Name", "FAPBM", "Creation",  "Protection", 
+  #                           "Governance", "Effect (5 y., pp)", "Significance (5 y.)","Effect (10 y., pp)", "Significance (10 y.)")
+  names(tbl_fl_att) = c("Name", "FAPBM", "Creation", "Protection", 
+                           "Effect (5 y., pp)", "Signi. (5 y.)","Effect (10 y., pp)", "Signi. (10 y.)")
   
   #Saving plots
   
@@ -2488,13 +2519,14 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
          device = "png",
          height = 8, width = 12)
   
-  print(xtable(tbl_fc_att_pa, 
-               type = "latex",
-               auto = TRUE),
+  print(xtable(tbl_fc_att_pa, type = "latex", auto = T),
         file = paste(tmp, "tbl_fc_att_pa.tex", sep = "/"))
   
-  print(xtable(tbl_fc_att_per, type = "latex", auto = TRUE),
+  print(xtable(tbl_fc_att_per, type = "latex", auto = T),
         file = paste(tmp, "tbl_fc_att_per.tex", sep = "/"))
+  
+  print(xtable(tbl_fl_att, type = "latex", auto = T),
+        file = paste(tmp, "tbl_fl_att.tex", sep = "/"))
   
   files <- list.files(tmp, full.names = TRUE)
   ##Add each file in the bucket (same foler for every file in the temp)

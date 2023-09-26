@@ -1343,3 +1343,27 @@ for(f in files)
 
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
+
+In Madagascar PAs
+
+-   Import list of PAs
+
+-   Three groups : FAPBM, not FAPBM, all PAs
+
+-   Compute evolution of forest cover with 2000 as base year
+
+```{r}
+wdpa_mdg = data_wdpa %>%
+  filter(ISO3 == "MDG" & MARINE %in% c(0,1)) %>%
+  geom_
+
+aws.s3::s3write_using(
+FUN = data.table::fread,
+encoding = "UTF-8",
+# Mettre les options de FUN ici
+object = "data_tidy/GFW/MDG/treecover_extent_2000__ha.csv",
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+  
+plot(wdpa_mdg$geom)
+```
