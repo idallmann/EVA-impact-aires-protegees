@@ -14,6 +14,8 @@ This script builds the different datasets for the analysis. The lists of protect
 
 These datasets are available upon requests, with potential restriction for datasets containing confidential data. Note that this script loads geospatial datasets that are memory demanding. Ensure that the R session has accessed to enough temporary memory (RAM) before running the script (typically 10 GB), or clean the RAM regularly.
 
+The datasets used are stored and saved into the SSPCloud platform that uses minIO storage. Thus specific functions from the aws.S3 package are used to write and read files (aws.S3::s3read_using() and aws.S3::s3write_using()). These can be replaced by other R functions to read/write locally (data.table::fread() typically).
+
 ## Initial settings
 
 Configuring the Rmarkdown
@@ -133,7 +135,7 @@ data_pa_afd = rbind(data_pa_eva, data_pa_arb)
 #               opts = list("region" = ""))
 ```
 
-### Merge the list of PAs to AFD project information and WDPA 
+### Merge the list of PAs to AFD project information and WDPA
 
 The list of PAs reported by AFD departments are then merged with AFD internal project information database (so-called "SIOP") and the World Database on Protected areas.
 

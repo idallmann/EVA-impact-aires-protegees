@@ -2,33 +2,33 @@
 
 # Projects funded by the AFD
 
-In this document are performed and plotted the following descriptive statistics on the protected areas (PAs) funded by French Development Agency (AFD) :
+In this document are performed and plotted the following descriptive statistics on the protected areas (PAs) funded by Agence Française de Développement (AFD) :
 
--   Distribution of PAs among IUCN categories, at country, region and world level.
+-   Distribution of PAs among IUCN categories, at country, region and world level
 
 -   Distribution in terms of ecosystems
 
--   Distribution of PAs across countries and regions, in terms of numbers
-
--   Distribution of PAs across countries and regions, in terms of areas
+-   Distribution of PAs across countries and regions, in terms of numbers or areas
 
 -   Temporal evolution in the number and area of PAs funded by the AFD
 
 -   Distribution in terms of governance types
 
-In general, PAs refer to AFD funded PAs. When all PAs reported through the world are considered (typically for comparative statistics between general PAs and AFD funded PAs), it will be precised.
+In general, PAs refer to AFD funded PAs. When all PAs reported through the world are considered (typically for comparative statistics between general PAs and AFD funded PAs), it will be stated.
 
 Some statistics are performed for all PAs across the world, while others are done for some regions and some specific PAs. Typically some statistics are performed for non-marine PAs, i.e terrestrial or coastal ones. These categories are defined by the WDPA and are indicative. A terrestrial PA has less than 10% of its area covered by sea or ocean, a marine one more than 90% and coastal PAs are in between.
 
 The statistics are derived from datasets stored in the SSPCloud, and saved into the SSPCloud. Thus specific functions from the aws.S3 package are used (s3read_using() and s3write_using()). These can be replaced by other R functions to read/write locally (fread() typically). The ggplot2::ggsave() function cannot be used to write directly in the SSPCloud storage. Instead, plots from ggplot2 are stored in the temporary memory, then moved to the SSPCloud storage. Working locally, ggsave() can be directly used once the plots are created.
 
-## Importing packages
+## Initial settings
 
-Packages relevant to perform the statistics.
+Configuring the Rmarkdown
 
 ```{r setup, include=FALSE, eval = FALSE}
 knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 ```
+
+Importing the relevant packages
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
 install.packages(c("stargazer", "janitor", "questionr", "countrycode", "WDI"))
@@ -50,9 +50,9 @@ library(aws.s3)
 library(WDI)
 ```
 
-## Importing datasets
+## Importing the datasets
 
-A dataset with information for each PA funded by the AFD, and datasets on aggregated size at country/region/world level and by year. The latter takes into account potential overlap between PAs reported in the World Database on Protected Areas (WDPA) [REF DOCUMENTATION].
+A dataset with information for each PA funded by the AFD, a dataset of all PAs reported by the World Database on Protected Areas (WDPA), and datasets on aggregated size at country/region/world level and by year. The latter takes into account potential overlap between PAs reported in the WDPA.
 
 ```{r, eval = FALSE}
 ##Dataset with one line per PA
@@ -67,11 +67,13 @@ data_stat_nodupl =
   opts = list("region" = ""))
 
 #Import WDPA data
+## Downoad and save data directly using the WDPA R package
 # data_wdpa = wdpa_fetch(x = "global", wait = TRUE, download_dir = "data_raw",
 #                        page_wait = 2, verbose = TRUE)
 # st_write(wdpa,
 #          dsn = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
 #          delete_dsn = TRUE)
+##Loading from the storage
 data_wdpa = 
   #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
   s3read_using(sf::st_read,
@@ -95,7 +97,8 @@ data_wdpa =
                               destination = "un.name.fr"),
          .after = "iso3") 
 
-##Datasets on aggregated size per country/region/year and at world level, taking into account the overlap.
+##Datasets on aggregated size of PAs supported by the AFD per country/region/year and at world level, taking into account the potential spatial overlap.
+###Country 
 pa_area_ctry = 
   #fread("data_tidy/area/pa_area_ctry.csv", encoding = "UTF-8")
   aws.s3::s3read_using(
@@ -105,7 +108,7 @@ pa_area_ctry =
   object = "data_tidy/area/pa_area_ctry.csv",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
-
+### Region
 pa_area_region =
   #fread("data_tidy/area/pa_area_region.csv", encoding = "UTF-8")
   aws.s3::s3read_using(
@@ -115,7 +118,7 @@ pa_area_region =
   object = "data_tidy/area/pa_area_region.csv",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
-
+### World
 pa_area_wld = 
   #fread("data_tidy/area/pa_area_wld.csv", encoding = "UTF-8")
   aws.s3::s3read_using(
@@ -125,7 +128,7 @@ pa_area_wld =
   object = "data_tidy/area/pa_area_wld.csv",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
-
+### By year
 pa_int_yr = 
   #fread("data_tidy/area/pa_area_dr.csv", encoding = "UTF-8")
   aws.s3::s3read_using(
@@ -137,7 +140,7 @@ pa_int_yr =
   opts = list("region" = ""))
 
 #To perform statistics on the distribution of PAs reported by the WDPA across countries/regions, we focus on not high-income countries.
-#Precisely, we restrict to countries defined as low-income, lower middle-income, upper-middle income, minus Russia, and including Chile, Uruguay New Caledonia and Panama
+#Precisely, we restrict to countries defined as low-income, lower middle-income, upper-middle income, minus Russia, and including Chile, Uruguay New Caledonia and Panama. Indeed the latter are potential AFD partners while Russia is not, so this country list is more relevant for comparisons between AFD supported PAs and the others.
 df_ctry_stat_wdpa = WDI(country = "all", start = "1960", end = "2022", extra = TRUE, language = "en") %>%
   group_by(iso3c) %>%
   slice(1) %>%
