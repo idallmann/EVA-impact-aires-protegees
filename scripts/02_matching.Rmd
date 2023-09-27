@@ -2,43 +2,55 @@
 
 # Matching
 
-In this R Markdown are performed the different steps to obtain a matched dataset, i.e a dataset with control and treated observational units to compute the treatment effect. The treatment here is to be under protected area status, and we look at the impact on deforestation.
+In this R Markdown are performed the different steps to obtain a matched dataset, i.e a dataset with control and treated observational units to eventually compute the treatment effect. The treatment here is to be under protected area status, and we look at the impact on deforestation.
 
-The steps are the following
+The steps are the following.
 
-1.  Pre-processing : in a loop for each country
+1.  Pre-processing : in a loop for each country,
 
-    1.  Create a grid of the country
+    1.  create a gridding of the country;
 
-    2.  Import geospatial data on PAs from the WDPA dataset, and assign each observation unit/pixel to a group : PA funded by the AFD (treated), PA non-funded by the AFD, buffer (closed to but not a PA), other (so potential control).
+    2.  import geospatial data on protected areas (PAs) from the World Dataset on Protected Areas (WDPA) and assign each observation unit/pixel to a group : PA of interest and analyzed (treated), PA of interest but not analyzed, PA not of interest, buffer (pixel closed to but not in a PA), other (so potential control). A PA of interest can be a PA known to be supported by the Agence Française de Développement (AFD) for instance. Some PAs are of interest but cannot be analyzed due to the design of the methodology (e.g marine protected areas when the focus is on deforestation);
 
-    3.  Compute the covariates and outcome of interest in all pixels thanks to the mapme.biodiversity package
+    3.  compute the covariates and outcome of interest in all pixels thanks to the mapme.biodiversity package;
 
-    4.  Build the matching data frame : each pixel is assigned to a group and has covariates and outcome values.
+    4.  build the matching data frame : each pixel is assigned to a group and has covariates and outcome values.
 
-2.  Post-processing : in a loop for each country
+2.  Post-processing : in each country,
 
-    1.  Load the matching dataframe of the given country
+    1.  Load the matching dataframe obtained at the end of pre-processing for a given country, and extract the list of protected areas to process.
 
-    2.  Perform the matching
+    2.  For each protected area,
 
-    3.  Plot covariate balance and density plots to ensure relevant matching
+        1.  perform the matching;
 
-    4.  Panelize the dataframe
+        2.  plot covariate balance and density plots to assess the quality of the match;
 
-    5.  Perform regressions
+        3.  panelize the dataframe;
+
+        4.  plot the evolution of forest cover in treated and control areas, before and after matching;
+
+        5.  map the matched treated and control units.
+
+    3.  Map all matched treated and control units in the country.
+
+The methodology is not extensively described here to keep the documentation concise. The interested reader can refer to the working paper for more details.
 
 ## Initial settings
+
+Configuring the Rmarkdown
 
 ```{r setup, include=FALSE, eval = FALSE}
 knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file()) 
 ```
 
-Install and import the relevant packages
+Downloading and installing the relevant packages
 
 ```{r eval=, message=FALSE, warning=FALSE}
 #Install some libraries
+## CRAN version
 install.packages(c("tictoc", "geodata", "wdpar", "exactextractr", "MatchIt", "fixest", "cobalt", "future", "progressr", "mapme.biodiversity", "future.callr", "janitor", "geomtextpath", "rstac"))
+## Github version (can be relevant if some features have not made it to CRAN version yet)
 #remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
 #remotes::install_github("prioritizr/wdpar", upgrade="always")
 
@@ -47,52 +59,54 @@ webdriver::install_phantomjs()
 
 # Load Libraries
 library(dplyr)
-library(janitor)
+library(janitor) #Functions to automate name cleaning
 library(tictoc) #For timing
-library(xtable)
+library(xtable) #Export dataframes as tables
 library(tidyr)
-library(stringr)
+library(stringr) #String specific functions
 library(ggplot2) # For plotting
 library(geomtextpath) #For annoted vertical lines in ggplot
-library(RColorBrewer)
-library(ggrepel)
+library(RColorBrewer) #Improved color palettes for plot legends
+library(ggrepel) #Refine labelling of some figures
 library(sf) # For handling vector data
 library(terra) # For handling raster data
 library(raster) # For handling raster data
-library(rgeos)
+library(rgeos) 
 library(geodata) # For getting country files
 library(wdpar) # For getting protected areas
 library(exactextractr) # For zonal statistics
-library(mapme.biodiversity)
-library(aws.s3)
+library(mapme.biodiversity) #Download geospatial data and compute specific indicators
+library(rstac) #To downlad NASA SRTM data
+library(aws.s3) #Access to storage
 library(MatchIt) #For matching
 library(fixest) #For estimating the models
 library(cobalt) #To visualize density plots and covariate balance from MatchIt outcomes
 library(future) #For parallel computing in mapme.biodiversity
-library(future.callr)
+library(future.callr)  #For parallel computing in mapme.biodiversity
 library(progressr) # To display progress bar   
-library(rstac) #To downlad NASA SRTM data
 ```
+
+Load the R functions called in the data processing
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
 #Import functions
 source("scripts/functions/02_fns_matching.R")      
 ```
 
+## Datasets and critical parameters
+
 ```{r, eval = FALSE}
-# Define the path to a temporary, working directory for pre- and post-processing steps.
-# Define a directory where outputs are stored in SSPCloud.
+# Define working directories
+## Define the path to a temporary, working directory processing steps.
 tmp_pre = paste(tempdir(), "matching_pre", sep = "/")
 tmp_post = paste(tempdir(), "matching_post", sep = "/")
-save_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/")
-# save_dir = paste("impact_analysis/matching", "2023-08-29", sep = "/")
+## Define a directory where outputs are stored in SSPCloud.
+save_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/") #Today's date
+# save_dir = paste("impact_analysis/matching", "2023-08-29", sep = "/") #A specific date
 
-#####
-###Pre-processing
-#####
-
-#(Down)load WDPA database   
-##Download
+# Load datasets
+## WDPA database   
+## Download and save
 # wdpa_wld_raw = wdpa_fetch(x = "global", wait = TRUE, download_dir = tmp_pre, page_wait = 2, verbose = TRUE)
 # s3write_using(wdpa_wld_raw,
 #               sf::st_write,
@@ -108,14 +122,9 @@ wdpa_wld_raw = s3read_using(
               bucket = "projet-afd-eva-ap",
               opts = list("region" = ""))
 
-# Specify buffer width in meter
-buffer_m = 10000
-# Specify the grid cell size in meter
-#gridSize = 10000 
-n_sampling = 1000 #CAREFUL : DIVIDED BY 5 FOR GAB only !!!
+## Dataset specific to the PAs portfolio to analyze. Only one is selected depending on the analysis one wants to perform. 
 
-#Load data
-##AFD
+### PAs supported by the AFD
 # data_pa =
 #   #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
 #   aws.s3::s3read_using(
@@ -129,7 +138,8 @@ n_sampling = 1000 #CAREFUL : DIVIDED BY 5 FOR GAB only !!!
 #   #1990, 2001 and 1993 respectively.
 #   # Evaluating the trinational PA is not relevant here : our method relies on pre-treatment obervsations (for matching and DiD) and the outcome is likely to be affected by the initial PAs. On the other hand, evaluating the three earlier PAs might be irrelevant for us : are they funded by the AFD ?? In a first approach, the trinational is removed.
 #   filter(is.na(wdpaid) == TRUE | wdpaid != 555547988)
-##FAPBM
+
+## PAs supported by the FAPBM
 # data_pa =
 #   #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
 #   aws.s3::s3read_using(
@@ -138,7 +148,8 @@ n_sampling = 1000 #CAREFUL : DIVIDED BY 5 FOR GAB only !!!
 #   object = "data_tidy/BDD_PA_FAPBM.csv",
 #   bucket = "projet-afd-eva-ap",
 #   opts = list("region" = ""))
-##MDG
+
+## All PAs in Madagascar
 data_pa =
   #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
   aws.s3::s3read_using(
@@ -148,14 +159,19 @@ data_pa =
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
 
+# The list of countries (ISO3 codes) to analyze. This can be define manually or from the the dataset loaded.
 #List of countries in the sample
 # list_iso_africa = unique(data_pa[data_pa$region == "Africa", iso3])
-# list_iso = list_iso_africa[c(1:13, 15:22, 24)] #All ISO except GAB and ZZ
-#list_iso = list_iso_africa[15:24]
-# list_iso = list_iso_africa[16:24]
-
 list_iso = "MDG"
       
+# Specify buffer width in meter
+buffer_m = 10000
+# Specify the grid cell size in meter
+#gridSize = 10000 
+# Specify to sampling : the ideal, minimal number of pixels in a protected area. 
+## Note that by design this number is indicative, as the pixel size is defined from the protected area reported surface and sampling number, but the area considered in the analysis is the terrestrial area. For PAs with a marine part, the area analyzed is smaller and the number of pixels mechanically lower.
+n_sampling = 1000 
+
 #Specify the period of study to create the mapme.bidiversity portfolio
 ## Start year
 yr_first = 2000
@@ -163,49 +179,63 @@ yr_first = 2000
 yr_last = 2021
 
 #Minimum treatment year
-#At least two pre-treatment periods of forest cover are needed to compute average pre-treatment deforestation
+#At least two pre-treatment periods of forest cover are needed to compute average pre-treatment deforestation, used as a matching variable.
 yr_min = yr_first+2
 
-#####
-###Post-processing
-#####
-
-# Define Column Names of Covariates
+# Define column names of matching covariates
 colname.travelTime = "minutes_median_5k_110mio"
 colname.clayContent = "clay_0_5cm_mean"
 colname.elevation = "elevation_mean"
 colname.tri = "tri_mean"
 colname.fcIni = "treecover_2000"
-
-
-# Prefix of columns for forest cover
-colfc.prefix = "treecover"
-# Separation between prefix and year
-colfc.bind = "_"
-# Prefix of columns for forest loss
-colfl.prefix = "treeloss"
-#Prefix of columns for average forest loss pre-funding
 colname.flAvg = "avgLoss_pre_fund"
+
+#Matching 
+## Parameters
+match_method = "cem"
+cutoff_method = "sturges"
+k2k_method = "mahalanobis"
+is_k2k = TRUE
+## Criteria to assess matching quality
+### Standardized absolte mean difference : threshold
+th_mean = 0.1
+### Variance ratio : thresholds
+th_var_min = 0.5
+th_var_max = 2
        
 ```
 
 ## Matching process
 
-For pre- and post-processing steps, the different functions are called in a loop (one iteration per country).
+The following code is divided into pre- and post-processing steps (see above). At pre-processing stage, computations are done country-by-country. At post-proccessing stage, computations are done country-by-country and protected areas by protected areas. To facilitate the reading, each step consists in a call of a function define in an other R script.
 
-### Pre-processing
+During the process, a text file (so-called log) is edited to keep track of the differents steps. Then after each critical step, the code checks whether an error occured by interrogating the variable is_ok (defined in the function corresponding to the step). If the step is ok (is_ok = TRUE) then the processing continues. Otherwise, the code goes to the next iteration (next country for pre-processing, next protected area for post-processing). This is useful in a multi-country, multi-PA analysis, to avoid the code to stop when an error occurs. Instead, the code continue and the analyst can see in the log whether there have been errors during the processing, where it happened and whether he or she needs to launch the analysis again for a specific country/PA. Generally speaking, this log is useful to remember what has been analyzed and assess everything was fine after the processing (warnings, processing of all the countries and PAs, etc.).
+
+For more details about the each step, please refer to the definition of the functions.
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
-#For each country in the list, the different steps of the pre-processing are performed
+
+
+##########
+### PRE-PROCESSING
+##########
+
+#For each country in the list, the different steps of the pre-processing are performed, and the process duration computed
 count = 0 #Initialize counter
 max_i = length(list_iso) #Max value of the counter
 tic_pre = tic() #Start timer
 
-#Create a log to track progress
+#Create a log to track progress of the analysis
 log = fn_pre_log(list_iso,
-                 name = paste0("log-", Sys.Date(), "-MDG-all-wdpa.txt"),
-                 notes = "An analysis of all PAs in MDG reported by the WDPA. The idea is to compare the effectiveness of PAs funded by the FAPBM relative to other PAs in Madagascar. Note that the computations are performed on a session without time restrictions in the access to the S3 server.")
+                 buffer = buffer_m,
+                 sampling = n_sampling,
+                 yr_first = yr_first,
+                 yr_last = yr_last,
+                 yr_min = yr_min,
+                 name = paste0("log-", Sys.Date(), "-NAME.txt"),
+                 notes = "Specific notes or remarks.")
 
+# Perform pre-processing steps country-by-country
 for (i in list_iso)            
 {
   #Update counter and display progress
@@ -215,7 +245,6 @@ for (i in list_iso)
   #Append the log to track progress of the process on country i
   cat(paste("#####\nCOUNTRY :", i, "\n#####\n\n"), file = log, append = TRUE)
      
-  
   #Generate observation units
   print("--Generating observation units")
   output_grid = fn_pre_grid(iso = i, 
@@ -225,13 +254,13 @@ for (i in list_iso)
                             sampling = n_sampling,
                             log = log,
                             save_dir = save_dir)
-  if(output_grid$is_ok == FALSE) {next}
+  if(output_grid$is_ok == FALSE) {next}  
   
   #Load the outputs 
-  utm_code = output_grid$utm_code
-  gadm_prj = output_grid$ctry_shp_prj
-  grid = output_grid$grid
-  gridSize = output_grid$gridSize
+  utm_code = output_grid$utm_code #UTM code 
+  gadm_prj = output_grid$ctry_shp_prj #The country polygon with relevant projection
+  grid = output_grid$grid #The country gridding
+  gridSize = output_grid$gridSize #The spatial resolution of the gridding
   
   #Determining Group IDs and WDPA IDs for all observation units
   print("--Determining Group IDs and WDPA IDs")
@@ -249,15 +278,17 @@ for (i in list_iso)
   #Calculating outcome and other covariates for all observation units
   print("--Calculating outcome and other covariates")
   output_mf = 
-    fn_pre_mf_parallel(grid.param = grid_param, path_tmp = tmp_pre, iso = i,
-          name_output = paste0("matching_frame_spling", n_sampling),
-          ext_output = ".gpkg",
-          yr_first = yr_first, yr_last = yr_last,  
-          log = log,
-          save_dir = save_dir)  
+    fn_pre_mf_parallel(grid.param = grid_param, 
+                       path_tmp = tmp_pre, 
+                       iso = i,
+                       name_output = paste0("matching_frame_spling", n_sampling),
+                       ext_output = ".gpkg",
+                       yr_first = yr_first, yr_last = yr_last,  
+                       log = log,
+                       save_dir = save_dir)  
   if(output_mf$is_ok == FALSE) {next}                                            
   
-  #Remove files in the session memory
+  #Remove files in the session memory, to avoid saturation
   tmp_files = list.files(tmp_pre, include.dirs = T, full.names = T, recursive = T)
   file.remove(tmp_files)
                                   
@@ -270,22 +301,23 @@ for (i in list_iso)
   cat(paste("END OF PRE-PROCESSING :", toc_pre$callback_msg, "\n\n"), 
       file = log, append = TRUE)
 
+  
+##########
+### POST-PROCESSING
+##########
+  
            
- 
-```
-
-### Post-processing
-
-```{r message=FALSE, warning=FALSE, eval = FALSE}
-#For each country in the list, the different steps of the post-processing are performed
+#For each country in the list, the different steps of the post-processing are performed, and duration of the processing computed
 count_i = 0 #Initialize counter
 max_i = length(list_iso) #Max value of the counter
 tic_post = tic() #start timer
 
-#Append the log
-cat(paste("##########\nPOST-PROCESSING\n##########\n\n"), 
+#Append the log, and specify matching parameters and quality assessment
+cat(paste("##########\nPOST-PROCESSING\n##########\n\nPARAMETERS :\nMatching\n#Parameters\n##Method :", match_method, "\n##Automatic cutoffs :", cutoff_method, "\n##Is it K2K matching ?", is_k2k, "\n##K2K method :", k2k_method, "\n#Quality assessement\n##Absolute standardized mean difference (threshold)", th_mean, "\n##Variance ratio between", th_var_min, "and", th_var_max), 
     file = log, append = TRUE)
   
+# Perform post-processing steps country-by-country, area-by-area
+## Loop over country
 for (i in list_iso)
 {
   #Update counter and show progress
@@ -334,7 +366,6 @@ for (i in list_iso)
     #Add average pre-loss
     print("--Add covariate : average tree loss pre-funding")
     output_avgLoss = fn_post_avgLoss_prefund(mf = mf_ini_j, 
-                                             colfl.prefix = colfl.prefix,
                                              log = log)
     if(output_avgLoss$is_ok == FALSE) {next} else mf_j = output_avgLoss$mf
     
@@ -342,8 +373,12 @@ for (i in list_iso)
     print("--Run CEM")
     output_cem = fn_post_match_auto(mf = mf_j, iso = i, 
                                    dummy_int = FALSE,
-                                     th_mean = 0.1, 
-                                     th_var_min = 0.5, th_var_max = 2,
+                                   match_method = match_method,
+                                   cutoff_method = cutoff_method,
+                                   is_k2k = is_k2k,
+                                   k2k_method = k2k_method,
+                                     th_mean = th_mean, 
+                                     th_var_min = th_var_min, th_var_max = th_var_max,
                                    colname.travelTime = colname.travelTime, 
                                    colname.clayContent = colname.clayContent, 
                                    colname.elevation = colname.elevation,
@@ -372,7 +407,7 @@ for (i in list_iso)
   if(output_covbal$is_ok == FALSE) {next}
     
     print("----Density plots")
-    output_density = fn_post_plot_density(out.cem = out_cem_j, 
+    output_density = fn_post_plot_density(out.cem = out_cem_j,  
                                          mf = mf_j,
                                       colname.travelTime = colname.travelTime, 
                                        colname.clayContent = colname.clayContent,
@@ -391,8 +426,6 @@ for (i in list_iso)
     print("----Panelize (Un-)Matched Dataframe")
     output_panel = fn_post_panel(out.cem = out_cem_j, 
                                   mf = mf_j, 
-                                  colfc.prefix = colfc.prefix, 
-                                  colfc.bind = colfc.bind,
                                   ext_output = ".csv", 
                                   iso = i,
                                   wdpaid = j,
@@ -407,6 +440,7 @@ for (i in list_iso)
     
     #Extract matched units and plot them on a grid
     print("----Extract matched units and plot them on a grid")
+    
     ##Extract ID of treated and control pixels
     df_pix_matched_j = matched.wide.j %>%
       st_drop_geometry() %>%
@@ -414,6 +448,7 @@ for (i in list_iso)
       dplyr::select(c(group, assetid)) %>%
       rename("group_matched" = "group") 
     df_pix_matched = rbind(df_pix_matched, df_pix_matched_j)
+    
     ##Plot the grid with matched control and treated for the PA
     output_grid = fn_post_plot_grid(iso = i, wdpaid = j,
                       is_pa = TRUE,
@@ -422,10 +457,8 @@ for (i in list_iso)
                       log = log,
                       save_dir = save_dir)
      if(output_grid$is_ok == FALSE) {next}
-  
-    
-  
-    #Plots : trend
+
+    #Plots the evolution of forest cover for treated and control units, before and after matching
     print("----Plots again : trend")
     output_trend = fn_post_plot_trend(matched.long = matched.long.j, 
                        unmatched.long = unmatched.long.j, 
@@ -461,7 +494,7 @@ aws.s3::put_object(file = log,
                    show_progress = FALSE)
                  
                                
-#Notes
+#Notes on what to do next
 ## Automate the definition of cutoffs for CEM
 ### Coder 5.5.3 de Iacus et al. 2012 ? Permet de savoir le gain de matched units pour une modification des seuils d'une variable
 ## Allow to enter a list of any covariates to perform the matching

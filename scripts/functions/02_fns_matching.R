@@ -1,27 +1,54 @@
 #####
-#Functions for matching
+#Functions for matching process
 #####
+
+#For each function, the aim of the function, inputs, outputs, data saved and notes are detailed. This takes the following form :
+#Aim of the function
+##INPUTS : the arguments needed in the function
+###INPUT 1 to N
+##OUTPUTS : the information returned by the function (data frames, numeric, characters, etc.) and necessary to pursue to processing
+### OUTPUT 1 to N
+##DATA SAVED : information put in the storage but not necessarily need to pursue the processing (figures, tables, data frames, etc.)
+##NOTES : any useful remark
+
+#Note most functions are adapted for errors handling using base::withCallingHandlers(). Basically, the computation steps are declared in a block of withCallingHandlers function, while two other blocks specify what to do in case the first block face a warning or error. In our case, errors led to return a boolean indicating an error has occured and append the log with the error message. Warnings return a boolean but do not block the iteration. They also edit the log with the warning message.
+
 
 ###
 #Pre-processing
 ###
 
-fn_pre_log = function(list_iso, name, notes)
+#Create a log to track progress of the processing (warnings, errors, parameters, country and PAs analyzed, etc.)
+##INPUTS :
+###list_iso : the list of ISO3 code corresponding to the countries analyzed
+### buffer : the buffer width in meter
+### sampling : the sampling specified by the user for the smaller area in the country considered
+### yr_first : the first year of the period where the analysis takes place
+### yr_last : the last year of the period where the analysis takes place
+### yr_min : the minimum treatment year to be considered in the analysis. As some matching covariates are defined with pre-treatment data (e.g average tree cover loss before treatment), this minimal year is greater than yr_first
+### name : specify the name of the log file to save
+### notes : any notes on the analysis performed
+##OUTPUTS :
+###log : a text file in the R session memory that will be edited through the data processing
+fn_pre_log = function(list_iso, buffer, sampling, yr_first, yr_last, yr_min, name, notes)
 {
   str_iso = paste(list_iso, collapse = ", ")
   log = paste(tempdir(), name, sep = "/")
   file.create(log)
   #Do not forget to end the writing with a \n to avoid warnings
   #cat(paste("#####\nCOUNTRY :", iso, "\nTIME :", print(Sys.time(), tz = "UTC-2"), "\n#####\n\n###\nPRE-PROCESSING\n###\n\n"), file = log, append = TRUE)
-  cat(paste("STARTING TIME :", print(Sys.time(), tz = "UTC-2"), "\nCOUNTRIES :", str_iso, "\nNOTES :", notes, "\n\n##########\nPRE-PROCESSING\n##########\n\n"), file = log, append = TRUE)
+  cat(paste("STARTING TIME :", print(Sys.time(), tz = "UTC-2"), "\nPARAMETERS : buffer =", buffer, "m, sampling size of", sampling, ", period of analysis", yr_first, "to", yr_last, ", minimum treatment year is", yr_min, "\nCOUNTRIES :", str_iso, "\nNOTES :", notes, "\n\n##########\nPRE-PROCESSING\n##########\n\n"), file = log, append = TRUE)
   
   return(log)
 }
 
-#Find UTM code for a given set of coordinates
-##INPUTS : coordinates (lonlat)
-##OUTPUTS : UTM code
-lonlat2UTM = function(lonlat) 
+
+#Find the UTM code for a given set of coordinates
+##INPUTS : 
+### lonlat : coordinates
+##OUTPUTS : 
+### UTM code
+fn_lonlat2UTM = function(lonlat) 
 {
   utm = (floor((lonlat[1] + 180) / 6) %% 60) + 1
   if (lonlat[2] > 0) {
@@ -32,18 +59,24 @@ lonlat2UTM = function(lonlat)
   
 }
 
-#Create a gridding of a given country
+
+#Create the gridding of a given country. 
 ##INPUTS : 
 ### iso : ISO code 
-### path_temp : temporary path for saving figures
+### yr_min : the minimum treatment year to be considered in the analysis. As some matching covariates are defined with pre-treatment data (e.g average tree cover loss before treatment), this minimal year is greater than the first year in the period considered
+### path_tmp : temporary path for saving figures
 ### data_pa : dataset with information on protected areas, and especially their surfaces
 ### sampling : Number of pixels that subdivide the protected area with lowest area in the country considered
-##OUTPUTS : 
+### log : a log file to track progress of the processing
+### save_dir : saving directory
+##OUTPUTS (depending on potential errors)
 ### gadm_prj : country shapefile 
 ### grid : gridding of the country
 ### utm_code : UTM code of the country
 ### gridSize : the resolution of gridding, defined from the area of the PA with the lowest area
-
+### is_ok : a boolean indicating whether or not an error occured inside the function
+##DATA SAVED :
+### Gridding of the country considered
 fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log, save_dir)
 {
   
@@ -51,14 +84,14 @@ fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log, save_dir)
     
     {
       
-  # Download country polygon to working directory and load it into workspace
+  # Download country polygon
   gadm = gadm(country = iso, resolution = 1, level = 0, path = path_tmp) %>% 
     st_as_sf() %>%
     st_make_valid() #Necessary for some polygons : e.g BEN
   
   # Find UTM zone of the country centroid
   centroid = st_coordinates(st_centroid(gadm))
-  utm_code = lonlat2UTM(centroid)
+  utm_code = fn_lonlat2UTM(centroid)
   # Reproject GADM
   gadm_prj = gadm %>% 
     st_transform(crs = utm_code)
@@ -149,7 +182,7 @@ fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log, save_dir)
   return(output)
 }
 
-#Assign each pixel (observation unit) to a group : PA non-funded, funded and analyzed, funded and not analyzed, buffer, potential control
+#Assign each pixel (observation unit) to a group : PA non-funded, funded and analyzed, funded and not analyzed, buffer, potential control. 
 ##INPUTS :
 ### iso : country ISO code
 ### path_tmp : temporary path to save figures
@@ -159,11 +192,17 @@ fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log, save_dir)
 ### gadm_prj : country polygon, projected so that crs = UTM code
 ### grid : gridding of the country
 ### gridSize : resolution of the gridding
-##OUTPUTS : 
+##OUTPUTS (depending on potential errors): 
 ### grid.param : a raster representing the gridding of the country with two layers. One for the group each pixel belongs to (funded PA, non-funded PA, potential control, buffer), the other for the WDPAID corresponding to each pixel (0 if not a PA)
+### is_ok : a boolean indicating whether or not an error occured inside the function
+##DATA SAVED :
+### grid.param
+### A plot of the country gridding and group of each pixel
+### The share of PAs in the portfolio considered that are reported in the WDPA
+### In the country considered, the share of PAs in the portfolio and (not) analyzed or not in the portfolio
+### Share of PAs reported in the WDPA and analyzed in the country considered
 ##NOTES :
 ### Errors can arise from the wdpa_clean() function, during "formatting attribute data" step. Can be settled playing with geometry_precision parameter
-
 fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffer_m, data_pa, gadm_prj, grid, gridSize, log, save_dir)
 {
   
@@ -473,8 +512,6 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
 
 
 
-
-
 #Building a matching dataframe for a given country, and save it in the SSPCloud storage
 ##INPUTS :
 ### grid.param : a raster representing the gridding of the country with two layers. One for the group each pixel belongs to (funded PA, non-funded PA, potential control, buffer), the other for the WDPAID corresponding to each pixel (0 if not a PA)
@@ -769,12 +806,11 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log, save_dir)
 ### mf : the matching dataframe
 ### yr_start : the first year of the period to compute average loss
 ### yr_end : the last year of the period to compute average loss
-### colfl.prefix : name of the forest loss variable
 ### colname.flAvg : name of the average forest loss variable
 ## OUTPUTS :
 ### mf : matching frame with the new covariate
 
-fn_post_avgLoss_prefund = function(mf, colfl.prefix, colname.flAvg, log)
+fn_post_avgLoss_prefund = function(mf, colname.flAvg, log)
 {
   
   output = tryCatch(
@@ -785,7 +821,7 @@ fn_post_avgLoss_prefund = function(mf, colfl.prefix, colname.flAvg, log)
   # Columns treeloss, without geometry
   # start = yr_start - 2000
   # end = yr_end - 2000
-  # df_fl = mf[grepl(colfl.prefix, names(mf))][start:end] %>% 
+  # df_fl = mf[grepl("treeloss", names(mf))][start:end] %>% 
   #   st_drop_geometry()
   # # Add column: average treeloss before funding starts, 
   # mf$avgLoss_pre_fund = round(rowMeans(df_fl), 2)
@@ -801,10 +837,10 @@ fn_post_avgLoss_prefund = function(mf, colfl.prefix, colname.flAvg, log)
   
   #Extract first year treeloss is computed
   ##Select cols with "treeloss" in mf, drop geometry, replace "treeloss_" by "", convert to num and take min
-  treeloss.ini.year = mf[grepl(colfl.prefix, names(mf))] %>%
+  treeloss.ini.year = mf[grepl("treeloss", names(mf))] %>%
     st_drop_geometry() %>%
     names() %>%
-    gsub(paste0(colfl.prefix, "_"), "", .) %>%
+    gsub(paste0("treeloss", "_"), "", .) %>%
     as.numeric() %>%
     min()
   
@@ -821,7 +857,7 @@ fn_post_avgLoss_prefund = function(mf, colfl.prefix, colname.flAvg, log)
   var_start = yr_start - 2000
   var_end = yr_end - 2000
   #Select only relevant variables
-  df_fl = mf[grepl(colfl.prefix, names(mf))][var_start:var_end] %>% 
+  df_fl = mf[grepl("treeloss", names(mf))][var_start:var_end] %>% 
     st_drop_geometry()
   #Compute average loss for each pixel and store it in mf. Also add the start and end years of pre-treatment period where average loss is computed.
   mf$avgLoss_pre_fund = round(rowMeans(df_fl), 2)
@@ -865,6 +901,10 @@ fn_post_avgLoss_prefund = function(mf, colfl.prefix, colname.flAvg, log)
 fn_post_match_auto = function(mf,
                               iso,
                               dummy_int,
+                              match_method,
+                              cutoff_method,
+                              is_k2k,
+                              k2k_method,
                               th_mean, 
                               th_var_min, th_var_max,
                               colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcIni, colname.flAvg,
@@ -890,10 +930,10 @@ fn_post_match_auto = function(mf,
       #Try to perform matching
       out.cem = matchit(formula,
                         data = mf,
-                        method = "cem",
-                        cutpoints = "sturges",
-                        k2k = TRUE,
-                        k2k.method = "mahalanobis")
+                        method = match_method,
+                        cutpoints = cutoff_method,
+                        k2k = is_k2k,
+                        k2k.method = k2k_method)
       
       ## Covariate balance : standardized mean difference and variance ratio
       ## For both tests and the joint one, a dummy variable is defined, with value TRUE is the test is passed
@@ -1352,12 +1392,10 @@ fn_post_plot_density = function(out.cem, mf,
 ## INPUTS :
 ### out.cem : list of results from the CEM matching
 ### mf : the matching dataframe
-### colfc.prefix : prefix of columns for forest cover
-### colfc.bind : separation between prefix and year
 ## OUTPUTS :
 ### list_output : a list of dataframes : (un)matched.wide/long. They contain covariates and outcomes for treatment and control units, before and after matching, in a wide or long format
 
-fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpaid, iso, log, save_dir)
+fn_post_panel = function(out.cem, mf, ext_output, wdpaid, iso, log, save_dir)
 {
   
   output = tryCatch(
@@ -1369,10 +1407,10 @@ fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpa
   
   # Pivot Wide ==> Pivot Long
   matched.long = matched.wide %>%
-    dplyr::select(c(region_afd, region, sub_region, country_en, iso3, group, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, weights, starts_with(colfc.prefix), res_m)) %>%
-    pivot_longer(cols = c(starts_with(colfc.prefix)),
+    dplyr::select(c(region_afd, region, sub_region, country_en, iso3, group, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, weights, starts_with("treecover"), res_m)) %>%
+    pivot_longer(cols = c(starts_with("treecover")),
                  names_to = c("var", "year"),
-                 names_sep = colfc.bind,
+                 names_sep = "_",
                  values_to = "fc_ha")
   
   # Pivot wide Dataframe of un-matched objects
@@ -1380,10 +1418,10 @@ fn_post_panel = function(out.cem, mf, colfc.prefix, colfc.bind, ext_output, wdpa
   
   # Pivot Wide ==> Pivot Long
   unmatched.long = unmatched.wide %>%
-    dplyr::select(c(region_afd, region, sub_region, iso3, country_en, group, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, starts_with(colfc.prefix), res_m)) %>%
-    pivot_longer(cols = c(starts_with(colfc.prefix)),
+    dplyr::select(c(region_afd, region, sub_region, iso3, country_en, group, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, starts_with(treecover), res_m)) %>%
+    pivot_longer(cols = c(starts_with(treecover)),
                  names_to = c("var", "year"),
-                 names_sep = colfc.bind,
+                 names_sep = "_",
                  values_to = "fc_ha")
   
   #Save the dataframes
