@@ -1292,11 +1292,11 @@ data_plot_mdg = data_treeloss %>%
          ) %>%
   arrange(year) %>%
   mutate(cum_loss = cumsum(loss_ha),
-         treecover_ha = treecover_2000_ha - cum_loss,
-         treecover_rel00 = treecover_ha/treecover_2000_ha*100)
+         treecover_ha_mdg = treecover_2000_ha - cum_loss,
+         treecover_rel00_mdg = treecover_ha_mdg/treecover_2000_ha*100)
 
 fig_treeloss_mdg = ggplot(data = data_plot_mdg,
-                      aes(x = year, y = treecover_rel00)) %>%
+                      aes(x = year, y = treecover_rel00_mdg)) %>%
   + geom_line(color = "#3182BD") %>%
   + geom_point(color = "#3182BD") %>%
   + labs(x = "", y = "% of 2000 tree cover", 
@@ -1390,19 +1390,19 @@ data_plot_fapbm = data.tree.fapbm %>%
   pivot_longer(cols = c(starts_with("treecover")),
                names_to = c("var", "year"),
                names_sep = "_",
-               values_to = "treecover_ha") %>%
-  mutate(treecover_rel00 = treecover_ha/treecover_ha[year == 2000]*100) %>%
-  select(c(year, treecover_ha, treecover_rel00)) %>%
+               values_to = "treecover_ha_fapbm") %>%
+  mutate(treecover_rel00_fapbm = treecover_ha_fapbm/treecover_ha_fapbm[year == 2000]*100) %>%
+  select(c(year, treecover_ha_fapbm, treecover_rel00_fapbm)) %>%
   mutate(year = as.numeric(year)) 
   
 
 fig_treeloss_fapbm = ggplot(data = data_plot_fapbm,
-                      aes(x = year, y = treecover_rel00)) %>%
+                      aes(x = year, y = treecover_rel00_fapbm)) %>%
   + geom_line(color = "#3182BD") %>%
   + geom_point(color = "#3182BD") %>%
   + labs(x = "", y = "% of 2000 tree cover", 
          title = "Evolution of forest cover in FAPBM funded protected areas",
-        subtitle = paste("Treecover in 2000 :", format(data_plot_fapbm[data_plot_fapbm$year == 2000,]$treecover_ha, digits = 1, big.mark = ",", scientific = F), "ha"),
+        subtitle = paste("Treecover in 2000 :", format(data_plot_fapbm[data_plot_fapbm$year == 2000,]$treecover_ha_fapbm, digits = 1, big.mark = ",", scientific = F), "ha"),
          caption = "Data : Global Forest Watch") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
@@ -1505,19 +1505,19 @@ data_plot_nofapbm = data.tree.nofapbm %>%
   pivot_longer(cols = c(starts_with("treecover")),
                names_to = c("var", "year"),
                names_sep = "_",
-               values_to = "treecover_ha") %>%
-  mutate(treecover_rel00 = treecover_ha/treecover_ha[year == 2000]*100) %>%
-  select(c(year, treecover_ha, treecover_rel00)) %>%
+               values_to = "treecover_ha_nofapbm") %>%
+  mutate(treecover_rel00_nofapbm = treecover_ha_nofapbm/treecover_ha_nofapbm[year == 2000]*100) %>%
+  select(c(year, treecover_ha_nofapbm, treecover_rel00_nofapbm)) %>%
   mutate(year = as.numeric(year)) 
   
 
 fig_treeloss_nofapbm = ggplot(data = data_plot_nofapbm,
-                      aes(x = year, y = treecover_rel00)) %>%
+                      aes(x = year, y = treecover_rel00_nofapbm)) %>%
   + geom_line(color = "#3182BD") %>%
   + geom_point(color = "#3182BD") %>%
   + labs(x = "", y = "% of 2000 tree cover", 
          title = "Evolution of forest cover, in protected areas not FAPBM funded",
-        subtitle = paste("Treecover in 2000 :", format(data_plot_nofapbm[data_plot_nofapbm$year == 2000,]$treecover_ha, digits = 1, big.mark = ",", scientific = F), "ha"),
+        subtitle = paste("Treecover in 2000 :", format(data_plot_nofapbm[data_plot_nofapbm$year == 2000,]$treecover_ha_nofapbm, digits = 1, big.mark = ",", scientific = F), "ha"),
          caption = "Data : Global Forest Watch") %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
@@ -1568,28 +1568,67 @@ Overlapping MDG, FAPBM and no FAPBM
 ```{r}
 data_plot_all = data_plot_fapbm %>%
   left_join(data_plot_nofapbm, by = "year") %>%
-  left_join(data_plot_mdg, by = "year")
+  left_join(select(data_plot_mdg, c(year, treecover_ha_mdg, treecover_rel00_mdg)), by = "year") %>%
+  mutate(treecover_rel00_mdg = case_when(is.na(treecover_rel00_mdg) == TRUE ~ 100,
+                   TRUE ~ treecover_rel00_mdg),
+         treecover_ha_mdg = case_when(is.na(treecover_ha_mdg) == TRUE ~ data_plot_mdg$treecover_2000_ha[1],
+                   TRUE ~ treecover_ha_mdg))
 #CARFEUL NEED TO RENAME VARIABLES   
 
 fig_treeloss_all =  ggplot(data_plot_all,
                            aes(x = year)) %>%
-  + geom_line(aes(y = treecover_rel00_mdg, color = "mdg")) %>%
-  + geom_point(aes(y = treecover_rel00_mdg, color = "mdg")) %>%
-  + geom_line(aes(y = treecover_rel00_nofapbm, color = "nofapbm")) %>%
-  + geom_point(aes(y = treecover_rel00_nofapbm, color = "nofapbm")) %>%
-  + geom_line(aes(y = treecover_rel00_fapbm, color = "fapbm")) %>%
-  + geom_point(aes(y = treecover_rel00_fapbm, color = "fapbm")) %>%
+  + geom_line(aes(y = treecover_rel00_mdg, color = "Madagascar")) %>%
+  + geom_point(aes(y = treecover_rel00_mdg, color = "Madagascar")) %>%
+  + geom_line(aes(y = treecover_rel00_nofapbm, color = "Not FAPBM")) %>%
+  + geom_point(aes(y = treecover_rel00_nofapbm, color = "Not FAPBM")) %>%
+  + geom_line(aes(y = treecover_rel00_fapbm, color = "FAPBM")) %>%
+  + geom_point(aes(y = treecover_rel00_fapbm, color = "FAPBM")) %>%
+  + scale_color_manual(name = "", values = c("Madagascar" = "grey50",
+                                  "Not FAPBM" = "#DE2D26",
+                                  "FAPBM" = "#31A354")) %>%
   + labs(x = "", y = "% of 2000 tree cover", 
          title = "Evolution of forest cover",
-        caption = paste("Data : Global Forest Watch\nTreecover in 2000 :", format(data_plot_all[data_plot_all$year == 2000,]$treecover_ha_mdg, digits = 1, big.mark = ",", scientific = F), "ha in Madagascar, including", format(data_plot_all[data_plot_all$year == 2000,]$treecover_ha_fapbm, digits = 1, big.mark = ",", scientific = F), "ha of FAPBM funded protected areas and", format(data_plot_all[data_plot_all$year == 2000,]$treecover_ha_nofapbm, digits = 1, big.mark = ",", scientific = F), "ha of non-funded.")) %>%
+        caption = paste("Data : Global Forest Watch\nTreecover in 2000 :", format(data_plot_all[data_plot_all$year == 2000,]$treecover_ha_mdg, digits = 1, big.mark = ",", scientific = F), "ha in Madagascar,", format(data_plot_all[data_plot_all$year == 2000,]$treecover_ha_fapbm, digits = 1, big.mark = ",", scientific = F), "ha of FAPBM funded protected areas and", format(data_plot_all[data_plot_all$year == 2000,]$treecover_ha_nofapbm, digits = 1, big.mark = ",", scientific = F), "ha of non-funded.")) %>%
   + theme(legend.position = "bottom",
       legend.key = element_rect(fill = "white"),
       plot.title = element_text(size = 14, face = "bold"), 
       axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
       axis.title.x = element_text(margin = margin(t = 10)),
-      panel.background = element_rect(fill = 'white', colour = 'white', 
+      panel.background = element_rect(fill = 'white', colour = 'white',  
                                       linewidth = 0.5, linetype = 'solid'),
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+fig_treeloss_all
+```
+
+```{r, eval = FALSE}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+ggsave(paste(tmp, "fig_treeloss_all.png", sep = "/"),
+       plot =  fig_treeloss_all,
+       device = "png",
+       height = 6, width = 9)
+
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+count = 0
+for(f in files) 
+{
+  count = count+1
+  cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/GFW/MDG", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
