@@ -1,10 +1,28 @@
 # Building the datasets
 
-## Importing relevant packages
+This script builds the different datasets for the analysis. The lists of protected areas (PAs) reported by the Agence Française de Développement (AFD) departments are combined, merged with AFD project database ("SIOP") and the World Database on Protected Areas (WDPA). The latter is the most comprehensive database on marine and terrestrial protected areas, published by the International Union for the Conservation of Nature (IUCN). The following datasets are created :
+
+-   A confidential dataset to perform descriptive statistics on fundings
+
+-   A dataset to perform non-confidential statistics
+
+-   Datasets specific to impact analysis (for PA supported by the AFD or a specific funder, a all PA in a given country, etc.)
+
+-   Datasets with geospatial information, for specific uses (e.g maps)
+
+-   Datasets with total area at country, region or world level, taking into account potential intersection between PA reported by the WDPA (see WDPA documentation)
+
+These datasets are available upon requests, with potential restriction for datasets containing confidential data. Note that this script loads geospatial datasets that are memory demanding. Ensure that the R session has accessed to enough temporary memory (RAM) before running the script (typically 10 GB), or clean the RAM regularly.
+
+## Initial settings
+
+Configuring the Rmarkdown
 
 ```{r setup, include = FALSE, eval = FALSE}
 knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 ```
+
+Downloading and importing the relevant packages
 
 ```{r message=TRUE, warning=TRUE, eval = FALSE}
 install.packages(c("janitor", "geodata", "wdpar", "countrycode"))
@@ -27,24 +45,16 @@ library(geodata)
 
 ```
 
-This script builds the different datasets for the analysis. Protected areas (PAs) reported by AFD employees are combined, merged with AFD project database ("SIOP") and the World Database on Protected Areas (WDPA). A confidential dataset is created to perform descriptive statistics on fundings. Also, datasets on PAs aggregated size at country and regional level are created.
-
-Note that not all datasets are made publicly available, as some contain confidential data. Please contact authors for special requests.
-
 ## Datasets for analysis
 
-The datasets are built from the list of PAs funded by the AFD, provided by AFD employees. For each PA, further information are gathered from the SIOP and the WDPA.
+### Merge PAs reporting by AFD technical departments
 
-Then, several datasets are built : (1) a dataset with only project related variables from the AFD, to facilitate merging with datasets other than WDPA; (2) a dataset to perform most analysis, except confidential statistics related to funding; (3) a confidential dataset with funding data; (4) a polygon of funding and non-funding data with polygons of each PAs from WDPA.
-
-### Merge PAs reporting (ARB, EVA ...)
-
-A first step has been to collect information on the PAs funded by the AFD. A first bunch was collected by Léa Poulin, Ingrid Dallmann and Pierre-Yves Durand (form EVA department). Others was reported to us by the ARB department. These datasets are combined with only relevant variables for future merging with WDPA and SIOP databases.
+A first step has been to collect information on the PAs funded by the AFD. A first bunch was collected by Léa Poulin, Ingrid Dallmann and Pierre-Yves Durand (from evaluation and learning service of the innovation, research and knowledge department). Others were reported to us by the agriculture, rural development and biodiversity department. These datasets are combined with only relevant variables for future merging with WDPA and SIOP databases.
 
 ```{r}
-#PAs gathered by EVA
+#PAs gathered by the evaluation department
 ##BDD_joint created by Léa Poulin. 
-##Create a dataset with a merged column for cofunders, instead of a variable ##for each. Only relevant variables are kept, and the date/author of the report are added.
+##Create a dataset with a merged column for cofunders, instead of a variable for each. Only relevant variables are kept, and the date/author of the report are added.
 data_pa_eva = 
   #read_excel("data_raw/BDD_joint.xlsx") %>%
   s3read_using(readxl::read_excel,
@@ -71,7 +81,7 @@ data_pa_eva[data_pa_eva$wdpaid == "797" & data_pa_eva$id_projet == "CZZ3056",]$n
 data_pa_eva[data_pa_eva$wdpaid == "797" & data_pa_eva$id_projet == "CZZ3056",]$superficie_km2 = 100
 data_pa_eva[data_pa_eva$wdpaid == "797" & data_pa_eva$id_projet == "CZZ3056",]$wdpaid = NA
 
-#PAs gathered by ARB (10-08-2023)
+#PAs gathered by agriculture, rural development and biodiversity department (10-08-2023)
 data_pa_arb = 
   #read_excel("data_raw/BDD_ARB_10082023.xlsx") %>%
   s3read_using(readxl::read_excel,
@@ -108,41 +118,41 @@ data_pa_arb =
   select(c("id_projet", "id_concours", "cofinanciers", "nom_ap",
            "wdpaid", "superficie_km2", "date_entree", "auteur_entree"))
   
-#Create a dataset gathering EVA and ARB datasets, and remove duplicates
+#Create a dataset gathering the previous datasets
 data_pa_afd = rbind(data_pa_eva, data_pa_arb)
 
 #Finally, writing the dataset in csv file. Careful to the delimiter : ";" used as "," present in some variables values.
 # write_delim(data_pa_afd, "data_raw/BDD_PA_AFD.csv",
 #             delim = ";",
 #             na = "NA")
-s3write_using(x = data_pa_afd,
-              FUN = readr::write_delim,
-              delim = ";",
-              object = "data_raw/BDD_PA_AFD.csv",
-              bucket = "projet-afd-eva-ap",
-              opts = list("region" = ""))
+# s3write_using(x = data_pa_afd,
+#               FUN = readr::write_delim,
+#               delim = ";",
+#               object = "data_raw/BDD_PA_AFD.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
 ```
 
-### Import and merge raw datasets
+### Merge the list of PAs to AFD project information and WDPA 
 
-The list of PAs reported by AFD department are then merged with AFD internal project information database (SIOP) and the World Database on Protected areas. The latter is the most comprehensive database on marine and terrestrial protected areas, published by the IUCN.
+The list of PAs reported by AFD departments are then merged with AFD internal project information database (so-called "SIOP") and the World Database on Protected areas.
 
 ```{r, eval = FALSE}
 
-#Import the manually reported dataset (merge from ARB, EVA reports)
-#Careful to the delimiter choice
+#Import the list of PAs
 data_pa_afd = 
   #read_delim("data_raw/BDD_PA_AFD.csv", delim = ";")
   s3read_using(readr::read_delim,
-                delim = ";",
+                delim = ";", #Careful to the delimiter choice
                show_col_types = FALSE,
                 object = "data_raw/BDD_PA_AFD.csv",
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
 
 list_wdpa_afd = unique(data_pa_afd$wdpaid)
+
 #Import SIOP extract
-##A function to transform country names from upper case to lower cases : FRANCE -> France
+##A function to transform country names from upper case (SIOP database) to lower cases : FRANCE -> France
 fn_ucfirst <- function (str) {
   paste(toupper(substring(str, 1, 1)), tolower(substring(str, 2)), sep = "")
 }
@@ -169,11 +179,12 @@ data_siop_pa =
   rename("cofinanciers_siop" = "cofinancier",
          "pays" = "pays_de_realisation",
          "pays2" = "autres_pays_de_realisation") %>%
+  #Change country ("pays") name from upper case to lower case : e.g FRANCE -> France 
   mutate(pays = case_when(is.na(pays) == TRUE ~ NA,
                          is.na(pays) == FALSE ~ fn_ucfirst(pays)),
          pays2 = case_when(is.na(pays2) == TRUE ~ NA,
                           is.na(pays2) == FALSE ~ fn_ucfirst(pays2))) %>%
-  #Add ISO code from countrycode package, reading "pays"
+  #Add ISO code from countrycode package, reading "pays" variable
   mutate(iso3_siop = countrycode(sourcevar = pays, 
                                  origin = "country.name.fr",
                                  destination = "iso3c",
@@ -183,11 +194,14 @@ data_siop_pa =
          .after = "pays")
   
 #Import WDPA data
+##Download the latest version of the WDPA and write to the storage, if necessary
 # data_wdpa = wdpa_fetch(x = "global", wait = TRUE, download_dir = "data_raw",
 #                        page_wait = 2, verbose = TRUE)
 # st_write(wdpa,
 #          dsn = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
 #          delete_dsn = TRUE)
+
+##Load the WDPA from the storage
 data_wdpa = 
   #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
   s3read_using(sf::st_read,
@@ -241,12 +255,13 @@ data_raw2 = data_raw1 %>%
                           nom_ap == "Parc National Pongara" ~ "GAB",
                           TRUE ~ iso3))
 
-s3write_using(x = data_raw2,
-              FUN = readr::write_delim,
-              delim = ";",
-              object = "data_raw/BDD_PA_raw.csv",
-              bucket = "projet-afd-eva-ap",
-              opts = list("region" = ""))
+#Save this raw dataset
+# s3write_using(x = data_raw2,
+#               FUN = readr::write_delim,
+#               delim = ";",
+#               object = "data_raw/BDD_PA_raw.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
 
 ```
 
@@ -284,12 +299,12 @@ data_raw_corr = data_raw
 # data_raw_corr[data_raw_corr$wdpaid %in% c("20267") ,]$pays = "Guinee-Equatoriale"
 # data_raw_corr[data_raw_corr$wdpaid %in% c("20267") ,]$iso3 = "GNQ"
 
-s3write_using(x = data_raw_corr,
-              FUN = readr::write_delim,
-              delim = ";",
-              object = "data_raw/BDD_PA_raw_corr.csv",
-              bucket = "projet-afd-eva-ap",
-              opts = list("region" = ""))
+# s3write_using(x = data_raw_corr,
+#               FUN = readr::write_delim,
+#               delim = ";",
+#               object = "data_raw/BDD_PA_raw_corr.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
 
 ```
 
@@ -308,6 +323,7 @@ data_raw_corr =
               bucket = "projet-afd-eva-ap",
               opts = list("region" = ""))
 
+#Build the tidy dataset
 data_tidy = data_raw_corr %>%
   #Select relevant variables
   select(c(libelle_court_direction_regionale, pays, pays2, parent_iso3, iso3,
@@ -347,16 +363,14 @@ data_tidy = data_raw_corr %>%
   #"Multi-Pays".
   #French related : the ISO3 code 
   #Ocen Indien let NA value, Muti-pays set to ZZ as in the SIOP dataset
-    #Nouvelle-Calédonie is divided in two provinces : north and south. 
-  #This subdivision is irrelevant in our analysis so we keep 
-  #only "Nouvelle Caledonie"
+  #Nouvelle-Calédonie is divided in two provinces : north and south. This subdivision is irrelevant in our analysis so we keep only "Nouvelle Caledonie"
   mutate(iso3 = case_when(
     pays == "Mayotte" ~ "MYT",
     pays == "Nouvelle-Caledonie" ~ "NCL",
     pays == "Polynesie Francaise" ~ "PYF",
     is.na(iso3) & pays %in% c("Multi-Pays", "Multi-pays", "Ocean Indien") ~ "ZZ",
     TRUE ~ iso3)) %>%
-  #Add region, sub-region and country names 
+  #Add region, sub-region and country names from the ISO3 country code
   mutate(region = countrycode(sourcevar = iso3,
                               origin = "iso3c",
                               destination = "un.region.name",
@@ -386,7 +400,7 @@ data_tidy = data_raw_corr %>%
                                                "ZZ" = "Multi-pays",
                                                "COG;CMR;CAF" = "Multi-pays")),
          .after = "iso3") %>%
-#Change transboundary iso3 to ZZ (mutli-countries)
+#Change transboundary iso3 to ZZ (multi-countries)
   mutate(iso3 = case_when(iso3 == "COG;CMR;CAF" ~"ZZ",
                           TRUE ~iso3)) %>%
     #Some PAs have iso "ZZ" (multi-countries) by funded by Dr Ocean Pacifique. The region is assigned to Oceania
@@ -396,7 +410,7 @@ data_tidy = data_raw_corr %>%
                               region == "" & grepl("amerique", libelle_court_direction_regionale, ignore.case = TRUE) ~ "America",
                               region == "" ~ NA,
                             TRUE ~ region)) %>%
-  #Add the description of IUCN from its category
+  #Add the description of IUCN from its category 'in French and English)
     mutate(iucn_des_fr = case_when(
   !is.na(wdpaid) & iucn_cat == "Ia" ~ "Réserve naturelle intégrale",
   !is.na(wdpaid) & iucn_cat == "Ib" ~ "Zone de nature sauvage",
@@ -430,7 +444,7 @@ data_tidy = data_raw_corr %>%
                           "mt_global_projet_prevu_devise",
                           "mt_part_cofinancier_prevu_euro"), 
                 .fns = ~stri_enc_toutf8(.x))) %>%
-  #Translate names in English, except for funding data (not made public)
+  #Translate names in English
   rename("region_afd" = "libelle_court_direction_regionale",
          "name_pa" = "nom_ap",
          "date_funding" = "date_doctroi_projet",
@@ -439,7 +453,7 @@ data_tidy = data_raw_corr %>%
 
 ```
 
-### Dataset with only SIOP variables
+### Dataset with only AFD project variables
 
 Build a dataset from the tidy dataset that keeps only SIOP variables. Potentially useful for analysis on SIOP information.
 
@@ -458,19 +472,19 @@ data_siop_tidy = data_tidy %>%
   dplyr::select(all_of(list_var_siop))
 
 #write_csv(data_siop_tidy, "data_tidy/BDD_siop_tidy.xlsx")
-s3write_using(x = data_siop_tidy,
-              FUN = readr::write_delim,
-              delim = ";",
-              object = "data_tidy/BDD_PA_tidy_siop.csv",
-              bucket = "projet-afd-eva-ap",
-              opts = list("region" = ""))
+# s3write_using(x = data_siop_tidy,
+#               FUN = readr::write_delim,
+#               delim = ";",
+#               object = "data_tidy/BDD_PA_tidy_siop.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
 ```
 
 ### Dataset for non-confidential analysis
 
-Buld a dataset with one row per PA. In the list of PAs reported by AFD department, some PAs are also reported in the WDPA and are identified by a WDPA ID, some have no WDPAID but have a unique name, and other have neither name nor WDPAID. For the latter case, a PA is supposed to be identified by project ID and country. Thus we need to remove duplicates for each case. Also, the funding years of each PA is kept. Note that a few PAs have an entry with WDPAID, and an other with no WDPAID though they have the same name (e.g Parc National de Pongara). The duplicate without WDPAID is removed.
+Build a dataset with one row per PA. In the list of PAs reported by AFD department, some PAs are also reported in the WDPA and are identified by a unique WDPA ID, some have no WDPAID but have a unique name, and other have neither name nor WDPAID. For the latter case, a PA is supposed to be identified by project ID and country. Thus we need to remove duplicates for each case. Also, all the funding years of each PA is kept. Note that a few PAs have an entry with WDPA ID, and an other with no WDPAID though they have the same name (e.g Parc National de Pongara). The duplicate without WDPA ID is removed.
 
-For the impact analysis, we also need to take into account transboundary PAs (i.e PAs on more than one country). Indeed the analysis is performed country by country based on ISO3 code. Thus we need to divide the PAs across the country it is located in, and re-compute the area of the PA in each country
+For the impact analysis, we also need to take into account transboundary PAs (i.e PAs on more than one country). Indeed the analysis is performed country by country. Thus we need to divide the PAs across the countries it is located in, and re-compute the area of the PA in each country.
 
 #### For descriptive statistics
 
@@ -489,17 +503,18 @@ data_nofund = data_tidy %>%
   select(!all_of(list_var_fund))
 
 #fwrite(data_nofund, "data_tidy/BDD_PA_AFD_nofund.csv")
-s3write_using(x = data_nofund,
-              FUN = readr::write_delim,
-              delim = ";",
-              object = "data_tidy/BDD_PA_AFD_nofund.csv",
-              bucket = "projet-afd-eva-ap",
-              opts = list("region" = ""))
+# s3write_using(x = data_nofund,
+#               FUN = readr::write_delim,
+#               delim = ";",
+#               object = "data_tidy/BDD_PA_AFD_nofund.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
 
 #Then to keep only one row per PA, we need to consider separately PAs having WDPA ID and PAs which do not.
+
 ## Observations with WDPAID
 ###We keep information on fundings : one row for each wdpa_pid, funding year is kept
-###Note that WDPA_PID is a unique identifier for zones inside the corresponding WDPAID. ###The choice of the WDPA_PID to keep is performed below (e.g choosing the area instead ###of the buffer zone)
+###Note that WDPA_PID is a unique identifier for zones inside the corresponding WDPAID. The choice of the WDPA_PID to keep is performed below (e.g choosing the area instead of the buffer zone)
 data_nofund_wdpa = data_nofund %>%
   subset(is.na(wdpaid) == FALSE) %>%
   group_by(wdpa_pid, year_funding) %>%
@@ -600,50 +615,22 @@ data_nofund_na = data_nofund %>%
 data_nofund_nodupl = rbind(data_nofund_wdpa, data_nofund_name, data_nofund_na) 
 
 #fwrite(data_nofund_nodupl, "data_tidy/BDD_nofund_nodupl.csv")
-s3write_using(x = data_nofund_nodupl,
-              FUN = readr::write_delim,
-              delim = ";",
-              object = "data_tidy/BDD_PA_AFD_nofund_nodupl.csv",
-              bucket = "projet-afd-eva-ap",
-              opts = list("region" = ""))
+# s3write_using(x = data_nofund_nodupl,
+#               FUN = readr::write_delim,
+#               delim = ";",
+#               object = "data_tidy/BDD_PA_AFD_nofund_nodupl.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
 
-
-           
-#OLD
-# data_nofund_wdpa = data_nofund %>%
-#   subset(is.na(wdpaid) == FALSE) %>%
-#   group_by(wdpa_pid) %>% 
-#   #Keep the earlier annee_octroi (year of the first funding)
-#   arrange(year_funding) %>%
-#   #Keep only one observation for rows with same WDPAID
-#   slice(1) %>%
-#   ungroup()
-
-# data_nofund_na = data_nofund %>%
-#   subset(is.na(wdpaid) == TRUE) %>%
-#   #Create a unique key for a PA : project ID from AFD, country (ISO code) and PA name
-#   #Rows with the same key correspond to different cofunders. This info is not relevant for non-funding analysis, so we can keep only one key value.
-#   mutate(key = paste(id_projet, iso3, name_pa, sep = "_"),
-#        .before = id_projet) %>%
-#   #We keep information on fundings : one row for each unique key, funding year is kept
-#   #Note that WDPA_PID is a unique identifier for zones inside the corresponding WDPAID. 
-#   group_by(key, year_funding) %>%
-#   slice(1) %>%
-#   ungroup() %>%
-#   group_by(key) %>%
-#   #Then we create a variable with all the funding years for each protected area identified by key  ...
-#   mutate(year_funding_all = paste0(year_funding, collapse = ","),
-#          .after = "year_funding") %>%
-#   #... and keep only the earlier funding year for year_funding
-#   arrange(year_funding) %>%
-#   slice(1) %>%
-#   ungroup() %>%
-#   select(-key)
 ```
 
 #### For impact analysis
 
-For AFD portfolio
+Different datasets are built, depending on the portfolio to analyse (e.g PAs supported by AFD or a specific funder).
+
+##### AFD portfolio
+
+One PA in the AFD portfolio is located in Congo Republic, Cameroon and Republican Central Africa (WDPA ID 555547988). As by desing the impact analysis is performed country by country, this PA must be artificially divided in three and each part assigned to the country it is located in.
 
 ```{r, eval = FALSE}
 
@@ -709,22 +696,25 @@ df_cropd = df_555547988 %>%
   select(c(names(data_pa_nofund_nodupl))) %>%
   st_drop_geometry()
 
-##Finally, replace the original transboundary line by multiple lines
+##Replace the original transboundary line by multiple lines
 data_pa_ie = data_pa_nofund_nodupl %>%
   #Select all lines excepted the one to replace
   filter(is.na(wdpaid) | wdpaid != 555547988) %>%
   #Add the multiple lines 
   rbind(df_cropd)
 
-s3write_using(x = data_pa_ie,
-              FUN = readr::write_delim,
-              delim = ";",
-              object = "data_tidy/BDD_PA_AFD_ie.csv",
-              bucket = "projet-afd-eva-ap",
-              opts = list("region" = ""))
+#Finally this dataset is saved
+# s3write_using(x = data_pa_ie,
+#               FUN = readr::write_delim,
+#               delim = ";",
+#               object = "data_tidy/BDD_PA_AFD_ie.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
 ```
 
-FAPBM portfolio
+##### FAPBM portfolio
+
+The Fund for Protected Areas and Biodiversity in Madagascar (FAPBM in French) is the main funder of PAs in Madagascar. A dataset specific to the PAs it supports is built, knowing the name of these PAs (FAPBM website).
 
 ```{r, eval = FALSE}
 #The name of PAs funded by the FAPBM, as stated on their website (https://www.fapbm.org/aires-protegees-soutenues/, consulted the 2023-09-18).
@@ -752,7 +742,6 @@ pa_fapbm_names = data.frame(name_pa = c("Ambohitantely", "Ibity", "Corridor Maro
   #and https://www.fapbm.org/aires-protegees-soutenues/
   #Not found :
   ## Corridor Marojejy-Anjanaharibe Sud-Tsaratanana
-  ## 
   mutate(name_pa = case_when(name_pa == "Andasibe Mantadia" ~ "Mantadia",
                              name_pa == "Bombetoka" ~ "Bombetoka Belemboka",
                              name_pa == "Complexe Mahavavy Kinkony" ~ "Complexe Zones Humides Mahavavy Kinkony",
@@ -789,7 +778,7 @@ data_pa_fapbm = data_wdpa %>%
                               origin = "iso3c",
                               destination = "un.name.fr"),
          .after = "iso3") %>%
-  #Add the description of IUCN from its category
+  #Add the description of IUCN from its category (French and English)
     mutate(iucn_des_fr = case_when(
   !is.na(wdpaid) & iucn_cat == "Ia" ~ "Réserve naturelle intégrale",
   !is.na(wdpaid) & iucn_cat == "Ib" ~ "Zone de nature sauvage",
@@ -822,15 +811,17 @@ pa_fapbm_not_found = pa_fapbm_names %>%
   filter(!(name_pa_clean %in% data_pa_fapbm$name_clean))
 
 #Save the dataset
-s3write_using(x = data_pa_fapbm,
-              FUN = readr::write_delim,
-              delim = ";",
-              object = "data_tidy/BDD_PA_FAPBM.csv",
-              bucket = "projet-afd-eva-ap",
-              opts = list("region" = ""))
+# s3write_using(x = data_pa_fapbm,
+#               FUN = readr::write_delim,
+#               delim = ";",
+#               object = "data_tidy/BDD_PA_FAPBM.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
 ```
 
-For Madagascar
+##### For Madagascar
+
+A dataset is built from the WDPA. The only modification consists in adding region and country names, plus IUCN category description.
 
 ```{r}
 data_wdpa =
@@ -894,12 +885,12 @@ data_pa_mdg = data_wdpa %>%
 
 
 #Save the dataset
-s3write_using(x = data_pa_mdg,
-              FUN = readr::write_delim,
-              delim = ";",
-              object = "data_tidy/BDD_PA_MDG.csv",
-              bucket = "projet-afd-eva-ap",
-              opts = list("region" = ""))
+# s3write_using(x = data_pa_mdg,
+#               FUN = readr::write_delim,
+#               delim = ";",
+#               object = "data_tidy/BDD_PA_MDG.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
 ```
 
 ### Datasets for confidential analysis
@@ -930,12 +921,12 @@ data_fund = data_tidy %>%
 
 
 #fwrite(data_fund, "data_tidy/BDD_AFD_fund.csv")
-s3write_using(x = data_fund,
-              FUN = readr::write_delim,
-              delim = ";",
-              object = "data_tidy/BDD_PA_AFD_fund.csv",
-              bucket = "projet-afd-eva-ap",
-              opts = list("region" = ""))
+# s3write_using(x = data_fund,
+#               FUN = readr::write_delim,
+#               delim = ";",
+#               object = "data_tidy/BDD_PA_AFD_fund.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
 ```
 
 Then a dataset is built with funding associated to each WDPAID. Note a project can fund several WDPAID, and that AFD funding data do not make it possible to isolate the funding of each PA defined by a WDPAID.
@@ -978,19 +969,21 @@ data_fund_na = data_fund_pa %>%
 data_fund_pa_nodupl = rbind(data_fund_wdpa, data_fund_name, data_fund_na)
 
 #fwrite(data_fund, "data_tidy/BDD_PA_AFD_fund.csv")
-s3write_using(x = data_fund_pa_nodupl,
-              FUN = readr::write_delim,
-              delim = ";",
-              object = "data_tidy/BDD_AFD_fund_PA.csv",
-              bucket = "projet-afd-eva-ap",
-              opts = list("region" = ""))
+# s3write_using(x = data_fund_pa_nodupl,
+#               FUN = readr::write_delim,
+#               delim = ";",
+#               object = "data_tidy/BDD_AFD_fund_PA.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
 ```
 
-### A polygon dataset
+### A polygon dataset for specific use
 
 The funding and non-funding datasets with polygon, for maps creation.
 
 ```{r, eval = FALSE}
+#Loading the datasets
+##WDPA data (polygons)
 data_wdpa =
   #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
   s3read_using(sf::st_read,
@@ -1001,6 +994,7 @@ data_wdpa =
   select(c(wdpaid, wdpa_pid, geom)) %>%
   mutate(geom_type = sf::st_geometry_type(geom))
 
+## Non-confidential dataset
 data_pa_nofund_nodupl = 
   #fread("data_raw/BDD_PA_AFD_nofund_nodupl.csv")
   s3read_using(readr::read_delim,
@@ -1010,6 +1004,7 @@ data_pa_nofund_nodupl =
               bucket = "projet-afd-eva-ap",
               opts = list("region" = ""))
 
+## Confidential dataset
 data_pa_fund_nodupl = 
   #fread("data_tidy/BDD_AFD_fund_PA.csv")
   s3read_using(readr::read_delim,
@@ -1019,46 +1014,46 @@ data_pa_fund_nodupl =
               bucket = "projet-afd-eva-ap",
               opts = list("region" = ""))
 
+#Creating the dataset of with geospatial information (polygons)
 data_pa_nofund_shp = data_pa_nofund_nodupl %>%
   left_join(data_wdpa, by = c("wdpaid", "wdpa_pid"))
-
 data_pa_fund_shp = data_pa_fund_nodupl %>%
   left_join(data_wdpa, by = c("wdpaid", "wdpa_pid"))
-
-#A dataset with only PAs with geometry
 data_pa_nofund_polygon_shp = data_pa_nofund_shp %>%
   filter(geom_type == "MULTIPOLYGON")
 
 
-# st_write(pa_shp,
-#          dsn = "data_tidy/BDD_pa_afd_shp_pub.gpkg",
-#          delete_dsn = TRUE)
-s3write_using(x = data_pa_nofund_shp,
-              FUN = sf::st_write,
-              delim = ";",
-              object = "data_tidy/BDD_PA_AFD_nofund_shp.geojson",
-              bucket = "projet-afd-eva-ap",
-              opts = list("region" = ""))
+#Saving the datasets 
 
 # st_write(pa_shp,
 #          dsn = "data_tidy/BDD_pa_afd_shp_pub.gpkg",
 #          delete_dsn = TRUE)
-s3write_using(x = data_pa_nofund_polygon_shp,
-              FUN = sf::st_write,
-              delim = ";",
-              object = "data_tidy/BDD_PA_AFD_nofund_polygon_shp.geojson",
-              bucket = "projet-afd-eva-ap",
-              opts = list("region" = ""))
+# s3write_using(x = data_pa_nofund_shp,
+#               FUN = sf::st_write,
+#               delim = ";",
+#               object = "data_tidy/BDD_PA_AFD_nofund_shp.geojson",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
+
+# st_write(pa_shp,
+#          dsn = "data_tidy/BDD_pa_afd_shp_pub.gpkg",
+#          delete_dsn = TRUE)
+# s3write_using(x = data_pa_nofund_polygon_shp,
+#               FUN = sf::st_write,
+#               delim = ";",
+#               object = "data_tidy/BDD_PA_AFD_nofund_polygon_shp.geojson",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
     
 # st_write(pa_shp,
 #          dsn = "data_tidy/BDD_pa_afd_shp_pub.gpkg",
 #          delete_dsn = TRUE)
-s3write_using(x = data_pa_fund_shp,
-              FUN = sf::st_write,
-              delim = ";",
-              object = "data_tidy/BDD_PA_AFD_fund_shp.geojson",
-              bucket = "projet-afd-eva-ap",
-              opts = list("region" = ""))
+# s3write_using(x = data_pa_fund_shp,
+#               FUN = sf::st_write,
+#               delim = ";",
+#               object = "data_tidy/BDD_PA_AFD_fund_shp.geojson",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
 ```
 
 ## Computing total areas covered by PAs in the sample
@@ -1222,11 +1217,11 @@ pa_area_ctry = data_pa_afd %>%
   mutate(area_tot_noint_km2 = area_tot_km2 - tot_area_int) 
 
 #fwrite(pa_area_ctry, "data_tidy/area/pa_area_ctry.csv")
-s3write_using(x = pa_area_ctry,
-              FUN = data.table::fwrite,
-              object = "data_tidy/area/pa_area_ctry.csv",
-              bucket = "projet-afd-eva-ap",
-              opts = list("region" = ""))
+# s3write_using(x = pa_area_ctry,
+#               FUN = data.table::fwrite,
+#               object = "data_tidy/area/pa_area_ctry.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
 
 #At AFD region level ...
 # pa_area_dr = data_pa_afd %>%
@@ -1262,11 +1257,11 @@ pa_area_region = data_pa_afd %>%
   st_drop_geometry()
 
 #fwrite(pa_area_dr, "data_tidy/area/pa_area_dr.csv")
-s3write_using(x = pa_area_region,
-              FUN = data.table::fwrite,
-              object = "data_tidy/area/pa_area_region.csv",
-              bucket = "projet-afd-eva-ap",
-              opts = list("region" = ""))
+# s3write_using(x = pa_area_region,
+#               FUN = data.table::fwrite,
+#               object = "data_tidy/area/pa_area_region.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
 
 #At UN sub-region level
 pa_area_subregion = data_pa_afd %>%
@@ -1282,168 +1277,21 @@ pa_area_subregion = data_pa_afd %>%
   st_drop_geometry()
 
 #fwrite(pa_area_dr, "data_tidy/area/pa_area_dr.csv")
-s3write_using(x = pa_area_subregion,
-              FUN = data.table::fwrite,
-              object = "data_tidy/area/pa_area_subregion.csv",
-              bucket = "projet-afd-eva-ap",
-              opts = list("region" = ""))
+# s3write_using(x = pa_area_subregion,
+#               FUN = data.table::fwrite,
+#               object = "data_tidy/area/pa_area_subregion.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
 
 #At world level
 pa_area_wld = sum(data_pa_afd$area_afd_km2, na.rm = TRUE) - pa_int_wld %>%
   as.data.frame() %>%
   rename("area_tot_noint_km2" = ".")
 #fwrite(pa_area_wld, "data_tidy/area/pa_area_wld.csv")
-s3write_using(x = pa_area_wld,
-              FUN = data.table::fwrite,
-              object = "data_tidy/area/pa_area_wld.csv",
-              bucket = "projet-afd-eva-ap",
-              opts = list("region" = ""))
+# s3write_using(x = pa_area_wld,
+#               FUN = data.table::fwrite,
+#               object = "data_tidy/area/pa_area_wld.csv",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = ""))
 
-```
-
-## Old code
-
-```{r, eval = FALSE}
-#Listing variables public or confidential
-
-#Public variables in the PAs dataset
-list_var_PA_open = c("id_projet", "nom_du_projet", "name_pa", "id_concours", 
-                "wdpaid", "wdpaid_2", "wdpaid_3", "wdpa_pid",
-                "pays", "iso3", "direction_regionale", "annee_octroi",
-                "cofinancier_1", "cofinancier_2", "cofinancier_3", 
-                "cofinancier_4", "cofinancier_5", "cofinancier_6",
-                "kfw_bin", "ffem_bin", "nb_ap_nombre_potentiel", "detail",
-                "iucn_cat", "iucn_des", "marine", "superficie",
-                "status", "status_yr", "gov_type","own_type", "mang_auth")
-#Confidential variables in the PAs dataset
-list_var_PA_conf = list_var_joint_conf = 
-  c("montant_prevu_concours_euro_octroi", "mt_global_projet_prevu_devise",
-    "engagements_nets_euro_octroi" , "montant_total_projet",
-    "produit", "libelle_produit",
-    "date_de_1er_versement_projet", "dernier_versement_en_date_projet",
-    "date_signature_convention_cf", "duree_du_concours_annee",
-    "duree_du_concours_annee_et_mois", "beneficiaire_primaire",
-    "responsable_equipe_projet", "directeur_trice_dagence", "maitrise_ouvrage"
-    )
-#Confidential variables among shapefiles
-list_var_shp_conf = c("mntnt", "mtglb", "e", "mnt", "prodt", "lbllp",
-                      "rspns", "dr", "detal", "projt", "cmmnt")
-```
-
-```{r, eval = FALSE}
-base_nodupl_lea = 
-  #fread("data_tidy/base_nodupl_lea.xlsx")
-  aws.s3::s3read_using(
-  FUN = data.table::fread,
-  encoding = "UTF-8",
-  # Mettre les options de FUN ici
-  object = "data_tidy/BDD_DesStat_nodupl_lea_pub.csv",
-  bucket = "projet-afd-eva-ap",
-  opts = list("region" = "")) %>%
-  select(any_of(names(data_stat_nodupl)))
-  
-#import a dataset with country anmes and corresponding ISO3 code
-data_iso = data_stat %>%
-  select(c(pays, iso3)) %>%
-  group_by(iso3) %>%
-  slice(1)
-
-base_nodupl_old = 
-  #fread("data_tidy/base_nodupl_old.csv") 
-  aws.s3::s3read_using(
-  FUN = data.table::fread,
-  encoding = "UTF-8",
-  # Mettre les options de FUN ici
-  object = "data_tidy/BDD_DesStat_nodupl_old_pub.csv",
-  bucket = "projet-afd-eva-ap",
-  opts = list("region" = ""))%>%
-  select(any_of(names(data_stat_nodupl))) %>%
-  select(-iso3) %>%
-  left_join(data_iso, by = "pays") %>%
-  mutate(iso3 = case_when(
-    pays %in% c("Mayotte", "P-N N.Caléd", "P-S N.Caléd", 
-                "Polynesie Francaise", "Nlle Caledonie") ~ "FRA",
-    pays == "Multi-Pays" ~ "ZZ",
-    !(pays %in% c("Mayotte", "P-N N.Caléd", "P-S N.Caléd", 
-                "Polynesie Francaise", "Nlle Caledonie", "Multi-Pays")) ~ iso3
-  ))
-
-# projet_nodupl_old = 
-#   #readxl::read_xlsx("data_tidy/projet_nodupl_old.xlsx")
-#   aws.s3::s3read_using(
-#   FUN = readxl::read_xlsx,
-#   # Mettre les options de FUN ici
-#   object = "data_tidy/projet_nodupl_old.xlsx",
-#   bucket = "projet-afd-eva-ap",
-#   opts = list("region" = ""))
-
-bdd_joint = 
-  #fread("data_raw/BDD_joint.xlsx")
-  aws.s3::s3read_using(
-  FUN = data.table::fread,
-  # Mettre les options de FUN ici
-  encoding = "UTF-8",
-  object = "data_tidy/BDD_joint_tidy_pub.csv",
-  bucket = "projet-afd-eva-ap",
-  opts = list("region" = "")) %>%
-  select(any_of(names(data_stat_nodupl)))
-```
-
-```{r, eval = FALSE}
-#Test : differences between Léa's figures and my results
-
-#PA identified with unique WDPAID. If more than 1 WDPAID, take the earlier annee_octroi
-base_id = data_stat %>% 
-  filter(!is.na(wdpaid)) %>% 
-  group_by(wdpaid) %>% 
-  arrange(annee_octroi) %>%
-  slice(1) %>%
-  ungroup()
-
-test = base_id[duplicated(base_id$wdpaid),]
-
-base_old_id = base_nodupl_old %>% 
-  filter(grepl("NA", wdpaid) == FALSE)  %>%
-  group_by(wdpaid) %>% 
-  slice(1) %>%
-  mutate(wdpaid = as.numeric(wdpaid)) %>%
-  ungroup()
-
-#Identify PA in common among them with WDPAID reported
-test_id = base_old_id %>%
-  select(c(id_projet, nom_du_projet, name_pa, id_concours, wdpaid)) %>%
-  left_join(select(base_id, 
-                   c(id_projet, nom_du_projet, name_pa, id_concours, wdpaid)),
-            by = "wdpaid")
-
-#PA whose WDPAID is unknown, identified by id1 uniquely
-#The duplicates comes from different concours ID, so do not correspond to different PA
-base_na = data_stat %>% filter(is.na(wdpaid)) %>%
-  mutate(id1 = paste(id_projet, iso3, name_pa, sep = "_"),
-         .before = id_projet) %>%
-  group_by(id1) %>%
-  arrange(annee_octroi) %>%
-  slice(1) %>%
-  ungroup()
-
-base_old_na = base_nodupl_old %>% 
-  filter(grepl("NA", wdpaid) == TRUE) %>%
-  mutate(id1 = paste(id_projet, iso3, name_pa, sep = "_"),
-         .before = id_projet) %>%
-  group_by(id1) %>%
-  arrange(annee_octroi) %>%
-  slice(1) %>%
-  ungroup()
-
-test_na = base_na %>%
-  select(c(id1, id_projet, nom_du_projet, name_pa, id_concours)) %>%
-  left_join(select(base_old_na, 
-                   c(id1, id_projet, nom_du_projet, name_pa, id_concours)),
-            by = "id1")
-
-nrow(test_na %>% subset(is.na(id_projet.y) == TRUE))
-
-#base_nodupl
-
-base_nodupl = rbind(select(base_na, -id1), base_id)
 ```
