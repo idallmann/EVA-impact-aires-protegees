@@ -34,41 +34,6 @@ fn_did_list_pa = function(iso, load_dir)
 }
 
 
-# fn_did_load_df = function(iso, wdpaid, load_dir, ext_input)
-# {
-#   #Load matched datasets
-#   df_matched_wide = s3read_using(data.table::fread,
-#                                  object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("matched_wide", "_", iso, "_", wdpaid, ext_input)),
-#                                  bucket = "projet-afd-eva-ap",
-#                                  opts = list("region" = "")) %>%
-#     dplyr::select(c(region, country_en, iso3, wdpaid, group, assetid, status_yr, year_funding_first, year_funding_all, res_m, starts_with("treecover"), starts_with("treeloss")))
-#   
-#   df_unmatched_wide = s3read_using(data.table::fread,
-#                                  object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("unmatched_wide", "_", iso, "_", wdpaid, ext_input)),
-#                                  bucket = "projet-afd-eva-ap",
-#                                  opts = list("region" = "")) %>%
-#     dplyr::select(c(region, country_en, iso3, wdpaid, group, assetid, status_yr, year_funding_first, year_funding_all, res_m, starts_with("treecover"), starts_with("treeloss")))
-#   
-#   df_matched_long = s3read_using(data.table::fread,
-#                                  object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("matched_long", "_", iso, "_", wdpaid, ext_input)),
-#                                  bucket = "projet-afd-eva-ap",
-#                                  opts = list("region" = "")) %>%
-#     dplyr::select(c(region, iso3, wdpaid, group, assetid, status_yr, year_funding_first, year_funding_all, res_m, year, var, fc_ha))
-#     #dplyr::select(c(region, country_en, iso3, wdpaid, group, status_yr, year_funding_first, year_funding_all, year, var, fc_ha))
-#   
-#   df_unmatched_long = s3read_using(data.table::fread,
-#                                  object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("unmatched_long", "_", iso, "_", wdpaid, ext_input)),
-#                                  bucket = "projet-afd-eva-ap",
-#                                  opts = list("region" = "")) %>%
-#     dplyr::select(c(region, iso3, wdpaid, group, assetid, status_yr, year_funding_first, year_funding_all, year, res_m, var, fc_ha))
-#     #dplyr::select(c(region, country_en, iso3, wdpaid, group, status_yr, year_funding_first, year_funding_all, year, var, fc_ha))
-#   
-#   return(list("df_matched_wide" = df_matched_wide, "df_unmatched_wide" = df_unmatched_wide,
-#               "df_matched_long" = df_matched_long, "df_unmatched_long" = df_unmatched_long))
-# 
-# }
-
-
 #Compute average annual deforestation rate à la Wolf et al. 2021
 ## INPUTS 
 ### iso : the iso3 code for the country considered
