@@ -71,7 +71,8 @@ afd_portfolio1<-
   calc_indicators(x = afd_portfolio1,
                   indicators = "treecover_area",
                   min_cover = 10,
-                  min_size = 1, overwrite=T) # FAO forest definition: Minimum treecover = 10%, minimum size =1 hectare
+                  min_size = 1, 
+                  overwrite=T) # FAO forest definition: Minimum treecover = 10%, minimum size =1 hectare
 
 # unnest results data for further analysis
 colnames(afd_portfolio1) # check the columns at the end to derive the relevant column names

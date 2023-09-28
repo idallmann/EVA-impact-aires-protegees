@@ -9,10 +9,13 @@
 ##OUTPUTS : the information returned by the function (data frames, numeric, characters, etc.) and necessary to pursue to processing
 ### OUTPUT 1 to N
 ##DATA SAVED : information put in the storage but not necessarily need to pursue the processing (figures, tables, data frames, etc.)
+### ...
 ##NOTES : any useful remark
+### ...
 
 #Note most functions are adapted for errors handling using base::withCallingHandlers(). Basically, the computation steps are declared in a block of withCallingHandlers function, while two other blocks specify what to do in case the first block face a warning or error. In our case, errors led to return a boolean indicating an error has occured and append the log with the error message. Warnings return a boolean but do not block the iteration. They also edit the log with the warning message.
 
+#PA is used for "protected area(s)".
 
 ###
 #Pre-processing
@@ -197,9 +200,9 @@ fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log, save_dir)
 ### is_ok : a boolean indicating whether or not an error occured inside the function
 ##DATA SAVED :
 ### grid.param
-### A plot of the country gridding and group of each pixel
+### A plot of the country gridding with group of each pixel
 ### The share of PAs in the portfolio considered that are reported in the WDPA
-### In the country considered, the share of PAs in the portfolio and (not) analyzed or not in the portfolio
+### In the country considered, the share of PAs in the portfolio and analyzed, not analyzed or not in the portfolio
 ### Share of PAs reported in the WDPA and analyzed in the country considered
 ##NOTES :
 ### Errors can arise from the wdpa_clean() function, during "formatting attribute data" step. Can be settled playing with geometry_precision parameter
@@ -512,15 +515,21 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
 
 
 
-#Building a matching dataframe for a given country, and save it in the SSPCloud storage
+#Building a matching dataframe for the country considered : for each pixel in treated and control groups, the data needed for the analysis are downloaded and the indicators computed. Eventually a dataset is obtained that is ready to enter a matching algorithm
 ##INPUTS :
 ### grid.param : a raster representing the gridding of the country with two layers. One for the group each pixel belongs to (funded PA, non-funded PA, potential control, buffer), the other for the WDPAID corresponding to each pixel (0 if not a PA)
 ### path_tmp : a temporary folder to store figures
 ### iso : ISO code of the country of interest
 ### name_output : the name of the matching frame to save
-### ext_output : the file extention of the matching to save 
+### ext_output : the file extension of the matching to save 
+### yr_first : the first year of the period where the analysis takes place
+### yr_last : the last year of the period where the analysis takes place
+### log : a log file to track progress of the processing
+### save_dir : saving directory
 ##OUTPUTS :
-### None
+### is_ok : a boolean indicating whether or not an error occured inside the function
+##DATA SAVED
+### pivot.all : a dataframe with variables of interest (outcome, matching covariates) for all treated and potential control pixels
 
 fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output, yr_first, yr_last, log, save_dir) 
 {
@@ -530,16 +539,16 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   tic = tic()
   
   print("----Initialize portfolio")
-  #Take only potential control (group = 1) and treatment (group = 2) in the country gridding
+  # Take only potential control (group = 1) and treatment (group = 2) in the country gridding to lower the number of computations to perform
   grid.aoi = grid.param %>%
     filter(group %in% c(1,2))
-  # Get input data ready for indicator calculation
+  # Create a mapme.biodiversity portfolio for the area of interest (aoi). This specifies the period considered and the geospatial units where data are downloaded and indicators computed (here, the treated and control pixels in the country gridding)
   aoi = init_portfolio(grid.aoi,
                        years = yr_first:yr_last,
                        outdir = path_tmp,
                        add_resources = FALSE)
   
-  #Extract a dataframe with pixels ID of grid and portfolio : useful for latter plotting of matched control and treated units
+  #Extract a dataframe with pixels ID in the grid and the portfolio : useful for latter plotting of matched control and treated units. 
   df_gridID_assetID = aoi %>%
     st_drop_geometry() %>%
     as.data.frame() %>%
@@ -550,61 +559,71 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
   
-  print("----Download Rasters")
+  print("----Download data")
   # Download Data
-
-  
+  ## Version of Global Forest Cover data to consider
+  list_version_gfc = mapme.biodiversity:::.available_gfw_versions() #all versions available
+  version_gfc = list_version_gfc[length(list_version_gfc)] #last version considered
+  ## Soil characteristics
   dl.soil = get_resources(aoi, 
                           resources = c("soilgrids"), 
                           layers = c("clay"), # resource specific argument
                           depths = c("0-5cm"), # resource specific argument
                           stats = c("mean"))
+  ## Accessibility
   dl.travelT = get_resources(aoi, resources = "nelson_et_al",
                              range_traveltime = c("5k_110mio"))
-  dl.tree = get_resources(aoi, resources = c("gfw_treecover", "gfw_lossyear"))
-  
+  ## Tree cover evolution on the period
+  dl.tree = get_resources(aoi, 
+                          resources = c("gfw_treecover", "gfw_lossyear"),
+                          vers_treecover = version_gfc,
+                          vers_lossyear = version_gfc)
+  ## Elevation
   dl.elevation = get_resources(aoi, "nasa_srtm")
-  
+  ## Terrain Ruggedness Index
   dl.tri = get_resources(aoi, "nasa_srtm")
   
   print("----Compute indicators")
   #Compute indicators
   
-  #Begin multisession
+  #Begin multisession : use of parallel computing (computations performed in separate R sessions in background) to speed up the computations of indicators
   # gc : optimize memory management for the background sessions.
   # Multisession with workers = 6 as in mapme.biodiversity tutorial : https://mapme-initiative.github.io/mapme.biodiversity/articles/quickstart.html?q=parall#enabling-parallel-computing
-  
+  # Careful to the format of command to call parallel computations here : VALUE TO COMPUTE %<-% {EXPRESSION}.
   plan(multisession, workers = 6, gc = TRUE)
-  
   with_progress({
     get.soil %<-% {calc_indicators(dl.soil,
                                 indicators = "soilproperties",
                                 stats_soil = c("mean"),
-                                engine = "zonal")}
+                                engine = "exactextract")} # the "exactextract" engine is chosen as it is the faster one for large rasters (https://tmieno2.github.io/R-as-GIS-for-Economists/extraction-speed-comparison.html)
 
     get.travelT  %<-% {calc_indicators(dl.travelT,
                                   indicators = "traveltime",
-                                  stats_accessibility = c("median"))}
+                                  stats_accessibility = c("mean"),  #Note KfW use "median" here, but for no specific reason a priori (mail to Kemmeng Liu, 28/09/2023). Mean is chosen coherently with the other covariates, though we could test in a second time whether this changes anything to the results.
+                                  engine = "exactextract")}
 
     get.tree  %<-% {calc_indicators(dl.tree,
                                indicators = "treecover_area",
-                               min_size=1, # indicator-specific argument
+                               min_size=0.5, # FAO definition of forest :  Minimum treecover = 10%, minimum size =0.5 hectare (FAO 2020 Global Fores Resources Assessment, https://www.fao.org/3/I8661EN/i8661en.pdf)
                                min_cover=10)}
   
     get.elevation %<-% {calc_indicators(dl.elevation,
                       indicators = "elevation",
-                      stats_elevation = c("mean"))}
+                      stats_elevation = c("mean"),
+                      engine = "exactextract")}
     
     get.tri %<-% {calc_indicators(dl.tri,
-                      indicators = "tri")}
+                      indicators = "tri",
+                      stats_tri = c("mean"),
+                      engine = "exactextract")}
     
     })
   
   print("----Build indicators' datasets")
   #Build indicators' datasets
-  ## Transform the output dataframe into a pivot dataframe
+  ## Transform the output dataframe into a -ore convenient format
   data.soil = unnest(get.soil, soilproperties) %>%
-    mutate(across(c("mean"), \(x) round(x, 3))) %>% # Round numeric columns
+    #mutate(across(c("mean"), \(x) round(x, 3))) %>% # Round numeric columns --> rounding before the matching algorithm is irrelevant to me
     pivot_wider(names_from = c("layer", "depth", "stat"), values_from = "mean") %>%
     rename("clay_0_5cm_mean" = "clay_0-5cm_mean") %>%
     mutate(clay_0_5cm_mean = case_when(is.nan(clay_0_5cm_mean) ~ NA,
@@ -617,7 +636,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   
   data.tree = unnest(get.tree, treecover_area) %>%
     drop_na(treecover) %>% #get rid of units with NA values 
-    mutate(across(c("treecover"), \(x) round(x, 3))) %>% # Round numeric columns
+    #mutate(across(c("treecover"), \(x) round(x, 3))) %>% # Round numeric columns
     pivot_wider(names_from = "years", values_from = "treecover", names_prefix = "treecover_")
   
   data.tri = unnest(get.tri, tri) %>%
@@ -649,7 +668,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   }
   
   print("----Export Matching Frame")
-  # Remove "geometry" column from pivot dataframes
+  # Remove "geometry" column from dataframes
   df.tree = data.tree %>% mutate(x = NULL) %>% as.data.frame()
   df.travelT = data.travelT %>% mutate(x = NULL) %>% as.data.frame()
   df.soil = data.soil %>% mutate(x = NULL) %>% as.data.frame()
@@ -664,13 +683,11 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.elevation, df.tri, df.geom)) %>%
     st_as_sf()
 
-  # pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.geom)) %>%
-  #   st_as_sf()
   # Make column Group ID and WDPA ID have data type "integer"
   pivot.all$group = as.integer(pivot.all$group)
   pivot.all$wdpaid = as.integer(pivot.all$wdpaid)
 
-  
+  # Save this matching dataframe
   name_save = paste0(name_output, "_", iso, ext_output)
   s3write_using(pivot.all,
                 sf::st_write,
@@ -728,9 +745,14 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
 ### iso : the ISO code of the country considered
 ### name_input : name of the file to import
 ### ext_output : extension fo the file to import
-### yr_min : the minimum for treatment year
+### yr_min : the minimum treatment year to be considered in the analysis. As some matching covariates are defined with pre-treatment data (e.g average tree cover loss before treatment), this minimal year is greater than the first year in the period considered
+### log : a log file to track progress of the processing
+### save_dir : saving directory
 ##OUTPUTS :
 ### mf : matching dataframe. More precisely, it gives for each observation units in a country values of different covariates to perform matching.
+### is_ok : a boolean indicating whether or not an error occured inside the function
+##DATA SAVED
+### The list of PAs in the matching frame, characterized by their WDPAID. Useful to loop over each PAs we want to analyze in a given country
 fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log, save_dir)
 {
   output = tryCatch(
@@ -746,9 +768,9 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log, save_dir)
   
   #Subset to control and treatment units with year of treatment >= yr_min
   mf = mf %>%
-    #Remove PAs non-funded by AFD and buffers
     filter(group==1 | group==2) %>%
-    #Remove observations with NA values only for covariates (except for status_yr, region_afd, year_funding_first which are NA for control units)
+    #Remove observations with NA values only for covariates :
+    ## except for creation year, funding years, geographical location, country ISO and name, pixel resolution which are NA for control units
     drop_na(-c(status_yr, year_funding_first, year_funding_all, region_afd, region, sub_region, iso3, country_en, res_m)) #%>%
      #filter(status_yr >= yr_min | is.na(status_yr))
   
@@ -801,14 +823,14 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log, save_dir)
 }
 
 
-#Compute average forest loss before funding, and add it to the matching frame as a covariate
+#Compute average forest loss before PA creation, and add it to the matching frame as a covariate
 ##INPUTS : 
 ### mf : the matching dataframe
-### yr_start : the first year of the period to compute average loss
-### yr_end : the last year of the period to compute average loss
 ### colname.flAvg : name of the average forest loss variable
+### log : a log file to track progress of the processing
 ## OUTPUTS :
 ### mf : matching frame with the new covariate
+### is_ok : a boolean indicating whether or not an error occured inside the function
 
 fn_post_avgLoss_prefund = function(mf, colname.flAvg, log)
 {
@@ -817,18 +839,6 @@ fn_post_avgLoss_prefund = function(mf, colname.flAvg, log)
     
     {
       
-  #OLD
-  # Columns treeloss, without geometry
-  # start = yr_start - 2000
-  # end = yr_end - 2000
-  # df_fl = mf[grepl("treeloss", names(mf))][start:end] %>% 
-  #   st_drop_geometry()
-  # # Add column: average treeloss before funding starts, 
-  # mf$avgLoss_pre_fund = round(rowMeans(df_fl), 2)
-      
-  #Extract spatial resolution : can be useful to compute forest loss in percentage for instance
-  #res_m = mf[1, "res_m"]
-
   #Extract treatment year
   treatment.year = mf %>% 
     filter(group == 2) %>% 
@@ -897,7 +907,25 @@ fn_post_avgLoss_prefund = function(mf, colname.flAvg, log)
 }
 
 
-  
+#Perform matching of treated and potential control units. 
+##INPUTS :
+### mf : the matching dataframe
+### iso : the ISO code of the country considered
+### dummy_int : should we consider the interaction of variables for matching ? Is recommended generally speaking (https://cran.r-project.org/web/packages/MatchIt/vignettes/assessing-balance.html). When using CEM matching, variables are binned then exact matching is performed on binned values. As a first approximation we can argue that if two units have the same binned values for two variables, then they likely have the same binned interaction value. It is not necessarily true though, as binned(A)*binned(B) can be different from binned(A*B).  
+### match_method : the matching method to use. See https://cran.r-project.org/web/packages/MatchIt/vignettes/matching-methods.html for a list of matching methods we can use with the MatchIT package 
+### cutoff_method : the method to use for automatic histogram binning of the variables. See Iacus, King and Porro 2011 (https://gking.harvard.edu/files/political_analysis-2011-iacus-pan_mpr013.pdf), 5.5.1, or MathIT documentation. "Sturges" tend to have the best outcomes (number of matched units) in our case (Antoine Vuillot, 28/09/2023)
+### is_k2k : boolean. Should we use k2k matching ? If yes, each treated unit is eventually matched with a single control. For CEM matching, a treated unit is potentially associated with more than one control unit (exact matching on binned variables), and then the "closest' one is chosen with a metric defined in k2k_method
+### k2k_method : metric to use to choose the closest control among the control units matched with a treated unit in CEM matching.
+### th_mean :the maximum acceptable value for absolute standardized mean difference of covariates between matched treated and control units. Typically 0.1 (https://cran.r-project.org/web/packages/MatchIt/vignettes/assessing-balance.html) or 0.25 in conservation literature (e.g https://conbio.onlinelibrary.wiley.com/doi/abs/10.1111/cobi.13728) 
+### th_var_min, th_var_max : the range of acceptable value for covariate variance ratio between matched treated and control units. Typicall 0.5 and 2, respectively (https://cran.r-project.org/web/packages/MatchIt/vignettes/assessing-balance.html)
+### colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcIni, colname.flAvg : name of the matching covariates
+### log : a log file to track progress of the processing
+##OUTPUTS : 
+### out.cem : an object with all information on matching (parameters, results, etc.)
+### df.cov.m : for each matching covariate, statistics to assess the quality of the match
+### is_ok : a boolean indicating whether or not an error occured inside the function
+##NOTES
+### The matching method chosen is CEM though other exists. For a presentation of the different matching algorithms, see https://cran.r-project.org/web/packages/MatchIt/vignettes/matching-methods.html
 fn_post_match_auto = function(mf,
                               iso,
                               dummy_int,
@@ -935,6 +963,7 @@ fn_post_match_auto = function(mf,
                         k2k = is_k2k,
                         k2k.method = k2k_method)
       
+      # Then the performance of the matching is assessed, based on https://cran.r-project.org/web/packages/MatchIt/vignettes/assessing-balance.html
       ## Covariate balance : standardized mean difference and variance ratio
       ## For both tests and the joint one, a dummy variable is defined, with value TRUE is the test is passed
       df.cov.m = summary(out.cem, interactions = dummy_int)$sum.matched %>%
@@ -987,12 +1016,20 @@ fn_post_match_auto = function(mf,
 #Plot covariates balance (plots and summary table)
 ## INPUTS :
 ### out.cem : list of results from the CEM matching
+### mf : the matching dataframe
+### colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcIni, colname.flAvg : name of the matching covariates
 ### iso : ISO code of the country considered
 ### path_tmp : temporary folder to store figures
-### colname.XXX : name of the XXX covariate in the matching frame
-## OUTPUTS :
-### None
-
+### wdpaid : the WDPA ID of the protected area considered
+### log : a log file to track progress of the processing
+### save_dir : saving directory
+##OUTPUTS :
+### is_ok : a boolean indicating whether or not an error occured inside the function
+## DATA SAVED :
+### A covariate love plot
+### A table with number of treated and control units, before and after matching
+### A table with statistics on matched control and treated units 
+### A table with statistics on unmatched control and treated units,
 fn_post_covbal = function(out.cem, mf, 
                           colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, colname.tri, colname.elevation, 
                           iso, path_tmp, wdpaid, log,
@@ -1124,15 +1161,21 @@ fn_post_covbal = function(out.cem, mf,
 
 }
 
-#Plot the distribution of covariates for control and treatment units, before and after matching
+
+#Density plots of covariates for control and treatment units, before and after matching
 ## INPUTS :
 ### out.cem : list of results from the CEM matching
+### mf : the matching dataframe
+### colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcIni, colname.flAvg : name of the matching covariates
 ### iso : ISO code of the country considered
 ### path_tmp : temporary folder to store figures
-### colname.XXX : name of the XXX covariate in the matching frame
+### wdpaid : the WDPA ID of the protected area considered
+### log : a log file to track progress of the processing
+### save_dir : saving directory
 ## OUTPUTS :
-### None
-
+### is_ok : a boolean indicating whether or not an error occured inside the function
+## DATA SAVED :
+### Density plots of the matching covariates considered, for matched treated and control units
 fn_post_plot_density = function(out.cem, mf, 
                                 colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, colname.tri, colname.elevation, 
                                 iso, path_tmp, wdpaid, log, save_dir)
@@ -1388,12 +1431,21 @@ fn_post_plot_density = function(out.cem, mf,
   
 }
 
-#Define panel datasets (long, wide) for control and treatment observation units, before and after matching.
+
+#Define panel datasets (long, wide format) for control and treatment observation units, before and after matching.
 ## INPUTS :
 ### out.cem : list of results from the CEM matching
 ### mf : the matching dataframe
+### ext_output : extension fo the file to import
+### iso : ISO code of the country considered
+### wdpaid : the WDPA ID of the protected area considered
+### log : a log file to track progress of the processing
+### save_dir : saving directory
 ## OUTPUTS :
-### list_output : a list of dataframes : (un)matched.wide/long. They contain covariates and outcomes for treatment and control units, before and after matching, in a wide or long format
+### a list of dataframes : (un)matched.wide/long. They contain covariates and outcomes for treatment and control units, before and after matching, in a wide or long format
+### is_ok : a boolean indicating whether or not an error occured inside the function
+## DATA SAVED
+### (un)matched.wide/long dataframes. They contain covariates and outcomes for treatment and control units, before and after matching, in a wide or long format
 
 fn_post_panel = function(out.cem, mf, ext_output, wdpaid, iso, log, save_dir)
 {
@@ -1483,9 +1535,18 @@ fn_post_panel = function(out.cem, mf, ext_output, wdpaid, iso, log, save_dir)
 #Plot the average trend of control and treated units in a given country, before and after the matching
 ## INPUTS :
 ### (un)matched.long : dataframe with covariates and outcomes for each treatment and control unit, before and after matching, in a long format (one row : pixel+year)
+### mf : the matching dataframe
+### data_pa : dataframe with information on each PA considered in the analysis
+### iso : ISO code of the country considered
+### wdpaid : the WDPA ID of the protected area considered
+### log : a log file to track progress of the processing
+### save_dir : saving directory
 ## OUTPUTS : 
-### None
-
+### is_ok : a boolean indicating whether or not an error occured inside the function
+## DATA SAVED :
+### Evolution of forest cover in a treated and control pixel on average, before and after matching
+### Same for total forest cover (pixel*# of pixels in the PA)
+### Cumulated deforestation relative to 2000 forest cover, in treated and control pixels, before and after matching
 fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wdpaid, log, save_dir) 
 {
     
@@ -1900,6 +1961,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
   
 }
 
+
 # Plot the country grid with matched control and treated
 ##INPUTS
 ### iso : the ISO3 code of the country considered
@@ -1908,7 +1970,6 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
 ### df_pix_matched : dataframe with ID of matched pixels (ID from mapme.biodiversity portfolio)
 ##OUTPUTS
 ### None (plots)
-
 fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp, log, save_dir)
 {
   

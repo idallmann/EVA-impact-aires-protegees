@@ -188,7 +188,7 @@ colname.clayContent = "clay_0_5cm_mean"
 colname.elevation = "elevation_mean"
 colname.tri = "tri_mean"
 colname.fcIni = "treecover_2000"
-colname.flAvg = "avgLoss_pre_fund"
+colname.flAvg = "avgLoss_pre_treat"
 
 #Matching 
 ## Parameters
