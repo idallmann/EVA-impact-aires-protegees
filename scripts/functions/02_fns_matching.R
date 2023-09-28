@@ -13,10 +13,10 @@
 ##NOTES : any useful remark
 ### ...
 
-#Note most functions are adapted for errors handling using base::withCallingHandlers(). Basically, the computation steps are declared in a block of withCallingHandlers function, while two other blocks specify what to do in case the first block face a warning or error. In our case, errors led to return a boolean indicating an error has occured and append the log with the error message. Warnings return a boolean but do not block the iteration. They also edit the log with the warning message.
-
-#PA is used for "protected area(s)".
-
+#Remarks :
+##most functions are adapted for errors handling using base::withCallingHandlers(). Basically, the computation steps are declared in a block of withCallingHandlers function, while two other blocks specify what to do in case the first block face a warning or error. In our case, errors led to return a boolean indicating an error has occured and append the log with the error message. Warnings return a boolean but do not block the iteration. They also edit the log with the warning message.
+##PA is used for "protected area(s)".
+##To save plots and tables : save on temporary folder in the R session then put the saved object in the storage. Indeed print() and ggplot::ggsave() cannot write directly on s3 storage
 ###
 #Pre-processing
 ###
@@ -1553,7 +1553,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
   output = tryCatch(
     
     {
-      #First extract some relevant variables
+      #First extract some relevant information
       #Extract spatial resolution of pixels res_m and define pixel area in ha
       res_m = unique(mf$res_m)
       res_ha = res_m^2*1e-4
@@ -1586,10 +1586,12 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
       n_pix_pa = area_ha/res_ha #This measure is imperfect for extrapolation of total deforestation avoided, as part of a PA can be coastal. Indeed, this extrapolation assumes implicitly that all the PA is covered by forest potentially deforested in absence of the conservation 
       
      #Open a multisession for dataframe computations
+      #Note the computations on unmatched units are the slowest here due to the number of observations relatively higher than for matched units
       plan(multisession, gc = TRUE, workers = 6)
       with_progress({
  
-  # Make dataframe for plotting Trend
+  # Make dataframe for plotting trend
+  ## Matched units
   df.matched.trend  %<-% {matched.long %>%
     #First, compute deforestation relative to 2000 for each pixel (deforestation as computed in Wolf et al. 2021)
     group_by(assetid) %>%
@@ -1615,6 +1617,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
     ungroup() %>%
     st_drop_geometry() }
   
+  ##Unmatched
   df.unmatched.trend  %<-% {unmatched.long %>%
       #First, compute deforestation relative to 2000 for each pixel (deforestation as computed in Wolf et al. 2021); compute percentage of forest cover in the pixel in 2000
       group_by(assetid) %>%
@@ -1962,14 +1965,19 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
 }
 
 
-# Plot the country grid with matched control and treated
+# Plot the country grid with matched control and treated, for a given protected area (PA) or all protected areas in a country
 ##INPUTS
 ### iso : the ISO3 code of the country considered
 ### wdpaid : the WDPA ID of the PA considered
 ### is_pa : logical, whether the plotted grid is for a unique PA or all the PAs in the country considered
 ### df_pix_matched : dataframe with ID of matched pixels (ID from mapme.biodiversity portfolio)
+### path_tmp : temporary folder to store figures
+### log : a log file to track progress of the processing
+### save_dir : saving directory
 ##OUTPUTS
-### None (plots)
+### is_ok : a boolean indicating whether or not an error occured inside the function
+##DATA SAVED
+### Country grid with matched control and treated, for a given protected area (PA) or all protected areas in a country
 fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp, log, save_dir)
 {
   
