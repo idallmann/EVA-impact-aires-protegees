@@ -18,6 +18,8 @@
 ##PA is used for "protected area(s)".
 ##To save plots and tables : save on temporary folder in the R session then put the saved object in the storage. Indeed print() and ggplot::ggsave() cannot write directly on s3 storage
 ###
+
+
 #Pre-processing
 ###
 

@@ -1,3 +1,24 @@
+#####
+#Functions to perform difference-in-difference and plot results
+#####
+
+#For each function, the aim of the function, inputs, outputs, data saved and notes are detailed. This takes the following form :
+#Aim of the function
+##INPUTS : the arguments needed in the function
+###INPUT 1 to N
+##OUTPUTS : the information returned by the function (data frames, numeric, characters, etc.) and necessary to pursue to processing
+### OUTPUT 1 to N
+##DATA SAVED : information put in the storage but not necessarily need to pursue the processing (figures, tables, data frames, etc.)
+### ...
+##NOTES : any useful remark
+### ...
+
+#Remarks :
+##most functions are adapted for errors handling using base::withCallingHandlers(). Basically, the computation steps are declared in a block of withCallingHandlers function, while two other blocks specify what to do in case the first block face a warning or error. In our case, errors led to return a boolean indicating an error has occured and append the log with the error message. Warnings return a boolean but do not block the iteration. They also edit the log with the warning message.
+##PA is used for "protected area(s)".
+##To save plots and tables : save on temporary folder in the R session then put the saved object in the storage. Indeed print() and ggplot::ggsave() cannot write directly on s3 storage
+###
+
 
 #Load the list of PA matched during the matchign process
 ##INPUTS :
