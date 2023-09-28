@@ -121,7 +121,7 @@ data_pa =
 
 list_iso = "MDG"
 
-## Project information from AFD 
+## Information on funding from AFD internal datasets, on AFD funded projects related to protected areas.
 data_fund = 
   #fread("data_tidy/BDD_PA_AFD_fund.csv")
   aws.s3::s3read_using(

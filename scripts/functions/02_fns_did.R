@@ -23,9 +23,9 @@
 #Load the list of PA matched during the matchign process
 ##INPUTS :
 ### iso : the ISO code of the country considered
-### yr_min : the minimum for treatment year
 ##OUTPUTS :
 ### list_pa : a dataframe with the PA matched
+### is_ok : a boolean indicating whether or not an error occured inside the function
 fn_did_list_pa = function(iso, load_dir)
 {
   output = tryCatch(
@@ -55,16 +55,16 @@ fn_did_list_pa = function(iso, load_dir)
 }
 
 
-#Compute average annual deforestation rate à la Wolf et al. 2021
+#For a protected area, compute annual deforestation rates à la Wolf et al. 2021, before and after treatment
 ## INPUTS 
 ### iso : the iso3 code for the country considered
 ### wdpaid : the WDPAID of the PA considered
-### alpha : the threshold for confidence interval
+### alpha : the margin of error to define confidence interval
 ### load_dir : a path to load matching frame
 ### ext_output : the output extension
 ## OUTPUTS
-### a dataframe with statistics on annual deforestation in matched treated and control units, computed à la Wolf et al. 2021
-
+### df_fl_annual_wolf : a dataframe with statistics on annual deforestation in matched treated and control units, computed à la Wolf et al. 2021
+### is_ok : a boolean indicating whether or not an error occured inside the function 
 fn_fl_wolf = function(iso, wdpaid, alpha, load_dir, ext_input)
 {
   output = tryCatch(
@@ -134,17 +134,24 @@ fn_fl_wolf = function(iso, wdpaid, alpha, load_dir, ext_input)
   )
 }
 
-#Compute the treatment effect for a given PA
-## INPUTS 
+#Compute the treatment effect for a given protected area that is supported by the AFD. This function specifically includes information related to funding we obtain from AFD internal services.
+## INPUTS : 
 ### iso : the iso3 code for the country considered
 ### wdpaid : the WDPAID of the PA considered
-### df_long : matched dataframe 
+### data_pa : dataset with information on protected areas, and especially their surfaces
+### data_fund : information on funding from AFD internal datasets, on AFD funded projects related to protected areas.
+### data_report : list of projects related to protected areas in AFD, reported by technical departments
 ### alpha : the threshold for confidence interval
-### save_dir : the saving directory in SSP Cloud
-### ext_output : the output extension
-## OUTPUTS
-### None
-
+### is_m : boolean stating whether we compute treatment effects from matched (TRUE) or unmatched treated and control units (FALSE)
+### save_dir : the saving directory in the remote storage
+### load_dir : the loading directory in the remote storage
+### ext_input : the extension of input dataframe
+## OUTPUTS :
+### df_fc_attgt : treatment effect computed for the protected area considered, expressed in avoided deforestation (hectare)
+### df_fl_attgt : treatment effect computed for the protected area considered, expressed in change of deforestation rate
+### is_ok : a boolean indicating whether or not an error occured inside the function 
+## DATA SAVED :
+### Dynamic treatment effects : avoided deforestation in an average pixel (in ha), avoided deforestation relative to 2000 forest cover, avoided deforestation extrapolated to the entire protected area (in ha), change in deforestation rate (in percentage points)
 fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, is_m, load_dir, ext_input, save_dir)
 {
   
@@ -152,6 +159,7 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
     
     {
       
+  #Loading matched and unmatched datasets
   df_long_m = s3read_using(data.table::fread,
                            object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("matched_long", "_", iso, "_", wdpaid, ext_input)),
                            bucket = "projet-afd-eva-ap",
@@ -166,13 +174,14 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
     dplyr::select(c(region, iso3, wdpaid, group, assetid, status_yr, year_funding_first, year_funding_all, year, res_m, var, fc_ha))
   #dplyr::select(c(region, country_en, iso3, wdpaid, group, status_yr, year_funding_first, year_funding_all, year, var, fc_ha))
   
+  # Define the working datasets depending on the is_m value
   if(is_m == TRUE)
   {
     df_long = df_long_m
   } else{df_long = df_long_unm 
   }
   
-  #First extract some relevant variables
+  #Extract some relevant variables for later plots and treatment effect computations
   ##Extract spatial resolution of pixels res_m and define pixel area in ha
   res_m = unique(df_long$res_m)
   res_ha = res_m^2*1e-4
@@ -296,7 +305,7 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
     filter(group == 2 & year == 2000) 
   avgFC_2000_unm = mean(avgFC_2000_unm$fc_ha, na.rm = TRUE)
   
-  #Then modify the dataframe before DiD computations
+  #Then modify the dataframe before difference-in-difference computations
   ## Set treatment year = 0 for controls (necessary for did package to consider "never treated" units)
   ## Compute cumulative deforestation relative to 2000 forest cover (outcome where TE is computed)
   df_did = df_long %>%
@@ -316,14 +325,14 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
   # fc_2000_avg = mean(df_did[df_did$group == 2,]$fc_2000, na.rm = TRUE)
   # per_fc_2000_avg = min(fc_2000_avg/res_ha, 1) #Take the min as in some cases, reported forest cover is higher than pixel area
   
-  #Compute dynamic TE with did package. 
+  #Compute dynamic treatment effect with did package. 
   ## Control are "never treated" units, no covariate is added in the regression estimated with doubly-robust method
   ## standard errors are computed with bootstrap, and confidence intervals computed from it.
   ## No clustering is performed as it does not seem relevant in our case (https://blogs.worldbank.org/impactevaluations/when-should-you-cluster-standard-errors-new-wisdom-econometrics-oracle)
-  ## Pseudo ATT are computed for each pre-treatment year (varying base period)
+  ## Pseudo treatment effects are computed for each pre-treatment year (varying base period)
   
   ##For forest cover (ha and %)
-  ### ATT computation
+  ### treatment effect computation
   fc_attgt = did::att_gt(yname = "fc_ha",
                          gname = "treatment_year",
                          idname = "assetid",
@@ -339,7 +348,8 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
                          base_period = "varying",
                          data = df_did,
                          print_details = F)
-  
+  ##For change in deforestation rate (percentage points)
+  ### treatment effect computation
   fl_attgt = did::att_gt(yname = "FL_2000_cum",
                          gname = "treatment_year",
                          idname = "assetid",
@@ -358,19 +368,19 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
   
   
   ### Report results in a dataframe
-  ### The ATT computed is at pixel level (avoided deforestation in a pixel, in ha)
-  ### This ATT is aggregated to PA by multiplying ATT by the number of pixel in the PA. It is also expressed in percentage of pixel area (avoided deforestation in share of pixel area)
+  ### The computed is at pixel level
+  ### This treatment effect is aggregated to protected area by multiplying treatment effect by the number of pixel in the PA. It is also expressed in percentage of pixel area (avoided deforestation in share of pixel area)
   ### confidence intervals (at pixel level) are computed from bootstrap standard errors after a coefficient is applied.
   ### This computation takes the one from did:::summary.MP function, line 15 and 16. 
-  ### They are multiplied by the number of pixels to compute CI for ATT at PA level 
-  ### They are divided by the pixel area to compute CI for ATT in percentage of pixel area
+  ### They are multiplied by the number of pixels to compute confidence intervals for treatment effect at protected area level 
+  ### They are divided by the pixel area to compute CI for treatment effect in percentage of pixel area
   df_fc_attgt = data.frame("treatment_year" = fc_attgt$group,
                            "year" = fc_attgt$t,
                            "att_pix" = fc_attgt$att,
                            "c" = fc_attgt$c,
                            "se" = fc_attgt$se,  
                            "n" = fc_attgt$n) %>%
-    #Compute ATT at PA level and in share of pixel area
+    #Compute treatment effect at PA level and in share of pixel area
     ## att_pa : the total avoided deforestation is the avoided deforestation in ha in a given pixel, multiplied by the number of pixel in the PA.
     ## att_per : avoided deforestation in a pixel, as a share of average forest cover in 2000 in matched treated. Can be extrapolated to full PA in principle (avoided deforestation in share of 2000 forest cover)
     mutate(att_pa = att_pix*n_pix_pa,
@@ -413,6 +423,7 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
            funding_year_list = list.funding.years,
            .before = "treatment_year")
   
+  # Same for change in deforestation rate
   df_fl_attgt = data.frame("treatment_year" = fl_attgt$group,
                            "year" = fl_attgt$t,
                            "att" = fl_attgt$att,
@@ -456,7 +467,7 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
            .before = "treatment_year")
   
   ###Plot results
-  ## ATT : avoided deforestation at pixel level (in ha)
+  ## treatment effect : avoided deforestation at pixel level (in ha)
   fig_att_pix = ggplot(data = df_fc_attgt,
                        aes(x = time, y = att_pix)) %>%
     + geom_line(color = "#08519C") %>%
@@ -496,7 +507,7 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
       panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
     )
   
-  # ATT : avoided deforestation in terms of 2000 forest cover
+  # treatment effect : avoided deforestation in terms of 2000 forest cover
   fig_att_per = ggplot(data = df_fc_attgt,
                        aes(x = time, y = att_per)) %>%
     + geom_line(color = "#08519C") %>%
@@ -536,7 +547,7 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
       panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
     )
   
-  # ATT : avoided deforestation in the PA
+  # treatment effect : avoided deforestation in the PA
   fig_att_pa = ggplot(data = df_fc_attgt,
                       aes(x = time, y = att_pa)) %>%
     + geom_line(color = "#08519C") %>%
@@ -577,7 +588,7 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
     )
   
 
-    
+  # treatment effect : change in deforestation rate
   fig_fl_att = ggplot(data = df_fl_attgt,
                       aes(x = time, y = att)) %>%
     + geom_line(color = "#08519C") %>%
@@ -673,7 +684,7 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
   
   return(output)
   
-  #TEST : is ATT computed by the did package coherent with manual computations ? 
+  #TEST : is treatment effect computed by the did package coherent with manual computations ? 
   # --> YES :D
   # test = df_did %>% 
   #   group_by(group, year) %>%
@@ -687,6 +698,23 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
   
 }
 
+
+#Compute the treatment effect for a given protected area. This function can be used on any protected area for which, though no funding information will be displayed contrary to fn_did_att_afd.
+## INPUTS 
+### iso : the iso3 code for the country considered
+### wdpaid : the WDPAID of the PA considered
+### data_pa : dataset with information on protected areas, and especially their surfaces
+### alpha : the threshold for confidence interval
+### is_m : boolean stating whether we compute treatment effects from matched (TRUE) or unmatched treated and control units (FALSE)
+### save_dir : the saving directory in the remote storage
+### load_dir : the loading directory in the remote storage
+### ext_input : the extension of input dataframe
+## OUTPUTS
+### df_fc_attgt : treatment effect computed for the protected area considered, expressed in avoided deforestation (hectare)
+### df_fl_attgt : treatment effect computed for the protected area considered, expressed in change of deforestation rate
+### is_ok : a boolean indicating whether or not an error occured inside the function 
+## DATA SAVED :
+### Dynamic treatment effects : avoided deforestation in an average pixel (in ha), avoided deforestation relative to 2000 forest cover, avoided deforestation extrapolated to the entire protected area (in ha), change in deforestation rate (in percentage points)
 fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_input, save_dir)
 {
   
@@ -694,6 +722,7 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_i
     
     {
       
+      #Loading matched and unmatched datasets
       df_long_m = s3read_using(data.table::fread,
                                object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("matched_long", "_", iso, "_", wdpaid, ext_input)),
                                bucket = "projet-afd-eva-ap",
@@ -708,13 +737,14 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_i
         dplyr::select(c(region, iso3, wdpaid, group, assetid, status_yr, year_funding_first, year_funding_all, year, res_m, var, fc_ha))
       #dplyr::select(c(region, country_en, iso3, wdpaid, group, status_yr, year_funding_first, year_funding_all, year, var, fc_ha))
       
+      # Define the working datasets depending on the is_m value
       if(is_m == TRUE)
       {
         df_long = df_long_m
       } else{df_long = df_long_unm 
       }
       
-      #First extract some relevant variables
+      #Extract some relevant variables
       ##Extract spatial resolution of pixels res_m and define pixel area in ha
       res_m = unique(df_long$res_m)
       res_ha = res_m^2*1e-4
@@ -829,10 +859,10 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_i
       ## Control are "never treated" units, no covariate is added in the regression estimated with doubly-robust method
       ## standard errors are computed with bootstrap, and confidence intervals computed from it.
       ## No clustering is performed as it does not seem relevant in our case (https://blogs.worldbank.org/impactevaluations/when-should-you-cluster-standard-errors-new-wisdom-econometrics-oracle)
-      ## Pseudo ATT are computed for each pre-treatment year (varying base period)
+      ## Pseudo treatment effect are computed for each pre-treatment year (varying base period)
       
       ##For forest cover (ha and %)
-      ### ATT computation
+      ### treatment effect computation
       fc_attgt = did::att_gt(yname = "fc_ha",
                              gname = "treatment_year",
                              idname = "assetid",
@@ -848,7 +878,7 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_i
                              base_period = "varying",
                              data = df_did,
                              print_details = F)
-      
+      ##For change in deforestation rate (percentage points)
       fl_attgt = did::att_gt(yname = "FL_2000_cum",
                              gname = "treatment_year",
                              idname = "assetid",
@@ -867,19 +897,19 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_i
       
       
       ### Report results in a dataframe
-      ### The ATT computed is at pixel level (avoided deforestation in a pixel, in ha)
-      ### This ATT is aggregated to PA by multiplying ATT by the number of pixel in the PA. It is also expressed in percentage of pixel area (avoided deforestation in share of pixel area)
+      ### The treatment effect computed is at pixel level (avoided deforestation in a pixel, in ha)
+      ### This treatment effect is aggregated to PA by multiplying treatment effect by the number of pixel in the PA. It is also expressed in percentage of pixel area (avoided deforestation in share of pixel area)
       ### confidence intervals (at pixel level) are computed from bootstrap standard errors after a coefficient is applied.
       ### This computation takes the one from did:::summary.MP function, line 15 and 16. 
-      ### They are multiplied by the number of pixels to compute CI for ATT at PA level 
-      ### They are divided by the pixel area to compute CI for ATT in percentage of pixel area
+      ### They are multiplied by the number of pixels to compute CI for treatment effect at PA level 
+      ### They are divided by the pixel area to compute CI for treatment effect in percentage of pixel area
       df_fc_attgt = data.frame("treatment_year" = fc_attgt$group,
                                "year" = fc_attgt$t,
                                "att_pix" = fc_attgt$att,
                                "c" = fc_attgt$c,
                                "se" = fc_attgt$se,  
                                "n" = fc_attgt$n) %>%
-        #Compute ATT at PA level and in share of pixel area
+        #Compute treatment effect at PA level and in share of pixel area
         ## att_pa : the total avoided deforestation is the avoided deforestation in ha in a given pixel, multiplied by the number of pixel in the PA.
         ## att_per : avoided deforestation in a pixel, as a share of average forest cover in 2000 in matched treated. Can be extrapolated to full PA in principle (avoided deforestation in share of 2000 forest cover)
         mutate(att_pa = att_pix*n_pix_pa,
@@ -915,7 +945,7 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_i
                funding_year = funding.years,
                funding_year_list = list.funding.years,
                .before = "treatment_year")
-      
+      # Same for treatment effect expressed as a change in deforestation rate
       df_fl_attgt = data.frame("treatment_year" = fl_attgt$group,
                                "year" = fl_attgt$t,
                                "att" = fl_attgt$att,
@@ -953,7 +983,7 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_i
                .before = "treatment_year")
       
       ###Plot results
-      ## ATT : avoided deforestation at pixel level (in ha)
+      ## treatment effect : avoided deforestation at pixel level (in ha)
       fig_att_pix = ggplot(data = df_fc_attgt,
                            aes(x = time, y = att_pix)) %>%
         + geom_line(color = "#08519C") %>%
@@ -993,7 +1023,7 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_i
           panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
         )
       
-      # ATT : avoided deforestation in terms of 2000 forest cover
+      # treatment effect : avoided deforestation in terms of 2000 forest cover
       fig_att_per = ggplot(data = df_fc_attgt,
                            aes(x = time, y = att_per)) %>%
         + geom_line(color = "#08519C") %>%
@@ -1033,7 +1063,7 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_i
           panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
         )
       
-      # ATT : avoided deforestation in the PA
+      # treatment effect : avoided deforestation in the PA
       fig_att_pa = ggplot(data = df_fc_attgt,
                           aes(x = time, y = att_pa)) %>%
         + geom_line(color = "#08519C") %>%
@@ -1074,7 +1104,7 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_i
         )
       
       
-      
+      # treatment effect : change in deforestation rate
       fig_fl_att = ggplot(data = df_fl_attgt,
                           aes(x = time, y = att)) %>%
         + geom_line(color = "#08519C") %>%
@@ -1170,7 +1200,7 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_i
   
   return(output)
   
-  #TEST : is ATT computed by the did package coherent with manual computations ? 
+  #TEST : is treatment effect computed by the did package coherent with manual computations ? 
   # --> YES :D
   # test = df_did %>% 
   #   group_by(group, year) %>%
@@ -1184,12 +1214,12 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_i
   
 }
 
+
 #Plot the forest cover loss relative to 2000 in treated and control, before and after matching
 ##INPUTS
 ###
 ##OUTPUTS
 ### 
-
 fn_plot_forest_loss = function(iso, wdpaid, data_pa, alpha, load_dir, ext_input, save_dir)
 {
   
@@ -1396,7 +1426,7 @@ fn_plot_forest_loss = function(iso, wdpaid, data_pa, alpha, load_dir, ext_input,
 }
 
 
-# Plotting the ATT of each PA analyzed in the same graph
+# Plotting the treatment effect of each PA analyzed in the same graph
 fn_plot_att_afd = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
 {
   
@@ -1411,7 +1441,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
                                     grepl("not", iucn_cat, ignore.case = TRUE) ~ "Unknown")) %>%
     ungroup()
   
-  #ATT for each wdpa (some have not on the two time periods)
+  #treatment effect for each wdpa (some have not on the two time periods)
   temp_fc = df_fc_att %>%
     dplyr::select(c(region, iso3, country_en, wdpaid, name_pa, iucn_cat, treatment_year, time, year, att_per, cband_lower_per, cband_upper_per, att_pa, cband_lower_pa, cband_upper_pa)) %>%
     mutate(sig_pa = sign(cband_lower_pa) == sign(cband_upper_pa),
@@ -1523,7 +1553,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
     )
 
     
-  ##ATT : total deforestation avoided
+  ##treatment effect : total deforestation avoided
   fig_att_pa = ggplot(df_plot_fc_att, 
                       aes(x = att_pa, 
                           y = factor(country_en, levels = unique(rev(sort(country_en)))),
@@ -1602,7 +1632,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
       panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
     )
   
-  ##ATT : avoided deforestation in percentage points
+  ##treatment effect : avoided deforestation in percentage points
   fig_att_fl = ggplot(df_plot_fl_att, 
                       aes(x = att, 
                           y = factor(country_en, levels = unique(rev(sort(country_en)))),
@@ -1683,7 +1713,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
   
   
   #Tables 
-  ## ATT : percentage of deforestation avoided
+  ## treatment effect : percentage of deforestation avoided
   tbl_fc_att_per = df_fc_att %>%
     mutate(sig_per = case_when(sign(cband_lower_per) == sign(cband_upper_per) ~ "Yes",
                                sign(cband_lower_per) != sign(cband_upper_per) ~ "No"),
@@ -1715,7 +1745,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
   names(tbl_fc_att_per) = c("Name", "Project ID", "Tech. div.", "Country", "Creation", "Funding year", "KfW", "FFEM", "Protection", 
                             "Effect (5 y., %)", "Signi. (5 y.)","Effect (10 y., %)", "Signi. (10 y.)")
   
-  # ATT : total deforestation avoided 
+  # treatment effect : total deforestation avoided 
   tbl_fc_att_pa = df_fc_att %>%
     mutate(sig_pa = case_when(sign(cband_lower_pa) == sign(cband_upper_pa) ~ "Yes",
                               sign(cband_lower_pa) != sign(cband_upper_pa) ~ "No"),
@@ -1822,7 +1852,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
               status_wdpa = status_wdpa) %>%
     ungroup()
   
-  #ATT for each wdpa (some have not on the two time periods)
+  #treatment effect for each wdpa (some have not on the two time periods)
   temp_fc = df_fc_att %>%
     dplyr::select(c(region, iso3, country_en, wdpaid, name_pa, time, year, att_per, cband_lower_per, cband_upper_per, att_pa, cband_lower_pa, cband_upper_pa)) %>%
     mutate(sig_pa = sign(cband_lower_pa) == sign(cband_upper_pa),
@@ -2032,7 +2062,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
     )
   
   
-  ##ATT : total deforestation avoided
+  ##treatment effect : total deforestation avoided
   fig_att_pa = ggplot(df_plot_fc_att, 
                       aes(x = att_pa, 
                           y = factor(name_pa, levels = unique(rev(sort(name_pa)))),
@@ -2190,7 +2220,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
       panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
     )
   
-  ##ATT : avoided deforestation in percentage points
+  ##treatment effect : avoided deforestation in percentage points
   fig_att_fl = ggplot(df_plot_fl_att, 
                       aes(x = att, 
                           y = factor(name_pa, levels = unique(rev(sort(name_pa)))),
@@ -2350,7 +2380,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
   
   
   #Tables 
-  ## ATT : percentage of deforestation avoided
+  ## treatment effect : percentage of deforestation avoided
   tbl_fc_att_per = df_plot_fc_att  %>%
     mutate(focus = case_when(wdpaid %in% list_focus ~ "Yes",
                              !(wdpaid %in% list_focus) ~ "No"),
@@ -2380,7 +2410,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
   names(tbl_fc_att_per) = c("Name", "FAPBM", "Creation", "Protection", 
                             "Effect (5 y., %)", "Signi. (5 y.)","Effect (10 y., %)", "Signi. (10 y.)")
   
-  # ATT : total deforestation avoided 
+  # treatment effect : total deforestation avoided 
   tbl_fc_att_pa = df_plot_fc_att %>%
     mutate(focus = case_when(wdpaid %in% list_focus ~ "Yes",
                              !(wdpaid %in% list_focus) ~ "No"),
@@ -2410,7 +2440,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
   names(tbl_fc_att_pa) = c("Name", "FAPBM", "Creation", "Protection", 
                             "Effect (5 y., ha)", "Signi. (5 y.)","Effect (10 y., ha)", "Signi. (10 y.)")
   
-  # ATT : avoided deforestation, in terms of difference in cumultaed deforestation rate 
+  # treatment effect : avoided deforestation, in terms of difference in cumultaed deforestation rate 
   tbl_fl_att = df_plot_fl_att %>%
     mutate(focus = case_when(wdpaid %in% list_focus ~ "Yes",
                              !(wdpaid %in% list_focus) ~ "No"),
