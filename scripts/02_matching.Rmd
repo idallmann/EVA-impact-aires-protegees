@@ -4,7 +4,7 @@
 
 In this R Markdown are performed the different steps to obtain a matched dataset, i.e a dataset with control and treated observational units to eventually compute the treatment effect. The treatment here is to be under protected area status, and we look at the impact on deforestation.
 
-The steps are the following.
+The steps are the following.   
 
 1.  Pre-processing : in a loop for each country,
 
@@ -40,13 +40,13 @@ The methodology is not extensively described here to keep the documentation conc
 
 Configuring the Rmarkdown
 
-```{r setup, include=FALSE, eval = FALSE}
-knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file()) 
-```
+#```{r setup, include=FALSE, eval = FALSE}
+#knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file()) 
+#```
 
 Downloading and installing the relevant packages
 
-```{r eval=, message=FALSE, warning=FALSE}
+```{r eval= F, message=FALSE, warning=FALSE}
 #Install some libraries
 ## CRAN version
 install.packages(c("tictoc", "geodata", "wdpar", "exactextractr", "MatchIt", "fixest", "cobalt", "future", "progressr", "mapme.biodiversity", "future.callr", "janitor", "geomtextpath", "rstac"))

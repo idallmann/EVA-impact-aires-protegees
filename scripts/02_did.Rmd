@@ -28,10 +28,9 @@ The process consists of the following steps.
 
 Configuring the Rmarkdown.
 
-```{r setup, include=FALSE, eval = FALSE}
-knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
-
-```
+#```{r setup, include=FALSE, eval = FALSE}
+#knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+#```
 
 Downloading and importing relevant packages.
 
@@ -565,7 +564,7 @@ fig_forest_loss_agg_avg_nofapbm
 
 Eventually the plots are saved in the remote storage.
 
-```{r}
+```{r, eval = F}
 ##Saving plots
 tmp = paste(tempdir(), "fig", sep = "/")
 
@@ -597,7 +596,7 @@ The treatment effects computed for each protected areas can be displayed in figu
 
 Note some protected areas can be removed from the display, because the matching is not satisfying or pre-treatment trends are too different between treated and control units (thus the matched control risk to be an irrelevant counterfactual). Also, one might want to highlight some protected areas. For instance when comparing a subset of protected areas in a given country to the others (protected areas in Madagascar supported by the AFD versus the others for instance).
 
-```{r}
+```{r, eval = F}
 # Define a list of protected areas that will not be displayed
 list_wdpa_bad = c(352240, #matching
                   352240, #matching

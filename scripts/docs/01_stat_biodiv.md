@@ -6,15 +6,17 @@ In this document are computed and plotted descriptive statistics for the protect
 
 ## Importing packages and functions
 
-```{r setup, include=FALSE, eval = FALSE}
-knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file()) 
-```
+#```{r setup, include=FALSE, eval = FALSE}
+#knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file()) 
+#```
 
-```{r message=FALSE, warning=FALSE, eval = FALSE}
+
+```r
 source("scripts/functions/02_fns_DesStat_biodiv.R", encoding = "UTF-8")
 ```
 
-```{r message=FALSE, warning=FALSE, eval = FALSE}
+
+```r
 #The last version of mapme.biodiversity package is downloaded directly from github
 # remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
 library(mapme.biodiversity)
@@ -38,7 +40,8 @@ library(ARTofR)
 library(aws.s3)
 ```
 
-```{r, eval = FALSE}
+
+```r
 #A first look at mapme biodiversity indicators
 
 resources <- names(available_resources())
@@ -53,8 +56,8 @@ cat(paste("Supported resources:\n-",
 
 This might be necessary to access SSPCloud storage from mapme.biodiversity functions.
 
-```{r, eval = FALSE}
 
+```r
 # Sys.setenv("AWS_ACCESS_KEY_ID" = "GD8CI0UQQPTETOZS65J2",
 #            "AWS_SECRET_ACCESS_KEY" = "e0bsXE55qz+xmNeVdwhTb39wKoQuIJFC0Y6eqPoG",
 #            "AWS_DEFAULT_REGION" = "us-east-1",
@@ -62,13 +65,12 @@ This might be necessary to access SSPCloud storage from mapme.biodiversity funct
 #            "AWS_S3_ENDPOINT"= "minio.lab.sspcloud.fr",
 #            "AWS_HTTPS" = "FALSE",
 #            "AWS_VIRTUAL_HOSTING"="FALSE")
-
 ```
 
 ## Importing PAs datasets
 
-```{r message=FALSE, warning=FALSE, eval = FALSE}
 
+```r
 #Load spatial data and transform into polygons (requirement of the mapme package)
 
 #If the function get_resources used later returns an error "...Loop 0 is not valid: Edge 94 crosses edge 96>...", then the following function might solve it. It works if sf was updated v1.0 and more, and brings back to old way of working. sf uses mostly a flat Earth model instead of s2 spherical geometry in the new versions. 
@@ -115,7 +117,8 @@ Note that this solution is not time-optimal : raw data must be downloaded each t
 
 ### Creating the portfolio
 
-```{r, eval = FALSE}
+
+```r
 #The raw data from mapme package are stored in a temporary folder
 tmp = paste(tempdir(), "mapme", sep = "/")
 #save_folder = get_bucket("projet-afd-eva-ap", region = "")
@@ -133,8 +136,8 @@ pa_pfolio = pa_shp[pa_shp$wdpaid == 1245,] %>%
 
 data are downloaded from an other script and stored in the SSPCloud. Here : copy these data to the temporary storage of the R session, and use them to compute indicators.
 
-```{r, eval = FALSE}
 
+```r
 df_files = aws.s3::get_bucket("projet-afd-eva-ap",
                    prefix = "data_raw/mapme_bio_data/gfw_treecover/",
                    region = "") %>%
@@ -154,8 +157,8 @@ plot(temp_file)
 
 ### Compute indicators from geospatial data
 
-```{r message=FALSE, warning=FALSE, eval = FALSE}
 
+```r
 ##~~~~~~~~~~~~~~~~
 ##  ~ Forests ----
 ##~~~~~~~~~~~~~~~~
@@ -247,12 +250,10 @@ for(f in files_emi)
 do.call(file.remove, list(list.files(paste(tmp, "gfw_emissions", sep = "/"), full.names = TRUE)))
 do.call(file.remove, list(list.files(paste(tmp, "gfw_lossyear", sep = "/"), full.names = TRUE)))
 do.call(file.remove, list(list.files(paste(tmp, "gfw_treecover", sep = "/"), full.names = TRUE)))
-
-
 ```
 
-```{r message=FALSE, warning=FALSE, eval = FALSE}
 
+```r
 ##~~~~~~~~~~~~~~~~~~
 ##  ~ Mangroves ----
 ##~~~~~~~~~~~~~~~~~~
@@ -298,8 +299,8 @@ for(f in files_mang)
 do.call(file.remove, list(list.files(paste(tmp, "gmw", sep = "/"), full.names = TRUE)))
 ```
 
-```{r message=FALSE, warning=FALSE, eval = FALSE}
 
+```r
 ##~~~~~~~~~~~~~~~~~~~~
 ##  ~ Land cover   --
 ##~~~~~~~~~~~~~~~~~~~~
@@ -327,11 +328,10 @@ s3write_using(data_pfolio_land,
 #               bucket = "projet-afd-eva-ap",
 #               opts = list("region" = "")
 #                                 )
-
 ```
 
-```{r message=FALSE, warning=FALSE, eval = FALSE}
 
+```r
 ##~~~~~~~~~~~~~~~~~~~
 ##  ~ Emissions  ----
 ##~~~~~~~~~~~~~~~~~~~
@@ -360,12 +360,10 @@ pa_pfolio_emi = read_portfolio("data_tidy/mapme_bio_data/pa_pfolio_emi.gpkg")
 #        "data_tidy/mapme_bio_data/data_pfolio_emi.csv")
 
 data_pfolio_emi = fread("data_tidy/mapme_bio_data/data_pfolio_emi.csv")
-
-
 ```
 
-```{r message=FALSE, warning=FALSE, eval = FALSE}
 
+```r
 ##~~~~~~~~~~~~~~~~~~~~
 ##  ~ Biome       ----
 ##~~~~~~~~~~~~~~~~~~~~
@@ -385,12 +383,10 @@ pa_pfolio_biome =
 # data_biome = unnest(pa_pfolio_biome, cols="biome") %>%
 #   sf::st_drop_geometry() %>%
 #   dplyr::select(id_pr,wdpaid,year,mangrove_extent)
-
-
 ```
 
-```{r message=FALSE, warning=FALSE, eval = FALSE}
 
+```r
 ##~~~~~~~~~~~~~~~~~~~~
 ##  ~ Soil features --
 ##~~~~~~~~~~~~~~~~~~~~
@@ -414,12 +410,10 @@ pa_pfolio_soil =
 # data_biome = unnest(pa_pfolio_biome, cols="biome") %>%
 #   sf::st_drop_geometry() %>%
 #   dplyr::select(id_pr,wdpaid,year,mangrove_extent)
-
-
-
 ```
 
-```{r message=FALSE, warning=FALSE, eval = FALSE}
+
+```r
 ##~~~~~~~~~~~~~~~~~~~~
 ##  ~ Accessibility --
 ##~~~~~~~~~~~~~~~~~~~~
@@ -477,7 +471,8 @@ Variation of forest loss over time :
 
 -   Building the figure dataset
 
-```{r, eval = FALSE}
+
+```r
 #Building the dataset
 data_stat_treeloss = data_pfolio_forest %>%
   group_by(nm_ap) %>% 
@@ -499,13 +494,12 @@ data_stat_treeloss = data_pfolio_forest %>%
   group_by(nm_ap, years_regroup) %>%
   mutate(moy_5 = mean(loss)) %>%
   ungroup()
-
 ```
 
 -   Statistics at PA level
 
-```{r message=FALSE, warning=FALSE, eval = FALSE}
 
+```r
 #Evolution for a given PA
 ##Buba
 stat_forest_buba = stat_treeloss_id(df = data_stat_treeloss,
@@ -554,17 +548,14 @@ ggsave(plot = fig_evo5_bamboung,
        filename = "fig_forest_loss_evo5_ap_bamboung.png",
        path = "05_StatDes/biodiversity/forest/loss",
        width = 7, height = 5)
-
-
-
-
 ```
 
 /! Modifier le code précédent pour inclure plusieurs aires ???
 
 -   Statistics at region level
 
-```{r, eval = FALSE}
+
+```r
 #Evolution at region level : dataset
 data_stat_treeloss_reg = data_stat_treeloss %>%
   group_by(drct, years) %>%
@@ -617,14 +608,14 @@ ggsave(plot = fig_evo_austAf,
        filename = "fig_forest_loss_evo_reg_austAf.png",
        path = "05_StatDes/biodiversity/forest/loss",
        width = 7, height = 5)
-
 ```
 
 ### Mangrove
 
 Summary table of mangrove area in each PA :
 
-```{r, eval = FALSE}
+
+```r
 tbl_mang_summary = data_mang %>%
   dplyr::group_by(wdpaid) %>%
   summarize(area_sqkm = sum(value))
@@ -636,7 +627,8 @@ tbl_mang_summary = data_mang %>%
 
 Summary table of emissions in each PA :
 
-```{r, eval = FALSE}
+
+```r
 # create summary table 
 tbl_emi_summary = data_emi %>%
   group_by(name) %>%

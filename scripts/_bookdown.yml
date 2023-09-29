@@ -1,6 +1,9 @@
 book_filename: fake-book
 delete_merged_file: true
 output_dir: docs
+output:
+  html_document:
+    code_folding: hide
 language:
   ui:
     chapter_name: "Section "
@@ -9,7 +12,8 @@ rmd_files:
 - index.Rmd
 - 00_data_build.Rmd
 - 01_stat_project.Rmd
-- 01_stat_biodiv.Rmd
+- 01_stat_misc.Rmd
 - 02_matching.Rmd
+- 02_did.Rmd
 - references.Rmd
 - appendix.Rmd

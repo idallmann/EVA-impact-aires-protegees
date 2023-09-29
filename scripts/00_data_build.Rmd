@@ -20,9 +20,9 @@ The datasets used are stored and saved into the SSPCloud platform that uses minI
 
 Configuring the Rmarkdown
 
-```{r setup, include = FALSE, eval = FALSE}
-knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
-```
+#```{r setup, include = FALSE, eval = FALSE}
+#knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+#```
 
 Downloading and importing the relevant packages
 
@@ -53,7 +53,7 @@ library(geodata)
 
 A first step has been to collect information on the PAs funded by the AFD. A first bunch was collected by Léa Poulin, Ingrid Dallmann and Pierre-Yves Durand (from evaluation and learning service of the innovation, research and knowledge department). Others were reported to us by the agriculture, rural development and biodiversity department. These datasets are combined with only relevant variables for future merging with WDPA and SIOP databases.
 
-```{r}
+```{r, eval = FALSE}
 #PAs gathered by the evaluation department
 ##BDD_joint created by Léa Poulin. 
 ##Create a dataset with a merged column for cofunders, instead of a variable for each. Only relevant variables are kept, and the date/author of the report are added.
@@ -271,7 +271,7 @@ data_raw2 = data_raw1 %>%
 
 Here errors in the reported information are corrected manually. Note the SIOP can be updated and the error not present anymore. The errors that do not need to be corrected anymore are kept in comment.
 
-```{r}
+```{r, eval = FALSE}
 #Loading the raw dataset
 data_raw = 
   #fread("data_raw/BDD_PA_raw.csv")
@@ -314,7 +314,7 @@ data_raw_corr = data_raw
 
 After manual correction, a tidy dataset is built. Relevant variables are selected, region/sub-region/country names are added from ISO3 codes and countrycode package, description of IUCN categories added. Some variables are renamed in English.
 
-```{r}
+```{r, eval = FALSE}
 #Import raw dataset corrected from report errors
 data_raw_corr = 
   #fread("data_raw/BDD_PA_raw_corr.csv")
@@ -825,7 +825,7 @@ pa_fapbm_not_found = pa_fapbm_names %>%
 
 A dataset is built from the WDPA. The only modification consists in adding region and country names, plus IUCN category description.
 
-```{r}
+```{r, eval = FALSE}
 data_wdpa =
   #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
   s3read_using(sf::st_read,
@@ -933,7 +933,7 @@ data_fund = data_tidy %>%
 
 Then a dataset is built with funding associated to each WDPAID. Note a project can fund several WDPAID, and that AFD funding data do not make it possible to isolate the funding of each PA defined by a WDPAID.
 
-```{r}
+```{r, eval = FALSE}
 data_fund_pa = data_tidy
 
 #For PAs with WDPAIDs

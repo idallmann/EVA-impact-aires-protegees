@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+<head>
+
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Section 6 Difference-in-difference | Impact analysis of protected areas funded by the AFD : an open-guide for reproductibility</title>
+  <meta name="description" content="This is a minimal example of using the bookdown package to write a book. The output format for this example is bookdown::gitbook." />
+  <meta name="generator" content="bookdown 0.35 and GitBook 2.6.7" />
+
+  <meta property="og:title" content="Section 6 Difference-in-difference | Impact analysis of protected areas funded by the AFD : an open-guide for reproductibility" />
+  <meta property="og:type" content="book" />
+  
+  <meta property="og:description" content="This is a minimal example of using the bookdown package to write a book. The output format for this example is bookdown::gitbook." />
+  <meta name="github-repo" content="vuillota/EVA-impact-aires-protegees.git" />
+
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Section 6 Difference-in-difference | Impact analysis of protected areas funded by the AFD : an open-guide for reproductibility" />
+  
+  <meta name="twitter:description" content="This is a minimal example of using the bookdown package to write a book. The output format for this example is bookdown::gitbook." />
+  
+
+<meta name="author" content="Antoine Vuillot" />
+<meta name="author" content="Ingrid Dallmann" />
+<meta name="author" content="Léa Poulin" />
+<meta name="author" content="Pierre-Yves Durand" />
+
+
+<meta name="date" content="2023-09-29" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  
+  
+<link rel="prev" href="matching.html"/>
+<link rel="next" href="references.html"/>
+<script src="libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.4.6/dist/fuse.min.js"></script>
+<link href="libs/gitbook-2.6.7/css/style.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-table.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-bookdown.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-highlight.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-search.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-fontsettings.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-clipboard.css" rel="stylesheet" />
+
+
+
+
+
+
+
+
+<link href="libs/anchor-sections-1.1.0/anchor-sections.css" rel="stylesheet" />
+<link href="libs/anchor-sections-1.1.0/anchor-sections-hash.css" rel="stylesheet" />
+<script src="libs/anchor-sections-1.1.0/anchor-sections.js"></script>
+
+
+<style type="text/css">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; } /* Alert */
+code span.an { color: #008000; } /* Annotation */
+code span.at { } /* Attribute */
+code span.bu { } /* BuiltIn */
+code span.cf { color: #0000ff; } /* ControlFlow */
+code span.ch { color: #008080; } /* Char */
+code span.cn { } /* Constant */
+code span.co { color: #008000; } /* Comment */
+code span.cv { color: #008000; } /* CommentVar */
+code span.do { color: #008000; } /* Documentation */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.im { } /* Import */
+code span.in { color: #008000; } /* Information */
+code span.kw { color: #0000ff; } /* Keyword */
+code span.op { } /* Operator */
+code span.ot { color: #ff4000; } /* Other */
+code span.pp { color: #ff4000; } /* Preprocessor */
+code span.sc { color: #008080; } /* SpecialChar */
+code span.ss { color: #008080; } /* SpecialString */
+code span.st { color: #008080; } /* String */
+code span.va { } /* Variable */
+code span.vs { color: #008080; } /* VerbatimString */
+code span.wa { color: #008000; font-weight: bold; } /* Warning */
+</style>
+
+<style type="text/css">
+  
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+</style>
+
+<link rel="stylesheet" href="assets/style.css" type="text/css" />
+</head>
+
+<body>
+
+
+
+  <div class="book without-animation with-summary font-size-2 font-family-1" data-basepath=".">
+
+    <div class="book-summary">
+      <nav role="navigation">
+
+<ul class="summary">
+<li><a href="./">Impact analysis of protected areas funded by the AFD</a></li>
+
+<li class="divider"></li>
+<li class="chapter" data-level="" data-path="index.html"><a href="index.html"><i class="fa fa-check"></i>About this website</a></li>
+<li class="chapter" data-level="1" data-path="building-the-datasets.html"><a href="building-the-datasets.html"><i class="fa fa-check"></i><b>1</b> Building the datasets</a>
+<ul>
+<li class="chapter" data-level="1.1" data-path="building-the-datasets.html"><a href="building-the-datasets.html#initial-settings"><i class="fa fa-check"></i><b>1.1</b> Initial settings</a></li>
+<li class="chapter" data-level="1.2" data-path="building-the-datasets.html"><a href="building-the-datasets.html#datasets-for-analysis"><i class="fa fa-check"></i><b>1.2</b> Datasets for analysis</a>
+<ul>
+<li class="chapter" data-level="1.2.1" data-path="building-the-datasets.html"><a href="building-the-datasets.html#merge-pas-reporting-by-afd-technical-departments"><i class="fa fa-check"></i><b>1.2.1</b> Merge PAs reporting by AFD technical departments</a></li>
+<li class="chapter" data-level="1.2.2" data-path="building-the-datasets.html"><a href="building-the-datasets.html#merge-the-list-of-pas-to-afd-project-information-and-wdpa"><i class="fa fa-check"></i><b>1.2.2</b> Merge the list of PAs to AFD project information and WDPA</a></li>
+<li class="chapter" data-level="1.2.3" data-path="building-the-datasets.html"><a href="building-the-datasets.html#correct-errors"><i class="fa fa-check"></i><b>1.2.3</b> Correct errors</a></li>
+<li class="chapter" data-level="1.2.4" data-path="building-the-datasets.html"><a href="building-the-datasets.html#tidy-the-datasets"><i class="fa fa-check"></i><b>1.2.4</b> Tidy the datasets</a></li>
+<li class="chapter" data-level="1.2.5" data-path="building-the-datasets.html"><a href="building-the-datasets.html#dataset-with-only-afd-project-variables"><i class="fa fa-check"></i><b>1.2.5</b> Dataset with only AFD project variables</a></li>
+<li class="chapter" data-level="1.2.6" data-path="building-the-datasets.html"><a href="building-the-datasets.html#dataset-for-non-confidential-analysis"><i class="fa fa-check"></i><b>1.2.6</b> Dataset for non-confidential analysis</a></li>
+<li class="chapter" data-level="1.2.7" data-path="building-the-datasets.html"><a href="building-the-datasets.html#datasets-for-confidential-analysis"><i class="fa fa-check"></i><b>1.2.7</b> Datasets for confidential analysis</a></li>
+<li class="chapter" data-level="1.2.8" data-path="building-the-datasets.html"><a href="building-the-datasets.html#a-polygon-dataset-for-specific-use"><i class="fa fa-check"></i><b>1.2.8</b> A polygon dataset for specific use</a></li>
+</ul></li>
+<li class="chapter" data-level="1.3" data-path="building-the-datasets.html"><a href="building-the-datasets.html#computing-total-areas-covered-by-pas-in-the-sample"><i class="fa fa-check"></i><b>1.3</b> Computing total areas covered by PAs in the sample</a>
+<ul>
+<li class="chapter" data-level="1.3.1" data-path="building-the-datasets.html"><a href="building-the-datasets.html#computations-of-polygons-area"><i class="fa fa-check"></i><b>1.3.1</b> Computations of polygons’ area</a></li>
+<li class="chapter" data-level="1.3.2" data-path="building-the-datasets.html"><a href="building-the-datasets.html#computing-the-intersection-at-country-region-world-level"><i class="fa fa-check"></i><b>1.3.2</b> Computing the intersection at country, region, world level</a></li>
+<li class="chapter" data-level="1.3.3" data-path="building-the-datasets.html"><a href="building-the-datasets.html#computing-total-areas-without-intersection"><i class="fa fa-check"></i><b>1.3.3</b> Computing total areas without intersection</a></li>
+</ul></li>
+</ul></li>
+<li class="part"><span><b>Descriptive statistics</b></span></li>
+<li class="chapter" data-level="2" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html"><i class="fa fa-check"></i><b>2</b> Projects funded by the AFD</a>
+<ul>
+<li class="chapter" data-level="2.1" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#initial-settings-1"><i class="fa fa-check"></i><b>2.1</b> Initial settings</a></li>
+<li class="chapter" data-level="2.2" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#importing-the-datasets"><i class="fa fa-check"></i><b>2.2</b> Importing the datasets</a></li>
+<li class="chapter" data-level="2.3" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#performing-descriptive-statistics"><i class="fa fa-check"></i><b>2.3</b> Performing descriptive statistics</a>
+<ul>
+<li class="chapter" data-level="2.3.1" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#iucn-categories"><i class="fa fa-check"></i><b>2.3.1</b> IUCN categories</a></li>
+<li class="chapter" data-level="2.3.2" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#ecosystems-excluding-non-referenced-pas"><i class="fa fa-check"></i><b>2.3.2</b> Ecosystems (excluding non-referenced PAs)</a></li>
+<li class="chapter" data-level="2.3.3" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#distribution-and-surface-of-pas-across-countries-and-regions"><i class="fa fa-check"></i><b>2.3.3</b> Distribution (# and surface) of PAs across countries and regions</a></li>
+<li class="chapter" data-level="2.3.4" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#surface-of-pas"><i class="fa fa-check"></i><b>2.3.4</b> Surface of PAs</a></li>
+<li class="chapter" data-level="2.3.5" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#temporal-evolution"><i class="fa fa-check"></i><b>2.3.5</b> Temporal evolution</a></li>
+<li class="chapter" data-level="2.3.6" data-path="projects-funded-by-the-afd.html"><a href="projects-funded-by-the-afd.html#governance"><i class="fa fa-check"></i><b>2.3.6</b> Governance</a></li>
+</ul></li>
+</ul></li>
+<li class="chapter" data-level="3" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html"><i class="fa fa-check"></i><b>3</b> Biodiversity in the protected areas</a>
+<ul>
+<li class="chapter" data-level="3.1" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#importing-packages-and-functions"><i class="fa fa-check"></i><b>3.1</b> Importing packages and functions</a></li>
+<li class="chapter" data-level="3.2" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#setting-the-environment"><i class="fa fa-check"></i><b>3.2</b> Setting the environment</a></li>
+<li class="chapter" data-level="3.3" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#importing-pas-datasets"><i class="fa fa-check"></i><b>3.3</b> Importing PAs datasets</a></li>
+<li class="chapter" data-level="3.4" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#downloading-data-of-interests-and-compute-relevant-indicators"><i class="fa fa-check"></i><b>3.4</b> Downloading data of interests and compute relevant indicators</a>
+<ul>
+<li class="chapter" data-level="3.4.1" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#creating-the-portfolio"><i class="fa fa-check"></i><b>3.4.1</b> Creating the portfolio</a></li>
+<li class="chapter" data-level="3.4.2" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#test-importing-data-from-sspcloud"><i class="fa fa-check"></i><b>3.4.2</b> TEST : importing data from SSPCloud</a></li>
+<li class="chapter" data-level="3.4.3" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#compute-indicators-from-geospatial-data"><i class="fa fa-check"></i><b>3.4.3</b> Compute indicators from geospatial data</a></li>
+</ul></li>
+<li class="chapter" data-level="3.5" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#computing-statistics"><i class="fa fa-check"></i><b>3.5</b> Computing statistics</a>
+<ul>
+<li class="chapter" data-level="3.5.1" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#forests"><i class="fa fa-check"></i><b>3.5.1</b> Forests</a></li>
+<li class="chapter" data-level="3.5.2" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#mangrove"><i class="fa fa-check"></i><b>3.5.2</b> Mangrove</a></li>
+<li class="chapter" data-level="3.5.3" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#emissions"><i class="fa fa-check"></i><b>3.5.3</b> Emissions</a></li>
+<li class="chapter" data-level="3.5.4" data-path="biodiversity-in-the-protected-areas.html"><a href="biodiversity-in-the-protected-areas.html#biometeow"><i class="fa fa-check"></i><b>3.5.4</b> Biome/TEOW</a></li>
+</ul></li>
+</ul></li>
+<li class="chapter" data-level="4" data-path="miscellaneous-statistics.html"><a href="miscellaneous-statistics.html"><i class="fa fa-check"></i><b>4</b> Miscellaneous statistics</a>
+<ul>
+<li class="chapter" data-level="4.1" data-path="miscellaneous-statistics.html"><a href="miscellaneous-statistics.html#initial-settings-2"><i class="fa fa-check"></i><b>4.1</b> Initial settings</a></li>
+<li class="chapter" data-level="4.2" data-path="miscellaneous-statistics.html"><a href="miscellaneous-statistics.html#importing-datasets"><i class="fa fa-check"></i><b>4.2</b> Importing datasets</a></li>
+<li class="chapter" data-level="4.3" data-path="miscellaneous-statistics.html"><a href="miscellaneous-statistics.html#performing-descriptive-statistics-1"><i class="fa fa-check"></i><b>4.3</b> Performing descriptive statistics</a>
+<ul>
+<li class="chapter" data-level="4.3.1" data-path="miscellaneous-statistics.html"><a href="miscellaneous-statistics.html#fapbm-portfolio-and-madagascar"><i class="fa fa-check"></i><b>4.3.1</b> FAPBM portfolio and Madagascar</a></li>
+</ul></li>
+<li class="chapter" data-level="4.4" data-path="miscellaneous-statistics.html"><a href="miscellaneous-statistics.html#evolution-of-tree-cover-and-deforestation"><i class="fa fa-check"></i><b>4.4</b> Evolution of tree cover and deforestation</a></li>
+</ul></li>
+<li class="part"><span><b>Impact analysis</b></span></li>
+<li class="chapter" data-level="5" data-path="matching.html"><a href="matching.html"><i class="fa fa-check"></i><b>5</b> Matching</a>
+<ul>
+<li class="chapter" data-level="5.1" data-path="matching.html"><a href="matching.html#initial-settings-3"><i class="fa fa-check"></i><b>5.1</b> Initial settings</a></li>
+<li class="chapter" data-level="5.2" data-path="matching.html"><a href="matching.html#datasets-and-critical-parameters"><i class="fa fa-check"></i><b>5.2</b> Datasets and critical parameters</a></li>
+<li class="chapter" data-level="5.3" data-path="matching.html"><a href="matching.html#matching-process"><i class="fa fa-check"></i><b>5.3</b> Matching process</a></li>
+</ul></li>
+<li class="part"><span><b>Impact analysis</b></span></li>
+<li class="chapter" data-level="6" data-path="difference-in-difference.html"><a href="difference-in-difference.html"><i class="fa fa-check"></i><b>6</b> Difference-in-difference</a>
+<ul>
+<li class="chapter" data-level="6.1" data-path="difference-in-difference.html"><a href="difference-in-difference.html#initial-settings-4"><i class="fa fa-check"></i><b>6.1</b> Initial settings</a></li>
+<li class="chapter" data-level="6.2" data-path="difference-in-difference.html"><a href="difference-in-difference.html#load-datasets-and-define-critical-parameters"><i class="fa fa-check"></i><b>6.2</b> Load datasets and define critical parameters</a></li>
+<li class="chapter" data-level="6.3" data-path="difference-in-difference.html"><a href="difference-in-difference.html#computing-treatment-effects-at-protected-area-level"><i class="fa fa-check"></i><b>6.3</b> Computing treatment effects at protected area level</a></li>
+<li class="chapter" data-level="6.4" data-path="difference-in-difference.html"><a href="difference-in-difference.html#compute-aggregated-metrics-at-country-and-region-level"><i class="fa fa-check"></i><b>6.4</b> Compute aggregated metrics at country and region level</a>
+<ul>
+<li class="chapter" data-level="6.4.1" data-path="difference-in-difference.html"><a href="difference-in-difference.html#aggregation-of-treatment-effects"><i class="fa fa-check"></i><b>6.4.1</b> Aggregation of treatment effects</a></li>
+<li class="chapter" data-level="6.4.2" data-path="difference-in-difference.html"><a href="difference-in-difference.html#aggregation-of-annual-deforestation-rates"><i class="fa fa-check"></i><b>6.4.2</b> Aggregation of annual deforestation rates</a></li>
+<li class="chapter" data-level="6.4.3" data-path="difference-in-difference.html"><a href="difference-in-difference.html#average-and-total-forest-loss-on-the-period-at-country-and-region-level"><i class="fa fa-check"></i><b>6.4.3</b> Average and total forest loss on the period, at country and region level</a></li>
+</ul></li>
+<li class="chapter" data-level="6.5" data-path="difference-in-difference.html"><a href="difference-in-difference.html#display-treatment-effects-in-figures-and-tables"><i class="fa fa-check"></i><b>6.5</b> Display treatment effects in figures and tables</a></li>
+<li class="chapter" data-level="6.6" data-path="difference-in-difference.html"><a href="difference-in-difference.html#section"><i class="fa fa-check"></i><b>6.6</b> </a></li>
+</ul></li>
+<li class="chapter" data-level="" data-path="references.html"><a href="references.html"><i class="fa fa-check"></i>References</a></li>
+<li class="appendix"><span><b>Appendix</b></span></li>
+<li class="chapter" data-level="A" data-path="functions-for-matching-pre--and-post-processing.html"><a href="functions-for-matching-pre--and-post-processing.html"><i class="fa fa-check"></i><b>A</b> Functions for matching pre- and post-processing</a></li>
+<li class="chapter" data-level="B" data-path="functions-for-difference-in-difference-computations.html"><a href="functions-for-difference-in-difference-computations.html"><i class="fa fa-check"></i><b>B</b> Functions for difference-in-difference computations</a></li>
+<li class="divider"></li>
+<li><a href="https://github.com/rstudio/bookdown" target="blank">Published with bookdown</a></li>
+
+</ul>
+
+      </nav>
+    </div>
+
+    <div class="book-body">
+      <div class="body-inner">
+        <div class="book-header" role="navigation">
+          <h1>
+            <i class="fa fa-circle-o-notch fa-spin"></i><a href="./">Impact analysis of protected areas funded by the AFD : an open-guide for reproductibility</a>
+          </h1>
+        </div>
+
+        <div class="page-wrapper" tabindex="-1" role="main">
+          <div class="page-inner">
+
+            <section class="normal" id="section-">
+<div id="difference-in-difference" class="section level1 hasAnchor" number="6">
+<h1><span class="header-section-number">Section 6</span> Difference-in-difference<a href="difference-in-difference.html#difference-in-difference" class="anchor-section" aria-label="Anchor link to header"></a></h1>
+<p>In this script are performed the last steps of the analysis. Using the datasets of matched treated and control units, it is possible to compute the effect of the conservation for each protected area. Then these results can be aggregated at country and region level. Some secondary metrics are also computed : the annual deforestation rates faced by treated and control units, before and after treatment (à la Wolf et al. 2021); the total and average forest loss across groups of protected areas on the period considered, compared to the value in control units, before and after matching.</p>
+<p>The process consists of the following steps.</p>
+<ol style="list-style-type: decimal">
+<li><p>For a given country, load the list of protected areas whose observational units (treated pixels composing this area) have been matched to control units.</p></li>
+<li><p>For each protected area in this list :</p>
+<ol style="list-style-type: decimal">
+<li><p>Compute annual deforestation rates : before and after treatment for treated units, on the whole period for control units.</p></li>
+<li><p>Compute treatment effect from matched treated and control pixels. Note that two functions exist depending on the portfolio analyzed : for AFD supported protected areas, funding-related information are added to the analysis (e.g year of funding). For the others, a general script is used.</p></li>
+<li><p>Compute treatment effect for unmatched treated and control pixels. This can be useful to assess the bias induced by the selection into treatment. In other words, the bias due to not using matching. Indeed protected areas tend to be located in region less prone to deforestation (e.g further away from cities or roads). Simply using non-protected areas as a counterfactual, without matching, would then overestimate the effect of the conservation program. Note that this step can be time and computationally intensive, because the number of unmatched units is higher than the number of matched ones. It is usually skipped.</p></li>
+<li><p>Plot the total area deforested on the period considered, in the protected area and its counterfactual, before and after matching. This is useful to illustrate the bias described above. Note that ideally the deforestation estimated in the protected area before and after matching should be the same. If note, the matched treated units are not representative of the overall protected area and the a local treatment effect will be estimated.</p></li>
+</ol></li>
+<li><p>The treatment effects, annual deforestation rates and estimations of total deforested area computed for each protected areas are gathered in specific datasets. This makes it possible to compute metrics aggregated at country and region level. These datastes are saved to the storage.</p></li>
+<li><p>If relevant, results of the analysis at protected area level are aggregated at country and region level.</p></li>
+<li><p>Finally, figures and tables are created to display the results.</p></li>
+</ol>
+<div id="initial-settings-4" class="section level2 hasAnchor" number="6.1">
+<h2><span class="header-section-number">6.1</span> Initial settings<a href="difference-in-difference.html#initial-settings-4" class="anchor-section" aria-label="Anchor link to header"></a></h2>
+<p>Configuring the Rmarkdown.</p>
+<p>#<code>{r setup, include=FALSE, eval = FALSE} #knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file()) #</code></p>
+<p>Downloading and importing relevant packages.</p>
+<div class="sourceCode" id="cb124"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb124-1"><a href="difference-in-difference.html#cb124-1" tabindex="-1"></a><span class="co">#Install some libraries</span></span>
+<span id="cb124-2"><a href="difference-in-difference.html#cb124-2" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="fu">c</span>(<span class="st">&quot;tictoc&quot;</span>, <span class="st">&quot;fixest&quot;</span>, <span class="st">&quot;cobalt&quot;</span>, <span class="st">&quot;future&quot;</span>, <span class="st">&quot;progressr&quot;</span>, <span class="st">&quot;did&quot;</span>, <span class="st">&quot;latex2exp&quot;</span>, <span class="st">&quot;janitor&quot;</span>, <span class="st">&quot;stringi&quot;</span>))</span>
+<span id="cb124-3"><a href="difference-in-difference.html#cb124-3" tabindex="-1"></a></span>
+<span id="cb124-4"><a href="difference-in-difference.html#cb124-4" tabindex="-1"></a><span class="co"># Load Libraries</span></span>
+<span id="cb124-5"><a href="difference-in-difference.html#cb124-5" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb124-6"><a href="difference-in-difference.html#cb124-6" tabindex="-1"></a><span class="fu">library</span>(stringi)</span>
+<span id="cb124-7"><a href="difference-in-difference.html#cb124-7" tabindex="-1"></a><span class="fu">library</span>(tictoc) <span class="co">#For timing</span></span>
+<span id="cb124-8"><a href="difference-in-difference.html#cb124-8" tabindex="-1"></a><span class="fu">library</span>(xtable)</span>
+<span id="cb124-9"><a href="difference-in-difference.html#cb124-9" tabindex="-1"></a><span class="fu">library</span>(tidyr)</span>
+<span id="cb124-10"><a href="difference-in-difference.html#cb124-10" tabindex="-1"></a><span class="fu">library</span>(stringr)</span>
+<span id="cb124-11"><a href="difference-in-difference.html#cb124-11" tabindex="-1"></a><span class="fu">library</span>(ggplot2) <span class="co"># For plotting</span></span>
+<span id="cb124-12"><a href="difference-in-difference.html#cb124-12" tabindex="-1"></a><span class="fu">library</span>(RColorBrewer)</span>
+<span id="cb124-13"><a href="difference-in-difference.html#cb124-13" tabindex="-1"></a><span class="fu">library</span>(ggrepel)</span>
+<span id="cb124-14"><a href="difference-in-difference.html#cb124-14" tabindex="-1"></a><span class="fu">library</span>(aws.s3)</span>
+<span id="cb124-15"><a href="difference-in-difference.html#cb124-15" tabindex="-1"></a><span class="fu">library</span>(fixest) <span class="co">#For estimating the models</span></span>
+<span id="cb124-16"><a href="difference-in-difference.html#cb124-16" tabindex="-1"></a><span class="fu">library</span>(did)</span>
+<span id="cb124-17"><a href="difference-in-difference.html#cb124-17" tabindex="-1"></a><span class="fu">library</span>(latex2exp)</span>
+<span id="cb124-18"><a href="difference-in-difference.html#cb124-18" tabindex="-1"></a><span class="fu">library</span>(janitor)</span></code></pre></div>
+<p>To keep this document concise, each step calls a function defined in a R script. Interested reader can delve deeper into the data processing by looking at this script. The following chunck load the functions in the workspace.</p>
+<div class="sourceCode" id="cb125"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb125-1"><a href="difference-in-difference.html#cb125-1" tabindex="-1"></a><span class="co">#Import functions</span></span>
+<span id="cb125-2"><a href="difference-in-difference.html#cb125-2" tabindex="-1"></a><span class="fu">source</span>(<span class="st">&quot;scripts/functions/02_fns_did.R&quot;</span>)</span></code></pre></div>
+</div>
+<div id="load-datasets-and-define-critical-parameters" class="section level2 hasAnchor" number="6.2">
+<h2><span class="header-section-number">6.2</span> Load datasets and define critical parameters<a href="difference-in-difference.html#load-datasets-and-define-critical-parameters" class="anchor-section" aria-label="Anchor link to header"></a></h2>
+<div class="sourceCode" id="cb126"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb126-1"><a href="difference-in-difference.html#cb126-1" tabindex="-1"></a><span class="co">#Define working directories</span></span>
+<span id="cb126-2"><a href="difference-in-difference.html#cb126-2" tabindex="-1"></a><span class="do">##Temporary directory</span></span>
+<span id="cb126-3"><a href="difference-in-difference.html#cb126-3" tabindex="-1"></a>tmp_did <span class="ot">=</span> <span class="fu">paste</span>(<span class="fu">tempdir</span>(), <span class="st">&quot;did&quot;</span>, <span class="at">sep =</span> <span class="st">&quot;/&quot;</span>)</span>
+<span id="cb126-4"><a href="difference-in-difference.html#cb126-4" tabindex="-1"></a><span class="do">##Loading and saving directories on the storage. This is either define on today&#39;s date, or by a user-defined date.</span></span>
+<span id="cb126-5"><a href="difference-in-difference.html#cb126-5" tabindex="-1"></a><span class="co">#load_dir = paste(&quot;impact_analysis/matching&quot;, Sys.Date(), sep = &quot;/&quot;)</span></span>
+<span id="cb126-6"><a href="difference-in-difference.html#cb126-6" tabindex="-1"></a>load_dir <span class="ot">=</span> <span class="fu">paste</span>(<span class="st">&quot;impact_analysis/matching&quot;</span>, <span class="st">&quot;2023-09-21&quot;</span>, <span class="at">sep =</span> <span class="st">&quot;/&quot;</span>)</span>
+<span id="cb126-7"><a href="difference-in-difference.html#cb126-7" tabindex="-1"></a><span class="co">#save_dir = paste(&quot;impact_analysis/did&quot;, Sys.Date(), sep = &quot;/&quot;)</span></span>
+<span id="cb126-8"><a href="difference-in-difference.html#cb126-8" tabindex="-1"></a>save_dir <span class="ot">=</span> <span class="fu">paste</span>(<span class="st">&quot;impact_analysis/did&quot;</span>, <span class="st">&quot;2023-09-21&quot;</span>, <span class="at">sep =</span> <span class="st">&quot;/&quot;</span>)</span>
+<span id="cb126-9"><a href="difference-in-difference.html#cb126-9" tabindex="-1"></a></span>
+<span id="cb126-10"><a href="difference-in-difference.html#cb126-10" tabindex="-1"></a><span class="do">## Dataset specific to the PAs portfolio to analyze. Only one is selected depending on the analysis one wants to perform. </span></span>
+<span id="cb126-11"><a href="difference-in-difference.html#cb126-11" tabindex="-1"></a></span>
+<span id="cb126-12"><a href="difference-in-difference.html#cb126-12" tabindex="-1"></a><span class="do">## AFD portfolio</span></span>
+<span id="cb126-13"><a href="difference-in-difference.html#cb126-13" tabindex="-1"></a><span class="co"># data_pa =</span></span>
+<span id="cb126-14"><a href="difference-in-difference.html#cb126-14" tabindex="-1"></a><span class="co">#   #fread(&quot;data_tidy/BDD_PA_AFD_ie.csv&quot; , encoding = &quot;UTF-8&quot;)</span></span>
+<span id="cb126-15"><a href="difference-in-difference.html#cb126-15" tabindex="-1"></a><span class="co">#   aws.s3::s3read_using(</span></span>
+<span id="cb126-16"><a href="difference-in-difference.html#cb126-16" tabindex="-1"></a><span class="co">#   FUN = data.table::fread,</span></span>
+<span id="cb126-17"><a href="difference-in-difference.html#cb126-17" tabindex="-1"></a><span class="co">#   encoding = &quot;UTF-8&quot;,</span></span>
+<span id="cb126-18"><a href="difference-in-difference.html#cb126-18" tabindex="-1"></a><span class="co">#   object = &quot;data_tidy/BDD_PA_AFD_ie.csv&quot;,</span></span>
+<span id="cb126-19"><a href="difference-in-difference.html#cb126-19" tabindex="-1"></a><span class="co">#   bucket = &quot;projet-afd-eva-ap&quot;,</span></span>
+<span id="cb126-20"><a href="difference-in-difference.html#cb126-20" tabindex="-1"></a><span class="co">#   opts = list(&quot;region&quot; = &quot;&quot;)) %&gt;%</span></span>
+<span id="cb126-21"><a href="difference-in-difference.html#cb126-21" tabindex="-1"></a><span class="co">#   #Sangha trinational (555547988) created in 2012 actually gathers three former PAs</span></span>
+<span id="cb126-22"><a href="difference-in-difference.html#cb126-22" tabindex="-1"></a><span class="co">#   #in CAF (31458), CMR (1245) and COG (72332) implemented in</span></span>
+<span id="cb126-23"><a href="difference-in-difference.html#cb126-23" tabindex="-1"></a><span class="co">#   #1990, 2001 and 1993 respectively.</span></span>
+<span id="cb126-24"><a href="difference-in-difference.html#cb126-24" tabindex="-1"></a><span class="co">#   # Evaluating the trinational PA is not relevant here : our method relies on pre-treatment obervsations (for matching and DiD) and the outcome is likely to be affected by the initial PAs. On the other hand, evaluating the three earlier PAs might be irrelevant for us : are they funded by the AFD ?? In a first approach, the trinational is removed.</span></span>
+<span id="cb126-25"><a href="difference-in-difference.html#cb126-25" tabindex="-1"></a><span class="co">#   filter(is.na(wdpaid) == TRUE | wdpaid != 555547988)</span></span>
+<span id="cb126-26"><a href="difference-in-difference.html#cb126-26" tabindex="-1"></a></span>
+<span id="cb126-27"><a href="difference-in-difference.html#cb126-27" tabindex="-1"></a><span class="do">##FAPBM</span></span>
+<span id="cb126-28"><a href="difference-in-difference.html#cb126-28" tabindex="-1"></a>data_fapbm <span class="ot">=</span></span>
+<span id="cb126-29"><a href="difference-in-difference.html#cb126-29" tabindex="-1"></a>  <span class="co">#fread(&quot;data_tidy/BDD_PA_AFD_ie.csv&quot; , encoding = &quot;UTF-8&quot;)</span></span>
+<span id="cb126-30"><a href="difference-in-difference.html#cb126-30" tabindex="-1"></a>  aws.s3<span class="sc">::</span><span class="fu">s3read_using</span>(</span>
+<span id="cb126-31"><a href="difference-in-difference.html#cb126-31" tabindex="-1"></a>  <span class="at">FUN =</span> data.table<span class="sc">::</span>fread,</span>
+<span id="cb126-32"><a href="difference-in-difference.html#cb126-32" tabindex="-1"></a>  <span class="at">encoding =</span> <span class="st">&quot;UTF-8&quot;</span>,</span>
+<span id="cb126-33"><a href="difference-in-difference.html#cb126-33" tabindex="-1"></a>  <span class="at">object =</span> <span class="st">&quot;data_tidy/BDD_PA_FAPBM.csv&quot;</span>,</span>
+<span id="cb126-34"><a href="difference-in-difference.html#cb126-34" tabindex="-1"></a>  <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb126-35"><a href="difference-in-difference.html#cb126-35" tabindex="-1"></a>  <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>))</span>
+<span id="cb126-36"><a href="difference-in-difference.html#cb126-36" tabindex="-1"></a></span>
+<span id="cb126-37"><a href="difference-in-difference.html#cb126-37" tabindex="-1"></a><span class="do">##Madagascar (all PAs)</span></span>
+<span id="cb126-38"><a href="difference-in-difference.html#cb126-38" tabindex="-1"></a>data_pa <span class="ot">=</span></span>
+<span id="cb126-39"><a href="difference-in-difference.html#cb126-39" tabindex="-1"></a>  <span class="co">#fread(&quot;data_tidy/BDD_PA_AFD_ie.csv&quot; , encoding = &quot;UTF-8&quot;)</span></span>
+<span id="cb126-40"><a href="difference-in-difference.html#cb126-40" tabindex="-1"></a>  aws.s3<span class="sc">::</span><span class="fu">s3read_using</span>(</span>
+<span id="cb126-41"><a href="difference-in-difference.html#cb126-41" tabindex="-1"></a>  <span class="at">FUN =</span> data.table<span class="sc">::</span>fread,</span>
+<span id="cb126-42"><a href="difference-in-difference.html#cb126-42" tabindex="-1"></a>  <span class="at">encoding =</span> <span class="st">&quot;UTF-8&quot;</span>,</span>
+<span id="cb126-43"><a href="difference-in-difference.html#cb126-43" tabindex="-1"></a>  <span class="at">object =</span> <span class="st">&quot;data_tidy/BDD_PA_MDG.csv&quot;</span>,</span>
+<span id="cb126-44"><a href="difference-in-difference.html#cb126-44" tabindex="-1"></a>  <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb126-45"><a href="difference-in-difference.html#cb126-45" tabindex="-1"></a>  <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>))</span>
+<span id="cb126-46"><a href="difference-in-difference.html#cb126-46" tabindex="-1"></a></span>
+<span id="cb126-47"><a href="difference-in-difference.html#cb126-47" tabindex="-1"></a><span class="co"># The list of countries (ISO3 codes) to analyze. This can be define manually or from the the dataset loaded.</span></span>
+<span id="cb126-48"><a href="difference-in-difference.html#cb126-48" tabindex="-1"></a></span>
+<span id="cb126-49"><a href="difference-in-difference.html#cb126-49" tabindex="-1"></a><span class="co"># list_iso = data_pa %&gt;%</span></span>
+<span id="cb126-50"><a href="difference-in-difference.html#cb126-50" tabindex="-1"></a><span class="co">#   filter(region == &quot;Africa&quot;) %&gt;%</span></span>
+<span id="cb126-51"><a href="difference-in-difference.html#cb126-51" tabindex="-1"></a><span class="co">#   filter(!(iso3 %in% c(&quot;ZZ&quot;)))</span></span>
+<span id="cb126-52"><a href="difference-in-difference.html#cb126-52" tabindex="-1"></a><span class="co"># list_iso = unique(list_iso$iso3)</span></span>
+<span id="cb126-53"><a href="difference-in-difference.html#cb126-53" tabindex="-1"></a></span>
+<span id="cb126-54"><a href="difference-in-difference.html#cb126-54" tabindex="-1"></a>list_iso <span class="ot">=</span> <span class="st">&quot;MDG&quot;</span></span>
+<span id="cb126-55"><a href="difference-in-difference.html#cb126-55" tabindex="-1"></a></span>
+<span id="cb126-56"><a href="difference-in-difference.html#cb126-56" tabindex="-1"></a><span class="do">## Information on funding from AFD internal datasets, on AFD funded projects related to protected areas.</span></span>
+<span id="cb126-57"><a href="difference-in-difference.html#cb126-57" tabindex="-1"></a>data_fund <span class="ot">=</span> </span>
+<span id="cb126-58"><a href="difference-in-difference.html#cb126-58" tabindex="-1"></a>  <span class="co">#fread(&quot;data_tidy/BDD_PA_AFD_fund.csv&quot;)</span></span>
+<span id="cb126-59"><a href="difference-in-difference.html#cb126-59" tabindex="-1"></a>  aws.s3<span class="sc">::</span><span class="fu">s3read_using</span>(</span>
+<span id="cb126-60"><a href="difference-in-difference.html#cb126-60" tabindex="-1"></a>  <span class="at">FUN =</span> data.table<span class="sc">::</span>fread,</span>
+<span id="cb126-61"><a href="difference-in-difference.html#cb126-61" tabindex="-1"></a>  <span class="at">encoding =</span> <span class="st">&quot;UTF-8&quot;</span>,</span>
+<span id="cb126-62"><a href="difference-in-difference.html#cb126-62" tabindex="-1"></a>  <span class="co"># Mettre les options de FUN ici</span></span>
+<span id="cb126-63"><a href="difference-in-difference.html#cb126-63" tabindex="-1"></a>  <span class="at">object =</span> <span class="st">&quot;data_tidy/BDD_PA_AFD_fund.csv&quot;</span>,</span>
+<span id="cb126-64"><a href="difference-in-difference.html#cb126-64" tabindex="-1"></a>  <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb126-65"><a href="difference-in-difference.html#cb126-65" tabindex="-1"></a>  <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>))</span>
+<span id="cb126-66"><a href="difference-in-difference.html#cb126-66" tabindex="-1"></a>data_fund_nodupl <span class="ot">=</span> data_fund <span class="sc">%&gt;%</span></span>
+<span id="cb126-67"><a href="difference-in-difference.html#cb126-67" tabindex="-1"></a>  <span class="fu">group_by</span>(id_projet) <span class="sc">%&gt;%</span></span>
+<span id="cb126-68"><a href="difference-in-difference.html#cb126-68" tabindex="-1"></a>  <span class="fu">slice</span>(<span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb126-69"><a href="difference-in-difference.html#cb126-69" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb126-70"><a href="difference-in-difference.html#cb126-70" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="sc">-</span><span class="fu">c</span>(<span class="st">&quot;mt_part_cofinancier_prevu_euro&quot;</span>, <span class="st">&quot;cofinanciers_siop&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb126-71"><a href="difference-in-difference.html#cb126-71" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">kfw =</span> <span class="fu">grepl</span>(<span class="st">&quot;kfw&quot;</span>, cofinanciers, <span class="at">ignore.case =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb126-72"><a href="difference-in-difference.html#cb126-72" tabindex="-1"></a>         <span class="at">ffem =</span> <span class="fu">grepl</span>(<span class="st">&quot;ffem&quot;</span>, cofinanciers, <span class="at">ignore.case =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb126-73"><a href="difference-in-difference.html#cb126-73" tabindex="-1"></a></span>
+<span id="cb126-74"><a href="difference-in-difference.html#cb126-74" tabindex="-1"></a><span class="do">## List of projects related to protected areas in AFD, reported by technical departments</span></span>
+<span id="cb126-75"><a href="difference-in-difference.html#cb126-75" tabindex="-1"></a>data_pa_report <span class="ot">=</span> </span>
+<span id="cb126-76"><a href="difference-in-difference.html#cb126-76" tabindex="-1"></a>  <span class="co">#read_delim(&quot;data_raw/BDD_PA_AFD.csv&quot;, delim = &quot;;&quot;)</span></span>
+<span id="cb126-77"><a href="difference-in-difference.html#cb126-77" tabindex="-1"></a>  <span class="fu">s3read_using</span>(readr<span class="sc">::</span>read_delim,</span>
+<span id="cb126-78"><a href="difference-in-difference.html#cb126-78" tabindex="-1"></a>                <span class="at">delim =</span> <span class="st">&quot;;&quot;</span>,</span>
+<span id="cb126-79"><a href="difference-in-difference.html#cb126-79" tabindex="-1"></a>               <span class="at">show_col_types =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb126-80"><a href="difference-in-difference.html#cb126-80" tabindex="-1"></a>                <span class="at">object =</span> <span class="st">&quot;data_raw/BDD_PA_AFD.csv&quot;</span>,</span>
+<span id="cb126-81"><a href="difference-in-difference.html#cb126-81" tabindex="-1"></a>                <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb126-82"><a href="difference-in-difference.html#cb126-82" tabindex="-1"></a>                <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb126-83"><a href="difference-in-difference.html#cb126-83" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">key =</span> <span class="fu">paste</span>(id_projet, nom_ap, wdpaid, <span class="at">sep =</span> <span class="st">&quot;_&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb126-84"><a href="difference-in-difference.html#cb126-84" tabindex="-1"></a>  <span class="fu">group_by</span>(key) <span class="sc">%&gt;%</span></span>
+<span id="cb126-85"><a href="difference-in-difference.html#cb126-85" tabindex="-1"></a>  <span class="fu">slice</span>(<span class="dv">1</span>)</span>
+<span id="cb126-86"><a href="difference-in-difference.html#cb126-86" tabindex="-1"></a></span>
+<span id="cb126-87"><a href="difference-in-difference.html#cb126-87" tabindex="-1"></a><span class="co">#Specify the period of study to create the mapme.bidiversity portfolio</span></span>
+<span id="cb126-88"><a href="difference-in-difference.html#cb126-88" tabindex="-1"></a><span class="do">## Start year</span></span>
+<span id="cb126-89"><a href="difference-in-difference.html#cb126-89" tabindex="-1"></a>yr_first <span class="ot">=</span> <span class="dv">2000</span></span>
+<span id="cb126-90"><a href="difference-in-difference.html#cb126-90" tabindex="-1"></a><span class="do">## End year</span></span>
+<span id="cb126-91"><a href="difference-in-difference.html#cb126-91" tabindex="-1"></a>yr_last <span class="ot">=</span> <span class="dv">2021</span></span>
+<span id="cb126-92"><a href="difference-in-difference.html#cb126-92" tabindex="-1"></a></span>
+<span id="cb126-93"><a href="difference-in-difference.html#cb126-93" tabindex="-1"></a><span class="co">#Specify the margin of error to define confidence interval (0.05 corresponds 95% confidence interval).</span></span>
+<span id="cb126-94"><a href="difference-in-difference.html#cb126-94" tabindex="-1"></a>alpha <span class="ot">=</span> <span class="fl">0.05</span></span></code></pre></div>
+</div>
+<div id="computing-treatment-effects-at-protected-area-level" class="section level2 hasAnchor" number="6.3">
+<h2><span class="header-section-number">6.3</span> Computing treatment effects at protected area level<a href="difference-in-difference.html#computing-treatment-effects-at-protected-area-level" class="anchor-section" aria-label="Anchor link to header"></a></h2>
+<div class="sourceCode" id="cb127"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb127-1"><a href="difference-in-difference.html#cb127-1" tabindex="-1"></a><span class="co">#For each country in the list, the different steps of the processing are performed</span></span>
+<span id="cb127-2"><a href="difference-in-difference.html#cb127-2" tabindex="-1"></a>count_i <span class="ot">=</span> <span class="dv">0</span> <span class="co">#Initialize counter</span></span>
+<span id="cb127-3"><a href="difference-in-difference.html#cb127-3" tabindex="-1"></a>max_i <span class="ot">=</span> <span class="fu">length</span>(list_iso) <span class="co">#Max value of the counter</span></span>
+<span id="cb127-4"><a href="difference-in-difference.html#cb127-4" tabindex="-1"></a>tic <span class="ot">=</span> <span class="fu">tic</span>() <span class="co">#Start timer</span></span>
+<span id="cb127-5"><a href="difference-in-difference.html#cb127-5" tabindex="-1"></a><span class="co">#Create empty dataframes that will store the treatment effects computed for each protected area in the portfolio. </span></span>
+<span id="cb127-6"><a href="difference-in-difference.html#cb127-6" tabindex="-1"></a><span class="do">##Initialize a dataframe to store annual deforestation rate for each PA, à la Wolf et al. 2021</span></span>
+<span id="cb127-7"><a href="difference-in-difference.html#cb127-7" tabindex="-1"></a>df_fl_annual_wolf <span class="ot">=</span> <span class="fu">data.frame</span>()</span>
+<span id="cb127-8"><a href="difference-in-difference.html#cb127-8" tabindex="-1"></a><span class="do">##Initialize a dataframe to store treatment effects of all PA analyzed</span></span>
+<span id="cb127-9"><a href="difference-in-difference.html#cb127-9" tabindex="-1"></a>df_fc_att <span class="ot">=</span> <span class="fu">data.frame</span>() <span class="co">#Effect on forest cover for matched units</span></span>
+<span id="cb127-10"><a href="difference-in-difference.html#cb127-10" tabindex="-1"></a><span class="do">##df_fc_att_unm = data.frame() #Effect on forest cover for unmacthed units</span></span>
+<span id="cb127-11"><a href="difference-in-difference.html#cb127-11" tabindex="-1"></a>df_fl_att <span class="ot">=</span> <span class="fu">data.frame</span>() <span class="co">#Effect on deforestation relative to 2000</span></span>
+<span id="cb127-12"><a href="difference-in-difference.html#cb127-12" tabindex="-1"></a><span class="do">##Initialize a dataframe to store forest loss for visual evidence before/after matching</span></span>
+<span id="cb127-13"><a href="difference-in-difference.html#cb127-13" tabindex="-1"></a>df_plot_forest_loss <span class="ot">=</span> <span class="fu">data.frame</span>()</span>
+<span id="cb127-14"><a href="difference-in-difference.html#cb127-14" tabindex="-1"></a></span>
+<span id="cb127-15"><a href="difference-in-difference.html#cb127-15" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> list_iso)</span>
+<span id="cb127-16"><a href="difference-in-difference.html#cb127-16" tabindex="-1"></a>{</span>
+<span id="cb127-17"><a href="difference-in-difference.html#cb127-17" tabindex="-1"></a>  <span class="co">#Update counter and show progress</span></span>
+<span id="cb127-18"><a href="difference-in-difference.html#cb127-18" tabindex="-1"></a>  count_i <span class="ot">=</span> count_i<span class="sc">+</span><span class="dv">1</span></span>
+<span id="cb127-19"><a href="difference-in-difference.html#cb127-19" tabindex="-1"></a>  <span class="fu">print</span>(<span class="fu">paste0</span>(i, <span class="st">&quot; : country &quot;</span>, count_i, <span class="st">&quot;/&quot;</span>, max_i))</span>
+<span id="cb127-20"><a href="difference-in-difference.html#cb127-20" tabindex="-1"></a>  </span>
+<span id="cb127-21"><a href="difference-in-difference.html#cb127-21" tabindex="-1"></a>  <span class="co">#Load the matching frame</span></span>
+<span id="cb127-22"><a href="difference-in-difference.html#cb127-22" tabindex="-1"></a>  <span class="fu">print</span>(<span class="st">&quot;--Loading the list of PAs in the country considered&quot;</span>)</span>
+<span id="cb127-23"><a href="difference-in-difference.html#cb127-23" tabindex="-1"></a>  output_pa_i <span class="ot">=</span> <span class="fu">fn_did_list_pa</span>(<span class="at">iso =</span> i, <span class="at">load_dir =</span> load_dir)</span>
+<span id="cb127-24"><a href="difference-in-difference.html#cb127-24" tabindex="-1"></a>  <span class="cf">if</span>(output_pa_i<span class="sc">$</span>is_ok <span class="sc">==</span> <span class="cn">FALSE</span>) {<span class="cf">next</span>} <span class="cf">else</span> list_pa_i <span class="ot">=</span> output_pa_i<span class="sc">$</span>list_pa</span>
+<span id="cb127-25"><a href="difference-in-difference.html#cb127-25" tabindex="-1"></a>  </span>
+<span id="cb127-26"><a href="difference-in-difference.html#cb127-26" tabindex="-1"></a>  count_j <span class="ot">=</span> <span class="dv">0</span></span>
+<span id="cb127-27"><a href="difference-in-difference.html#cb127-27" tabindex="-1"></a>  max_j <span class="ot">=</span> <span class="fu">length</span>(list_pa_i)</span>
+<span id="cb127-28"><a href="difference-in-difference.html#cb127-28" tabindex="-1"></a>  </span>
+<span id="cb127-29"><a href="difference-in-difference.html#cb127-29" tabindex="-1"></a>  <span class="cf">for</span>(j <span class="cf">in</span> list_pa_i)</span>
+<span id="cb127-30"><a href="difference-in-difference.html#cb127-30" tabindex="-1"></a>  {</span>
+<span id="cb127-31"><a href="difference-in-difference.html#cb127-31" tabindex="-1"></a>    </span>
+<span id="cb127-32"><a href="difference-in-difference.html#cb127-32" tabindex="-1"></a>    count_j <span class="ot">=</span> count_j<span class="sc">+</span><span class="dv">1</span></span>
+<span id="cb127-33"><a href="difference-in-difference.html#cb127-33" tabindex="-1"></a>    <span class="fu">print</span>(<span class="fu">paste0</span>(<span class="st">&quot;WDPA ID &quot;</span>, j, <span class="st">&quot; : &quot;</span>, count_j, <span class="st">&quot;/&quot;</span>, max_j))</span>
+<span id="cb127-34"><a href="difference-in-difference.html#cb127-34" tabindex="-1"></a>    </span>
+<span id="cb127-35"><a href="difference-in-difference.html#cb127-35" tabindex="-1"></a>    <span class="co">#Compute annual deforestation rates in treated and control matched areas, à la Wolf et al. 2021.</span></span>
+<span id="cb127-36"><a href="difference-in-difference.html#cb127-36" tabindex="-1"></a>    <span class="fu">print</span>(<span class="st">&quot;--Compute average deforestation rates à la Wolf et al. 2021&quot;</span>)</span>
+<span id="cb127-37"><a href="difference-in-difference.html#cb127-37" tabindex="-1"></a>    output_wolf_m_j <span class="ot">=</span> <span class="fu">fn_fl_wolf</span>(<span class="at">iso =</span> i, </span>
+<span id="cb127-38"><a href="difference-in-difference.html#cb127-38" tabindex="-1"></a>                                <span class="at">wdpaid =</span> j, </span>
+<span id="cb127-39"><a href="difference-in-difference.html#cb127-39" tabindex="-1"></a>                                <span class="at">alpha =</span> alpha, </span>
+<span id="cb127-40"><a href="difference-in-difference.html#cb127-40" tabindex="-1"></a>                                <span class="at">load_dir =</span> load_dir,</span>
+<span id="cb127-41"><a href="difference-in-difference.html#cb127-41" tabindex="-1"></a>                                <span class="at">ext_input =</span> <span class="st">&quot;.csv&quot;</span>)</span>
+<span id="cb127-42"><a href="difference-in-difference.html#cb127-42" tabindex="-1"></a>    </span>
+<span id="cb127-43"><a href="difference-in-difference.html#cb127-43" tabindex="-1"></a>    <span class="cf">if</span>(output_wolf_m_j<span class="sc">$</span>is_ok <span class="sc">==</span> <span class="cn">FALSE</span>) </span>
+<span id="cb127-44"><a href="difference-in-difference.html#cb127-44" tabindex="-1"></a>      {</span>
+<span id="cb127-45"><a href="difference-in-difference.html#cb127-45" tabindex="-1"></a>      <span class="cf">next</span></span>
+<span id="cb127-46"><a href="difference-in-difference.html#cb127-46" tabindex="-1"></a>      } <span class="cf">else</span> df_fl_wolf_m_j <span class="ot">=</span> output_wolf_m_j<span class="sc">$</span>df_fl_wolf_m_j</span>
+<span id="cb127-47"><a href="difference-in-difference.html#cb127-47" tabindex="-1"></a>    df_fl_annual_wolf <span class="ot">=</span> <span class="fu">rbind</span>(df_fl_annual_wolf, df_fl_wolf_m_j)</span>
+<span id="cb127-48"><a href="difference-in-difference.html#cb127-48" tabindex="-1"></a>    </span>
+<span id="cb127-49"><a href="difference-in-difference.html#cb127-49" tabindex="-1"></a>    <span class="co">#Compute treatment effects</span></span>
+<span id="cb127-50"><a href="difference-in-difference.html#cb127-50" tabindex="-1"></a>    <span class="fu">print</span>(<span class="st">&quot;--Compute treatment effects&quot;</span>)</span>
+<span id="cb127-51"><a href="difference-in-difference.html#cb127-51" tabindex="-1"></a>    <span class="fu">print</span>(<span class="st">&quot;----For matched units&quot;</span>)</span>
+<span id="cb127-52"><a href="difference-in-difference.html#cb127-52" tabindex="-1"></a>    </span>
+<span id="cb127-53"><a href="difference-in-difference.html#cb127-53" tabindex="-1"></a>    <span class="co">#For AFD projects (funding info)</span></span>
+<span id="cb127-54"><a href="difference-in-difference.html#cb127-54" tabindex="-1"></a>    <span class="co"># output_att_m_j = fn_did_att_afd(iso = i, wdpaid = j, </span></span>
+<span id="cb127-55"><a href="difference-in-difference.html#cb127-55" tabindex="-1"></a>    <span class="co">#                       is_m = TRUE,</span></span>
+<span id="cb127-56"><a href="difference-in-difference.html#cb127-56" tabindex="-1"></a>    <span class="co">#                   data_pa = data_pa,</span></span>
+<span id="cb127-57"><a href="difference-in-difference.html#cb127-57" tabindex="-1"></a>    <span class="co">#                   data_fund = data_fund_nodupl,</span></span>
+<span id="cb127-58"><a href="difference-in-difference.html#cb127-58" tabindex="-1"></a>    <span class="co">#                   data_report = data_pa_report,</span></span>
+<span id="cb127-59"><a href="difference-in-difference.html#cb127-59" tabindex="-1"></a>    <span class="co">#                   alpha = alpha,</span></span>
+<span id="cb127-60"><a href="difference-in-difference.html#cb127-60" tabindex="-1"></a>    <span class="co">#                   load_dir = load_dir,</span></span>
+<span id="cb127-61"><a href="difference-in-difference.html#cb127-61" tabindex="-1"></a>    <span class="co">#                   ext_input = &quot;.csv&quot;,</span></span>
+<span id="cb127-62"><a href="difference-in-difference.html#cb127-62" tabindex="-1"></a>    <span class="co">#                   save_dir = save_dir)</span></span>
+<span id="cb127-63"><a href="difference-in-difference.html#cb127-63" tabindex="-1"></a>    </span>
+<span id="cb127-64"><a href="difference-in-difference.html#cb127-64" tabindex="-1"></a>    <span class="co">#For PAs in general (no funding info)</span></span>
+<span id="cb127-65"><a href="difference-in-difference.html#cb127-65" tabindex="-1"></a>      output_att_m_j <span class="ot">=</span> <span class="fu">fn_did_att_general</span>(<span class="at">iso =</span> i, <span class="at">wdpaid =</span> j, </span>
+<span id="cb127-66"><a href="difference-in-difference.html#cb127-66" tabindex="-1"></a>                        <span class="at">is_m =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb127-67"><a href="difference-in-difference.html#cb127-67" tabindex="-1"></a>                    <span class="at">data_pa =</span> data_pa,</span>
+<span id="cb127-68"><a href="difference-in-difference.html#cb127-68" tabindex="-1"></a>                    <span class="at">alpha =</span> alpha,</span>
+<span id="cb127-69"><a href="difference-in-difference.html#cb127-69" tabindex="-1"></a>                    <span class="at">load_dir =</span> load_dir,</span>
+<span id="cb127-70"><a href="difference-in-difference.html#cb127-70" tabindex="-1"></a>                    <span class="at">ext_input =</span> <span class="st">&quot;.csv&quot;</span>,</span>
+<span id="cb127-71"><a href="difference-in-difference.html#cb127-71" tabindex="-1"></a>                    <span class="at">save_dir =</span> save_dir)</span>
+<span id="cb127-72"><a href="difference-in-difference.html#cb127-72" tabindex="-1"></a>    </span>
+<span id="cb127-73"><a href="difference-in-difference.html#cb127-73" tabindex="-1"></a>    <span class="cf">if</span>(output_att_m_j<span class="sc">$</span>is_ok <span class="sc">==</span> <span class="cn">FALSE</span>) {<span class="cf">next</span>} <span class="cf">else</span> df_att_m_j <span class="ot">=</span> output_att_m_j</span>
+<span id="cb127-74"><a href="difference-in-difference.html#cb127-74" tabindex="-1"></a>    </span>
+<span id="cb127-75"><a href="difference-in-difference.html#cb127-75" tabindex="-1"></a>    df_fc_att <span class="ot">=</span> <span class="fu">rbind</span>(df_fc_att, df_att_m_j<span class="sc">$</span>df_fc_att)</span>
+<span id="cb127-76"><a href="difference-in-difference.html#cb127-76" tabindex="-1"></a>    df_fl_att <span class="ot">=</span> <span class="fu">rbind</span>(df_fl_att, df_att_m_j<span class="sc">$</span>df_fl_att)</span>
+<span id="cb127-77"><a href="difference-in-difference.html#cb127-77" tabindex="-1"></a>        </span>
+<span id="cb127-78"><a href="difference-in-difference.html#cb127-78" tabindex="-1"></a>    <span class="fu">print</span>(<span class="st">&quot;----For unmatched units&quot;</span>)</span>
+<span id="cb127-79"><a href="difference-in-difference.html#cb127-79" tabindex="-1"></a>    </span>
+<span id="cb127-80"><a href="difference-in-difference.html#cb127-80" tabindex="-1"></a>    <span class="co">#For AFD PAs (funding info known)</span></span>
+<span id="cb127-81"><a href="difference-in-difference.html#cb127-81" tabindex="-1"></a>    <span class="co"># df_att_unm_j = fn_did_att_afd(iso = i, wdpaid = j, </span></span>
+<span id="cb127-82"><a href="difference-in-difference.html#cb127-82" tabindex="-1"></a>    <span class="co">#                       is_m = FALSE,</span></span>
+<span id="cb127-83"><a href="difference-in-difference.html#cb127-83" tabindex="-1"></a>    <span class="co">#                   data_pa = data_pa,</span></span>
+<span id="cb127-84"><a href="difference-in-difference.html#cb127-84" tabindex="-1"></a>    <span class="co">#                   alpha = 0.05,</span></span>
+<span id="cb127-85"><a href="difference-in-difference.html#cb127-85" tabindex="-1"></a>    <span class="co">#                   load_dir = load_dir,</span></span>
+<span id="cb127-86"><a href="difference-in-difference.html#cb127-86" tabindex="-1"></a>    <span class="co">#                   ext_input = &quot;.csv&quot;,</span></span>
+<span id="cb127-87"><a href="difference-in-difference.html#cb127-87" tabindex="-1"></a>    <span class="co">#                   save_dir = save_dir)</span></span>
+<span id="cb127-88"><a href="difference-in-difference.html#cb127-88" tabindex="-1"></a>    <span class="co"># df_fc_att_unm = rbind(df_fc_att_unm, df_att_unm_j$df_fc_att)</span></span>
+<span id="cb127-89"><a href="difference-in-difference.html#cb127-89" tabindex="-1"></a>    <span class="co"># df_fl_att_unm = rbind(df_fl_att, df_att_unm_j$df_fl_att)</span></span>
+<span id="cb127-90"><a href="difference-in-difference.html#cb127-90" tabindex="-1"></a>    </span>
+<span id="cb127-91"><a href="difference-in-difference.html#cb127-91" tabindex="-1"></a>    <span class="co">#For general PAs (funding info unknown)</span></span>
+<span id="cb127-92"><a href="difference-in-difference.html#cb127-92" tabindex="-1"></a>    <span class="co"># df_att_unm_j = fn_did_att_general(iso = i, wdpaid = j, </span></span>
+<span id="cb127-93"><a href="difference-in-difference.html#cb127-93" tabindex="-1"></a>    <span class="co">#                       is_m = FALSE,</span></span>
+<span id="cb127-94"><a href="difference-in-difference.html#cb127-94" tabindex="-1"></a>    <span class="co">#                   data_pa = data_pa,</span></span>
+<span id="cb127-95"><a href="difference-in-difference.html#cb127-95" tabindex="-1"></a>    <span class="co">#                   alpha = 0.05,</span></span>
+<span id="cb127-96"><a href="difference-in-difference.html#cb127-96" tabindex="-1"></a>    <span class="co">#                   load_dir = load_dir,</span></span>
+<span id="cb127-97"><a href="difference-in-difference.html#cb127-97" tabindex="-1"></a>    <span class="co">#                   ext_input = &quot;.csv&quot;,</span></span>
+<span id="cb127-98"><a href="difference-in-difference.html#cb127-98" tabindex="-1"></a>    <span class="co">#                   save_dir = save_dir)    </span></span>
+<span id="cb127-99"><a href="difference-in-difference.html#cb127-99" tabindex="-1"></a>    <span class="co"># df_fc_att_unm = rbind(df_fc_att_unm, df_att_unm_j$df_fc_att)</span></span>
+<span id="cb127-100"><a href="difference-in-difference.html#cb127-100" tabindex="-1"></a>    <span class="co"># df_fl_att_unm = rbind(df_fl_att, df_att_unm_j$df_fl_att)</span></span>
+<span id="cb127-101"><a href="difference-in-difference.html#cb127-101" tabindex="-1"></a>    </span>
+<span id="cb127-102"><a href="difference-in-difference.html#cb127-102" tabindex="-1"></a>    <span class="co">#Plot visual evidence before-after matching</span></span>
+<span id="cb127-103"><a href="difference-in-difference.html#cb127-103" tabindex="-1"></a>    <span class="fu">print</span>(<span class="st">&quot;--Plot visual evidence before-after matching&quot;</span>)</span>
+<span id="cb127-104"><a href="difference-in-difference.html#cb127-104" tabindex="-1"></a>    df_plot_forest_loss_j <span class="ot">=</span> <span class="fu">fn_plot_forest_loss</span>(<span class="at">iso =</span> i, </span>
+<span id="cb127-105"><a href="difference-in-difference.html#cb127-105" tabindex="-1"></a>                                                <span class="at">wdpaid =</span> j, </span>
+<span id="cb127-106"><a href="difference-in-difference.html#cb127-106" tabindex="-1"></a>                                                <span class="at">alpha =</span> alpha,</span>
+<span id="cb127-107"><a href="difference-in-difference.html#cb127-107" tabindex="-1"></a>                                                <span class="at">data_pa =</span> data_pa, </span>
+<span id="cb127-108"><a href="difference-in-difference.html#cb127-108" tabindex="-1"></a>                                                <span class="at">load_dir =</span> load_dir, </span>
+<span id="cb127-109"><a href="difference-in-difference.html#cb127-109" tabindex="-1"></a>                                                <span class="at">ext_input =</span> <span class="st">&quot;.csv&quot;</span>, </span>
+<span id="cb127-110"><a href="difference-in-difference.html#cb127-110" tabindex="-1"></a>                                                <span class="at">save_dir =</span> save_dir)</span>
+<span id="cb127-111"><a href="difference-in-difference.html#cb127-111" tabindex="-1"></a>    df_plot_forest_loss <span class="ot">=</span> <span class="fu">rbind</span>(df_plot_forest_loss, df_plot_forest_loss_j)</span>
+<span id="cb127-112"><a href="difference-in-difference.html#cb127-112" tabindex="-1"></a></span>
+<span id="cb127-113"><a href="difference-in-difference.html#cb127-113" tabindex="-1"></a>  }  </span>
+<span id="cb127-114"><a href="difference-in-difference.html#cb127-114" tabindex="-1"></a></span>
+<span id="cb127-115"><a href="difference-in-difference.html#cb127-115" tabindex="-1"></a>  </span>
+<span id="cb127-116"><a href="difference-in-difference.html#cb127-116" tabindex="-1"></a>  </span>
+<span id="cb127-117"><a href="difference-in-difference.html#cb127-117" tabindex="-1"></a>}</span>
+<span id="cb127-118"><a href="difference-in-difference.html#cb127-118" tabindex="-1"></a></span>
+<span id="cb127-119"><a href="difference-in-difference.html#cb127-119" tabindex="-1"></a><span class="co">#Finally save the treatment effects computed for every protected areas analyzed</span></span>
+<span id="cb127-120"><a href="difference-in-difference.html#cb127-120" tabindex="-1"></a><span class="do">## Treatment effect expressed in forest cover loss avoided (ha)</span></span>
+<span id="cb127-121"><a href="difference-in-difference.html#cb127-121" tabindex="-1"></a>aws.s3<span class="sc">::</span><span class="fu">s3write_using</span>(</span>
+<span id="cb127-122"><a href="difference-in-difference.html#cb127-122" tabindex="-1"></a><span class="at">FUN =</span> data.table<span class="sc">::</span>fwrite,</span>
+<span id="cb127-123"><a href="difference-in-difference.html#cb127-123" tabindex="-1"></a>df_fc_att,</span>
+<span id="cb127-124"><a href="difference-in-difference.html#cb127-124" tabindex="-1"></a><span class="co"># Mettre les options de FUN ici</span></span>
+<span id="cb127-125"><a href="difference-in-difference.html#cb127-125" tabindex="-1"></a><span class="at">object =</span> <span class="fu">paste</span>(save_dir, <span class="st">&quot;data_fc_att.csv&quot;</span>, <span class="at">sep =</span> <span class="st">&quot;/&quot;</span>),</span>
+<span id="cb127-126"><a href="difference-in-difference.html#cb127-126" tabindex="-1"></a><span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb127-127"><a href="difference-in-difference.html#cb127-127" tabindex="-1"></a><span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>))</span>
+<span id="cb127-128"><a href="difference-in-difference.html#cb127-128" tabindex="-1"></a><span class="do">## Treatment effect expressed in change of deforestation rate (percentage points)</span></span>
+<span id="cb127-129"><a href="difference-in-difference.html#cb127-129" tabindex="-1"></a>aws.s3<span class="sc">::</span><span class="fu">s3write_using</span>(</span>
+<span id="cb127-130"><a href="difference-in-difference.html#cb127-130" tabindex="-1"></a><span class="at">FUN =</span> data.table<span class="sc">::</span>fwrite,</span>
+<span id="cb127-131"><a href="difference-in-difference.html#cb127-131" tabindex="-1"></a>df_fl_att,</span>
+<span id="cb127-132"><a href="difference-in-difference.html#cb127-132" tabindex="-1"></a><span class="co"># Mettre les options de FUN ici bucket = , iso, wdpaid, sep = &quot;/&quot;)</span></span>
+<span id="cb127-133"><a href="difference-in-difference.html#cb127-133" tabindex="-1"></a><span class="at">object =</span> <span class="fu">paste</span>(save_dir, <span class="st">&quot;data_fl_att.csv&quot;</span>, <span class="at">sep =</span> <span class="st">&quot;/&quot;</span>), </span>
+<span id="cb127-134"><a href="difference-in-difference.html#cb127-134" tabindex="-1"></a><span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb127-135"><a href="difference-in-difference.html#cb127-135" tabindex="-1"></a><span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>))</span>
+<span id="cb127-136"><a href="difference-in-difference.html#cb127-136" tabindex="-1"></a></span>
+<span id="cb127-137"><a href="difference-in-difference.html#cb127-137" tabindex="-1"></a>toc <span class="ot">=</span> <span class="fu">toc</span>()</span></code></pre></div>
+</div>
+<div id="compute-aggregated-metrics-at-country-and-region-level" class="section level2 hasAnchor" number="6.4">
+<h2><span class="header-section-number">6.4</span> Compute aggregated metrics at country and region level<a href="difference-in-difference.html#compute-aggregated-metrics-at-country-and-region-level" class="anchor-section" aria-label="Anchor link to header"></a></h2>
+<p>The aggregation of results at country and regional level is not necessarily relevant when the number of protected areas by country or region is relatively small and results heterogenous across protected areas. Instead, a figure displaying the results for all protected areas in the sample might be mor relevant. See next section.</p>
+<div id="aggregation-of-treatment-effects" class="section level3 hasAnchor" number="6.4.1">
+<h3><span class="header-section-number">6.4.1</span> Aggregation of treatment effects<a href="difference-in-difference.html#aggregation-of-treatment-effects" class="anchor-section" aria-label="Anchor link to header"></a></h3>
+<div class="sourceCode" id="cb128"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb128-1"><a href="difference-in-difference.html#cb128-1" tabindex="-1"></a><span class="co">#Treatment effects are aggregated by region and country</span></span>
+<span id="cb128-2"><a href="difference-in-difference.html#cb128-2" tabindex="-1"></a><span class="co">#For total avoided deforestation in ha, treatment effects are summed and so are the confidence intervals (CI).</span></span>
+<span id="cb128-3"><a href="difference-in-difference.html#cb128-3" tabindex="-1"></a><span class="do">## If the CI of a treatment effect is NA, then the CI for total treatment effects is NA also. Otherwise CI will be downward biased.</span></span>
+<span id="cb128-4"><a href="difference-in-difference.html#cb128-4" tabindex="-1"></a><span class="co">#For avoided deforestation in % of 2000 forest cover, treatment effects are averaged and so are CI. CI being NA is less a problem here as we use a mean, not a sum</span></span>
+<span id="cb128-5"><a href="difference-in-difference.html#cb128-5" tabindex="-1"></a></span>
+<span id="cb128-6"><a href="difference-in-difference.html#cb128-6" tabindex="-1"></a>avg_att_fc_ctry <span class="ot">=</span> df_fc_att <span class="sc">%&gt;%</span></span>
+<span id="cb128-7"><a href="difference-in-difference.html#cb128-7" tabindex="-1"></a>  <span class="fu">group_by</span>(region, iso3, time) <span class="sc">%&gt;%</span></span>
+<span id="cb128-8"><a href="difference-in-difference.html#cb128-8" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">n_obs =</span> <span class="fu">n</span>(),</span>
+<span id="cb128-9"><a href="difference-in-difference.html#cb128-9" tabindex="-1"></a>            <span class="at">att_per_mean =</span> <span class="fu">mean</span>(att_per, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb128-10"><a href="difference-in-difference.html#cb128-10" tabindex="-1"></a>            <span class="at">cband_lower_per =</span> <span class="fu">mean</span>(cband_lower_per, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb128-11"><a href="difference-in-difference.html#cb128-11" tabindex="-1"></a>            <span class="at">cband_upper_per =</span> <span class="fu">mean</span>(cband_upper_per, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb128-12"><a href="difference-in-difference.html#cb128-12" tabindex="-1"></a>            <span class="at">att_pa_tot =</span> <span class="fu">sum</span>(att_pa, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb128-13"><a href="difference-in-difference.html#cb128-13" tabindex="-1"></a>            <span class="at">cband_lower_pa =</span> <span class="fu">sum</span>(cband_lower_pa, <span class="at">na.rm =</span> <span class="cn">FALSE</span>),</span>
+<span id="cb128-14"><a href="difference-in-difference.html#cb128-14" tabindex="-1"></a>            <span class="at">cband_upper_pa =</span> <span class="fu">sum</span>(cband_upper_pa, <span class="at">na.rm =</span> <span class="cn">FALSE</span>))</span>
+<span id="cb128-15"><a href="difference-in-difference.html#cb128-15" tabindex="-1"></a></span>
+<span id="cb128-16"><a href="difference-in-difference.html#cb128-16" tabindex="-1"></a>avg_att_fc_region <span class="ot">=</span> df_fc_att <span class="sc">%&gt;%</span></span>
+<span id="cb128-17"><a href="difference-in-difference.html#cb128-17" tabindex="-1"></a>  <span class="fu">group_by</span>(region, time) <span class="sc">%&gt;%</span></span>
+<span id="cb128-18"><a href="difference-in-difference.html#cb128-18" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">n_obs =</span> <span class="fu">n</span>(),</span>
+<span id="cb128-19"><a href="difference-in-difference.html#cb128-19" tabindex="-1"></a>            <span class="at">att_per_mean =</span> <span class="fu">mean</span>(att_per, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb128-20"><a href="difference-in-difference.html#cb128-20" tabindex="-1"></a>            <span class="at">cband_lower_per =</span> <span class="fu">mean</span>(cband_lower_per, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb128-21"><a href="difference-in-difference.html#cb128-21" tabindex="-1"></a>            <span class="at">cband_upper_per =</span> <span class="fu">mean</span>(cband_upper_per, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb128-22"><a href="difference-in-difference.html#cb128-22" tabindex="-1"></a>            <span class="at">att_pa_tot =</span> <span class="fu">sum</span>(att_pa, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb128-23"><a href="difference-in-difference.html#cb128-23" tabindex="-1"></a>            <span class="at">cband_lower_pa =</span> <span class="fu">sum</span>(cband_lower_pa, <span class="at">na.rm =</span> <span class="cn">FALSE</span>),</span>
+<span id="cb128-24"><a href="difference-in-difference.html#cb128-24" tabindex="-1"></a>            <span class="at">cband_upper_pa =</span> <span class="fu">sum</span>(cband_upper_pa, <span class="at">na.rm =</span> <span class="cn">FALSE</span>))</span>
+<span id="cb128-25"><a href="difference-in-difference.html#cb128-25" tabindex="-1"></a></span>
+<span id="cb128-26"><a href="difference-in-difference.html#cb128-26" tabindex="-1"></a>avg_att_fl_ctry <span class="ot">=</span> df_fl_att <span class="sc">%&gt;%</span></span>
+<span id="cb128-27"><a href="difference-in-difference.html#cb128-27" tabindex="-1"></a>  <span class="fu">group_by</span>(region, iso3, time) <span class="sc">%&gt;%</span></span>
+<span id="cb128-28"><a href="difference-in-difference.html#cb128-28" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">n_obs =</span> <span class="fu">n</span>(),</span>
+<span id="cb128-29"><a href="difference-in-difference.html#cb128-29" tabindex="-1"></a>            <span class="at">att_mean =</span> <span class="fu">mean</span>(att, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb128-30"><a href="difference-in-difference.html#cb128-30" tabindex="-1"></a>            <span class="at">cband_lower =</span> <span class="fu">mean</span>(cband_lower, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb128-31"><a href="difference-in-difference.html#cb128-31" tabindex="-1"></a>            <span class="at">cband_upper =</span> <span class="fu">mean</span>(cband_upper, <span class="at">na.rm =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb128-32"><a href="difference-in-difference.html#cb128-32" tabindex="-1"></a></span>
+<span id="cb128-33"><a href="difference-in-difference.html#cb128-33" tabindex="-1"></a>avg_att_fl_region <span class="ot">=</span> df_fl_att <span class="sc">%&gt;%</span></span>
+<span id="cb128-34"><a href="difference-in-difference.html#cb128-34" tabindex="-1"></a>  <span class="fu">group_by</span>(region, time) <span class="sc">%&gt;%</span></span>
+<span id="cb128-35"><a href="difference-in-difference.html#cb128-35" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">n_obs =</span> <span class="fu">n</span>(),</span>
+<span id="cb128-36"><a href="difference-in-difference.html#cb128-36" tabindex="-1"></a>            <span class="at">att_mean =</span> <span class="fu">mean</span>(att, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb128-37"><a href="difference-in-difference.html#cb128-37" tabindex="-1"></a>            <span class="at">cband_lower =</span> <span class="fu">mean</span>(cband_lower, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb128-38"><a href="difference-in-difference.html#cb128-38" tabindex="-1"></a>            <span class="at">cband_upper =</span> <span class="fu">mean</span>(cband_upper, <span class="at">na.rm =</span> <span class="cn">TRUE</span>))</span></code></pre></div>
+</div>
+<div id="aggregation-of-annual-deforestation-rates" class="section level3 hasAnchor" number="6.4.2">
+<h3><span class="header-section-number">6.4.2</span> Aggregation of annual deforestation rates<a href="difference-in-difference.html#aggregation-of-annual-deforestation-rates" class="anchor-section" aria-label="Anchor link to header"></a></h3>
+<div class="sourceCode" id="cb129"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb129-1"><a href="difference-in-difference.html#cb129-1" tabindex="-1"></a><span class="co">#Aggregate at region level</span></span>
+<span id="cb129-2"><a href="difference-in-difference.html#cb129-2" tabindex="-1"></a><span class="do">## Compute for each region, for treated units, average annual deforestation rate before treatment, after treatment and on the full period. Confidence intervals are also computed.</span></span>
+<span id="cb129-3"><a href="difference-in-difference.html#cb129-3" tabindex="-1"></a>avg_fl_annual_wolf_region <span class="ot">=</span> df_fl_annual_wolf <span class="sc">%&gt;%</span></span>
+<span id="cb129-4"><a href="difference-in-difference.html#cb129-4" tabindex="-1"></a>  <span class="fu">filter</span>(group <span class="sc">==</span> <span class="st">&quot;Treated&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb129-5"><a href="difference-in-difference.html#cb129-5" tabindex="-1"></a>  <span class="fu">group_by</span>(region) <span class="sc">%&gt;%</span></span>
+<span id="cb129-6"><a href="difference-in-difference.html#cb129-6" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">avg_FL_annual_wolf_pre =</span> <span class="fu">mean</span>(avgFL_annual_wolf_pre, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb129-7"><a href="difference-in-difference.html#cb129-7" tabindex="-1"></a>            <span class="at">avg_FL_annual_wolf_pre_ci_up =</span> <span class="fu">mean</span>(avgFL_annual_wolf_pre, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">+</span>  <span class="fu">qt</span>((<span class="dv">1</span><span class="sc">-</span>alpha)<span class="sc">/</span><span class="dv">2</span>,<span class="at">df=</span><span class="dv">21-1</span>)<span class="sc">*</span><span class="fu">sd</span>(avgFL_annual_wolf_pre, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)<span class="sc">/</span><span class="fu">sqrt</span>(<span class="dv">21</span>),</span>
+<span id="cb129-8"><a href="difference-in-difference.html#cb129-8" tabindex="-1"></a>            <span class="at">avg_FL_annual_wolf_pre_ci_lower =</span> <span class="fu">mean</span>(avgFL_annual_wolf_pre, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">-</span>  <span class="fu">qt</span>((<span class="dv">1</span><span class="sc">-</span>alpha)<span class="sc">/</span><span class="dv">2</span>,<span class="at">df=</span><span class="dv">21-1</span>)<span class="sc">*</span><span class="fu">sd</span>(avgFL_annual_wolf_pre, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)<span class="sc">/</span><span class="fu">sqrt</span>(<span class="dv">21</span>),</span>
+<span id="cb129-9"><a href="difference-in-difference.html#cb129-9" tabindex="-1"></a>            <span class="at">med_FL_annual_wolf_pre_ci_up =</span> <span class="fu">median</span>(avgFL_annual_wolf_pre, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb129-10"><a href="difference-in-difference.html#cb129-10" tabindex="-1"></a>            <span class="at">avg_FL_annual_wolf_tot =</span> <span class="fu">mean</span>(avgFL_annual_wolf_tot, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb129-11"><a href="difference-in-difference.html#cb129-11" tabindex="-1"></a>            <span class="at">avg_FL_annual_wolf_tot_ci_up =</span> <span class="fu">mean</span>(avgFL_annual_wolf_tot, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">+</span>  <span class="fu">qt</span>((<span class="dv">1</span><span class="sc">-</span>alpha)<span class="sc">/</span><span class="dv">2</span>,<span class="at">df=</span><span class="dv">21-1</span>)<span class="sc">*</span><span class="fu">sd</span>(avgFL_annual_wolf_tot, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)<span class="sc">/</span><span class="fu">sqrt</span>(<span class="dv">21</span>),</span>
+<span id="cb129-12"><a href="difference-in-difference.html#cb129-12" tabindex="-1"></a>            <span class="at">avg_FL_annual_wolf_tot_ci_lower =</span> <span class="fu">mean</span>(avgFL_annual_wolf_tot, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">-</span>  <span class="fu">qt</span>((<span class="dv">1</span><span class="sc">-</span>alpha)<span class="sc">/</span><span class="dv">2</span>,<span class="at">df=</span><span class="dv">21-1</span>)<span class="sc">*</span><span class="fu">sd</span>(avgFL_annual_wolf_tot, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)<span class="sc">/</span><span class="fu">sqrt</span>(<span class="dv">21</span>),</span>
+<span id="cb129-13"><a href="difference-in-difference.html#cb129-13" tabindex="-1"></a>            <span class="at">med_FL_annual_wolf_tot_ci_up =</span> <span class="fu">median</span>(avgFL_annual_wolf_tot, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) </span>
+<span id="cb129-14"><a href="difference-in-difference.html#cb129-14" tabindex="-1"></a></span>
+<span id="cb129-15"><a href="difference-in-difference.html#cb129-15" tabindex="-1"></a><span class="co">#Aggregate at country level</span></span>
+<span id="cb129-16"><a href="difference-in-difference.html#cb129-16" tabindex="-1"></a><span class="do">## Same that at region level.</span></span>
+<span id="cb129-17"><a href="difference-in-difference.html#cb129-17" tabindex="-1"></a>avg_fl_annual_wolf_country <span class="ot">=</span> df_fl_annual_wolf <span class="sc">%&gt;%</span></span>
+<span id="cb129-18"><a href="difference-in-difference.html#cb129-18" tabindex="-1"></a>  <span class="fu">filter</span>(group <span class="sc">==</span> <span class="st">&quot;Treated&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb129-19"><a href="difference-in-difference.html#cb129-19" tabindex="-1"></a>  <span class="fu">group_by</span>(iso3) <span class="sc">%&gt;%</span></span>
+<span id="cb129-20"><a href="difference-in-difference.html#cb129-20" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">avg_FL_annual_wolf_pre =</span> <span class="fu">mean</span>(avgFL_annual_wolf_pre, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb129-21"><a href="difference-in-difference.html#cb129-21" tabindex="-1"></a>            <span class="at">avg_FL_annual_wolf_pre_ci_up =</span> <span class="fu">mean</span>(avgFL_annual_wolf_pre, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">+</span>  <span class="fu">qt</span>((<span class="dv">1</span><span class="sc">-</span>alpha)<span class="sc">/</span><span class="dv">2</span>,<span class="at">df=</span><span class="dv">21-1</span>)<span class="sc">*</span><span class="fu">sd</span>(avgFL_annual_wolf_pre, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)<span class="sc">/</span><span class="fu">sqrt</span>(<span class="dv">21</span>),</span>
+<span id="cb129-22"><a href="difference-in-difference.html#cb129-22" tabindex="-1"></a>            <span class="at">avg_FL_annual_wolf_pre_ci_lower =</span> <span class="fu">mean</span>(avgFL_annual_wolf_pre, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">-</span>  <span class="fu">qt</span>((<span class="dv">1</span><span class="sc">-</span>alpha)<span class="sc">/</span><span class="dv">2</span>,<span class="at">df=</span><span class="dv">21-1</span>)<span class="sc">*</span><span class="fu">sd</span>(avgFL_annual_wolf_pre, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)<span class="sc">/</span><span class="fu">sqrt</span>(<span class="dv">21</span>),</span>
+<span id="cb129-23"><a href="difference-in-difference.html#cb129-23" tabindex="-1"></a>            <span class="at">med_FL_annual_wolf_pre_ci_up =</span> <span class="fu">median</span>(avgFL_annual_wolf_pre, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb129-24"><a href="difference-in-difference.html#cb129-24" tabindex="-1"></a>            <span class="at">avg_FL_annual_wolf_tot =</span> <span class="fu">mean</span>(avgFL_annual_wolf_tot, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb129-25"><a href="difference-in-difference.html#cb129-25" tabindex="-1"></a>            <span class="at">avg_FL_annual_wolf_tot_ci_up =</span> <span class="fu">mean</span>(avgFL_annual_wolf_tot, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">+</span>  <span class="fu">qt</span>((<span class="dv">1</span><span class="sc">-</span>alpha)<span class="sc">/</span><span class="dv">2</span>,<span class="at">df=</span><span class="dv">21-1</span>)<span class="sc">*</span><span class="fu">sd</span>(avgFL_annual_wolf_tot, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)<span class="sc">/</span><span class="fu">sqrt</span>(<span class="dv">21</span>),</span>
+<span id="cb129-26"><a href="difference-in-difference.html#cb129-26" tabindex="-1"></a>            <span class="at">avg_FL_annual_wolf_tot_ci_lower =</span> <span class="fu">mean</span>(avgFL_annual_wolf_tot, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">-</span>  <span class="fu">qt</span>((<span class="dv">1</span><span class="sc">-</span>alpha)<span class="sc">/</span><span class="dv">2</span>,<span class="at">df=</span><span class="dv">21-1</span>)<span class="sc">*</span><span class="fu">sd</span>(avgFL_annual_wolf_tot, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)<span class="sc">/</span><span class="fu">sqrt</span>(<span class="dv">21</span>),</span>
+<span id="cb129-27"><a href="difference-in-difference.html#cb129-27" tabindex="-1"></a>            <span class="at">med_FL_annual_wolf_tot_ci_up =</span> <span class="fu">median</span>(avgFL_annual_wolf_tot, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb129-28"><a href="difference-in-difference.html#cb129-28" tabindex="-1"></a>  <span class="fu">ungroup</span>() </span></code></pre></div>
+</div>
+<div id="average-and-total-forest-loss-on-the-period-at-country-and-region-level" class="section level3 hasAnchor" number="6.4.3">
+<h3><span class="header-section-number">6.4.3</span> Average and total forest loss on the period, at country and region level<a href="difference-in-difference.html#average-and-total-forest-loss-on-the-period-at-country-and-region-level" class="anchor-section" aria-label="Anchor link to header"></a></h3>
+<p>For each protected area, the total deforestation is estimated on the period in the protected area and a counterfactual, before and after matching. This metric can be aggregated at country and region level : the sum of total deforestation or its average. This can be computed for all protected areas in the sample, a specific subset of protected areas, but also at country or region level.</p>
+<div class="sourceCode" id="cb130"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb130-1"><a href="difference-in-difference.html#cb130-1" tabindex="-1"></a><span class="co">#Compute average and total deforestation ... </span></span>
+<span id="cb130-2"><a href="difference-in-difference.html#cb130-2" tabindex="-1"></a><span class="do">## across all protected areas in the sample</span></span>
+<span id="cb130-3"><a href="difference-in-difference.html#cb130-3" tabindex="-1"></a>df_plot_forest_loss_agg_all <span class="ot">=</span> df_plot_forest_loss <span class="sc">%&gt;%</span></span>
+<span id="cb130-4"><a href="difference-in-difference.html#cb130-4" tabindex="-1"></a>  <span class="fu">group_by</span>(matched, group, year) <span class="sc">%&gt;%</span></span>
+<span id="cb130-5"><a href="difference-in-difference.html#cb130-5" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">tot_fc_rel00_ha =</span> <span class="fu">sum</span>(fc_tot_rel00_ha, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb130-6"><a href="difference-in-difference.html#cb130-6" tabindex="-1"></a>            <span class="at">tot_fc_rel00_ha_ci_lower =</span> <span class="fu">sum</span>(fc_tot_rel00_ha_ci_lower, <span class="at">na.rm =</span> <span class="cn">FALSE</span>),</span>
+<span id="cb130-7"><a href="difference-in-difference.html#cb130-7" tabindex="-1"></a>            <span class="at">tot_fc_rel00_ha_ci_upper =</span> <span class="fu">sum</span>(fc_tot_rel00_ha_ci_upper, <span class="at">na.rm =</span> <span class="cn">FALSE</span>),</span>
+<span id="cb130-8"><a href="difference-in-difference.html#cb130-8" tabindex="-1"></a>              <span class="at">avg_fc_rel00_ha =</span> <span class="fu">mean</span>(fc_tot_rel00_ha, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb130-9"><a href="difference-in-difference.html#cb130-9" tabindex="-1"></a>              <span class="at">avg_fc_rel00_ha_ci_lower =</span> <span class="fu">mean</span>(fc_tot_rel00_ha_ci_lower, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb130-10"><a href="difference-in-difference.html#cb130-10" tabindex="-1"></a>              <span class="at">avg_fc_rel00_ha_ci_upper =</span> <span class="fu">mean</span>(fc_tot_rel00_ha_ci_upper, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb130-11"><a href="difference-in-difference.html#cb130-11" tabindex="-1"></a>  <span class="fu">ungroup</span>() </span>
+<span id="cb130-12"><a href="difference-in-difference.html#cb130-12" tabindex="-1"></a><span class="do">## for each country</span></span>
+<span id="cb130-13"><a href="difference-in-difference.html#cb130-13" tabindex="-1"></a>df_plot_forest_loss_agg_ctry <span class="ot">=</span> df_plot_forest_loss <span class="sc">%&gt;%</span></span>
+<span id="cb130-14"><a href="difference-in-difference.html#cb130-14" tabindex="-1"></a>  <span class="fu">group_by</span>(region, iso3, country_en, matched, group, year) <span class="sc">%&gt;%</span></span>
+<span id="cb130-15"><a href="difference-in-difference.html#cb130-15" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">tot_fc_rel00_ha =</span> <span class="fu">sum</span>(fc_tot_rel00_ha, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb130-16"><a href="difference-in-difference.html#cb130-16" tabindex="-1"></a>            <span class="at">tot_fc_rel00_ha_ci_lower =</span> <span class="fu">sum</span>(fc_tot_rel00_ha_ci_lower, <span class="at">na.rm =</span> <span class="cn">FALSE</span>),</span>
+<span id="cb130-17"><a href="difference-in-difference.html#cb130-17" tabindex="-1"></a>            <span class="at">tot_fc_rel00_ha_ci_upper =</span> <span class="fu">sum</span>(fc_tot_rel00_ha_ci_upper, <span class="at">na.rm =</span> <span class="cn">FALSE</span>),</span>
+<span id="cb130-18"><a href="difference-in-difference.html#cb130-18" tabindex="-1"></a>              <span class="at">avg_fc_rel00_ha =</span> <span class="fu">mean</span>(fc_tot_rel00_ha, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb130-19"><a href="difference-in-difference.html#cb130-19" tabindex="-1"></a>              <span class="at">avg_fc_rel00_ha_ci_lower =</span> <span class="fu">mean</span>(fc_tot_rel00_ha_ci_lower, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb130-20"><a href="difference-in-difference.html#cb130-20" tabindex="-1"></a>              <span class="at">avg_fc_rel00_ha_ci_upper =</span> <span class="fu">mean</span>(fc_tot_rel00_ha_ci_upper, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb130-21"><a href="difference-in-difference.html#cb130-21" tabindex="-1"></a>  <span class="fu">ungroup</span>() </span>
+<span id="cb130-22"><a href="difference-in-difference.html#cb130-22" tabindex="-1"></a><span class="do">## for each region</span></span>
+<span id="cb130-23"><a href="difference-in-difference.html#cb130-23" tabindex="-1"></a>df_plot_forest_loss_agg_all <span class="ot">=</span> df_plot_forest_loss <span class="sc">%&gt;%</span></span>
+<span id="cb130-24"><a href="difference-in-difference.html#cb130-24" tabindex="-1"></a>  <span class="fu">group_by</span>(region, matched, group, year) <span class="sc">%&gt;%</span></span>
+<span id="cb130-25"><a href="difference-in-difference.html#cb130-25" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">tot_fc_rel00_ha =</span> <span class="fu">sum</span>(fc_tot_rel00_ha, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb130-26"><a href="difference-in-difference.html#cb130-26" tabindex="-1"></a>            <span class="at">tot_fc_rel00_ha_ci_lower =</span> <span class="fu">sum</span>(fc_tot_rel00_ha_ci_lower, <span class="at">na.rm =</span> <span class="cn">FALSE</span>),</span>
+<span id="cb130-27"><a href="difference-in-difference.html#cb130-27" tabindex="-1"></a>            <span class="at">tot_fc_rel00_ha_ci_upper =</span> <span class="fu">sum</span>(fc_tot_rel00_ha_ci_upper, <span class="at">na.rm =</span> <span class="cn">FALSE</span>),</span>
+<span id="cb130-28"><a href="difference-in-difference.html#cb130-28" tabindex="-1"></a>              <span class="at">avg_fc_rel00_ha =</span> <span class="fu">mean</span>(fc_tot_rel00_ha, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb130-29"><a href="difference-in-difference.html#cb130-29" tabindex="-1"></a>              <span class="at">avg_fc_rel00_ha_ci_lower =</span> <span class="fu">mean</span>(fc_tot_rel00_ha_ci_lower, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb130-30"><a href="difference-in-difference.html#cb130-30" tabindex="-1"></a>              <span class="at">avg_fc_rel00_ha_ci_upper =</span> <span class="fu">mean</span>(fc_tot_rel00_ha_ci_upper, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb130-31"><a href="difference-in-difference.html#cb130-31" tabindex="-1"></a>  <span class="fu">ungroup</span>() </span>
+<span id="cb130-32"><a href="difference-in-difference.html#cb130-32" tabindex="-1"></a></span>
+<span id="cb130-33"><a href="difference-in-difference.html#cb130-33" tabindex="-1"></a><span class="do">## For a specific subset of protected areas (here, protected areas funded by the FAPBM for instance)</span></span>
+<span id="cb130-34"><a href="difference-in-difference.html#cb130-34" tabindex="-1"></a>df_plot_forest_loss_agg_fapbm <span class="ot">=</span> df_plot_forest_loss <span class="sc">%&gt;%</span></span>
+<span id="cb130-35"><a href="difference-in-difference.html#cb130-35" tabindex="-1"></a>  <span class="fu">filter</span>(wdpaid <span class="sc">%in%</span> <span class="fu">unique</span>(data_fapbm<span class="sc">$</span>wdpaid)) <span class="sc">%&gt;%</span></span>
+<span id="cb130-36"><a href="difference-in-difference.html#cb130-36" tabindex="-1"></a>  <span class="fu">group_by</span>(matched, group, year) <span class="sc">%&gt;%</span></span>
+<span id="cb130-37"><a href="difference-in-difference.html#cb130-37" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">tot_fc_rel00_ha =</span> <span class="fu">sum</span>(fc_tot_rel00_ha, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb130-38"><a href="difference-in-difference.html#cb130-38" tabindex="-1"></a>            <span class="at">tot_fc_rel00_ha_ci_lower =</span> <span class="fu">sum</span>(fc_tot_rel00_ha_ci_lower, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb130-39"><a href="difference-in-difference.html#cb130-39" tabindex="-1"></a>            <span class="at">tot_fc_rel00_ha_ci_upper =</span> <span class="fu">sum</span>(fc_tot_rel00_ha_ci_upper, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb130-40"><a href="difference-in-difference.html#cb130-40" tabindex="-1"></a>              <span class="at">avg_fc_rel00_ha =</span> <span class="fu">mean</span>(fc_tot_rel00_ha, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb130-41"><a href="difference-in-difference.html#cb130-41" tabindex="-1"></a>              <span class="at">avg_fc_rel00_ha_ci_lower =</span> <span class="fu">mean</span>(fc_tot_rel00_ha_ci_lower, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb130-42"><a href="difference-in-difference.html#cb130-42" tabindex="-1"></a>              <span class="at">avg_fc_rel00_ha_ci_upper =</span> <span class="fu">mean</span>(fc_tot_rel00_ha_ci_upper, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb130-43"><a href="difference-in-difference.html#cb130-43" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
+<span id="cb130-44"><a href="difference-in-difference.html#cb130-44" tabindex="-1"></a></span>
+<span id="cb130-45"><a href="difference-in-difference.html#cb130-45" tabindex="-1"></a>df_plot_forest_loss_agg_nofapbm <span class="ot">=</span> df_plot_forest_loss <span class="sc">%&gt;%</span></span>
+<span id="cb130-46"><a href="difference-in-difference.html#cb130-46" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span>(wdpaid <span class="sc">%in%</span> <span class="fu">unique</span>(data_fapbm<span class="sc">$</span>wdpaid))) <span class="sc">%&gt;%</span></span>
+<span id="cb130-47"><a href="difference-in-difference.html#cb130-47" tabindex="-1"></a>  <span class="fu">group_by</span>(matched, group, year) <span class="sc">%&gt;%</span></span>
+<span id="cb130-48"><a href="difference-in-difference.html#cb130-48" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">tot_fc_rel00_ha =</span> <span class="fu">sum</span>(fc_tot_rel00_ha, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb130-49"><a href="difference-in-difference.html#cb130-49" tabindex="-1"></a>            <span class="at">tot_fc_rel00_ha_ci_lower =</span> <span class="fu">sum</span>(fc_tot_rel00_ha_ci_lower, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb130-50"><a href="difference-in-difference.html#cb130-50" tabindex="-1"></a>            <span class="at">tot_fc_rel00_ha_ci_upper =</span> <span class="fu">sum</span>(fc_tot_rel00_ha_ci_upper, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb130-51"><a href="difference-in-difference.html#cb130-51" tabindex="-1"></a>              <span class="at">avg_fc_rel00_ha =</span> <span class="fu">mean</span>(fc_tot_rel00_ha, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb130-52"><a href="difference-in-difference.html#cb130-52" tabindex="-1"></a>              <span class="at">avg_fc_rel00_ha_ci_lower =</span> <span class="fu">mean</span>(fc_tot_rel00_ha_ci_lower, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb130-53"><a href="difference-in-difference.html#cb130-53" tabindex="-1"></a>              <span class="at">avg_fc_rel00_ha_ci_upper =</span> <span class="fu">mean</span>(fc_tot_rel00_ha_ci_upper, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb130-54"><a href="difference-in-difference.html#cb130-54" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
+<span id="cb130-55"><a href="difference-in-difference.html#cb130-55" tabindex="-1"></a></span>
+<span id="cb130-56"><a href="difference-in-difference.html#cb130-56" tabindex="-1"></a></span>
+<span id="cb130-57"><a href="difference-in-difference.html#cb130-57" tabindex="-1"></a><span class="co"># Plot the results : total and average deforestation</span></span>
+<span id="cb130-58"><a href="difference-in-difference.html#cb130-58" tabindex="-1"></a><span class="do">## The maximum year to consider. The period where total deforestation is computed is then 2000-year.max.</span></span>
+<span id="cb130-59"><a href="difference-in-difference.html#cb130-59" tabindex="-1"></a>year.max <span class="ot">=</span> <span class="dv">2021</span></span>
+<span id="cb130-60"><a href="difference-in-difference.html#cb130-60" tabindex="-1"></a><span class="do">## Titles to display</span></span>
+<span id="cb130-61"><a href="difference-in-difference.html#cb130-61" tabindex="-1"></a>fct.labs <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;Before Matching&quot;</span>, <span class="st">&quot;After Matching&quot;</span>)</span>
+<span id="cb130-62"><a href="difference-in-difference.html#cb130-62" tabindex="-1"></a><span class="fu">names</span>(fct.labs) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="cn">FALSE</span>, <span class="cn">TRUE</span>)</span>
+<span id="cb130-63"><a href="difference-in-difference.html#cb130-63" tabindex="-1"></a><span class="do">## The number of protected areas (all and in a given subsample, for instance)</span></span>
+<span id="cb130-64"><a href="difference-in-difference.html#cb130-64" tabindex="-1"></a>n_pa  <span class="ot">=</span> <span class="fu">length</span>(<span class="fu">unique</span>(df_plot_forest_loss<span class="sc">$</span>wdpaid))</span>
+<span id="cb130-65"><a href="difference-in-difference.html#cb130-65" tabindex="-1"></a>  fct.labs <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;Before Matching&quot;</span>, <span class="st">&quot;After Matching&quot;</span>)</span>
+<span id="cb130-66"><a href="difference-in-difference.html#cb130-66" tabindex="-1"></a>  <span class="fu">names</span>(fct.labs) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="cn">FALSE</span>, <span class="cn">TRUE</span>)</span>
+<span id="cb130-67"><a href="difference-in-difference.html#cb130-67" tabindex="-1"></a><span class="co">#n_fapbm  = length(unique(data_pa_fapbm[data_pa_fapbm$wdpaid %in% unique(df_plot_forest_loss$wdpaid),]$wdpaid))</span></span>
+<span id="cb130-68"><a href="difference-in-difference.html#cb130-68" tabindex="-1"></a>  n_nofapbm  <span class="ot">=</span> <span class="fu">length</span>(<span class="fu">unique</span>(data_pa[data_pa<span class="sc">$</span>wdpaid <span class="sc">%in%</span> <span class="fu">unique</span>(df_plot_forest_loss<span class="sc">$</span>wdpaid) <span class="sc">&amp;</span> <span class="sc">!</span>(data_pa<span class="sc">$</span>wdpaid <span class="sc">%in%</span> <span class="fu">unique</span>(data_fapbm<span class="sc">$</span>wdpaid)),]<span class="sc">$</span>wdpaid))</span>
+<span id="cb130-69"><a href="difference-in-difference.html#cb130-69" tabindex="-1"></a><span class="do">## The total surface of protected areas (all and in a given subsample, for instance)</span></span>
+<span id="cb130-70"><a href="difference-in-difference.html#cb130-70" tabindex="-1"></a>area_tot_ha <span class="ot">=</span> <span class="fu">sum</span>(data_pa[data_pa<span class="sc">$</span>wdpaid <span class="sc">%in%</span> <span class="fu">unique</span>(df_plot_forest_loss<span class="sc">$</span>wdpaid),]<span class="sc">$</span>area_km2, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">*</span><span class="dv">100</span></span>
+<span id="cb130-71"><a href="difference-in-difference.html#cb130-71" tabindex="-1"></a><span class="co">#area_fapbm_ha = sum(data_pa_fapbm[data_pa_fapbm$wdpaid %in% unique(df_plot_forest_loss$wdpaid),]$area_km2, na.rm = TRUE) *100</span></span>
+<span id="cb130-72"><a href="difference-in-difference.html#cb130-72" tabindex="-1"></a>area_nofapbm_ha <span class="ot">=</span> <span class="fu">sum</span>(data_pa[data_pa<span class="sc">$</span>wdpaid <span class="sc">%in%</span> <span class="fu">unique</span>(df_plot_forest_loss<span class="sc">$</span>wdpaid) <span class="sc">&amp;</span> <span class="sc">!</span>(data_pa<span class="sc">$</span>wdpaid <span class="sc">%in%</span> <span class="fu">unique</span>(data_fapbm<span class="sc">$</span>wdpaid)),]<span class="sc">$</span>area_km2, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">*</span><span class="dv">100</span></span>
+<span id="cb130-73"><a href="difference-in-difference.html#cb130-73" tabindex="-1"></a></span>
+<span id="cb130-74"><a href="difference-in-difference.html#cb130-74" tabindex="-1"></a><span class="do">## Define the figures</span></span>
+<span id="cb130-75"><a href="difference-in-difference.html#cb130-75" tabindex="-1"></a><span class="do">### For a given subsample</span></span>
+<span id="cb130-76"><a href="difference-in-difference.html#cb130-76" tabindex="-1"></a><span class="do">#### Total deforestation</span></span>
+<span id="cb130-77"><a href="difference-in-difference.html#cb130-77" tabindex="-1"></a>fig_forest_loss_agg_tot_fapbm <span class="ot">=</span> <span class="fu">ggplot</span>(<span class="at">data =</span> <span class="fu">filter</span>(df_plot_forest_loss_agg_fapbm, year <span class="sc">==</span> year.max),</span>
+<span id="cb130-78"><a href="difference-in-difference.html#cb130-78" tabindex="-1"></a>               <span class="fu">aes</span>(<span class="at">y =</span> <span class="fu">abs</span>(tot_fc_rel00_ha), <span class="at">fill =</span> <span class="fu">as.factor</span>(group), <span class="at">x =</span> group)) <span class="sc">%&gt;%</span></span>
+<span id="cb130-79"><a href="difference-in-difference.html#cb130-79" tabindex="-1"></a>    <span class="sc">+</span> <span class="fu">geom_bar</span>(<span class="at">position =</span>  <span class="fu">position_dodge</span>(<span class="at">width =</span> <span class="fl">0.8</span>), <span class="at">stat =</span> <span class="st">&quot;identity&quot;</span>, <span class="at">show.legend =</span> <span class="cn">FALSE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb130-80"><a href="difference-in-difference.html#cb130-80" tabindex="-1"></a>    <span class="sc">+</span> <span class="fu">geom_errorbar</span>(<span class="fu">aes</span>(<span class="at">ymax=</span><span class="fu">abs</span>(tot_fc_rel00_ha_ci_upper), <span class="at">ymin=</span><span class="fu">abs</span>(tot_fc_rel00_ha_ci_lower)), <span class="at">width=</span><span class="fl">0.3</span>, <span class="at">colour=</span><span class="st">&quot;grey70&quot;</span>, <span class="at">alpha=</span><span class="fl">0.9</span>, <span class="at">size=</span><span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb130-81"><a href="difference-in-difference.html#cb130-81" tabindex="-1"></a>    <span class="sc">+</span> <span class="fu">geom_label</span>(<span class="fu">aes</span>(<span class="at">label =</span> <span class="fu">format</span>(<span class="fu">round</span>(<span class="fu">abs</span>(tot_fc_rel00_ha), <span class="dv">0</span>), <span class="at">big.mark =</span> <span class="st">&quot;,&quot;</span>), <span class="at">y =</span> <span class="dv">0</span>),</span>
+<span id="cb130-82"><a href="difference-in-difference.html#cb130-82" tabindex="-1"></a>                 <span class="at">vjust =</span> <span class="sc">-</span><span class="fl">0.5</span>,</span>
+<span id="cb130-83"><a href="difference-in-difference.html#cb130-83" tabindex="-1"></a>                 <span class="at">color =</span> <span class="st">&quot;black&quot;</span>,</span>
+<span id="cb130-84"><a href="difference-in-difference.html#cb130-84" tabindex="-1"></a>                 <span class="at">show.legend =</span> <span class="cn">FALSE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb130-85"><a href="difference-in-difference.html#cb130-85" tabindex="-1"></a>    <span class="sc">+</span> <span class="fu">scale_fill_brewer</span>(<span class="at">name =</span> <span class="st">&quot;Group&quot;</span>, <span class="at">palette =</span> <span class="st">&quot;Blues&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb130-86"><a href="difference-in-difference.html#cb130-86" tabindex="-1"></a>    <span class="sc">+</span> <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">&quot;&quot;</span>,</span>
+<span id="cb130-87"><a href="difference-in-difference.html#cb130-87" tabindex="-1"></a>           <span class="at">y =</span> <span class="st">&quot;Forest cover loss (ha)&quot;</span>,</span>
+<span id="cb130-88"><a href="difference-in-difference.html#cb130-88" tabindex="-1"></a>           <span class="at">title =</span> <span class="fu">paste</span>(<span class="st">&quot;Total area deforested between 2000 and&quot;</span>, year.max),</span>
+<span id="cb130-89"><a href="difference-in-difference.html#cb130-89" tabindex="-1"></a>           <span class="at">subtitle =</span> <span class="fu">paste0</span>(<span class="st">&quot;Sample : FAPBM protected areas in the analysis (&quot;</span> , n_fapbm, <span class="st">&quot; areas covering &quot;</span>, <span class="fu">format</span>(area_fapbm_ha, <span class="at">big.mark =</span> <span class="st">&quot;,&quot;</span>), <span class="st">&quot;ha)&quot;</span>),</span>
+<span id="cb130-90"><a href="difference-in-difference.html#cb130-90" tabindex="-1"></a>           <span class="at">caption =</span> <span class="fu">paste</span>(((<span class="dv">1</span><span class="sc">-</span>alpha)<span class="sc">*</span><span class="dv">100</span>), <span class="st">&quot;% confidence intervals&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb130-91"><a href="difference-in-difference.html#cb130-91" tabindex="-1"></a>    <span class="sc">+</span> <span class="fu">facet_wrap</span>(<span class="sc">~</span>matched,</span>
+<span id="cb130-92"><a href="difference-in-difference.html#cb130-92" tabindex="-1"></a>                 <span class="at">labeller =</span> <span class="fu">labeller</span>(<span class="at">matched =</span> fct.labs))  <span class="sc">%&gt;%</span></span>
+<span id="cb130-93"><a href="difference-in-difference.html#cb130-93" tabindex="-1"></a>    <span class="sc">+</span> <span class="fu">theme_minimal</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb130-94"><a href="difference-in-difference.html#cb130-94" tabindex="-1"></a>    <span class="sc">+</span> <span class="fu">theme</span>(</span>
+<span id="cb130-95"><a href="difference-in-difference.html#cb130-95" tabindex="-1"></a>      <span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">0</span>, <span class="at">hjust =</span> <span class="fl">0.5</span>, <span class="at">vjust =</span> <span class="fl">0.5</span>),</span>
+<span id="cb130-96"><a href="difference-in-difference.html#cb130-96" tabindex="-1"></a>      <span class="at">axis.text=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">11</span>, <span class="at">color =</span> <span class="st">&quot;black&quot;</span>),</span>
+<span id="cb130-97"><a href="difference-in-difference.html#cb130-97" tabindex="-1"></a>      <span class="at">axis.title=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>, <span class="at">color =</span> <span class="st">&quot;black&quot;</span>, <span class="at">face =</span> <span class="st">&quot;plain&quot;</span>),</span>
+<span id="cb130-98"><a href="difference-in-difference.html#cb130-98" tabindex="-1"></a></span>
+<span id="cb130-99"><a href="difference-in-difference.html#cb130-99" tabindex="-1"></a>      <span class="at">plot.caption =</span> <span class="fu">element_text</span>(<span class="at">hjust =</span> <span class="dv">0</span>),</span>
+<span id="cb130-100"><a href="difference-in-difference.html#cb130-100" tabindex="-1"></a>      <span class="at">plot.title =</span> <span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">16</span>, <span class="at">color =</span> <span class="st">&quot;black&quot;</span>, <span class="at">face =</span> <span class="st">&quot;plain&quot;</span>, <span class="at">hjust =</span> <span class="dv">0</span>),</span>
+<span id="cb130-101"><a href="difference-in-difference.html#cb130-101" tabindex="-1"></a>      <span class="at">plot.subtitle =</span> <span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">12</span>, <span class="at">color =</span> <span class="st">&quot;black&quot;</span>, <span class="at">face =</span> <span class="st">&quot;plain&quot;</span>, <span class="at">hjust =</span> <span class="dv">0</span>),</span>
+<span id="cb130-102"><a href="difference-in-difference.html#cb130-102" tabindex="-1"></a></span>
+<span id="cb130-103"><a href="difference-in-difference.html#cb130-103" tabindex="-1"></a>      <span class="at">strip.text =</span> <span class="fu">element_text</span>(<span class="at">color =</span> <span class="st">&quot;black&quot;</span>, <span class="at">size =</span> <span class="dv">12</span>),</span>
+<span id="cb130-104"><a href="difference-in-difference.html#cb130-104" tabindex="-1"></a></span>
+<span id="cb130-105"><a href="difference-in-difference.html#cb130-105" tabindex="-1"></a>      <span class="co">#legend.position = &quot;bottom&quot;,</span></span>
+<span id="cb130-106"><a href="difference-in-difference.html#cb130-106" tabindex="-1"></a>      <span class="co">#legend.title = element_blank(),</span></span>
+<span id="cb130-107"><a href="difference-in-difference.html#cb130-107" tabindex="-1"></a>      <span class="at">legend.text=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">10</span>),</span>
+<span id="cb130-108"><a href="difference-in-difference.html#cb130-108" tabindex="-1"></a>      <span class="co">#legend.spacing.x = unit(1.0, &#39;cm&#39;),</span></span>
+<span id="cb130-109"><a href="difference-in-difference.html#cb130-109" tabindex="-1"></a>      <span class="at">legend.spacing.y =</span> <span class="fu">unit</span>(<span class="fl">0.75</span>, <span class="st">&#39;cm&#39;</span>),</span>
+<span id="cb130-110"><a href="difference-in-difference.html#cb130-110" tabindex="-1"></a>      <span class="at">legend.key.size =</span> <span class="fu">unit</span>(<span class="dv">2</span>, <span class="st">&#39;line&#39;</span>),</span>
+<span id="cb130-111"><a href="difference-in-difference.html#cb130-111" tabindex="-1"></a></span>
+<span id="cb130-112"><a href="difference-in-difference.html#cb130-112" tabindex="-1"></a>      <span class="at">panel.grid.major.x =</span> <span class="fu">element_line</span>(<span class="at">color =</span> <span class="st">&#39;grey80&#39;</span>, <span class="at">linewidth =</span> <span class="fl">0.3</span>, <span class="at">linetype =</span> <span class="dv">1</span>),</span>
+<span id="cb130-113"><a href="difference-in-difference.html#cb130-113" tabindex="-1"></a>      <span class="at">panel.grid.minor.x =</span> <span class="fu">element_line</span>(<span class="at">color =</span> <span class="st">&#39;grey80&#39;</span>, <span class="at">linewidth =</span> <span class="fl">0.2</span>, <span class="at">linetype =</span> <span class="dv">2</span>),</span>
+<span id="cb130-114"><a href="difference-in-difference.html#cb130-114" tabindex="-1"></a>      <span class="at">panel.grid.major.y =</span> <span class="fu">element_line</span>(<span class="at">color =</span> <span class="st">&#39;grey80&#39;</span>, <span class="at">linewidth =</span> <span class="fl">0.3</span>, <span class="at">linetype =</span> <span class="dv">1</span>),</span>
+<span id="cb130-115"><a href="difference-in-difference.html#cb130-115" tabindex="-1"></a>      <span class="at">panel.grid.minor.y =</span> <span class="fu">element_line</span>(<span class="at">color =</span> <span class="st">&#39;grey80&#39;</span>, <span class="at">linewidth =</span> <span class="fl">0.2</span>, <span class="at">linetype =</span> <span class="dv">2</span>)</span>
+<span id="cb130-116"><a href="difference-in-difference.html#cb130-116" tabindex="-1"></a>    )</span>
+<span id="cb130-117"><a href="difference-in-difference.html#cb130-117" tabindex="-1"></a>fig_forest_loss_agg_tot_fapbm</span>
+<span id="cb130-118"><a href="difference-in-difference.html#cb130-118" tabindex="-1"></a></span>
+<span id="cb130-119"><a href="difference-in-difference.html#cb130-119" tabindex="-1"></a><span class="do">#### Average deforestation</span></span>
+<span id="cb130-120"><a href="difference-in-difference.html#cb130-120" tabindex="-1"></a>fig_forest_loss_agg_avg_nofapbm <span class="ot">=</span> <span class="fu">ggplot</span>(<span class="at">data =</span> <span class="fu">filter</span>(df_plot_forest_loss_agg_nofapbm, year <span class="sc">==</span> year.max),</span>
+<span id="cb130-121"><a href="difference-in-difference.html#cb130-121" tabindex="-1"></a>               <span class="fu">aes</span>(<span class="at">y =</span> <span class="fu">abs</span>(avg_fc_rel00_ha), <span class="at">fill =</span> <span class="fu">as.factor</span>(group), <span class="at">x =</span> group)) <span class="sc">%&gt;%</span></span>
+<span id="cb130-122"><a href="difference-in-difference.html#cb130-122" tabindex="-1"></a>    <span class="sc">+</span> <span class="fu">geom_bar</span>(<span class="at">position =</span>  <span class="fu">position_dodge</span>(<span class="at">width =</span> <span class="fl">0.8</span>), <span class="at">stat =</span> <span class="st">&quot;identity&quot;</span>, <span class="at">show.legend =</span> <span class="cn">FALSE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb130-123"><a href="difference-in-difference.html#cb130-123" tabindex="-1"></a>    <span class="sc">+</span> <span class="fu">geom_errorbar</span>(<span class="fu">aes</span>(<span class="at">ymax=</span><span class="fu">abs</span>(avg_fc_rel00_ha_ci_upper), <span class="at">ymin=</span><span class="fu">abs</span>(avg_fc_rel00_ha_ci_lower)), <span class="at">width=</span><span class="fl">0.3</span>, <span class="at">colour=</span><span class="st">&quot;grey70&quot;</span>, <span class="at">alpha=</span><span class="fl">0.9</span>, <span class="at">size=</span><span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb130-124"><a href="difference-in-difference.html#cb130-124" tabindex="-1"></a>    <span class="sc">+</span> <span class="fu">geom_label</span>(<span class="fu">aes</span>(<span class="at">label =</span> <span class="fu">format</span>(<span class="fu">round</span>(<span class="fu">abs</span>(avg_fc_rel00_ha), <span class="dv">0</span>), <span class="at">big.mark =</span> <span class="st">&quot;,&quot;</span>), <span class="at">y =</span> <span class="dv">0</span>),</span>
+<span id="cb130-125"><a href="difference-in-difference.html#cb130-125" tabindex="-1"></a>                 <span class="at">vjust =</span> <span class="sc">-</span><span class="fl">0.5</span>,</span>
+<span id="cb130-126"><a href="difference-in-difference.html#cb130-126" tabindex="-1"></a>                 <span class="at">color =</span> <span class="st">&quot;black&quot;</span>,</span>
+<span id="cb130-127"><a href="difference-in-difference.html#cb130-127" tabindex="-1"></a>                 <span class="at">show.legend =</span> <span class="cn">FALSE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb130-128"><a href="difference-in-difference.html#cb130-128" tabindex="-1"></a>    <span class="sc">+</span> <span class="fu">scale_fill_brewer</span>(<span class="at">name =</span> <span class="st">&quot;Group&quot;</span>, <span class="at">palette =</span> <span class="st">&quot;Blues&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb130-129"><a href="difference-in-difference.html#cb130-129" tabindex="-1"></a>    <span class="sc">+</span> <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">&quot;&quot;</span>,</span>
+<span id="cb130-130"><a href="difference-in-difference.html#cb130-130" tabindex="-1"></a>           <span class="at">y =</span> <span class="st">&quot;Forest cover loss (ha)&quot;</span>,</span>
+<span id="cb130-131"><a href="difference-in-difference.html#cb130-131" tabindex="-1"></a>           <span class="at">title =</span> <span class="fu">paste</span>(<span class="st">&quot;Area deforested in protected areas on average, between 2000 and&quot;</span>, year.max),</span>
+<span id="cb130-132"><a href="difference-in-difference.html#cb130-132" tabindex="-1"></a>           <span class="at">subtitle =</span> <span class="fu">paste0</span>(<span class="st">&quot;Sample : non FAPBM protected areas in the analysis (&quot;</span> , n_nofapbm, <span class="st">&quot; areas covering &quot;</span>, <span class="fu">format</span>(area_nofapbm_ha, <span class="at">big.mark =</span> <span class="st">&quot;,&quot;</span>), <span class="st">&quot; ha)&quot;</span>),</span>
+<span id="cb130-133"><a href="difference-in-difference.html#cb130-133" tabindex="-1"></a>           <span class="at">caption =</span> <span class="fu">paste</span>(((<span class="dv">1</span><span class="sc">-</span>alpha)<span class="sc">*</span><span class="dv">100</span>), <span class="st">&quot;% confidence intervals&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb130-134"><a href="difference-in-difference.html#cb130-134" tabindex="-1"></a>    <span class="sc">+</span> <span class="fu">facet_wrap</span>(<span class="sc">~</span>matched,</span>
+<span id="cb130-135"><a href="difference-in-difference.html#cb130-135" tabindex="-1"></a>                 <span class="at">labeller =</span> <span class="fu">labeller</span>(<span class="at">matched =</span> fct.labs))  <span class="sc">%&gt;%</span></span>
+<span id="cb130-136"><a href="difference-in-difference.html#cb130-136" tabindex="-1"></a>    <span class="sc">+</span> <span class="fu">theme_minimal</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb130-137"><a href="difference-in-difference.html#cb130-137" tabindex="-1"></a>    <span class="sc">+</span> <span class="fu">theme</span>(</span>
+<span id="cb130-138"><a href="difference-in-difference.html#cb130-138" tabindex="-1"></a>      <span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">0</span>, <span class="at">hjust =</span> <span class="fl">0.5</span>, <span class="at">vjust =</span> <span class="fl">0.5</span>),</span>
+<span id="cb130-139"><a href="difference-in-difference.html#cb130-139" tabindex="-1"></a>      <span class="at">axis.text=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">11</span>, <span class="at">color =</span> <span class="st">&quot;black&quot;</span>),</span>
+<span id="cb130-140"><a href="difference-in-difference.html#cb130-140" tabindex="-1"></a>      <span class="at">axis.title=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>, <span class="at">color =</span> <span class="st">&quot;black&quot;</span>, <span class="at">face =</span> <span class="st">&quot;plain&quot;</span>),</span>
+<span id="cb130-141"><a href="difference-in-difference.html#cb130-141" tabindex="-1"></a></span>
+<span id="cb130-142"><a href="difference-in-difference.html#cb130-142" tabindex="-1"></a>      <span class="at">plot.caption =</span> <span class="fu">element_text</span>(<span class="at">hjust =</span> <span class="dv">0</span>),</span>
+<span id="cb130-143"><a href="difference-in-difference.html#cb130-143" tabindex="-1"></a>      <span class="at">plot.title =</span> <span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">16</span>, <span class="at">color =</span> <span class="st">&quot;black&quot;</span>, <span class="at">face =</span> <span class="st">&quot;plain&quot;</span>, <span class="at">hjust =</span> <span class="dv">0</span>),</span>
+<span id="cb130-144"><a href="difference-in-difference.html#cb130-144" tabindex="-1"></a>      <span class="at">plot.subtitle =</span> <span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">12</span>, <span class="at">color =</span> <span class="st">&quot;black&quot;</span>, <span class="at">face =</span> <span class="st">&quot;plain&quot;</span>, <span class="at">hjust =</span> <span class="dv">0</span>),</span>
+<span id="cb130-145"><a href="difference-in-difference.html#cb130-145" tabindex="-1"></a></span>
+<span id="cb130-146"><a href="difference-in-difference.html#cb130-146" tabindex="-1"></a>      <span class="at">strip.text =</span> <span class="fu">element_text</span>(<span class="at">color =</span> <span class="st">&quot;black&quot;</span>, <span class="at">size =</span> <span class="dv">12</span>),</span>
+<span id="cb130-147"><a href="difference-in-difference.html#cb130-147" tabindex="-1"></a></span>
+<span id="cb130-148"><a href="difference-in-difference.html#cb130-148" tabindex="-1"></a>      <span class="co">#legend.position = &quot;bottom&quot;,</span></span>
+<span id="cb130-149"><a href="difference-in-difference.html#cb130-149" tabindex="-1"></a>      <span class="co">#legend.title = element_blank(),</span></span>
+<span id="cb130-150"><a href="difference-in-difference.html#cb130-150" tabindex="-1"></a>      <span class="at">legend.text=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">10</span>),</span>
+<span id="cb130-151"><a href="difference-in-difference.html#cb130-151" tabindex="-1"></a>      <span class="co">#legend.spacing.x = unit(1.0, &#39;cm&#39;),</span></span>
+<span id="cb130-152"><a href="difference-in-difference.html#cb130-152" tabindex="-1"></a>      <span class="at">legend.spacing.y =</span> <span class="fu">unit</span>(<span class="fl">0.75</span>, <span class="st">&#39;cm&#39;</span>),</span>
+<span id="cb130-153"><a href="difference-in-difference.html#cb130-153" tabindex="-1"></a>      <span class="at">legend.key.size =</span> <span class="fu">unit</span>(<span class="dv">2</span>, <span class="st">&#39;line&#39;</span>),</span>
+<span id="cb130-154"><a href="difference-in-difference.html#cb130-154" tabindex="-1"></a></span>
+<span id="cb130-155"><a href="difference-in-difference.html#cb130-155" tabindex="-1"></a>      <span class="at">panel.grid.major.x =</span> <span class="fu">element_line</span>(<span class="at">color =</span> <span class="st">&#39;grey80&#39;</span>, <span class="at">linewidth =</span> <span class="fl">0.3</span>, <span class="at">linetype =</span> <span class="dv">1</span>),</span>
+<span id="cb130-156"><a href="difference-in-difference.html#cb130-156" tabindex="-1"></a>      <span class="at">panel.grid.minor.x =</span> <span class="fu">element_line</span>(<span class="at">color =</span> <span class="st">&#39;grey80&#39;</span>, <span class="at">linewidth =</span> <span class="fl">0.2</span>, <span class="at">linetype =</span> <span class="dv">2</span>),</span>
+<span id="cb130-157"><a href="difference-in-difference.html#cb130-157" tabindex="-1"></a>      <span class="at">panel.grid.major.y =</span> <span class="fu">element_line</span>(<span class="at">color =</span> <span class="st">&#39;grey80&#39;</span>, <span class="at">linewidth =</span> <span class="fl">0.3</span>, <span class="at">linetype =</span> <span class="dv">1</span>),</span>
+<span id="cb130-158"><a href="difference-in-difference.html#cb130-158" tabindex="-1"></a>      <span class="at">panel.grid.minor.y =</span> <span class="fu">element_line</span>(<span class="at">color =</span> <span class="st">&#39;grey80&#39;</span>, <span class="at">linewidth =</span> <span class="fl">0.2</span>, <span class="at">linetype =</span> <span class="dv">2</span>)</span>
+<span id="cb130-159"><a href="difference-in-difference.html#cb130-159" tabindex="-1"></a>    )</span>
+<span id="cb130-160"><a href="difference-in-difference.html#cb130-160" tabindex="-1"></a>fig_forest_loss_agg_avg_nofapbm</span></code></pre></div>
+<p>Eventually the plots are saved in the remote storage.</p>
+<div class="sourceCode" id="cb131"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb131-1"><a href="difference-in-difference.html#cb131-1" tabindex="-1"></a><span class="do">##Saving plots</span></span>
+<span id="cb131-2"><a href="difference-in-difference.html#cb131-2" tabindex="-1"></a>tmp <span class="ot">=</span> <span class="fu">paste</span>(<span class="fu">tempdir</span>(), <span class="st">&quot;fig&quot;</span>, <span class="at">sep =</span> <span class="st">&quot;/&quot;</span>)</span>
+<span id="cb131-3"><a href="difference-in-difference.html#cb131-3" tabindex="-1"></a></span>
+<span id="cb131-4"><a href="difference-in-difference.html#cb131-4" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="fu">paste</span>(tmp, <span class="st">&quot;fig_forest_loss_agg_tot_fapbm.png&quot;</span>, <span class="at">sep =</span> <span class="st">&quot;/&quot;</span>),</span>
+<span id="cb131-5"><a href="difference-in-difference.html#cb131-5" tabindex="-1"></a>       <span class="at">plot =</span> fig_forest_loss_agg_tot_fapbm,</span>
+<span id="cb131-6"><a href="difference-in-difference.html#cb131-6" tabindex="-1"></a>       <span class="at">device =</span> <span class="st">&quot;png&quot;</span>,</span>
+<span id="cb131-7"><a href="difference-in-difference.html#cb131-7" tabindex="-1"></a>       <span class="at">height =</span> <span class="dv">6</span>, <span class="at">width =</span> <span class="dv">9</span>)</span>
+<span id="cb131-8"><a href="difference-in-difference.html#cb131-8" tabindex="-1"></a></span>
+<span id="cb131-9"><a href="difference-in-difference.html#cb131-9" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="fu">paste</span>(tmp, <span class="st">&quot;fig_forest_loss_agg_avg_nofapbm.png&quot;</span>, <span class="at">sep =</span> <span class="st">&quot;/&quot;</span>),</span>
+<span id="cb131-10"><a href="difference-in-difference.html#cb131-10" tabindex="-1"></a>       <span class="at">plot =</span> fig_forest_loss_agg_avg_nofapbm,</span>
+<span id="cb131-11"><a href="difference-in-difference.html#cb131-11" tabindex="-1"></a>       <span class="at">device =</span> <span class="st">&quot;png&quot;</span>,</span>
+<span id="cb131-12"><a href="difference-in-difference.html#cb131-12" tabindex="-1"></a>       <span class="at">height =</span> <span class="dv">6</span>, <span class="at">width =</span> <span class="dv">9</span>)</span>
+<span id="cb131-13"><a href="difference-in-difference.html#cb131-13" tabindex="-1"></a></span>
+<span id="cb131-14"><a href="difference-in-difference.html#cb131-14" tabindex="-1"></a>  files <span class="ot">&lt;-</span> <span class="fu">list.files</span>(tmp, <span class="at">full.names =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb131-15"><a href="difference-in-difference.html#cb131-15" tabindex="-1"></a><span class="do">##Add each file in the bucket (same foler for every file in the temp)</span></span>
+<span id="cb131-16"><a href="difference-in-difference.html#cb131-16" tabindex="-1"></a><span class="cf">for</span>(f <span class="cf">in</span> files) </span>
+<span id="cb131-17"><a href="difference-in-difference.html#cb131-17" tabindex="-1"></a>{</span>
+<span id="cb131-18"><a href="difference-in-difference.html#cb131-18" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;Uploading file&quot;</span>, <span class="fu">paste0</span>(<span class="st">&quot;&#39;&quot;</span>, f, <span class="st">&quot;&#39;&quot;</span>), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb131-19"><a href="difference-in-difference.html#cb131-19" tabindex="-1"></a>  aws.s3<span class="sc">::</span><span class="fu">put_object</span>(<span class="at">file =</span> f, </span>
+<span id="cb131-20"><a href="difference-in-difference.html#cb131-20" tabindex="-1"></a>                     <span class="at">bucket =</span> <span class="fu">paste</span>(<span class="st">&quot;projet-afd-eva-ap&quot;</span>, save_dir, <span class="at">sep =</span> <span class="st">&quot;/&quot;</span>),</span>
+<span id="cb131-21"><a href="difference-in-difference.html#cb131-21" tabindex="-1"></a>                     <span class="at">region =</span> <span class="st">&quot;&quot;</span>, <span class="at">show_progress =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb131-22"><a href="difference-in-difference.html#cb131-22" tabindex="-1"></a>}</span>
+<span id="cb131-23"><a href="difference-in-difference.html#cb131-23" tabindex="-1"></a><span class="fu">do.call</span>(file.remove, <span class="fu">list</span>(<span class="fu">list.files</span>(tmp, <span class="at">full.names =</span> <span class="cn">TRUE</span>)))</span></code></pre></div>
+</div>
+</div>
+<div id="display-treatment-effects-in-figures-and-tables" class="section level2 hasAnchor" number="6.5">
+<h2><span class="header-section-number">6.5</span> Display treatment effects in figures and tables<a href="difference-in-difference.html#display-treatment-effects-in-figures-and-tables" class="anchor-section" aria-label="Anchor link to header"></a></h2>
+<p>The treatment effects computed for each protected areas can be displayed in figures or tables. Again, a function is used for protected areas supported by the AFD to include information on funding (funding year for instance), and an other for non-supported ones.</p>
+<p>Note some protected areas can be removed from the display, because the matching is not satisfying or pre-treatment trends are too different between treated and control units (thus the matched control risk to be an irrelevant counterfactual). Also, one might want to highlight some protected areas. For instance when comparing a subset of protected areas in a given country to the others (protected areas in Madagascar supported by the AFD versus the others for instance).</p>
+<div class="sourceCode" id="cb132"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb132-1"><a href="difference-in-difference.html#cb132-1" tabindex="-1"></a><span class="co"># Define a list of protected areas that will not be displayed</span></span>
+<span id="cb132-2"><a href="difference-in-difference.html#cb132-2" tabindex="-1"></a>list_wdpa_bad <span class="ot">=</span> <span class="fu">c</span>(<span class="dv">352240</span>, <span class="co">#matching</span></span>
+<span id="cb132-3"><a href="difference-in-difference.html#cb132-3" tabindex="-1"></a>                  <span class="dv">352240</span>, <span class="co">#matching</span></span>
+<span id="cb132-4"><a href="difference-in-difference.html#cb132-4" tabindex="-1"></a>                  <span class="dv">555542728</span>, <span class="co">#pre-treatment parallel trend</span></span>
+<span id="cb132-5"><a href="difference-in-difference.html#cb132-5" tabindex="-1"></a>                  <span class="dv">555548846</span> <span class="co">#no confidence intervals</span></span>
+<span id="cb132-6"><a href="difference-in-difference.html#cb132-6" tabindex="-1"></a>                  )</span>
+<span id="cb132-7"><a href="difference-in-difference.html#cb132-7" tabindex="-1"></a><span class="co"># Define a list of protected areas where a focus is needed</span></span>
+<span id="cb132-8"><a href="difference-in-difference.html#cb132-8" tabindex="-1"></a>list_wdpa_focus <span class="ot">=</span> <span class="fu">unique</span>(data_fapbm<span class="sc">$</span>wdpaid)</span>
+<span id="cb132-9"><a href="difference-in-difference.html#cb132-9" tabindex="-1"></a></span>
+<span id="cb132-10"><a href="difference-in-difference.html#cb132-10" tabindex="-1"></a><span class="co"># Get rid of some protected areas in the dataset used to plotting figures and tables</span></span>
+<span id="cb132-11"><a href="difference-in-difference.html#cb132-11" tabindex="-1"></a>df_fc_att_tidy <span class="ot">=</span> df_fc_att <span class="sc">%&gt;%</span></span>
+<span id="cb132-12"><a href="difference-in-difference.html#cb132-12" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span>wdpaid <span class="sc">%in%</span> list_wdpa_bad)</span>
+<span id="cb132-13"><a href="difference-in-difference.html#cb132-13" tabindex="-1"></a>df_fl_att_tidy <span class="ot">=</span> df_fl_att <span class="sc">%&gt;%</span></span>
+<span id="cb132-14"><a href="difference-in-difference.html#cb132-14" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span>wdpaid <span class="sc">%in%</span> list_wdpa_bad)</span>
+<span id="cb132-15"><a href="difference-in-difference.html#cb132-15" tabindex="-1"></a></span>
+<span id="cb132-16"><a href="difference-in-difference.html#cb132-16" tabindex="-1"></a><span class="co"># A function to create figures and tables</span></span>
+<span id="cb132-17"><a href="difference-in-difference.html#cb132-17" tabindex="-1"></a><span class="do">##For AFD supported protected areas (funding info)</span></span>
+<span id="cb132-18"><a href="difference-in-difference.html#cb132-18" tabindex="-1"></a><span class="co"># fn_plot_att_afd(df_fc_att = df_fc_att_tidy,</span></span>
+<span id="cb132-19"><a href="difference-in-difference.html#cb132-19" tabindex="-1"></a><span class="co">#             df_fl_att = df_fl_att_tidy, </span></span>
+<span id="cb132-20"><a href="difference-in-difference.html#cb132-20" tabindex="-1"></a><span class="co">#             alpha = alpha,</span></span>
+<span id="cb132-21"><a href="difference-in-difference.html#cb132-21" tabindex="-1"></a><span class="co">#             save_dir = save_dir)</span></span>
+<span id="cb132-22"><a href="difference-in-difference.html#cb132-22" tabindex="-1"></a><span class="do">##For other protected areas (no funding info)</span></span>
+<span id="cb132-23"><a href="difference-in-difference.html#cb132-23" tabindex="-1"></a><span class="fu">fn_plot_att_general</span>(<span class="at">df_fc_att =</span> df_fc_att_tidy,</span>
+<span id="cb132-24"><a href="difference-in-difference.html#cb132-24" tabindex="-1"></a>            <span class="at">df_fl_att =</span> df_fl_att_tidy, </span>
+<span id="cb132-25"><a href="difference-in-difference.html#cb132-25" tabindex="-1"></a>            <span class="at">list_focus =</span> list_wdpa_focus,</span>
+<span id="cb132-26"><a href="difference-in-difference.html#cb132-26" tabindex="-1"></a>            <span class="at">alpha =</span> alpha,</span>
+<span id="cb132-27"><a href="difference-in-difference.html#cb132-27" tabindex="-1"></a>            <span class="at">save_dir =</span> save_dir)</span></code></pre></div>
+</div>
+<div id="section" class="section level2" number="6.6">
+<h2><span class="header-section-number">6.6</span> </h2>
+
+</div>
+</div>
+            </section>
+
+          </div>
+        </div>
+      </div>
+<a href="matching.html" class="navigation navigation-prev " aria-label="Previous page"><i class="fa fa-angle-left"></i></a>
+<a href="references.html" class="navigation navigation-next " aria-label="Next page"><i class="fa fa-angle-right"></i></a>
+    </div>
+  </div>
+<script src="libs/gitbook-2.6.7/js/app.min.js"></script>
+<script src="libs/gitbook-2.6.7/js/clipboard.min.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-search.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-sharing.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-fontsettings.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-bookdown.js"></script>
+<script src="libs/gitbook-2.6.7/js/jquery.highlight.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-clipboard.js"></script>
+<script>
+gitbook.require(["gitbook"], function(gitbook) {
+gitbook.start({
+"sharing": {
+"github": true,
+"facebook": false,
+"twitter": false,
+"linkedin": false,
+"weibo": false,
+"instapaper": false,
+"vk": false,
+"whatsapp": false,
+"all": false
+},
+"fontsettings": {
+"theme": "white",
+"family": "sans",
+"size": 2
+},
+"edit": {
+"link": "https://github.com/vuillota/EVA-impact-aires-protegees/edit/main/02_did.Rmd",
+"text": "Suggest an edit"
+},
+"history": {
+"link": null,
+"text": null
+},
+"view": {
+"link": null,
+"text": null
+},
+"download": ["https://github.com/vuillota/EVA-impact-aires-protegees/raw/main/02_did.Rmd"],
+"search": {
+"engine": "fuse",
+"options": null
+},
+"toc": {
+"collapse": "section"
+}
+});
+});
+</script>
+
+</body>
+
+</html>

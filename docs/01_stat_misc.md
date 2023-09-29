@@ -6,13 +6,14 @@ In this document are performed and plotted statistics for particular needs (anal
 
 Configuring Rmarkdown.
 
-```{r setup, include=FALSE, eval = FALSE}
-knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
-```
+#```{r setup, include=FALSE, eval = FALSE}
+#knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+#```
 
 Installing and importing relevant packages.
 
-```{r message=FALSE, warning=FALSE, eval = FALSE}
+
+```r
 install.packages(c("stargazer", "janitor", "questionr", "countrycode", "WDI"))
 library(tidyverse)
 library(stargazer)
@@ -37,7 +38,8 @@ library(countrycode)
 
 A dataset with information for each protected area funded by the AFD, and datasets on aggregated size at country/region/world level and by year. The latter takes into account potential overlap between PAs reported in the World Database on Protected Areas (WDPA).
 
-```{r, eval = FALSE}
+
+```r
 #Dataset of AFD supported protected area, with one line per protected area
 data_stat_nodupl = 
   #fread("data_tidy/BDD_PA_AFD_nofund_nodupl.csv" , encoding = "UTF-8")
@@ -132,8 +134,6 @@ df_ctry_stat_wdpa = WDI(country = "all", start = "1960", end = "2022", extra = T
   filter((wb_inc_grp %in% c("Low income",  "Lower middle income", "Upper middle income") & iso3 != "RUS") | iso3 %in% c("CHL", "URY", "PAN", "NCL"))
 
 lst_ctry_stat_wdpa = df_ctry_stat_wdpa$iso3
-
-
 ```
 
 ## Performing descriptive statistics
@@ -144,7 +144,8 @@ lst_ctry_stat_wdpa = df_ctry_stat_wdpa$iso3
 
 FAPBM
 
-```{r, eval = FALSE}
+
+```r
 #Building the relevant dataset
 ##For all PAs ..
 data_cat_iucn = data_pa_fapbm %>%
@@ -227,11 +228,10 @@ pie_cat_iucn_ref_en = ggplot(data_cat_iucn_ref,
                                  "Strict nature reserve" = "#E6AB02")) %>%
   + theme_void()
 pie_cat_iucn_ref_en
-
-
 ```
 
-```{r, eval = FALSE}
+
+```r
 #Saving figures
 
 tmp = paste(tempdir(), "fig", sep = "/")
@@ -262,12 +262,12 @@ for(f in files)
 #Erase the files in the temp directory
 
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
-
 ```
 
 All protected areas in Madagascar (reported by the WDPA)
 
-```{r, eval = FALSE}
+
+```r
 #Building the relevant dataset
 ##For all PAs ..
 data_cat_iucn = data_wdpa_mdg %>%
@@ -350,10 +350,10 @@ pie_cat_iucn_ref_en = ggplot(data_cat_iucn_ref,
                                  "Strict nature reserve" = "#E6AB02")) %>%
   + theme_void()
 pie_cat_iucn_ref_en
-
 ```
 
-```{r, eval = FALSE}
+
+```r
 #Saving figures
 
 tmp = paste(tempdir(), "fig", sep = "/")
@@ -388,7 +388,8 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 Madagascar protected areas without FAPBM funded protected areas.
 
-```{r, eval = FALSE}
+
+```r
 #Building the relevant dataset
 ##For all PAs ..
 data_cat_iucn = data_wdpa_mdg %>%
@@ -475,7 +476,8 @@ pie_cat_iucn_ref_en = ggplot(data_cat_iucn_ref,
 pie_cat_iucn_ref_en
 ```
 
-```{r, eval = FALSE}
+
+```r
 #Saving figures
 
 tmp = paste(tempdir(), "fig", sep = "/")
@@ -512,8 +514,8 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 FAPBM funded protected areas.
 
-```{r, eval = FALSE}
 
+```r
 #Build datasets
 data_eco = data_pa_fapbm %>%
   #subset non-referencded PAs (have NA ecosysteme)
@@ -553,10 +555,10 @@ pie_eco_en = ggplot(data_eco_hist,
                                  "Coastal" = "#A6CEE3")) %>%
   + theme_void()
 pie_eco_en
-
 ```
 
-```{r, eval = FALSE}
+
+```r
 #Saving figures
 
 tmp = paste(tempdir(), "fig", sep = "/")
@@ -584,13 +586,12 @@ for(f in files)
 #Erase the files in the temp directory
 
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
-
 ```
 
 All protected areas in Madagascar (reported by the WDPA)
 
-```{r, eval = FALSE}
 
+```r
 #Build datasets
 data_eco = data_wdpa_mdg %>%
   #subset non-referencded PAs (have NA ecosysteme)
@@ -632,7 +633,8 @@ pie_eco_en = ggplot(data_eco_hist,
 pie_eco_en
 ```
 
-```{r, eval = FALSE}
+
+```r
 #Saving figures
 
 tmp = paste(tempdir(), "fig", sep = "/")
@@ -660,13 +662,12 @@ for(f in files)
 #Erase the files in the temp directory
 
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
-
 ```
 
 Madagascar without FAPBM
 
-```{r, eval = FALSE}
 
+```r
 #Build datasets
 data_eco = data_wdpa_mdg %>%
   #subset non-referencded PAs (have NA ecosysteme)
@@ -709,7 +710,8 @@ pie_eco_en = ggplot(data_eco_hist,
 pie_eco_en
 ```
 
-```{r, eval = FALSE}
+
+```r
 #Saving figures
 
 tmp = paste(tempdir(), "fig", sep = "/")
@@ -743,8 +745,8 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 FAPBM funded protected areas
 
-```{r, eval = FALSE}
 
+```r
 #Table of the governance type distribution
 ##English version
 data_gov_en = data_pa_fapbm %>%
@@ -805,11 +807,10 @@ pie_gov_knwn_en =
                                  "Federal or national ministry or agency" = "#E31A1C")) %>%
   + theme_void()
 pie_gov_knwn_en
-
-
 ```
 
-```{r, eval = FALSE}
+
+```r
 #Saving figures
 
 tmp = paste(tempdir(), "fig", sep = "/")
@@ -846,8 +847,8 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 All protected areas in Madagascar (reported by the WDPA)
 
-```{r, eval = FALSE}
 
+```r
 #Table of the governance type distribution
 ##English version
 data_gov_en = data_wdpa_mdg %>%
@@ -910,7 +911,8 @@ pie_gov_knwn_en =
 pie_gov_knwn_en
 ```
 
-```{r, eval = FALSE}
+
+```r
 #Saving figures
 
 tmp = paste(tempdir(), "fig", sep = "/")
@@ -947,8 +949,8 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 Madagascar without FAPBM funded protected areas
 
-```{r, eval = FALSE}
 
+```r
 #Table of the governance type distribution
 ##English version
 data_gov_en = data_wdpa_mdg %>%
@@ -1013,7 +1015,8 @@ pie_gov_knwn_en =
 pie_gov_knwn_en
 ```
 
-```{r, eval = FALSE}
+
+```r
 #Saving figures
 
 tmp = paste(tempdir(), "fig", sep = "/")
@@ -1050,7 +1053,8 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 #### Number of PAs
 
-```{r}
+
+```r
 #Statistics
 
 ## PAs in the WDAP
@@ -1085,8 +1089,8 @@ n_fapbm_ie = data_pa_fapbm %>%
 
 FAPBM funded protected areas
 
-```{r, eval = FALSE}
 
+```r
 tbl_area_fapbm = data_pa_fapbm %>%
   filter(marine %in% c(0,1)) %>%
   summarize(n = n(),
@@ -1098,7 +1102,8 @@ tbl_area_fapbm = data_pa_fapbm %>%
 names(tbl_area_fapbm) = c("Number of PAs", "Total area (km²)", "Min. area (km²)", "Max. area (km²)", "Average area (km²)")
 ```
 
-```{r, eval = FALSE}
+
+```r
 #Saving figures
 
 tmp = paste(tempdir(), "fig", sep = "/")
@@ -1130,8 +1135,8 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 All protected areas in Madagascar (reported by the WDPA)
 
-```{r, eval = FALSE}
 
+```r
 tbl_area_mdg = data_wdpa_mdg %>%
   st_drop_geometry() %>%
   filter(marine %in% c(0,1)) %>%
@@ -1144,7 +1149,8 @@ tbl_area_mdg = data_wdpa_mdg %>%
 names(tbl_area_mdg) = c("Number of PAs", "Total area (km²)", "Min. area (km²)", "Max. area (km²)", "Average area (km²)")
 ```
 
-```{r, eval = FALSE}
+
+```r
 #Saving figures
 
 tmp = paste(tempdir(), "fig", sep = "/")
@@ -1177,8 +1183,8 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 Madagascar without FAPBM funded protected areas.
 
-```{r, eval = FALSE}
 
+```r
 tbl_area_mdg_nofapbm = data_wdpa_mdg %>%
   st_drop_geometry() %>%
   filter(marine %in% c(0,1)) %>%
@@ -1192,7 +1198,8 @@ tbl_area_mdg_nofapbm = data_wdpa_mdg %>%
 names(tbl_area_mdg_nofapbm) = c("Number of PAs", "Total area (km²)", "Min. area (km²)", "Max. area (km²)", "Average area (km²)")
 ```
 
-```{r, eval = FALSE}
+
+```r
 #Saving figures
 
 tmp = paste(tempdir(), "fig", sep = "/")
@@ -1227,7 +1234,8 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 All protected areas in Madagascar (reported by the WDPA)
 
-```{r, eval = F}
+
+```r
 ##2000 tree cover 
 data_treecover_2000 = 
   aws.s3::s3read_using(
@@ -1282,7 +1290,8 @@ fig_treeloss_mdg = ggplot(data = data_plot_mdg,
 fig_treeloss_mdg
 ```
 
-```{r, eval = FALSE}
+
+```r
 #Saving figures
 
 tmp = paste(tempdir(), "fig", sep = "/")
@@ -1315,7 +1324,8 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 FAPBM funded protected areas.
 
-```{r}
+
+```r
 #Filter the WDPA to non-marine PAs in MDG funded by the FAPBM
 wdpa_fapbm = data_wdpa %>%
   filter(iso3 == "MDG" & marine %in% c(0,1) & st_geometry_type(geom) == "MULTIPOLYGON" & wdpaid %in% unique(data_pa_fapbm$wdpaid)) %>%
@@ -1389,10 +1399,10 @@ fig_treeloss_fapbm
 # object = "data_tidy/GFW/MDG/FAPBM/data_treecover_2000_2022.csv",
 # bucket = "projet-afd-eva-ap",
 # opts = list("region" = ""))
-
 ```
 
-```{r, eval = FALSE}
+
+```r
 #Saving figures
 
 tmp = paste(tempdir(), "fig", sep = "/")
@@ -1425,8 +1435,8 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 Madagascar protected areas without FAPBM funded ones.
 
-```{r}
 
+```r
 wdpa_nofapbm = data_wdpa %>%
   filter(iso3 == "MDG" & marine %in% c(0,1) & st_geometry_type(geom) == "MULTIPOLYGON" & !(wdpaid %in% unique(data_pa_fapbm$wdpaid))) %>%
   st_make_valid() %>%
@@ -1498,7 +1508,8 @@ fig_treeloss_nofapbm = ggplot(data = data_plot_nofapbm,
 fig_treeloss_nofapbm
 ```
 
-```{r, eval = FALSE}
+
+```r
 #Saving figures
 
 tmp = paste(tempdir(), "fig", sep = "/")
@@ -1531,7 +1542,8 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 Plotting the evolution of forest cover in Madagascar, FAPBM funded and not FAPMB funded protected areas in the same figure.
 
-```{r}
+
+```r
 data_plot_all = data_plot_fapbm %>%
   left_join(data_plot_nofapbm, by = "year") %>%
   left_join(select(data_plot_mdg, c(year, treecover_ha_mdg, treecover_rel00_mdg)), by = "year") %>%
@@ -1568,7 +1580,8 @@ fig_treeloss_all =  ggplot(data_plot_all,
 fig_treeloss_all
 ```
 
-```{r, eval = FALSE}
+
+```r
 #Saving figures
 
 tmp = paste(tempdir(), "fig", sep = "/")

@@ -36,12 +36,16 @@
   padding-bottom: 8px;
   padding-left: 15px;
   padding-right: 15px;
-  color: #2f5175;
+  color: grey;
 }
 
 li.appendix span, li.part span { /* for TOC part names */
   margin-top: 1em;
-  color: color: #1c3046 !important;
+  color: grey !important;
   opacity: 1 !important;
   text-transform: uppercase;
 }
+
+.summary a:hover {
+  color: #bccefb !important;
+} 

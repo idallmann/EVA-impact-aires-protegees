@@ -7,18 +7,18 @@ In this document are computed and plotted descriptive statistics for the protect
 ## Importing packages and functions
 
 #```{r setup, include=FALSE, eval = FALSE}
-#knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+#knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file()) 
 #```
 
 
 ```r
-source("scripts/Statistics/fns_DesStat_biodiv.R", encoding = "utf-8")
+source("scripts/functions/02_fns_DesStat_biodiv.R", encoding = "UTF-8")
 ```
 
 
 ```r
 #The last version of mapme.biodiversity package is downloaded directly from github
-remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
+# remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
 library(mapme.biodiversity)
 library(sf)
 library(tidyverse)
@@ -78,25 +78,24 @@ sf_use_s2(FALSE)
 
 #/!\ : in pa_shp, variable sprfc is the area reported by AFD members, and is not equal to rep_a (area reported by WDPA) nor superficie in the BDD_joint. The latter is a combination of rep_a and sprfc, where superficie = rep_a except if rep_a = 0 or not reported.
 pa_shp = 
-  #read_sf("data_tidy/BDD_SHP_nodupl_pub.gpkg") %>%
-  aws.s3::s3read_using(
-  FUN = sf::read_sf,
-  # Mettre les options de FUN ici
-  object = "data_tidy/BDD_shp_pub.gpkg",
-  bucket = "projet-afd-eva-ap",
-  opts = list("region" = "")) %>%
+  read_sf("data_tidy/BDD_SHP_pub.gpkg") %>%
+  # aws.s3::s3read_using(
+  # FUN = sf::read_sf,
+  # object = "data_tidy/BDD_shp_pub.gpkg",
+  # bucket = "projet-afd-eva-ap",
+  # opts = list("region" = "")) %>%
   st_make_valid() %>%
   sf::st_cast(to = "POLYGON")
 
 #From BDD_joint, that is the combination of the SIOP dataset and the AP dataset from ARB team in AFD. Imported to have the information on the PA area (combination of areas reported by WDPA and ARB)
 pa_nodupl = 
-  #fread("data_tidy/BDD_DesStat_nodupl.csv") %>%
-  aws.s3::s3read_using(
-  FUN = data.table::fread,
-  encoding = "UTF-8",
-  object = "data_tidy/BDD_DesStat_nofund_nodupl.csv",
-  bucket = "projet-afd-eva-ap",
-  opts = list("region" = "")) %>%
+  fread("data_tidy/BDD_nofund_nodupl.csv") %>%
+  # aws.s3::s3read_using(
+  # FUN = data.table::fread,
+  # encoding = "UTF-8",
+  # object = "data_tidy/BDD_nofund_nodupl.csv",
+  # bucket = "projet-afd-eva-ap",
+  # opts = list("region" = "")) %>%
   dplyr::select(c(wdpaid, superficie))
 
 #mapview(pa_shp)
@@ -125,9 +124,9 @@ tmp = paste(tempdir(), "mapme", sep = "/")
 #save_folder = get_bucket("projet-afd-eva-ap", region = "")
 
 #Creating the portfolio
-pa_pfolio = pa_shp %>%
-  init_portfolio(2000:2020,
-                 outdir = tmp,
+pa_pfolio = pa_shp[pa_shp$wdpaid == 1245,] %>%
+  init_portfolio(2000:2021,
+                 outdir = "data_raw/mapme_bio_data",
                  #cores = 4,
                  add_resources = TRUE,
                  verbose = TRUE)
@@ -164,6 +163,24 @@ plot(temp_file)
 ##  ~ Forests ----
 ##~~~~~~~~~~~~~~~~
 
+#Modifying tile index
+##Emissions
+# tileindex_gfw_emissions = read_sf("D:/Documents/Github/EVA-impact-aires-protegees/data_raw/mapme_bio_data/gfw_treecover/tileindex_gfw_emissions.gpkg") %>%
+#   mutate(location = gsub("/tmp/Rtmp79IZ3f/mapme/",
+#                          "D:/Documents/Github/EVA-impact-aires-protegees/data_raw/mapme_bio_data/",
+#                          location))
+# write_sf(tileindex_gfw_emissions,
+#          "D:/Documents/Github/EVA-impact-aires-protegees/data_raw/mapme_bio_data/gfw_treecover/tileindex_gfw_emissions.gpkg")
+
+##Treecover
+# tileindex_gfw_treecover = read_sf("D:/Documents/Github/EVA-impact-aires-protegees/data_raw/mapme_bio_data/gfw_treecover/tileindex_gfw_treecover.gpkg") %>%
+#   mutate(location = gsub("/tmp/RtmpYU2AvZ/mapme/",
+#                          "D:/Documents/Github/EVA-impact-aires-protegees/data_raw/mapme_bio_data/",
+#                          location))
+# write_sf(tileindex_gfw_treecover,
+#          "D:/Documents/Github/EVA-impact-aires-protegees/data_raw/mapme_bio_data/gfw_treecover/tileindex_gfw_treecover.gpkg")
+
+
 ##Downloading data and computing indicators 
 pa_pfolio_tcover =
   get_resources(pa_pfolio,
@@ -174,6 +191,8 @@ pa_pfolio_tcover =
   calc_indicators(indicators = "treecover_area",
                 min_cover = 10,
                 min_size = 1, overwrite=T)
+
+
 
 #Unest the sf file into a classic data frame without geometry
 data_pfolio_tcover = unnest(pa_pfolio_tcover, cols="treecover_area") %>%
@@ -441,7 +460,7 @@ Warning and errors face and their meaning.
 -   *Avis : Error : [crop] incorrect number of values (too many) for writing*
 
     Check the error in more details.
-    
+
 ## Computing statistics
 
 From the datasets obtained, statistics of interest can be computed and plotted.
@@ -531,7 +550,7 @@ ggsave(plot = fig_evo5_bamboung,
        width = 7, height = 5)
 ```
 
-/!\ Modifier le code précédent pour inclure plusieurs aires ???
+/! Modifier le code précédent pour inclure plusieurs aires ???
 
 -   Statistics at region level
 
@@ -604,7 +623,7 @@ tbl_mang_summary = data_mang %>%
 
 ### Emissions
 
-/!\ pas clair
+/! pas clair
 
 Summary table of emissions in each PA :
 
