@@ -2,13 +2,15 @@
 
 In this document are performed and plotted statistics for particular needs (analysis of a particular portfolio, some specific group of PAs, etc.)
 
-## Importing packages
+## Initial settings
 
-Packages relevant to perform the statistics.
+Configuring Rmarkdown.
 
 ```{r setup, include=FALSE, eval = FALSE}
 knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 ```
+
+Installing and importing relevant packages.
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
 install.packages(c("stargazer", "janitor", "questionr", "countrycode", "WDI"))
@@ -33,10 +35,10 @@ library(countrycode)
 
 ## Importing datasets
 
-A dataset with information for each PA funded by the AFD, and datasets on aggregated size at country/region/world level and by year. The latter takes into account potential overlap between PAs reported in the World Database on Protected Areas (WDPA) [REF DOCUMENTATION].
+A dataset with information for each protected area funded by the AFD, and datasets on aggregated size at country/region/world level and by year. The latter takes into account potential overlap between PAs reported in the World Database on Protected Areas (WDPA).
 
 ```{r, eval = FALSE}
-##Dataset with one line per PA
+#Dataset of AFD supported protected area, with one line per protected area
 data_stat_nodupl = 
   #fread("data_tidy/BDD_PA_AFD_nofund_nodupl.csv" , encoding = "UTF-8")
   aws.s3::s3read_using(
@@ -47,6 +49,7 @@ data_stat_nodupl =
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
 
+# Portfolio of protected areas supported by the FAPBM
 data_pa_fapbm = 
   #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
   aws.s3::s3read_using(
@@ -57,11 +60,13 @@ data_pa_fapbm =
   opts = list("region" = ""))
 
 #Import WDPA data
+## Download and save data
 # data_wdpa = wdpa_fetch(x = "global", wait = TRUE, download_dir = "data_raw",
 #                        page_wait = 2, verbose = TRUE)
 # st_write(wdpa,
 #          dsn = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
 #          delete_dsn = TRUE)
+## Load data
 data_wdpa = 
   #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
   s3read_using(sf::st_read,
@@ -85,7 +90,7 @@ data_wdpa =
                               destination = "un.name.fr"),
          .after = "iso3") 
 
-#A specific WDPA for MDG
+#Subset of WDPA data for Madagascar, with IUCN category description (English and French)
 data_wdpa_mdg = data_wdpa %>%
   filter(iso3 == "MDG") %>%
   #Add the description of IUCN from its category
@@ -114,47 +119,6 @@ data_wdpa_mdg = data_wdpa %>%
   !is.na(wdpaid) & iucn_cat == "Not Assigned" ~ "Not categorized",
   TRUE ~ "Not referenced"), .after = iucn_cat) %>%
   st_drop_geometry()
-
-##Datasets on aggregated size per country/region/year and at world level, taking into account the overlap.
-pa_area_ctry = 
-  #fread("data_tidy/area/pa_area_ctry.csv", encoding = "UTF-8")
-  aws.s3::s3read_using(
-  FUN = data.table::fread,
-  encoding = "UTF-8",
-  # Mettre les options de FUN ici
-  object = "data_tidy/area/pa_area_ctry.csv",
-  bucket = "projet-afd-eva-ap",
-  opts = list("region" = ""))
-
-pa_area_region =
-  #fread("data_tidy/area/pa_area_region.csv", encoding = "UTF-8")
-  aws.s3::s3read_using(
-  FUN = data.table::fread,
-  encoding = "UTF-8",
-  # Mettre les options de FUN ici
-  object = "data_tidy/area/pa_area_region.csv",
-  bucket = "projet-afd-eva-ap",
-  opts = list("region" = ""))
-
-pa_area_wld = 
-  #fread("data_tidy/area/pa_area_wld.csv", encoding = "UTF-8")
-  aws.s3::s3read_using(
-  FUN = data.table::fread,
-  encoding = "UTF-8",
-  # Mettre les options de FUN ici
-  object = "data_tidy/area/pa_area_wld.csv",
-  bucket = "projet-afd-eva-ap",
-  opts = list("region" = ""))
-
-pa_int_yr = 
-  #fread("data_tidy/area/pa_area_dr.csv", encoding = "UTF-8")
-  aws.s3::s3read_using(
-  FUN = data.table::fread,
-  encoding = "UTF-8",
-  # Mettre les options de FUN ici
-  object = "data_tidy/area/pa_int_yr.csv",
-  bucket = "projet-afd-eva-ap",
-  opts = list("region" = ""))
 
 #To perform statistics on the distribution of PAs reported by the WDPA across countries/regions, we focus on not high-income countries.
 #Precisely, we restrict to countries defined as low-income, lower middle-income, upper-middle income, minus Russia, and including Chile, Uruguay New Caledonia and Panama
@@ -301,7 +265,7 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 ```
 
-MDG
+All protected areas in Madagascar (reported by the WDPA)
 
 ```{r, eval = FALSE}
 #Building the relevant dataset
@@ -422,7 +386,7 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
-MDG without FAPBM
+Madagascar protected areas without FAPBM funded protected areas.
 
 ```{r, eval = FALSE}
 #Building the relevant dataset
@@ -546,7 +510,7 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 #### Ecosystem
 
-FAPBM
+FAPBM funded protected areas.
 
 ```{r, eval = FALSE}
 
@@ -623,7 +587,7 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 ```
 
-MDG
+All protected areas in Madagascar (reported by the WDPA)
 
 ```{r, eval = FALSE}
 
@@ -699,7 +663,7 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 ```
 
-MDG without FAPBM
+Madagascar without FAPBM
 
 ```{r, eval = FALSE}
 
@@ -777,7 +741,7 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 #### Governance
 
-FAPBM
+FAPBM funded protected areas
 
 ```{r, eval = FALSE}
 
@@ -880,7 +844,7 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
-MDG
+All protected areas in Madagascar (reported by the WDPA)
 
 ```{r, eval = FALSE}
 
@@ -981,7 +945,7 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
-MDG w/ FAPBM
+Madagascar without FAPBM funded protected areas
 
 ```{r, eval = FALSE}
 
@@ -1119,7 +1083,7 @@ n_fapbm_ie = data_pa_fapbm %>%
 
 #### Area of PAs
 
-FAPBM
+FAPBM funded protected areas
 
 ```{r, eval = FALSE}
 
@@ -1164,7 +1128,7 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))  
 ```
 
-MDG
+All protected areas in Madagascar (reported by the WDPA)
 
 ```{r, eval = FALSE}
 
@@ -1211,7 +1175,7 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
-MDG w/ FAPBM
+Madagascar without FAPBM funded protected areas.
 
 ```{r, eval = FALSE}
 
@@ -1261,7 +1225,7 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 ## Evolution of tree cover and deforestation
 
-In Madagascar
+All protected areas in Madagascar (reported by the WDPA)
 
 ```{r, eval = F}
 ##2000 tree cover 
@@ -1349,7 +1313,7 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
-FAPBM
+FAPBM funded protected areas.
 
 ```{r}
 #Filter the WDPA to non-marine PAs in MDG funded by the FAPBM
@@ -1459,7 +1423,7 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
-No FAPBM
+Madagascar protected areas without FAPBM funded ones.
 
 ```{r}
 
@@ -1565,7 +1529,7 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
-Overlapping MDG, FAPBM and no FAPBM
+Plotting the evolution of forest cover in Madagascar, FAPBM funded and not FAPMB funded protected areas in the same figure.
 
 ```{r}
 data_plot_all = data_plot_fapbm %>%
