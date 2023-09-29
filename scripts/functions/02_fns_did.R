@@ -1215,11 +1215,17 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, ext_i
 }
 
 
-#Plot the forest cover loss relative to 2000 in treated and control, before and after matching
+#Plot the forest cover loss with 2000 as a base year in treated and control units, before and after matching
 ##INPUTS
-###
-##OUTPUTS
-### 
+### iso : the iso3 code for the country considered
+### wdpaid : the WDPAID of the PA considered
+### data_pa : dataset with information on protected areas, and especially their surfaces
+### alpha : the threshold for confidence interval
+### save_dir : the saving directory in the remote storage
+### load_dir : the loading directory in the remote storage
+### ext_input : the extension of input dataframe
+## DATA SAVED
+### Plot of forest cover loss with 2000 as a base year in treated and control units, before and after matching
 fn_plot_forest_loss = function(iso, wdpaid, data_pa, alpha, load_dir, ext_input, save_dir)
 {
   
@@ -1426,7 +1432,14 @@ fn_plot_forest_loss = function(iso, wdpaid, data_pa, alpha, load_dir, ext_input,
 }
 
 
-# Plotting the treatment effect of each PA analyzed in the same graph
+# Plotting the treatment effect of each protected area analyzed in the same graph. This function suits for AFD supported protected areas : it includes funding information to the table and figures
+## INPUTS
+### df_fc_att : a dataset with treatment effects for each protected area in the sample, expressed as avoided deforestation (hectare)
+### df_fl_att : a dataset with treatment effects for each protected area in the sample, expressed as change in deforestation rate
+### alpha : the threshold for confidence interval
+### save_dir : the saving directory in the remote storage
+## DATA SAVED
+### Tables and figures : treatment effects computed for each protected area in the sample, expressed as avoided deforestaion (hectare and percentage of 2000 forest cover) and change in deforestation rate.
 fn_plot_att_afd = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
 {
   
@@ -1833,6 +1846,15 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, alpha = alpha, save_dir)
   do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 }
 
+
+# Plotting the treatment effect of each protected area analyzed in the same graph. This function suits for all protected areas in general, and does not include any information on funding.
+## INPUTS
+### df_fc_att : a dataset with treatment effects for each protected area in the sample, expressed as avoided deforestation (hectare)
+### df_fl_att : a dataset with treatment effects for each protected area in the sample, expressed as change in deforestation rate
+### alpha : the threshold for confidence interval
+### save_dir : the saving directory in the remote storage
+## DATA SAVED
+### Tables and figures : treatment effects computed for each protected area in the sample, expressed as avoided deforestaion (hectare and percentage of 2000 forest cover) and change in deforestation rate.
 fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save_dir)
 {
   

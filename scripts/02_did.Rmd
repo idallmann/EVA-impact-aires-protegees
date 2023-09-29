@@ -432,16 +432,27 @@ df_plot_forest_loss_agg_all = df_plot_forest_loss %>%
   ungroup() 
 
 ## For a specific subset of protected areas (here, protected areas funded by the FAPBM for instance)
-# df_plot_forest_loss_agg_fapbm = df_plot_forest_loss %>%
-#   filter(wdpaid %in% unique(data_fapbm$wdpaid)) %>%
-#   group_by(matched, group, year) %>%
-#   summarize(tot_fc_rel00_ha = sum(fc_tot_rel00_ha, na.rm = TRUE),
-#             tot_fc_rel00_ha_ci_lower = sum(fc_tot_rel00_ha_ci_lower, na.rm = TRUE),
-#             tot_fc_rel00_ha_ci_upper = sum(fc_tot_rel00_ha_ci_upper, na.rm = TRUE),
-#               avg_fc_rel00_ha = mean(fc_tot_rel00_ha, na.rm = TRUE),
-#               avg_fc_rel00_ha_ci_lower = mean(fc_tot_rel00_ha_ci_lower, na.rm = TRUE),
-#               avg_fc_rel00_ha_ci_upper = mean(fc_tot_rel00_ha_ci_upper, na.rm = TRUE)) %>%
-#   ungroup()
+df_plot_forest_loss_agg_fapbm = df_plot_forest_loss %>%
+  filter(wdpaid %in% unique(data_fapbm$wdpaid)) %>%
+  group_by(matched, group, year) %>%
+  summarize(tot_fc_rel00_ha = sum(fc_tot_rel00_ha, na.rm = TRUE),
+            tot_fc_rel00_ha_ci_lower = sum(fc_tot_rel00_ha_ci_lower, na.rm = TRUE),
+            tot_fc_rel00_ha_ci_upper = sum(fc_tot_rel00_ha_ci_upper, na.rm = TRUE),
+              avg_fc_rel00_ha = mean(fc_tot_rel00_ha, na.rm = TRUE),
+              avg_fc_rel00_ha_ci_lower = mean(fc_tot_rel00_ha_ci_lower, na.rm = TRUE),
+              avg_fc_rel00_ha_ci_upper = mean(fc_tot_rel00_ha_ci_upper, na.rm = TRUE)) %>%
+  ungroup()
+
+df_plot_forest_loss_agg_nofapbm = df_plot_forest_loss %>%
+  filter(!(wdpaid %in% unique(data_fapbm$wdpaid))) %>%
+  group_by(matched, group, year) %>%
+  summarize(tot_fc_rel00_ha = sum(fc_tot_rel00_ha, na.rm = TRUE),
+            tot_fc_rel00_ha_ci_lower = sum(fc_tot_rel00_ha_ci_lower, na.rm = TRUE),
+            tot_fc_rel00_ha_ci_upper = sum(fc_tot_rel00_ha_ci_upper, na.rm = TRUE),
+              avg_fc_rel00_ha = mean(fc_tot_rel00_ha, na.rm = TRUE),
+              avg_fc_rel00_ha_ci_lower = mean(fc_tot_rel00_ha_ci_lower, na.rm = TRUE),
+              avg_fc_rel00_ha_ci_upper = mean(fc_tot_rel00_ha_ci_upper, na.rm = TRUE)) %>%
+  ungroup()
 
 
 # Plot the results : total and average deforestation
@@ -455,97 +466,99 @@ n_pa  = length(unique(df_plot_forest_loss$wdpaid))
   fct.labs <- c("Before Matching", "After Matching")
   names(fct.labs) <- c(FALSE, TRUE)
 #n_fapbm  = length(unique(data_pa_fapbm[data_pa_fapbm$wdpaid %in% unique(df_plot_forest_loss$wdpaid),]$wdpaid))
+  n_nofapbm  = length(unique(data_pa[data_pa$wdpaid %in% unique(df_plot_forest_loss$wdpaid) & !(data_pa$wdpaid %in% unique(data_fapbm$wdpaid)),]$wdpaid))
 ## The total surface of protected areas (all and in a given subsample, for instance)
 area_tot_ha = sum(data_pa[data_pa$wdpaid %in% unique(df_plot_forest_loss$wdpaid),]$area_km2, na.rm = TRUE) *100
 #area_fapbm_ha = sum(data_pa_fapbm[data_pa_fapbm$wdpaid %in% unique(df_plot_forest_loss$wdpaid),]$area_km2, na.rm = TRUE) *100
+area_nofapbm_ha = sum(data_pa[data_pa$wdpaid %in% unique(df_plot_forest_loss$wdpaid) & !(data_pa$wdpaid %in% unique(data_fapbm$wdpaid)),]$area_km2, na.rm = TRUE) *100
 
 ## Define the figures
 ### For a given subsample
 #### Total deforestation
-# fig_forest_loss_agg_tot_fapbm = ggplot(data = filter(df_plot_forest_loss_agg_fapbm, year == year.max),
-#                aes(y = abs(tot_fc_rel00_ha), fill = as.factor(group), x = group)) %>%
-#     + geom_bar(position =  position_dodge(width = 0.8), stat = "identity", show.legend = FALSE) %>% 
-#     + geom_errorbar(aes(ymax=abs(tot_fc_rel00_ha_ci_upper), ymin=abs(tot_fc_rel00_ha_ci_lower)), width=0.3, colour="grey70", alpha=0.9, size=1) %>%
-#     + geom_label(aes(label = format(round(abs(tot_fc_rel00_ha), 0), big.mark = ","), y = 0),
-#                  vjust = -0.5,
-#                  color = "black",
-#                  show.legend = FALSE) %>%
-#     + scale_fill_brewer(name = "Group", palette = "Blues") %>%
-#     + labs(x = "",
-#            y = "Forest cover loss (ha)",
-#            title = paste("Total area deforested between 2000 and", year.max),
-#            subtitle = paste0("Sample : FAPBM protected areas in the analysis (" , n_fapbm, " areas covering ", format(area_fapbm_ha, big.mark = ","), "ha)"),
-#            caption = paste(((1-alpha)*100), "% confidence intervals")) %>%
-#     + facet_wrap(~matched,
-#                  labeller = labeller(matched = fct.labs))  %>%
-#     + theme_minimal() %>%
-#     + theme(
-#       axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
-#       axis.text=element_text(size=11, color = "black"),
-#       axis.title=element_text(size=14, color = "black", face = "plain"),
-#       
-#       plot.caption = element_text(hjust = 0),
-#       plot.title = element_text(size=16, color = "black", face = "plain", hjust = 0),
-#       plot.subtitle = element_text(size=12, color = "black", face = "plain", hjust = 0),
-#       
-#       strip.text = element_text(color = "black", size = 12),
-#       
-#       #legend.position = "bottom",
-#       #legend.title = element_blank(),
-#       legend.text=element_text(size=10),
-#       #legend.spacing.x = unit(1.0, 'cm'),
-#       legend.spacing.y = unit(0.75, 'cm'),
-#       legend.key.size = unit(2, 'line'),
-#       
-#       panel.grid.major.x = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
-#       panel.grid.minor.x = element_line(color = 'grey80', linewidth = 0.2, linetype = 2),
-#       panel.grid.major.y = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
-#       panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
-#     )
-# fig_forest_loss_agg_tot_fapbm
+fig_forest_loss_agg_tot_fapbm = ggplot(data = filter(df_plot_forest_loss_agg_fapbm, year == year.max),
+               aes(y = abs(tot_fc_rel00_ha), fill = as.factor(group), x = group)) %>%
+    + geom_bar(position =  position_dodge(width = 0.8), stat = "identity", show.legend = FALSE) %>%
+    + geom_errorbar(aes(ymax=abs(tot_fc_rel00_ha_ci_upper), ymin=abs(tot_fc_rel00_ha_ci_lower)), width=0.3, colour="grey70", alpha=0.9, size=1) %>%
+    + geom_label(aes(label = format(round(abs(tot_fc_rel00_ha), 0), big.mark = ","), y = 0),
+                 vjust = -0.5,
+                 color = "black",
+                 show.legend = FALSE) %>%
+    + scale_fill_brewer(name = "Group", palette = "Blues") %>%
+    + labs(x = "",
+           y = "Forest cover loss (ha)",
+           title = paste("Total area deforested between 2000 and", year.max),
+           subtitle = paste0("Sample : FAPBM protected areas in the analysis (" , n_fapbm, " areas covering ", format(area_fapbm_ha, big.mark = ","), "ha)"),
+           caption = paste(((1-alpha)*100), "% confidence intervals")) %>%
+    + facet_wrap(~matched,
+                 labeller = labeller(matched = fct.labs))  %>%
+    + theme_minimal() %>%
+    + theme(
+      axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
+      axis.text=element_text(size=11, color = "black"),
+      axis.title=element_text(size=14, color = "black", face = "plain"),
+
+      plot.caption = element_text(hjust = 0),
+      plot.title = element_text(size=16, color = "black", face = "plain", hjust = 0),
+      plot.subtitle = element_text(size=12, color = "black", face = "plain", hjust = 0),
+
+      strip.text = element_text(color = "black", size = 12),
+
+      #legend.position = "bottom",
+      #legend.title = element_blank(),
+      legend.text=element_text(size=10),
+      #legend.spacing.x = unit(1.0, 'cm'),
+      legend.spacing.y = unit(0.75, 'cm'),
+      legend.key.size = unit(2, 'line'),
+
+      panel.grid.major.x = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.x = element_line(color = 'grey80', linewidth = 0.2, linetype = 2),
+      panel.grid.major.y = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
+    )
+fig_forest_loss_agg_tot_fapbm
 
 #### Average deforestation
-# fig_forest_loss_agg_avg_fapbm = ggplot(data = filter(df_plot_forest_loss_agg_fapbm, year == year.max),
-#                aes(y = abs(avg_fc_rel00_ha), fill = as.factor(group), x = group)) %>%
-#     + geom_bar(position =  position_dodge(width = 0.8), stat = "identity", show.legend = FALSE) %>% 
-#     + geom_errorbar(aes(ymax=abs(avg_fc_rel00_ha_ci_upper), ymin=abs(avg_fc_rel00_ha_ci_lower)), width=0.3, colour="grey70", alpha=0.9, size=1) %>%
-#     + geom_label(aes(label = format(round(abs(avg_fc_rel00_ha), 0), big.mark = ","), y = 0),
-#                  vjust = -0.5,
-#                  color = "black",
-#                  show.legend = FALSE) %>%
-#     + scale_fill_brewer(name = "Group", palette = "Blues") %>%
-#     + labs(x = "",
-#            y = "Forest cover loss (ha)",
-#            title = paste("Area deforested in protected areas on average, between 2000 and", year.max),
-#            subtitle = paste0("Sample : FAPBM protected areas in the analysis (" , n_fapbm, " areas covering ", format(area_fapbm_ha, big.mark = ","), " ha)"),
-#            caption = paste(((1-alpha)*100), "% confidence intervals")) %>%
-#     + facet_wrap(~matched,
-#                  labeller = labeller(matched = fct.labs))  %>%
-#     + theme_minimal() %>%
-#     + theme(
-#       axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
-#       axis.text=element_text(size=11, color = "black"),
-#       axis.title=element_text(size=14, color = "black", face = "plain"),
-#       
-#       plot.caption = element_text(hjust = 0),
-#       plot.title = element_text(size=16, color = "black", face = "plain", hjust = 0),
-#       plot.subtitle = element_text(size=12, color = "black", face = "plain", hjust = 0),
-#       
-#       strip.text = element_text(color = "black", size = 12),
-#       
-#       #legend.position = "bottom",
-#       #legend.title = element_blank(),
-#       legend.text=element_text(size=10),
-#       #legend.spacing.x = unit(1.0, 'cm'),
-#       legend.spacing.y = unit(0.75, 'cm'),
-#       legend.key.size = unit(2, 'line'),
-#       
-#       panel.grid.major.x = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
-#       panel.grid.minor.x = element_line(color = 'grey80', linewidth = 0.2, linetype = 2),
-#       panel.grid.major.y = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
-#       panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
-#     )
-# fig_forest_loss_agg_avg_fapbm
+fig_forest_loss_agg_avg_nofapbm = ggplot(data = filter(df_plot_forest_loss_agg_nofapbm, year == year.max),
+               aes(y = abs(avg_fc_rel00_ha), fill = as.factor(group), x = group)) %>%
+    + geom_bar(position =  position_dodge(width = 0.8), stat = "identity", show.legend = FALSE) %>%
+    + geom_errorbar(aes(ymax=abs(avg_fc_rel00_ha_ci_upper), ymin=abs(avg_fc_rel00_ha_ci_lower)), width=0.3, colour="grey70", alpha=0.9, size=1) %>%
+    + geom_label(aes(label = format(round(abs(avg_fc_rel00_ha), 0), big.mark = ","), y = 0),
+                 vjust = -0.5,
+                 color = "black",
+                 show.legend = FALSE) %>%
+    + scale_fill_brewer(name = "Group", palette = "Blues") %>%
+    + labs(x = "",
+           y = "Forest cover loss (ha)",
+           title = paste("Area deforested in protected areas on average, between 2000 and", year.max),
+           subtitle = paste0("Sample : non FAPBM protected areas in the analysis (" , n_nofapbm, " areas covering ", format(area_nofapbm_ha, big.mark = ","), " ha)"),
+           caption = paste(((1-alpha)*100), "% confidence intervals")) %>%
+    + facet_wrap(~matched,
+                 labeller = labeller(matched = fct.labs))  %>%
+    + theme_minimal() %>%
+    + theme(
+      axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
+      axis.text=element_text(size=11, color = "black"),
+      axis.title=element_text(size=14, color = "black", face = "plain"),
+
+      plot.caption = element_text(hjust = 0),
+      plot.title = element_text(size=16, color = "black", face = "plain", hjust = 0),
+      plot.subtitle = element_text(size=12, color = "black", face = "plain", hjust = 0),
+
+      strip.text = element_text(color = "black", size = 12),
+
+      #legend.position = "bottom",
+      #legend.title = element_blank(),
+      legend.text=element_text(size=10),
+      #legend.spacing.x = unit(1.0, 'cm'),
+      legend.spacing.y = unit(0.75, 'cm'),
+      legend.key.size = unit(2, 'line'),
+
+      panel.grid.major.x = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.x = element_line(color = 'grey80', linewidth = 0.2, linetype = 2),
+      panel.grid.major.y = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
+    )
+fig_forest_loss_agg_avg_nofapbm
 
 
 ```
@@ -561,8 +574,8 @@ ggsave(paste(tmp, "fig_forest_loss_agg_tot_fapbm.png", sep = "/"),
        device = "png",
        height = 6, width = 9)
 
-ggsave(paste(tmp, "fig_forest_loss_agg_avg_fapbm.png", sep = "/"),
-       plot = fig_forest_loss_agg_avg_fapbm,
+ggsave(paste(tmp, "fig_forest_loss_agg_avg_nofapbm.png", sep = "/"),
+       plot = fig_forest_loss_agg_avg_nofapbm,
        device = "png",
        height = 6, width = 9)
 

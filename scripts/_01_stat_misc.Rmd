@@ -28,6 +28,7 @@ library(xtable)
 library(questionr)
 library(aws.s3)
 library(WDI)
+library(countrycode)
 ```
 
 ## Importing datasets
@@ -111,7 +112,8 @@ data_wdpa_mdg = data_wdpa %>%
   !is.na(wdpaid) & iucn_cat == "Not Applicable" ~ "Not categorized",
   !is.na(wdpaid) & iucn_cat == "Not Reported" ~ "Not categorized",
   !is.na(wdpaid) & iucn_cat == "Not Assigned" ~ "Not categorized",
-  TRUE ~ "Not referenced"), .after = iucn_cat) 
+  TRUE ~ "Not referenced"), .after = iucn_cat) %>%
+  st_drop_geometry()
 
 ##Datasets on aggregated size per country/region/year and at world level, taking into account the overlap.
 pa_area_ctry = 
@@ -1167,6 +1169,7 @@ MDG
 ```{r, eval = FALSE}
 
 tbl_area_mdg = data_wdpa_mdg %>%
+  st_drop_geometry() %>%
   filter(marine %in% c(0,1)) %>%
   summarize(n = n(),
             tot = format(sum(rep_area), big.mark = ",", digits = 1, scientific = FALSE),
@@ -1213,6 +1216,7 @@ MDG w/ FAPBM
 ```{r, eval = FALSE}
 
 tbl_area_mdg_nofapbm = data_wdpa_mdg %>%
+  st_drop_geometry() %>%
   filter(marine %in% c(0,1)) %>%
   filter(!(wdpaid %in% data_pa_fapbm$wdpaid)) %>%
   summarize(n = n(),
