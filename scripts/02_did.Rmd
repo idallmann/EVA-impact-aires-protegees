@@ -1,5 +1,3 @@
-# (PART\*) Impact analysis {.unnumbered}
-
 # Difference-in-difference
 
 In this script are performed the last steps of the analysis. Using the datasets of matched treated and control units, it is possible to compute the effect of the conservation for each protected area. Then these results can be aggregated at country and region level. Some secondary metrics are also computed : the annual deforestation rates faced by treated and control units, before and after treatment (à la Wolf et al. 2021); the total and average forest loss across groups of protected areas on the period considered, compared to the value in control units, before and after matching.

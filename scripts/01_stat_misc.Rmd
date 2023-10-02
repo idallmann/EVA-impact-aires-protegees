@@ -1,3 +1,9 @@
+---
+output:
+  html_document:
+    code_folding: show
+---
+
 # Miscellaneous statistics
 
 In this document are performed and plotted statistics for particular needs (analysis of a particular portfolio, some specific group of PAs, etc.)
