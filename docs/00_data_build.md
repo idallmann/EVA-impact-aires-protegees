@@ -25,7 +25,7 @@ Configuring the Rmarkdown
 Downloading and importing the relevant packages
 
 
-```r
+```{.r .fold-show}
 install.packages(c("janitor", "geodata", "wdpar", "countrycode"))
 library(tidyverse)
 library(dplyr)
@@ -52,7 +52,7 @@ library(geodata)
 A first step has been to collect information on the PAs funded by the AFD. A first bunch was collected by Léa Poulin, Ingrid Dallmann and Pierre-Yves Durand (from evaluation and learning service of the innovation, research and knowledge department). Others were reported to us by the agriculture, rural development and biodiversity department. These datasets are combined with only relevant variables for future merging with WDPA and SIOP databases.
 
 
-```r
+```{.r .fold-show}
 #PAs gathered by the evaluation department
 ##BDD_joint created by Léa Poulin. 
 ##Create a dataset with a merged column for cofunders, instead of a variable for each. Only relevant variables are kept, and the date/author of the report are added.

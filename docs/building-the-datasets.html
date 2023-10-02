@@ -192,7 +192,6 @@ code span.wa { color: #008000; font-weight: bold; } /* Warning */
 <li class="chapter" data-level="4.2" data-path="matching.html"><a href="matching.html#datasets-and-critical-parameters"><i class="fa fa-check"></i><b>4.2</b> Datasets and critical parameters</a></li>
 <li class="chapter" data-level="4.3" data-path="matching.html"><a href="matching.html#matching-process"><i class="fa fa-check"></i><b>4.3</b> Matching process</a></li>
 </ul></li>
-<li class="part"><span><b>Impact analysis</b></span></li>
 <li class="chapter" data-level="5" data-path="difference-in-difference.html"><a href="difference-in-difference.html"><i class="fa fa-check"></i><b>5</b> Difference-in-difference</a>
 <ul>
 <li class="chapter" data-level="5.1" data-path="difference-in-difference.html"><a href="difference-in-difference.html#initial-settings-4"><i class="fa fa-check"></i><b>5.1</b> Initial settings</a></li>
@@ -248,7 +247,7 @@ code span.wa { color: #008000; font-weight: bold; } /* Warning */
 <p>Configuring the Rmarkdown</p>
 <p>#<code>{r setup, include = FALSE, eval = FALSE} #knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file()) #</code></p>
 <p>Downloading and importing the relevant packages</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="building-the-datasets.html#cb1-1" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="fu">c</span>(<span class="st">&quot;janitor&quot;</span>, <span class="st">&quot;geodata&quot;</span>, <span class="st">&quot;wdpar&quot;</span>, <span class="st">&quot;countrycode&quot;</span>))</span>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb1-1"><a href="building-the-datasets.html#cb1-1" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="fu">c</span>(<span class="st">&quot;janitor&quot;</span>, <span class="st">&quot;geodata&quot;</span>, <span class="st">&quot;wdpar&quot;</span>, <span class="st">&quot;countrycode&quot;</span>))</span>
 <span id="cb1-2"><a href="building-the-datasets.html#cb1-2" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
 <span id="cb1-3"><a href="building-the-datasets.html#cb1-3" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
 <span id="cb1-4"><a href="building-the-datasets.html#cb1-4" tabindex="-1"></a><span class="fu">library</span>(data.table)</span>
@@ -271,7 +270,7 @@ code span.wa { color: #008000; font-weight: bold; } /* Warning */
 <div id="merge-pas-reporting-by-afd-technical-departments" class="section level3 hasAnchor" number="1.2.1">
 <h3><span class="header-section-number">1.2.1</span> Merge PAs reporting by AFD technical departments<a href="building-the-datasets.html#merge-pas-reporting-by-afd-technical-departments" class="anchor-section" aria-label="Anchor link to header"></a></h3>
 <p>A first step has been to collect information on the PAs funded by the AFD. A first bunch was collected by Léa Poulin, Ingrid Dallmann and Pierre-Yves Durand (from evaluation and learning service of the innovation, research and knowledge department). Others were reported to us by the agriculture, rural development and biodiversity department. These datasets are combined with only relevant variables for future merging with WDPA and SIOP databases.</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="building-the-datasets.html#cb2-1" tabindex="-1"></a><span class="co">#PAs gathered by the evaluation department</span></span>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb2-1"><a href="building-the-datasets.html#cb2-1" tabindex="-1"></a><span class="co">#PAs gathered by the evaluation department</span></span>
 <span id="cb2-2"><a href="building-the-datasets.html#cb2-2" tabindex="-1"></a><span class="do">##BDD_joint created by Léa Poulin. </span></span>
 <span id="cb2-3"><a href="building-the-datasets.html#cb2-3" tabindex="-1"></a><span class="do">##Create a dataset with a merged column for cofunders, instead of a variable for each. Only relevant variables are kept, and the date/author of the report are added.</span></span>
 <span id="cb2-4"><a href="building-the-datasets.html#cb2-4" tabindex="-1"></a>data_pa_eva <span class="ot">=</span> </span>
