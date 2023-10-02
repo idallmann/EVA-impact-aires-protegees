@@ -20,9 +20,7 @@ The datasets used are stored and saved into the SSPCloud platform that uses minI
 
 Configuring the Rmarkdown
 
-#```{r setup, include = FALSE, eval = FALSE}
-#knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
-#```
+\#`{r setup, include = FALSE, eval = FALSE} #knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file()) #`
 
 Downloading and importing the relevant packages
 

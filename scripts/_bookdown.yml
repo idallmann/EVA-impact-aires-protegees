@@ -2,8 +2,6 @@ book_filename: fake-book
 delete_merged_file: true
 output_dir: docs
 output:
-  html_document:
-    code_folding: hide
 language:
   ui:
     chapter_name: "Section "

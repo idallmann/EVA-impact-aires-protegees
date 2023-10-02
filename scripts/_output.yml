@@ -10,6 +10,7 @@ bookdown::gitbook:
       twitter : no
       facebook : no
       all: no
+    code_folding: hide
     toc:
       collapse: section
       before: |
