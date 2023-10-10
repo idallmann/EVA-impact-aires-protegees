@@ -2,9 +2,7 @@
 
 ## Importing relevant packages
 
-# ```{r setup, include = FALSE, eval = FALSE}
-# knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
-# ```
+# `{r setup, include = FALSE, eval = FALSE} # knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file()) #`
 
 ```{r message=TRUE, warning=TRUE, eval = FALSE}
 install.packages(c("janitor", "wdpar", "countrycode"))
@@ -85,3 +83,21 @@ data_pa_fund_shp = data_pa_fund_wdpa %>%
 #               opts = list("region" = ""))
 
 ```
+
+TO DO
+
+-   Import a dataframe of results (PA ID and treatment effect amplitude, significance)
+
+-   Merge it with WDPA to get location and shape file
+
+-   Download country borders (all or list of countries or one country ??)
+
+-   use tmap to do the following
+
+    -   One representation for FAPBM/non-FAPBM
+
+    -   Continuous scale for the TE amplitude 5 or 10 years
+
+    -   The name of the PA (if not too long) ?
+
+    -   
