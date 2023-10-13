@@ -491,13 +491,4 @@ aws.s3::put_object(file = log,
                    region = "",
                    show_progress = FALSE)
                  
-                               
-#Notes on what to do next
-## Automate the definition of cutoffs for CEM
-### Coder 5.5.3 de Iacus et al. 2012 ? Permet de savoir le gain de matched units pour une modification des seuils d'une variable
-## Allow to enter a list of any covariates to perform the matching
-## Function to plot Fig. 3 in Iacus et al. 2012
-## On veut ATE ou ATT ?? Je dirai ATT car on ne veut pas estimer l'effet de mettre une AP, mais l'effet des AP financés par l'AFD 
-                                                                           
-                               
 ```

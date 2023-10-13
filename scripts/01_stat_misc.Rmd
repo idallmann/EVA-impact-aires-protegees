@@ -1,9 +1,3 @@
----
-output:
-  html_document:
-    code_folding: show
----
-
 # Miscellaneous statistics
 
 In this document are performed and plotted statistics for particular needs (analysis of a particular portfolio, some specific group of PAs, etc.)
@@ -12,9 +6,7 @@ In this document are performed and plotted statistics for particular needs (anal
 
 Configuring Rmarkdown.
 
-#```{r setup, include=FALSE, eval = FALSE}
-#knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
-#```
+\#`{r setup, include=FALSE, eval = FALSE} #knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file()) #`
 
 Installing and importing relevant packages.
 
@@ -146,7 +138,7 @@ lst_ctry_stat_wdpa = df_ctry_stat_wdpa$iso3
 
 ### FAPBM portfolio and Madagascar
 
-#### IUCN
+#### IUCN : non-marine
 
 FAPBM
 
@@ -514,6 +506,374 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
+#### IUCN : marine
+
+FAPBM
+
+```{r, eval = FALSE}
+#Building the relevant dataset
+##For all PAs ..
+data_cat_iucn = data_pa_fapbm %>%
+  filter(marine ==2) %>%
+  group_by(iucn_des_en, iucn_des_fr) %>%
+  #number of PAs per IUCN category
+  summarize(n_iucn = n()) %>%
+  ungroup() %>%
+  #Frequency of IUCN categories
+  mutate(n_pa = sum(n_iucn),
+         freq_iucn = round(n_iucn/n_pa*100, 2)) %>%
+  arrange(desc(iucn_des_en)) %>%
+  mutate(ypos_iucn = cumsum(freq_iucn) - 0.5*freq_iucn) 
+
+
+##... and for referenced PAs only
+data_cat_iucn_ref = data_pa_fapbm %>%
+  filter(marine == 2) %>%
+  #Remove not referenced PAs
+  subset(!(iucn_des_fr %in% c("Non catégorisée", "Non référencée"))) %>%
+  group_by(iucn_des_en, iucn_des_fr) %>%
+  #number of PAs per IUCN category
+  summarize(n_iucn = n()) %>%
+  ungroup() %>%
+  #Frequency of IUCN categories
+  mutate(n_pa = sum(n_iucn),
+         freq_iucn = round(n_iucn/n_pa*100, 2)) %>%
+  arrange(freq_iucn) %>%
+  mutate(ypos_iucn = cumsum(freq_iucn) - 0.5*freq_iucn) 
+
+#Pie charts
+pie_cat_iucn_en = ggplot(data_cat_iucn, 
+                      aes(x="", y= freq_iucn, fill = iucn_des_en)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + coord_polar("y", start=0) %>%
+  + geom_label_repel(aes(x=1.2, label = paste0(round(freq_iucn, 1), "%")), 
+             color = "white", 
+             position = position_stack(vjust = 0.55), 
+             size=2.5, show.legend = FALSE) %>%
+  # + geom_label(aes(x=1.4, label = paste0(freq_iucn, "%")), 
+  #              color = "white", 
+  #              position = position_stack(vjust = 0.7), size=2.5, 
+  #              show.legend = FALSE) %>%
+  + labs(x = "", y = "",
+         title = "Distribution of marine protected areas by IUCN categories (%)",
+         subtitle = paste("Sample :", sum(data_cat_iucn$n_iucn), "marine protected areas funded by FAPBM")) %>%
+  #+ scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
+  + scale_fill_manual(name = "Categories",
+                      values = c("Not categorized" = "#7570B3",
+                                 "Habitat or species management area" = "#E7298A",
+                                 "Protected landscape or seascape" = "#66A61E",
+                                 "Protected area with sust. use of nat. res." = "#D95F02",
+                                 "National park" = "#1B9E77",
+                                 "Strict nature reserve" = "#E6AB02")) %>%
+  + theme_void()
+pie_cat_iucn_en
+
+pie_cat_iucn_ref_en = ggplot(data_cat_iucn_ref, 
+                      aes(x="", y= freq_iucn, fill = iucn_des_en)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + coord_polar("y", start=0) %>%
+  + geom_label_repel(aes(x=1.2, label = paste0(round(freq_iucn, 1), "%")), 
+             color = "white", 
+             position = position_stack(vjust = 0.55), 
+             size=2.5, show.legend = FALSE) %>%
+  # + geom_label(aes(x=1.4, label = paste0(freq_iucn, "%")), 
+  #              color = "white", 
+  #              position = position_stack(vjust = 0.7), size=2.5, 
+  #              show.legend = FALSE) %>%
+  + labs(x = "", y = "",
+         title = "Distribution of marine protected areas by IUCN categories \nexcept for not categorized (%)",
+         subtitle = paste("Sample :", sum(data_cat_iucn_ref$n_iucn), "out of", sum(data_cat_iucn$n_iucn),  "marine protected areas funded by FAPBM")) %>%
+  #+ scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
+    + scale_fill_manual(name = "Categories",
+                      values = c("Not categorized" = "#7570B3",
+                                 "Habitat or species management area" = "#E7298A",
+                                 "Protected landscape or seascape" = "#66A61E",
+                                 "Protected area with sust. use of nat. res." = "#D95F02",
+                                 "National park" = "#1B9E77",
+                                 "Strict nature reserve" = "#E6AB02")) %>%
+  + theme_void()
+pie_cat_iucn_ref_en
+
+
+```
+
+```{r, eval = FALSE}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+ggsave(paste(tmp, "pie_cat_iucn_en.png", sep = "/"),
+       plot = pie_cat_iucn_en,
+       device = "png",
+       height = 6, width = 9)
+
+ggsave(paste(tmp, "pie_cat_iucn_ref_en.png", sep = "/"),
+       plot = pie_cat_iucn_ref_en,
+       device = "png",
+       height = 6, width = 9)
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+for(f in files) 
+  {
+  cat("Uploading file", paste0("'", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/IUCN/FAPBM/marine", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+
+```
+
+All protected areas in Madagascar (reported by the WDPA)
+
+```{r, eval = FALSE}
+#Building the relevant dataset
+##For all PAs ..
+data_cat_iucn = data_wdpa_mdg %>%
+  filter(marine == 2) %>%
+  group_by(iucn_des_en, iucn_des_fr) %>%
+  #number of PAs per IUCN category
+  summarize(n_iucn = n()) %>%
+  ungroup() %>%
+  #Frequency of IUCN categories
+  mutate(n_pa = sum(n_iucn),
+         freq_iucn = round(n_iucn/n_pa*100, 2)) %>%
+  arrange(desc(iucn_des_en)) %>%
+  mutate(ypos_iucn = cumsum(freq_iucn) - 0.5*freq_iucn) 
+
+
+##... and for referenced PAs only
+data_cat_iucn_ref = data_wdpa_mdg %>%
+  filter(marine == 2) %>%
+  #Remove not referenced PAs
+  subset(!(iucn_des_fr %in% c("Non catégorisée", "Non référencée"))) %>%
+  group_by(iucn_des_en, iucn_des_fr) %>%
+  #number of PAs per IUCN category
+  summarize(n_iucn = n()) %>%
+  ungroup() %>%
+  #Frequency of IUCN categories
+  mutate(n_pa = sum(n_iucn),
+         freq_iucn = round(n_iucn/n_pa*100, 2)) %>%
+  arrange(freq_iucn) %>%
+  mutate(ypos_iucn = cumsum(freq_iucn) - 0.5*freq_iucn) 
+
+#Pie charts
+pie_cat_iucn_en = ggplot(data_cat_iucn, 
+                      aes(x="", y= freq_iucn, fill = iucn_des_en)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + coord_polar("y", start=0) %>%
+  + geom_label_repel(aes(x=1.2, label = paste0(round(freq_iucn, 1), "%")), 
+             color = "white", 
+             position = position_stack(vjust = 0.55), 
+             size=2.5, show.legend = FALSE) %>%
+  # + geom_label(aes(x=1.4, label = paste0(freq_iucn, "%")), 
+  #              color = "white", 
+  #              position = position_stack(vjust = 0.7), size=2.5, 
+  #              show.legend = FALSE) %>%
+  + labs(x = "", y = "",
+         title = "Distribution of marine protected areas by IUCN categories (%)",
+         subtitle = paste("Sample :", sum(data_cat_iucn$n_iucn), "marine protected areas in Madagascar")) %>%
+  # + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
+      + scale_fill_manual(name = "Categories",
+                      values = c("Not categorized" = "#7570B3",
+                                 "Habitat or species management area" = "#E7298A",
+                                 "Protected landscape or seascape" = "#66A61E",
+                                 "Protected area with sust. use of nat. res." = "#D95F02",
+                                 "National park" = "#1B9E77",
+                                 "Strict nature reserve" = "#E6AB02")) %>%
+  + theme_void()
+pie_cat_iucn_en
+
+pie_cat_iucn_ref_en = ggplot(data_cat_iucn_ref, 
+                      aes(x="", y= freq_iucn, fill = iucn_des_en)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + coord_polar("y", start=0) %>%
+  + geom_label_repel(aes(x=1.2, label = paste0(round(freq_iucn, 1), "%")), 
+             color = "white", 
+             position = position_stack(vjust = 0.55), 
+             size=2.5, show.legend = FALSE) %>%
+  # + geom_label(aes(x=1.4, label = paste0(freq_iucn, "%")), 
+  #              color = "white", 
+  #              position = position_stack(vjust = 0.7), size=2.5, 
+  #              show.legend = FALSE) %>%
+  + labs(x = "", y = "",
+         title = "Distribution of marine protected areas by IUCN categories \nexcept for not categorized (%)",
+         subtitle = paste("Sample :", sum(data_cat_iucn_ref$n_iucn), "out of", sum(data_cat_iucn$n_iucn),  "marine protected areas in Madagascar")) %>%
+  # + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
+    + scale_fill_manual(name = "Categories",
+                      values = c("Not categorized" = "#7570B3",
+                                 "Habitat or species management area" = "#E7298A",
+                                 "Protected landscape or seascape" = "#66A61E",
+                                 "Protected area with sust. use of nat. res." = "#D95F02",
+                                 "National park" = "#1B9E77",
+                                 "Strict nature reserve" = "#E6AB02")) %>%
+  + theme_void()
+pie_cat_iucn_ref_en
+
+```
+
+```{r, eval = FALSE}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+ggsave(paste(tmp, "pie_cat_iucn_en.png", sep = "/"),
+       plot = pie_cat_iucn_en,
+       device = "png",
+       height = 6, width = 9)
+
+ggsave(paste(tmp, "pie_cat_iucn_ref_en.png", sep = "/"),
+       plot = pie_cat_iucn_ref_en,
+       device = "png",
+       height = 6, width = 9)
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+for(f in files) 
+  {
+  cat("Uploading file", paste0("'", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/IUCN/MDG/marine", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+```
+
+Madagascar protected areas without FAPBM funded protected areas.
+
+```{r, eval = FALSE}
+#Building the relevant dataset
+##For all PAs ..
+data_cat_iucn = data_wdpa_mdg %>%
+  filter(marine == 2) %>%
+  filter(!(wdpaid %in% data_pa_fapbm$wdpaid)) %>%
+  group_by(iucn_des_en, iucn_des_fr) %>%
+  #number of PAs per IUCN category
+  summarize(n_iucn = n()) %>%
+  ungroup() %>%
+  #Frequency of IUCN categories
+  mutate(n_pa = sum(n_iucn),
+         freq_iucn = round(n_iucn/n_pa*100, 2)) %>%
+  arrange(desc(iucn_des_en)) %>%
+  mutate(ypos_iucn = cumsum(freq_iucn) - 0.5*freq_iucn) 
+
+
+##... and for referenced PAs only
+data_cat_iucn_ref = data_wdpa_mdg %>%
+  filter(marine == 2) %>%
+  filter(!(wdpaid %in% data_pa_fapbm$wdpaid)) %>%
+  #Remove not referenced PAs
+  subset(!(iucn_des_fr %in% c("Non catégorisée", "Non référencée"))) %>%
+  group_by(iucn_des_en, iucn_des_fr) %>%
+  #number of PAs per IUCN category
+  summarize(n_iucn = n()) %>%
+  ungroup() %>%
+  #Frequency of IUCN categories
+  mutate(n_pa = sum(n_iucn),
+         freq_iucn = round(n_iucn/n_pa*100, 2)) %>%
+  arrange(freq_iucn) %>%
+  mutate(ypos_iucn = cumsum(freq_iucn) - 0.5*freq_iucn) 
+
+#Pie charts
+pie_cat_iucn_en = ggplot(data_cat_iucn, 
+                      aes(x="", y= freq_iucn, fill = iucn_des_en)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + coord_polar("y", start=0) %>%
+  + geom_label_repel(aes(x=1.2, label = paste0(round(freq_iucn, 1), "%")), 
+             color = "white", 
+             position = position_stack(vjust = 0.55), 
+             size=2.5, show.legend = FALSE) %>%
+  # + geom_label(aes(x=1.4, label = paste0(freq_iucn, "%")), 
+  #              color = "white", 
+  #              position = position_stack(vjust = 0.7), size=2.5, 
+  #              show.legend = FALSE) %>%
+  + labs(x = "", y = "",
+         title = "Distribution of marine protected areas by IUCN categories (%)",
+         subtitle = paste("Sample :", sum(data_cat_iucn$n_iucn), "marine, not FAPBM funded protected areas in Madagascar")) %>%
+  # + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
+      + scale_fill_manual(name = "Categories",
+                      values = c("Not categorized" = "#7570B3",
+                                 "Habitat or species management area" = "#E7298A",
+                                 "Protected landscape or seascape" = "#66A61E",
+                                 "Protected area with sust. use of nat. res." = "#D95F02",
+                                 "National park" = "#1B9E77",
+                                 "Strict nature reserve" = "#E6AB02")) %>%
+  + theme_void()
+pie_cat_iucn_en
+
+pie_cat_iucn_ref_en = ggplot(data_cat_iucn_ref, 
+                      aes(x="", y= freq_iucn, fill = iucn_des_en)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + coord_polar("y", start=0) %>%
+  + geom_label_repel(aes(x=1.2, label = paste0(round(freq_iucn, 1), "%")), 
+             color = "white", 
+             position = position_stack(vjust = 0.55), 
+             size=2.5, show.legend = FALSE) %>%
+  # + geom_label(aes(x=1.4, label = paste0(freq_iucn, "%")), 
+  #              color = "white", 
+  #              position = position_stack(vjust = 0.7), size=2.5, 
+  #              show.legend = FALSE) %>%
+  + labs(x = "", y = "",
+         title = "Distribution of marine protected areas by IUCN categories \nexcept for not categorized (%)",
+         subtitle = paste("Sample :", sum(data_cat_iucn_ref$n_iucn), "out of", sum(data_cat_iucn$n_iucn),  "marine, not FAPBM funded protected areas in Madagascar")) %>%
+  # + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
+    + scale_fill_manual(name = "Categories",
+                      values = c("Not categorized" = "#7570B3",
+                                 "Habitat or species management area" = "#E7298A",
+                                 "Protected landscape or seascape" = "#66A61E",
+                                 "Protected area with sust. use of nat. res." = "#D95F02",
+                                 "National park" = "#1B9E77",
+                                 "Strict nature reserve" = "#E6AB02")) %>%
+  + theme_void()
+pie_cat_iucn_ref_en
+```
+
+```{r, eval = FALSE}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+ggsave(paste(tmp, "pie_cat_iucn_en.png", sep = "/"),
+       plot = pie_cat_iucn_en,
+       device = "png",
+       height = 6, width = 9)
+
+ggsave(paste(tmp, "pie_cat_iucn_ref_en.png", sep = "/"),
+       plot = pie_cat_iucn_ref_en,
+       device = "png",
+       height = 6, width = 9)
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+for(f in files) 
+  {
+  cat("Uploading file", paste0("'", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/IUCN/MDG_noFAPBM/marine", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+```
+
 #### Ecosystem
 
 FAPBM funded protected areas.
@@ -745,7 +1105,7 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
-#### Governance
+#### Governance : non-marine
 
 FAPBM funded protected areas
 
@@ -1054,6 +1414,315 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
+#### Governance : marine
+
+FAPBM funded protected areas
+
+```{r, eval = FALSE}
+
+#Table of the governance type distribution
+##English version
+data_gov_en = data_pa_fapbm %>%
+  filter(marine == 2) %>%
+  mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Not referenced",
+                              TRUE ~ gov_type)) %>%
+  group_by(gov_type) %>%
+  summarize(n = n()) %>%
+  mutate(n_tot = sum(n),
+         freq = round(n/n_tot*100,1)) %>%
+  select(-n_tot) %>%
+  arrange(-freq)
+
+tbl_gov_en = data_gov_en
+names(tbl_gov_en) = c("Governance","Number of PAs","Share of PAs (%)")
+
+
+#PAs with nureported or unreferenced governance types are removed
+##Tables
+###English
+data_gov_knwn_en = data_pa_fapbm %>%
+  filter(marine == 2) %>%
+  mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Not referenced",
+                              TRUE ~ gov_type)) %>%
+  filter(gov_type != "Not Reported" & gov_type != "Not referenced") %>%
+  group_by(gov_type) %>%
+  summarize(n = n()) %>%
+  mutate(n_tot = sum(n),
+         freq = round(n/n_tot*100,1)) %>%
+  select(-n_tot) %>%
+  arrange(-freq)
+
+tbl_gov_knwn_en = data_gov_knwn_en
+names(tbl_gov_knwn_en) = c("Governance","Number of PAs","Share of PAs (%)")
+
+
+##Pie charts
+###English
+pie_gov_knwn_en = 
+  ggplot(data_gov_knwn_en, 
+       aes(x="", y= freq, fill= gov_type)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + geom_label(aes(x=1.3, 
+                   label = paste0(format(freq, digits = 2), "%")), 
+               color = "black", 
+               position = position_stack(vjust = 0.55), 
+               size=2.5, show.legend = FALSE) %>%
+  + coord_polar("y", start=0) %>%
+  + labs(title = "Governance type of marine protected areas \nexcept for not reported governance",
+         subtitle = paste("Sample :", sum(data_gov_knwn_en$n), "out of", sum(data_gov_en$n), "protected areas funded by FAPBM")) %>%
+  # + scale_fill_brewer(name = "Governance", palette="Paired") %>%
+  + scale_fill_manual(name = "Governance",
+                      values = c("Not Reported" = "#A6CEE3",
+                                 "Local communities" = "#1F78B4",
+                                 "Government-delegated management" = "#B2DF8A",
+                                 "Non-profit organisations" = "#33A02C",
+                                 "Collaborative governance" = "#FB9A99",
+                                 "Federal or national ministry or agency" = "#E31A1C")) %>%
+  + theme_void()
+pie_gov_knwn_en
+
+
+```
+
+```{r, eval = FALSE}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+print(xtable(tbl_gov_knwn_en, 
+             caption = "Governance of marine protected areas funded by FAPBM (when known)",
+             type = "latex"),
+      file = paste(tmp, "tbl_gov_knwn_en.tex", sep  ="/"))
+
+ggsave(paste(tmp, "pie_gov_knwn_en.png", sep = "/"),
+       plot =  pie_gov_knwn_en,
+       device = "png",
+       height = 6, width = 9)
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+count = 0
+for(f in files) 
+{
+  count = count+1
+  cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/gouvernance/FAPBM/marine", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+```
+
+All protected areas in Madagascar (reported by the WDPA)
+
+```{r, eval = FALSE}
+
+#Table of the governance type distribution
+##English version
+data_gov_en = data_wdpa_mdg %>%
+  filter(marine == 2) %>%
+  mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Not referenced",
+                              TRUE ~ gov_type)) %>%
+  group_by(gov_type) %>%
+  summarize(n = n()) %>%
+  mutate(n_tot = sum(n),
+         freq = round(n/n_tot*100,1)) %>%
+  select(-n_tot) %>%
+  arrange(-freq)
+
+tbl_gov_en = data_gov_en
+names(tbl_gov_en) = c("Governance","Number of PAs","Share of PAs (%)")
+
+
+#PAs with nureported or unreferenced governance types are removed
+##Tables
+###English
+data_gov_knwn_en = data_wdpa_mdg %>%
+  filter(marine == 2) %>%
+  mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Not referenced",
+                              TRUE ~ gov_type)) %>%
+  filter(gov_type != "Not Reported" & gov_type != "Not referenced") %>%
+  group_by(gov_type) %>%
+  summarize(n = n()) %>%
+  mutate(n_tot = sum(n),
+         freq = round(n/n_tot*100,1)) %>%
+  select(-n_tot) %>%
+  arrange(-freq)
+
+tbl_gov_knwn_en = data_gov_knwn_en
+names(tbl_gov_knwn_en) = c("Governance","Number of PAs","Share of PAs (%)")
+
+
+##Pie charts
+###English
+pie_gov_knwn_en = 
+  ggplot(data_gov_knwn_en, 
+       aes(x="", y= freq, fill= gov_type)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + geom_label(aes(x=1.3, 
+                   label = paste0(format(freq, digits = 2), "%")), 
+               color = "black", 
+               position = position_stack(vjust = 0.55), 
+               size=2.5, show.legend = FALSE) %>%
+  + coord_polar("y", start=0) %>%
+  + labs(title = "Governance type of marine protected areas \nexcept for not reported governance",
+         subtitle = paste("Sample :", sum(data_gov_knwn_en$n), "out of", sum(data_gov_en$n), "protected areas in Madagascar")) %>%
+  #+ scale_fill_brewer(name = "Governance", palette="Paired") %>%
+  + scale_fill_manual(name = "Governance",
+                      values = c("Not Reported" = "#A6CEE3",
+                                 "Local communities" = "#1F78B4",
+                                 "Government-delegated management" = "#B2DF8A",
+                                 "Non-profit organisations" = "#33A02C",
+                                 "Collaborative governance" = "#FB9A99",
+                                 "Federal or national ministry or agency" = "#E31A1C")) %>%
+  + theme_void()
+pie_gov_knwn_en
+```
+
+```{r, eval = FALSE}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+print(xtable(tbl_gov_knwn_en, 
+             caption = "Governance of marine protected areas in Madagascar (when known)",
+             type = "latex"),
+      file = paste(tmp, "tbl_gov_knwn_en.tex", sep  ="/"))
+
+ggsave(paste(tmp, "pie_gov_knwn_en.png", sep = "/"),
+       plot =  pie_gov_knwn_en,
+       device = "png",
+       height = 6, width = 9)
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+count = 0
+for(f in files) 
+{
+  count = count+1
+  cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/gouvernance/MDG/marine", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+```
+
+Madagascar without FAPBM funded protected areas
+
+```{r, eval = FALSE}
+
+#Table of the governance type distribution
+##English version
+data_gov_en = data_wdpa_mdg %>%
+  filter(!(wdpaid %in% data_pa_fapbm$wdpaid)) %>%
+  filter(marine == 2) %>%
+  mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Not referenced",
+                              TRUE ~ gov_type)) %>%
+  group_by(gov_type) %>%
+  summarize(n = n()) %>%
+  mutate(n_tot = sum(n),
+         freq = round(n/n_tot*100,1)) %>%
+  select(-n_tot) %>%
+  arrange(-freq)
+
+tbl_gov_en = data_gov_en
+names(tbl_gov_en) = c("Governance","Number of PAs","Share of PAs (%)")
+
+
+#PAs with nureported or unreferenced governance types are removed
+##Tables
+###English
+data_gov_knwn_en = data_wdpa_mdg %>%
+  filter(!(wdpaid %in% data_pa_fapbm$wdpaid)) %>%
+  filter(marine == 2) %>%
+  mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Not referenced",
+                              TRUE ~ gov_type)) %>%
+  filter(gov_type != "Not Reported" & gov_type != "Not referenced") %>%
+  group_by(gov_type) %>%
+  summarize(n = n()) %>%
+  mutate(n_tot = sum(n),
+         freq = round(n/n_tot*100,1)) %>%
+  select(-n_tot) %>%
+  arrange(-freq)
+
+tbl_gov_knwn_en = data_gov_knwn_en
+names(tbl_gov_knwn_en) = c("Governance","Number of PAs","Share of PAs (%)")
+
+
+##Pie charts
+###English
+pie_gov_knwn_en = 
+  ggplot(data_gov_knwn_en, 
+       aes(x="", y= freq, fill= gov_type)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + geom_label(aes(x=1.3, 
+                   label = paste0(format(freq, digits = 2), "%")), 
+               color = "black", 
+               position = position_stack(vjust = 0.55), 
+               size=2.5, show.legend = FALSE) %>%
+  + coord_polar("y", start=0) %>%
+  + labs(title = "Governance type of marine protected areas \nexcept for not reported governance",
+         subtitle = paste("Sample :", sum(data_gov_knwn_en$n), "out of", sum(data_gov_en$n), "protected areas in Madagascar, not funded by the FAPBM")) %>%
+  #+ scale_fill_brewer(name = "Governance", palette="Paired") %>%
+  + scale_fill_manual(name = "Governance",
+                      values = c("Not Reported" = "#A6CEE3",
+                                 "Local communities" = "#1F78B4",
+                                 "Government-delegated management" = "#B2DF8A",
+                                 "Non-profit organisations" = "#33A02C",
+                                 "Collaborative governance" = "#FB9A99",
+                                 "Federal or national ministry or agency" = "#E31A1C")) %>%
+  + theme_void()
+pie_gov_knwn_en
+```
+
+```{r, eval = FALSE}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+print(xtable(tbl_gov_knwn_en, 
+             caption = "Governance of marine protected areas in Madagascar, not funded by the FAPBM (when known)",
+             type = "latex"),
+      file = paste(tmp, "tbl_gov_knwn_en.tex", sep  ="/"))
+
+ggsave(paste(tmp, "pie_gov_knwn_en.png", sep = "/"),
+       plot =  pie_gov_knwn_en,
+       device = "png",
+       height = 6, width = 9)
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+count = 0
+for(f in files) 
+{
+  count = count+1
+  cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/gouvernance/MDG_noFAPBM/marine", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+```
+
 #### Number of PAs
 
 ```{r, eval = FALSE}
@@ -1087,7 +1756,7 @@ n_fapbm_ie = data_pa_fapbm %>%
   nrow()
 ```
 
-#### Area of PAs
+#### Area of PAs : non-marine
 
 FAPBM funded protected areas
 
@@ -1229,7 +1898,200 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
+#### Area of PAs : marine
+
+FAPBM funded protected areas
+
+```{r, eval = FALSE}
+
+tbl_area_fapbm = data_pa_fapbm %>%
+  filter(marine == 2) %>%
+  summarize(n = n(),
+            tot = format(sum(area_km2), big.mark = ",", digits = 1, scientific = FALSE),
+            min = format(min(area_km2), big.mark = ",", digits = 1, scientific = FALSE),
+            max = format(max(area_km2), big.mark = ",", digits = 1, scientific = FALSE),
+            mean = format(mean(area_km2), big.mark = ",", digits = 1, scientific = FALSE)
+            )
+names(tbl_area_fapbm) = c("Number of PAs", "Total area (km²)", "Min. area (km²)", "Max. area (km²)", "Average area (km²)")
+```
+
+```{r, eval = FALSE}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+print(xtable(tbl_area_fapbm, 
+             caption = "Statistics on marine protected areas funded by FAPBM",
+             type = "latex"), 
+      file = paste(tmp, "tbl_area_fapbm.tex", sep = "/"))
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+count = 0
+for(f in files) 
+{
+  count = count+1
+  cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/surface/FAPBM/marine", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory 
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))  
+```
+
+All protected areas in Madagascar (reported by the WDPA)
+
+```{r, eval = FALSE}
+
+tbl_area_mdg = data_wdpa_mdg %>%
+  st_drop_geometry() %>%
+  filter(marine == 2) %>%
+  summarize(n = n(),
+            tot = format(sum(rep_area), big.mark = ",", digits = 1, scientific = FALSE),
+            min = format(min(rep_area), big.mark = ",", digits = 1, scientific = FALSE),
+            max = format(max(rep_area), big.mark = ",", digits = 1, scientific = FALSE),
+            mean = format(mean(rep_area), big.mark = ",", digits = 1, scientific = FALSE)
+            )
+names(tbl_area_mdg) = c("Number of PAs", "Total area (km²)", "Min. area (km²)", "Max. area (km²)", "Average area (km²)")
+```
+
+```{r, eval = FALSE}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+print(xtable(tbl_area_mdg, 
+             caption = "Statistics on marine protected areas in Madagascar",
+             type = "latex"), 
+      file = paste(tmp, "tbl_area_mdg.tex", sep = "/"))
+
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+count = 0
+for(f in files) 
+{
+  count = count+1
+  cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/surface/MDG/marine", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+```
+
+Madagascar without FAPBM funded protected areas.
+
+```{r, eval = FALSE}
+
+tbl_area_mdg_nofapbm = data_wdpa_mdg %>%
+  st_drop_geometry() %>%
+  filter(marine == 2) %>%
+  filter(!(wdpaid %in% data_pa_fapbm$wdpaid)) %>%
+  summarize(n = n(),
+            tot = format(sum(rep_area), big.mark = ",", digits = 1, scientific = FALSE),
+            min = format(min(rep_area), big.mark = ",", digits = 1, scientific = FALSE),
+            max = format(max(rep_area), big.mark = ",", digits = 1, scientific = FALSE),
+            mean = format(mean(rep_area), big.mark = ",", digits = 1, scientific = FALSE)
+            )
+names(tbl_area_mdg_nofapbm) = c("Number of PAs", "Total area (km²)", "Min. area (km²)", "Max. area (km²)", "Average area (km²)")
+```
+
+```{r, eval = FALSE}
+#Saving figures
+
+tmp = paste(tempdir(), "fig", sep = "/")
+
+print(xtable(tbl_area_mdg_nofapbm, 
+             caption = "Statistics on marine protected areas in Madagascar, not funded by the FAPBM",
+             type = "latex"), 
+      file = paste(tmp, "tbl_area_mdg_nofapbm.tex", sep = "/"))
+
+
+#Export to S3 storage
+
+##List of files to save in the temp folder
+files <- list.files(tmp, full.names = TRUE)
+##Add each file in the bucket (same foler for every file in the temp)
+count = 0
+for(f in files) 
+{
+  count = count+1
+  cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
+  aws.s3::put_object(file = f, 
+                     bucket = "projet-afd-eva-ap/descriptive_stats/surface/MDG_noFAPBM/marine", 
+                     region = "", show_progress = TRUE)
+  }
+
+#Erase the files in the temp directory
+
+do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+```
+
 ## Evolution of tree cover and deforestation
+
+Tests : access to GFW via its API
+
+```{r, eval = F}
+install.packages(c("httr2", "jsonlite"))
+library(httr2)
+library(jsonlite)
+
+#Obtain a token
+
+##The request to perform
+# curl --location --request POST 'https://data-api.globalforestwatch.org/auth/token' \ --header 'Content-Type: application/x-www-form-urlencoded' \ --data-urlencode 'username=antoine.vuillot@outlook.fr' \ --data-urlencode 'password=Av!!86451998'
+
+##With httr2
+# req_sign = request('https://data-api.globalforestwatch.org/auth/sign-up') %>%
+#   req_headers("Content-Type" = "application/json") %>% 
+#   req_body_json(list(name = "Antoine Vuillot", email = "antoine.vuillot@outlook.fr")) 
+# resp_sign = req_perform(req_sign)
+# 
+# req_token = request('https://data-api.globalforestwatch.org/auth/token') %>%
+#   req_headers("Content-Type" = "application/x-www-form-urlencoded") %>% 
+#   req_body_json(list("username = antoine.vuillot@outlook.fr", "password = Av!!86451998")) 
+# resp_token = req_perform(req_token)
+
+##With httr
+url_token = "https://data-api.globalforestwatch.org/auth/token"
+#custom_headers = c("Content-Type" =  "application/x-www-form-urlencoded")
+body_token = list(username = "vuillota@afd.fr", 
+                  password = "Av!!86451998")
+
+resp_token = httr::POST(url_token, 
+                  body = body_token,
+                  encode = "form") 
+token = fromJSON(rawToChar(resp_token$content))$data$access_token
+
+#Create an API key
+
+##The request to perform
+# curl --location --request POST 'https://data-api.globalforestwatch.org/auth/apikey' \ --header 'Authorization: Bearer ey2923…\ --header 'Content-Type: application/json' \ --data-raw '{ "alias": "api-key-for-new-app", "email": "gfw.guides@yahoo.com", "organization": "GFW", "domains": [] }'
+
+##With httr
+url_api = "https://data-api.globalforestwatch.org/auth/apikey"
+body_api = list(alias = "api-key-ie-ap",
+                email = "vuillota@afd.fr",
+                organization = "AFD")
+resp_api = httr::POST(url_api,
+                     add_headers("Authorization" = paste("Bearer", token, sep = " ")),
+                     body = body_api,
+                     encode = "json")
+content(resp_api) #Internal Server Error : try again ???
+```
 
 All protected areas in Madagascar (reported by the WDPA)
 
