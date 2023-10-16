@@ -40,7 +40,11 @@ The methodology is not extensively described here to keep the documentation conc
 
 Configuring the Rmarkdown
 
-\#`{r setup, include=FALSE, eval = FALSE} #knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())  #`
+```{r setup, include=FALSE, eval = FALSE}
+
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+
+```
 
 Downloading and installing the relevant packages
 
@@ -123,19 +127,19 @@ wdpa_wld_raw = s3read_using(
 ## Dataset specific to the PAs portfolio to analyze. Only one is selected depending on the analysis one wants to perform. 
 
 ### PAs supported by the AFD
-# data_pa =
-#   #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
-#   aws.s3::s3read_using(
-#   FUN = data.table::fread,
-#   encoding = "UTF-8",
-#   object = "data_tidy/BDD_PA_AFD_ie.csv",
-#   bucket = "projet-afd-eva-ap",
-#   opts = list("region" = "")) %>%
-#   #Sangha trinational (555547988) created in 2012 actually gathers three former PAs
-#   #in CAF (31458), CMR (1245) and COG (72332) implemented in
-#   #1990, 2001 and 1993 respectively.
-#   # Evaluating the trinational PA is not relevant here : our method relies on pre-treatment obervsations (for matching and DiD) and the outcome is likely to be affected by the initial PAs. On the other hand, evaluating the three earlier PAs might be irrelevant for us : are they funded by the AFD ?? In a first approach, the trinational is removed.
-#   filter(is.na(wdpaid) == TRUE | wdpaid != 555547988)
+data_pa =
+  #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  object = "data_tidy/BDD_PA_AFD_ie.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = "")) %>%
+  #Sangha trinational (555547988) created in 2012 actually gathers three former PAs
+  #in CAF (31458), CMR (1245) and COG (72332) implemented in
+  #1990, 2001 and 1993 respectively.
+  # Evaluating the trinational PA is not relevant here : our method relies on pre-treatment obervsations (for matching and DiD) and the outcome is likely to be affected by the initial PAs. On the other hand, evaluating the three earlier PAs might be irrelevant for us : are they funded by the AFD ?? In a first approach, the trinational is removed.
+  filter(is.na(wdpaid) == TRUE | wdpaid != 555547988)
 
 ## PAs supported by the FAPBM
 # data_pa =
@@ -148,27 +152,25 @@ wdpa_wld_raw = s3read_using(
 #   opts = list("region" = ""))
 
 ## All PAs in Madagascar
-data_pa =
-  #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
-  aws.s3::s3read_using(
-  FUN = data.table::fread,
-  encoding = "UTF-8",
-  object = "data_tidy/BDD_PA_MDG.csv",
-  bucket = "projet-afd-eva-ap",
-  opts = list("region" = ""))
+# data_pa =
+#   #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
+#   aws.s3::s3read_using(
+#   FUN = data.table::fread,
+#   encoding = "UTF-8",
+#   object = "data_tidy/BDD_PA_MDG.csv",
+#   bucket = "projet-afd-eva-ap",
+#   opts = list("region" = ""))
 
 # The list of countries (ISO3 codes) to analyze. This can be define manually or from the the dataset loaded.
 #List of countries in the sample
 # list_iso_africa = unique(data_pa[data_pa$region == "Africa", iso3])
-list_iso = "MDG"
+
+list_iso = "COM"
       
 # Specify buffer width in meter
 buffer_m = 10000
 # Specify the grid cell size in meter
-#gridSize = 10000 
-# Specify to sampling : the ideal, minimal number of pixels in a protected area. 
-## Note that by design this number is indicative, as the pixel size is defined from the protected area reported surface and sampling number, but the area considered in the analysis is the terrestrial area. For PAs with a marine part, the area analyzed is smaller and the number of pixels mechanically lower.
-n_sampling = 1000 
+gridSize = 1000
 
 #Specify the period of study to create the mapme.bidiversity portfolio
 ## Start year
@@ -187,6 +189,8 @@ colname.elevation = "elevation_mean"
 colname.tri = "tri_mean"
 colname.fcIni = "treecover_2000"
 colname.flAvg = "avgLoss_pre_treat"
+colname.biome = "biome"
+list_cov = paste(colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcIni, colname.flAvg, colname.biome, sep = ";")
 
 #Matching 
 ## Parameters
@@ -196,7 +200,7 @@ k2k_method = "mahalanobis"
 is_k2k = TRUE
 ## Criteria to assess matching quality
 ### Standardized absolte mean difference : threshold
-th_mean = 0.1
+th_mean = 0.25 #Used in conservation science, see Desbureaux 2021 for instance
 ### Variance ratio : thresholds
 th_var_min = 0.5
 th_var_max = 2
@@ -226,10 +230,11 @@ tic_pre = tic() #Start timer
 #Create a log to track progress of the analysis
 log = fn_pre_log(list_iso,
                  buffer = buffer_m,
-                 sampling = n_sampling,
+                 gridSize = gridSize,
                  yr_first = yr_first,
                  yr_last = yr_last,
                  yr_min = yr_min,
+                 list_cov = list_cov,
                  name = paste0("log-", Sys.Date(), "-NAME.txt"),
                  notes = "Specific notes or remarks.")
 
@@ -249,7 +254,7 @@ for (i in list_iso)
                             yr_min = yr_min,
                             path_tmp = tmp_pre, 
                             data_pa = data_pa,
-                            sampling = n_sampling,
+                            gridSize = gridSize,
                             log = log,
                             save_dir = save_dir)
   if(output_grid$is_ok == FALSE) {next}  
@@ -258,7 +263,6 @@ for (i in list_iso)
   utm_code = output_grid$utm_code #UTM code 
   gadm_prj = output_grid$ctry_shp_prj #The country polygon with relevant projection
   grid = output_grid$grid #The country gridding
-  gridSize = output_grid$gridSize #The spatial resolution of the gridding
   
   #Determining Group IDs and WDPA IDs for all observation units
   print("--Determining Group IDs and WDPA IDs")

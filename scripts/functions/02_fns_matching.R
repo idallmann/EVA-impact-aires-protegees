@@ -27,7 +27,7 @@
 ##INPUTS :
 ###list_iso : the list of ISO3 code corresponding to the countries analyzed
 ### buffer : the buffer width in meter
-### sampling : the sampling specified by the user for the smaller area in the country considered
+### gridSize : the resolution of gridding, defined by the user
 ### yr_first : the first year of the period where the analysis takes place
 ### yr_last : the last year of the period where the analysis takes place
 ### yr_min : the minimum treatment year to be considered in the analysis. As some matching covariates are defined with pre-treatment data (e.g average tree cover loss before treatment), this minimal year is greater than yr_first
@@ -35,14 +35,14 @@
 ### notes : any notes on the analysis performed
 ##OUTPUTS :
 ###log : a text file in the R session memory that will be edited through the data processing
-fn_pre_log = function(list_iso, buffer, sampling, yr_first, yr_last, yr_min, name, notes)
+fn_pre_log = function(list_iso, buffer, gridSize, yr_first, yr_last, yr_min, list_cov, name, notes)
 {
   str_iso = paste(list_iso, collapse = ", ")
   log = paste(tempdir(), name, sep = "/")
   file.create(log)
   #Do not forget to end the writing with a \n to avoid warnings
   #cat(paste("#####\nCOUNTRY :", iso, "\nTIME :", print(Sys.time(), tz = "UTC-2"), "\n#####\n\n###\nPRE-PROCESSING\n###\n\n"), file = log, append = TRUE)
-  cat(paste("STARTING TIME :", print(Sys.time(), tz = "UTC-2"), "\nPARAMETERS : buffer =", buffer, "m, sampling size of", sampling, ", period of analysis", yr_first, "to", yr_last, ", minimum treatment year is", yr_min, "\nCOUNTRIES :", str_iso, "\nNOTES :", notes, "\n\n##########\nPRE-PROCESSING\n##########\n\n"), file = log, append = TRUE)
+  cat(paste("STARTING TIME :", print(Sys.time(), tz = "UTC-2"), "\nPARAMETERS : \nBuffer =", buffer, "m \nPixel resolution", gridSize, "\nPeriod of analysis", yr_first, "to", yr_last, "\nMinimum treatment year is", yr_min, "\nMatching covariates :", list_cov, "\nCOUNTRIES :", str_iso, "\nNOTES :", notes, "\n\n##########\nPRE-PROCESSING\n##########\n\n"), file = log, append = TRUE)
   
   return(log)
 }
@@ -71,18 +71,17 @@ fn_lonlat2UTM = function(lonlat)
 ### yr_min : the minimum treatment year to be considered in the analysis. As some matching covariates are defined with pre-treatment data (e.g average tree cover loss before treatment), this minimal year is greater than the first year in the period considered
 ### path_tmp : temporary path for saving figures
 ### data_pa : dataset with information on protected areas, and especially their surfaces
-### sampling : Number of pixels that subdivide the protected area with lowest area in the country considered
+### gridSize : the resolution of gridding, defined by the user
 ### log : a log file to track progress of the processing
 ### save_dir : saving directory
 ##OUTPUTS (depending on potential errors)
 ### gadm_prj : country shapefile 
 ### grid : gridding of the country
 ### utm_code : UTM code of the country
-### gridSize : the resolution of gridding, defined from the area of the PA with the lowest area
 ### is_ok : a boolean indicating whether or not an error occured inside the function
 ##DATA SAVED :
 ### Gridding of the country considered
-fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log, save_dir)
+fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, gridSize, log, save_dir)
 {
   
   output = withCallingHandlers(
@@ -102,16 +101,17 @@ fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log, save_dir)
     st_transform(crs = utm_code)
   
   #Determine relevant grid size
-  ##Select the PA in the country with minimum area. PAs with null areas, marine or treatment year before 2000 are discarded (not analyzed anyway)
-  pa_min = data_pa %>%
-    filter(iso3 == iso & is.na(wdpaid) == FALSE & status_yr >= yr_min & marine %in% c(0,1)) %>%
-    arrange(area_km2) %>%
-    slice(1)
-  ##From this minimum area, define the grid size. 
-  ##It depends on the sampling of the minimal area, i.e how many pixels we want to subdivide the PA with lowest area
-  ## To avoid a resolution higher than the one of our data, grid size is set to be 30m at least (resolution of tree cover data, Hansen et al. 2013)
-  area_min = pa_min$area_km2 #in kilometer
-  gridSize = max(1e3, round(sqrt(area_min/sampling)*1000, 0)) #Side of the pixel is expressed in meter and rounded, if above 1km. 
+  ## From the smallest PA in the country considered and the desired sampling size (OLD)
+  # ##Select the PA in the country with minimum area. PAs with null areas, marine or treatment year before 2000 are discarded (not analyzed anyway)
+  # pa_min = data_pa %>%
+  #   filter(iso3 == iso & is.na(wdpaid) == FALSE & status_yr >= yr_min & marine %in% c(0,1)) %>%
+  #   arrange(area_km2) %>%
+  #   slice(1)
+  # ##From this minimum area, define the grid size. 
+  # ##It depends on the sampling of the minimal area, i.e how many pixels we want to subdivide the PA with lowest area
+  # ## To avoid a resolution higher than the one of our data, grid size is set to be 30m at least (resolution of tree cover data, Hansen et al. 2013)
+  # area_min = pa_min$area_km2 #in kilometer
+  # gridSize = max(1e3, round(sqrt(area_min/sampling)*1000, 0)) #Side of the pixel is expressed in meter and rounded, if above 1km. 
   
   # Make bounding box of projected country polygon
   bbox = st_bbox(gadm_prj) %>% st_as_sfc() %>% st_as_sf() 
@@ -155,7 +155,6 @@ fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, sampling, log, save_dir)
   #Return outputs
   list_output = list("ctry_shp_prj" = gadm_prj, 
                      "grid" = grid, 
-                     "gridSize" = gridSize, 
                      "utm_code" = utm_code,
                      "is_ok" = TRUE)
   return(list_output)
@@ -240,33 +239,33 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
     mutate(group=5,
            group_name = "Buffer")
   
-  # Separate funded and non-funded protected areas
-  ##PAs funded by AFD 
+  # Separate PA in sample or not
+  ##PAs in the sample
   ###... which can bu used in impact evaluation : in the country of interest, wdpaid known, area above 1km² (Wolf et al. 2021), implemented after yr_min defined by the user, non-marine (terrestrial or coastal, Wolf et al. 2021)
-  pa_afd_ie = data_pa %>%
+  pa_sample_ie = data_pa %>%
     filter(iso3 == iso & is.na(wdpaid) == FALSE & area_km2 > 1 & status_yr >= yr_min & marine %in% c(0,1))
-  wdpaID_afd_ie = pa_afd_ie[pa_afd_ie$iso3 == iso,]$wdpaid
-  wdpa_afd_ie = wdpa_prj %>% filter(WDPAID %in% wdpaID_afd_ie) %>%
+  wdpaID_sample_ie = pa_sample_ie[pa_sample_ie$iso3 == iso,]$wdpaid
+  wdpa_sample_ie = wdpa_prj %>% filter(WDPAID %in% wdpaID_sample_ie) %>%
     mutate(group=2,
-           group_name = "Funded PA, analyzed") # Assign an ID "2" to the funded PA group
+           group_name = "PA in sample, analyzed") # Assign an ID "2" to the PA in sample, analysed
   ###...which cannot
-  pa_afd_no_ie = data_pa %>%
+  pa_sample_no_ie = data_pa %>%
     filter(iso3 == iso & (is.na(wdpaid) == TRUE | area_km2 <= 1 | is.na(area_km2) | status_yr < yr_min | marine == 2)) #PAs not in WDPA, of area less than 1km2 (Wolf et al 2020), not terrestrial/coastal or implemented after yr_min are not analyzed
-  wdpaID_afd_no_ie = pa_afd_no_ie[pa_afd_no_ie$iso3 == iso,]$wdpaid 
-  wdpa_afd_no_ie = wdpa_prj %>% filter(WDPAID %in% wdpaID_afd_no_ie) %>%
+  wdpaID_sample_no_ie = pa_sample_no_ie[pa_sample_no_ie$iso3 == iso,]$wdpaid 
+  wdpa_sample_no_ie = wdpa_prj %>% filter(WDPAID %in% wdpaID_sample_no_ie) %>%
     mutate(group=3,
-           group_name = "Funded PA, not analyzed") # Assign an ID "3" to the funded PA group which cannot be stuided in the impact evaluation
-  ##PAs not funded by AFD
-  wdpa_no_afd = wdpa_prj %>% filter(!WDPAID %in% c(wdpaID_afd_ie, wdpaID_afd_no_ie)) %>% 
+           group_name = "PA in sample, not analyzed") # Assign an ID "3" to the PA in sample which cannot be studied in the impact evaluation
+  ##PAs not in the sample
+  wdpa_no_sample = wdpa_prj %>% filter(!WDPAID %in% c(wdpaID_sample_ie, wdpaID_sample_no_ie)) %>% 
     mutate(group=4,
-           group_name = "Non-funded PA") # Assign an ID "4" to the non-funded PA group
-  wdpaID_no_afd = wdpa_no_afd$WDPAID
+           group_name = "Non-funded PA") # Assign an ID "4" to the AP not in sample
+  wdpaID_no_sample = wdpa_no_sample$WDPAID
   
   # Merge the dataframes of funded PAs, non-funded PAs and buffers
   # CAREFUL : the order of the arguments does matter. 
   ## During rasterization, in case a cell of the raster is on both funded analysed and non-funded, we want to cell to take the WDPAID of the funded analysed.
   ## Same funded, not analyzed. As the first layer is taken, wdpa_afd_ie needs to be first !
-  wdpa_groups = rbind(wdpa_afd_ie, wdpa_afd_no_ie, wdpa_no_afd, buffer)
+  wdpa_groups = rbind(wdpa_sample_ie, wdpa_sample_no_ie, wdpa_no_sample, buffer)
   # Subset to polygons that intersect with country boundary
   wdpa.sub = wdpa_groups %>% 
     st_intersects(gadm_prj, .) %>% 
@@ -301,21 +300,27 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
   grid.wdpaid = exact_extract(x=r.wdpaid, y=grid, fun="mode", append_cols="gridID") %>%
     rename(wdpaid = mode)
 
-  # Randomly select background pixels as potential control pixels
-  ##Take the list of background pixels, the  number of background and treatment pixels
-  list_back_ID = grid.group.ini[grid.group.ini$group == 0 & is.na(grid.group.ini$group) == FALSE,]$gridID
-  n_back_ID = length(list_back_ID)
-  n_treat = length(grid.group.ini[grid.group.ini$group == 2 & is.na(grid.group.ini$group) == FALSE,]$gridID)
-  ##The number of potential control units is five times the number of treatment units
-  n_control = min(n_back_ID, n_treat*5)
-  ##Select randomly the list of background pixels selected as controls
-  ### Note that we control for the case n_back_ID = 1, which causes weird behavior using sample()
-  set.seed(0) #To ensure reproductibility of the random sampling
-  if(n_back_ID <= 1) list_control_ID = list_back_ID else list_control_ID = sample(x = list_back_ID, size = n_control, replace = FALSE)
-  ## Finally, assign the background pixel chosen to the control group, characterized by group = 1
+  # Control pixels
+  ## Take all background pixels as potential control : assign to group 1
   grid.group = grid.group.ini %>%
-    mutate(group = case_when(gridID %in% list_control_ID ~ 1,
+    mutate(group = case_when(group == 0 ~ 1,
                              TRUE ~ group))
+  
+  ## Randomly select background pixels as potential control pixels
+  # ##Take the list of background pixels, the  number of background and treatment pixels
+  # list_back_ID = grid.group.ini[grid.group.ini$group == 0 & is.na(grid.group.ini$group) == FALSE,]$gridID
+  # n_back_ID = length(list_back_ID)
+  # n_treat = length(grid.group.ini[grid.group.ini$group == 2 & is.na(grid.group.ini$group) == FALSE,]$gridID)
+  # ##The number of potential control units is five times the number of treatment units
+  # n_control = min(n_back_ID, n_treat*5)
+  # ##Select randomly the list of background pixels selected as controls
+  # ### Note that we control for the case n_back_ID = 1, which causes weird behavior using sample()
+  # set.seed(0) #To ensure reproductibility of the random sampling
+  # if(n_back_ID <= 1) list_control_ID = list_back_ID else list_control_ID = sample(x = list_back_ID, size = n_control, replace = FALSE)
+  # ## Finally, assign the background pixel chosen to the control group, characterized by group = 1
+  # grid.group = grid.group.ini %>%
+  #   mutate(group = case_when(gridID %in% list_control_ID ~ 1,
+  #                            TRUE ~ group))
   
 
   # Merge data frames
@@ -344,14 +349,14 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
   #Idea : the pixel could be treated out of the period considered, so not comparable to toher treatment pixels considered in funded, analyzed.
   # -> Check with Léa, Ingrid and PY if that seems OK
   grid.param = grid.param.ini %>%
-    mutate(group = case_when(wdpaid %in% wdpaID_afd_no_ie & group == 2 ~ 3,
+    mutate(group = case_when(wdpaid %in% wdpaID_sample_no_ie & group == 2 ~ 3,
                              TRUE ~ group)) %>%
     #Add name for the group
     mutate(group_name = case_when(group == 0 ~ "Background",
                                   group == 1 ~ "Potential control",
-                                  group == 2 ~ "Funded PA, analyzed (potential treatment)",
-                                  group == 3 ~ "Funded PA, not analyzed",
-                                  group == 4 ~ "Non-funded PA",
+                                  group == 2 ~ "PA in sample, analyzed (potential treatment)",
+                                  group == 3 ~ "PA in sample, not analyzed",
+                                  group == 4 ~ "PA not in sample",
                                   group == 5 ~ "Buffer")) %>%
   #Add spatial resolution in m : useful to compute share of forest area in a given pixel and extrapolate to the PA for instance
   mutate(res_m = gridSize)
@@ -382,7 +387,7 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
     #   # legend title
     #   name="Group", 
     #   # legend label
-    #   labels=c("control candidate", "treatment candidate", "non-funded PA", "buffer zone")) +
+    #   labels=c("control candidate", "treatment candidate", "PA not in sample", "buffer zone")) +
     theme_bw()
   fig_save = paste0(path_tmp, "/fig_grid_group_", iso, ".png")
   ggsave(fig_save,
@@ -410,16 +415,16 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
   df_pie_ie = wdpa_prj %>%
     st_drop_geometry() %>%
     dplyr::select(c(ISO3, WDPAID)) %>%
-    mutate(group_ie = case_when(!WDPAID %in% c(wdpaID_afd_ie, wdpaID_afd_no_ie) ~ "Non-funded",
-                                WDPAID %in% wdpaID_afd_ie ~ "Funded, analyzed",
-                                WDPAID %in% wdpaID_afd_no_ie ~ "Funded, not analyzed")) %>%
+    mutate(group_ie = case_when(!WDPAID %in% c(wdpaID_sample_ie, wdpaID_sample_no_ie) ~ "Not in sample",
+                                WDPAID %in% wdpaID_sample_ie ~ "In sample, analyzed",
+                                WDPAID %in% wdpaID_sample_no_ie ~ "In sample, not analyzed")) %>%
     group_by(ISO3, group_ie) %>%
     summarise(n = n()) %>%
     ungroup() %>%
     mutate(n_tot = sum(n),
            freq = round(n/n_tot*100, 1))
   
-  ## PAs funded : reported in the WDPAID or not
+  ## PAs in the sample : reported in the WDPAID or not
   pie_wdpa = ggplot(df_pie_wdpa, 
                         aes(x="", y= freq, fill = group_wdpa)) %>%
     + geom_bar(width = 0.5, stat = "identity", color="white") %>%
@@ -433,8 +438,8 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
     #              position = position_stack(vjust = 0.7), size=2.5, 
     #              show.legend = FALSE) %>%
     + labs(x = "", y = "",
-           title = "Share of PAs funded and reported in the WDPA",
-           subtitle = paste("Sample :", sum(df_pie_wdpa$n), "funded protected areas in", country.name)) %>%
+           title = "Share of PAs in sample and reported in the WDPA",
+           subtitle = paste("Sample :", sum(df_pie_wdpa$n), "protected areas in the sample, in", country.name)) %>%
     + scale_fill_brewer(name = "", palette = "Greens") %>%
     + theme_void()
   
@@ -453,13 +458,13 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
     #              show.legend = FALSE) %>%
     + labs(x = "", y = "",
            title = "Share of PAs reported in the WDPA and analyzed",
-           subtitle = paste("Sample :", sum(df_pie_ie$n), "funded protected areas in", country.name)) %>%
+           subtitle = paste("Sample :", sum(df_pie_ie$n), "protected areas in sample, in", country.name)) %>%
     + scale_fill_brewer(name = "", palette = "Greens") %>%
     + theme_void()
   
   ##Saving plots
   tmp = paste(tempdir(), "fig", sep = "/")
-  ggsave(paste(tmp, paste0("pie_funded_wdpa_", iso, ".png"), sep = "/"),
+  ggsave(paste(tmp, paste0("pie_sample_wdpa_", iso, ".png"), sep = "/"),
          plot = pie_wdpa,
          device = "png",
          height = 6, width = 9)
@@ -584,6 +589,8 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   dl.elevation = get_resources(aoi, "nasa_srtm")
   ## Terrain Ruggedness Index
   dl.tri = get_resources(aoi, "nasa_srtm")
+  ## Biome
+  dl.bio = get_resources(aoi, "teow")
   
   print("----Compute indicators")
   #Compute indicators
@@ -619,6 +626,9 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
                       stats_tri = c("mean"),
                       engine = "exactextract")}
     
+    get.bio %<-% {calc_indicators(dl.bio,
+                                  indicators = "biome")}
+    
     })
   
   print("----Build indicators' datasets")
@@ -649,6 +659,10 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
     mutate(elevation_mean = case_when(is.nan(elevation_mean) ~ NA,
                                 TRUE ~ elevation_mean))
   
+  data.bio = unnest(get.bio, biome) 
+    # mutate(elevation_mean = case_when(is.nan(elevation_mean) ~ NA,
+    #                                   TRUE ~ elevation_mean))
+  
   ## End parallel plan : close parallel sessions, so must be done once indicators' datasets are built
   plan(sequential)
   
@@ -676,13 +690,14 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   df.soil = data.soil %>% mutate(x = NULL) %>% as.data.frame()
   df.elevation = data.elevation %>% mutate(x = NULL) %>% as.data.frame()
   df.tri = data.tri %>% mutate(x=NULL) %>% as.data.frame()
+  df.bio = data.bio %>% mutate(x=NULL) %>% as.data.frame()
   
   # Make a dataframe containing only "assetid" and geometry
   # Use data.soil instead of data.tree, as some pixels are removed in data.tree (NA values from get.tree)
   df.geom = data.soil[, c("assetid", "x")] %>% as.data.frame() 
   
   # Merge all output dataframes 
-  pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.elevation, df.tri, df.geom)) %>%
+  pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.elevation, df.tri, df.bio, df.geom)) %>%
     st_as_sf()
 
   # Make column Group ID and WDPA ID have data type "integer"
@@ -937,7 +952,7 @@ fn_post_match_auto = function(mf,
                               k2k_method,
                               th_mean, 
                               th_var_min, th_var_max,
-                              colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcIni, colname.flAvg,
+                              colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcIni, colname.flAvg, colname.biome,
                               log)
 {
 
@@ -955,7 +970,8 @@ fn_post_match_auto = function(mf,
                             +  .(as.name(colname.fcIni)) 
                             + .(as.name(colname.flAvg))
                             + .(as.name(colname.tri))
-                            + .(as.name(colname.elevation))))
+                            + .(as.name(colname.elevation))
+                            + .(as.name(colname.biome))))
       
       #Try to perform matching
       out.cem = matchit(formula,
@@ -1033,7 +1049,7 @@ fn_post_match_auto = function(mf,
 ### A table with statistics on matched control and treated units 
 ### A table with statistics on unmatched control and treated units,
 fn_post_covbal = function(out.cem, mf, 
-                          colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, colname.tri, colname.elevation, 
+                          colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, colname.tri, colname.elevation, colname.biome,
                           iso, path_tmp, wdpaid, log,
                           save_dir)
 {
@@ -1068,9 +1084,9 @@ fn_post_covbal = function(out.cem, mf,
   #Plot covariate balance
   colname.flAvg.new = paste0("Avg. Annual Forest \n Loss ",  year.start.prefund, "-", year.end.prefund)
   c_name = data.frame(old = c(colname.travelTime, colname.clayContent, colname.tri, colname.elevation,
-                              colname.fcIni, colname.flAvg),
+                              colname.fcIni, colname.flAvg, colname.biome),
                       new = c("Accessibility", "Clay Content", "Terrain Ruggedness Index (TRI)", "Elevation (m)", "Forest Cover in 2000",
-                              colname.flAvg.new))
+                              colname.flAvg.new, "Biome"))
   
   # Refer to cobalt::love.plot()
   # https://cloud.r-project.org/web/packages/cobalt/vignettes/cobalt.html#love.plot
