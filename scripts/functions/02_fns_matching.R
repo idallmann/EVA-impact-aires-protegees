@@ -642,9 +642,9 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
                                        TRUE ~ clay_0_5cm_mean))
   
   data.travelT = unnest(get.travelT, traveltime) %>%
-    pivot_wider(names_from = "distance", values_from = "minutes_median", names_prefix = "minutes_median_") %>%
-    mutate(minutes_median_5k_110mio = case_when(is.nan(minutes_median_5k_110mio) ~ NA,
-                                       TRUE ~ minutes_median_5k_110mio))
+    pivot_wider(names_from = "distance", values_from = "minutes_mean", names_prefix = "minutes_mean_") %>%
+    mutate(minutes_mean_5k_110mio = case_when(is.nan(minutes_mean_5k_110mio) ~ NA,
+                                       TRUE ~ minutes_mean_5k_110mio))
   
   data.tree = unnest(get.tree, treecover_area) %>%
     drop_na(treecover) %>% #get rid of units with NA values 
@@ -660,6 +660,11 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
                                 TRUE ~ elevation_mean))
   
   data.bio = unnest(get.bio, biome) 
+  
+  test = st_read("/tmp/Rtmp2Rn5xk/matching_pre/teow/wwf_terr_ecos.gpkg") #Ca marche !!
+  test2 = rast("/tmp/Rtmp2Rn5xk/matching_pre/soilgrids/clay_0-5cm_mean.tif")
+  
+  
     # mutate(elevation_mean = case_when(is.nan(elevation_mean) ~ NA,
     #                                   TRUE ~ elevation_mean))
   

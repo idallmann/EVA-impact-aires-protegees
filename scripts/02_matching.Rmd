@@ -165,7 +165,7 @@ data_pa =
 #List of countries in the sample
 # list_iso_africa = unique(data_pa[data_pa$region == "Africa", iso3])
 
-list_iso = "COM"
+list_iso = "GNB"
       
 # Specify buffer width in meter
 buffer_m = 10000
@@ -187,7 +187,7 @@ colname.travelTime = "minutes_median_5k_110mio"
 colname.clayContent = "clay_0_5cm_mean"
 colname.elevation = "elevation_mean"
 colname.tri = "tri_mean"
-colname.fcIni = "treecover_2000"
+colname.fcIni = "treecover_2000" #that has to change : average pre-treatment forest cover !
 colname.flAvg = "avgLoss_pre_treat"
 colname.biome = "biome"
 list_cov = paste(colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcIni, colname.flAvg, colname.biome, sep = ";")
@@ -283,7 +283,7 @@ for (i in list_iso)
     fn_pre_mf_parallel(grid.param = grid_param, 
                        path_tmp = tmp_pre, 
                        iso = i,
-                       name_output = paste0("matching_frame_spling", n_sampling),
+                       name_output = "matching_frame_spling",
                        ext_output = ".gpkg",
                        yr_first = yr_first, yr_last = yr_last,  
                        log = log,
