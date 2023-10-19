@@ -183,13 +183,13 @@ yr_last = 2021
 yr_min = yr_first+2
 
 # Define column names of matching covariates
-colname.travelTime = "minutes_median_5k_110mio"
+colname.travelTime = "minutes_mean_5k_110mio"
 colname.clayContent = "clay_0_5cm_mean"
 colname.elevation = "elevation_mean"
 colname.tri = "tri_mean"
 colname.fcIni = "treecover_2000" #that has to change : average pre-treatment forest cover !
 colname.flAvg = "avgLoss_pre_treat"
-colname.biome = "biome"
+colname.biome = "biomes"
 list_cov = paste(colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcIni, colname.flAvg, colname.biome, sep = ";")
 
 #Matching 
@@ -333,7 +333,7 @@ for (i in list_iso)
   print("--Loading the matching frame")
   output_load = fn_post_load_mf(iso = i, 
                            yr_min = yr_min,
-                           name_input = paste0("matching_frame_spling", n_sampling),
+                           name_input = "matching_frame_spling",
                            ext_input = ".gpkg",
                            log = log,
                            save_dir = save_dir)
@@ -367,7 +367,7 @@ for (i in list_iso)
     
     #Add average pre-loss
     print("--Add covariate : average tree loss pre-funding")
-    output_avgLoss = fn_post_avgLoss_prefund(mf = mf_ini_j, 
+    output_avgLoss = fn_post_avgLoss_pre_treat(mf = mf_ini_j, 
                                              log = log)
     if(output_avgLoss$is_ok == FALSE) {next} else mf_j = output_avgLoss$mf
     
@@ -387,6 +387,7 @@ for (i in list_iso)
                                    colname.tri = colname.tri, 
                                    colname.fcIni = colname.fcIni, 
                                    colname.flAvg = colname.flAvg,
+                                   colname.biome = colname.biome,
                                    log = log)
     if(output_cem$is_ok == FALSE) {next} else out_cem_j = output_cem$out.cem
     

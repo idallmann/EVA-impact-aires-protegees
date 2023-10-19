@@ -898,7 +898,7 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log, save_dir)
 ### mf : matching frame with the new covariate
 ### is_ok : a boolean indicating whether or not an error occured inside the function
 
-fn_post_avgLoss_prefund = function(mf, colname.flAvg, log)
+fn_post_avgLoss_pre_treat = function(mf, colname.flAvg, log)
 {
   
   output = tryCatch(
@@ -936,11 +936,11 @@ fn_post_avgLoss_prefund = function(mf, colname.flAvg, log)
   df_fl = mf[grepl("treeloss", names(mf))][var_start:var_end] %>% 
     st_drop_geometry()
   #Compute average loss for each pixel and store it in mf. Also add the start and end years of pre-treatment period where average loss is computed.
-  mf$avgLoss_pre_fund = round(rowMeans(df_fl), 2)
-  mf$start_pre_fund = yr_start
-  mf$end_pre_fund = yr_end
+  mf$avgLoss_pre_treat = round(rowMeans(df_fl), 2)
+  mf$start_pre_treat = yr_start
+  mf$end_pre_treat = yr_end
   #Remove NA values
-  mf = mf %>% drop_na(avgLoss_pre_fund)
+  mf = mf %>% drop_na(avgLoss_pre_treat)
   
   #Append the log
   cat("#Add average pre-treatment treecover loss\n-> OK\n", file = log, append = TRUE)
@@ -1014,13 +1014,21 @@ fn_post_match_auto = function(mf,
     tryCatch(
     {
       # Formula
-      formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
-                            + .(as.name(colname.clayContent))  
-                            +  .(as.name(colname.fcIni)) 
-                            + .(as.name(colname.flAvg))
-                            + .(as.name(colname.tri))
-                            + .(as.name(colname.elevation))
-                            + .(as.name(colname.biome))))
+      if(length(unique(mf$biomes)) == 1) 
+        {
+        formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
+                      + .(as.name(colname.clayContent))  
+                      +  .(as.name(colname.fcIni)) 
+                      + .(as.name(colname.flAvg))
+                      + .(as.name(colname.tri))
+                      + .(as.name(colname.elevation))))
+      } else formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
+                          + .(as.name(colname.clayContent))  
+                          +  .(as.name(colname.fcIni)) 
+                          + .(as.name(colname.flAvg))
+                          + .(as.name(colname.tri))
+                          + .(as.name(colname.elevation)))
+                          + .(as.name(colname.biome)))
       
       #Try to perform matching
       out.cem = matchit(formula,
