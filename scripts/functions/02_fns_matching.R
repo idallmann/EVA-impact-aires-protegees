@@ -522,9 +522,12 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
 
 
 # Presently (19/102023) there is an issue with mapme.biodiversity::calc_indicators() function to compute the biome indicator from TEOW data. The following function takes mapme.biodiversity functions and dd slight modifications so that it works.
+# https://github.com/mapme-initiative/mapme.biodiversity/issues/196 for a detailed explanation
 ##INPUTS
 ### x : the portfolio where TEOW data have been downloaded through mapme.biodiversity::get_resources() function
 ### indicator : the indicator we want to compute from TEOW data ("biome" here).
+##OUTPTUS
+### data.biome : a dataset with biome and corresponding area for each asset in the portfolio x
 fn_calc_biome_temp = function(x, indicator)
 {
   i <- NULL
@@ -551,9 +554,10 @@ fn_calc_biome_temp = function(x, indicator)
     results <- .compute(x, resources, fun, params, 1)
   }
   biome <- mapme.biodiversity:::.bind_assets(results) %>%
-    mutate(.id = as.numeric(.id))
-  #results <- nest(results, `:=`(!!indicator, !.id))
-  #x[indicator] <- results[indicator]
+    mutate(.id = as.numeric(.id)) %>%
+    dplyr::select(-c(area))
+  # results <- nest(results, `:=`(!!indicator, !.id))
+  # x[indicator] <- results[indicator]
   data.biome = left_join(x, biome, by = c("assetid" = ".id"))
   # x <- relocate(x, !!attributes(x)[["sf_column"]], .after = last_col())
   # x
@@ -562,8 +566,6 @@ fn_calc_biome_temp = function(x, indicator)
   
 }
 
-data.biome = fn_calc_biome_temp(x = dl.bio, indicator = "biome")
-test = fn_calc_biome_temp(x = pf_test, indicator = "biome")
 
 #Building a matching dataframe for the country considered : for each pixel in treated and control groups, the data needed for the analysis are downloaded and the indicators computed. Eventually a dataset is obtained that is ready to enter a matching algorithm
 ##INPUTS :
@@ -633,7 +635,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   ## Terrain Ruggedness Index
   dl.tri = get_resources(aoi, "nasa_srtm")
   ## Biome
-  dl.bio = get_resources(aoi, "teow")
+  dl.bio = get_resources(aoi, resources = "teow")
   
   print("----Compute indicators")
   #Compute indicators
@@ -648,7 +650,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
     get.soil %<-% {calc_indicators(dl.soil,
                                 indicators = "soilproperties",
                                 stats_soil = c("mean"),
-                                engine = "exactextract")} %seed% 1 # the "exactextract" engine is chosen as it is the faster one for large rasters (https://tmieno2.github.io/R-as-GIS-for-Economists/extraction-speed-comparison.html) 
+                                engine = "exactextract")} %seed% 1 # the "exactextract" engine is chosen as it is the faster one for large rasters (https://tmieno2.github.io/R-as-GIS-for-Economists/extraction-speed-comparison.html)
 
     get.travelT  %<-% {calc_indicators(dl.travelT,
                                   indicators = "traveltime",
@@ -706,50 +708,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   #                                   TRUE ~ elevation_mean))
   
   #data.bio = unnest(get.bio, biome) 
-  
-  data.bio = dl.bio
-  
-  #####
-  ###TEST
-  #####
-  
-  data.teow = st_read(paste(tmp_pre, "teow/wwf_terr_ecos.gpkg", sep = "/")) 
-  
-  data.teow.com = data.teow %>%
-    st_as_sf() %>%
-    st_make_valid() %>%
-    st_crop(st_bbox(aoi))
-  
-  rast.teow = raster(crs = crs(data.teow), vals = 0, resolution = c(0.0174532925199433, 0.0174532925199433), ext = extent(data.teow)) %>%
-    rasterize(data.teow,.)
-  test2 = rast("/tmp/Rtmp2Rn5xk/matching_pre/soilgrids/clay_0-5cm_mean.tif")
-  
-  aoi_test = aoi[1,]
-  poly1 = aoi[1,]$x
-  pol = st_multipolygon(
-    list(list(aoi[17,]$x[[1]][[1]]), list(aoi[18,]$x[[1]][[1]]), list(aoi[19,]$x[[1]][[1]]))
-  ) %>%
-    st_sfc() %>%
-    st_cast()
-  polc = st_sfc(pol, crs=32611)
-  
-  poly = gadm(country = "COM", resolution = 1, level = 0, path = paste(tempdir(), "matching_pre", sep = "/")) %>%
-    st_as_sf() %>%
-    st_make_valid() %>%
-    st_cast("POLYGON")
-  pf_test = init_portfolio(poly,
-                            years = 2000:2021,
-                            outdir = paste(tempdir(), "matching_pre", sep = "/"),
-                            add_resources = FALSE) %>%
-    get_resources("teow") #%>%
-    # calc_indicators(indicators = "biome") %>%  
-    # unnest(biome)
-  
-  atts = attributes(data.bio)
-  indicator = "biome"
-  x = data.bio
-
-  
+  data.bio = fn_calc_biome_temp(x = dl.bio, indicator = "biome")
 
   
   ## End parallel plan : close parallel sessions, so must be done once indicators' datasets are built
@@ -780,7 +739,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   df.elevation = data.elevation %>% mutate(x = NULL) %>% as.data.frame()
   df.tri = data.tri %>% mutate(x=NULL) %>% as.data.frame()
   #df.bio = data.bio %>% mutate(x=NULL) %>% as.data.frame()
-  df.bio = y %>% mutate(geometry = NULL) %>% as.data.frame()
+  df.bio = data.bio %>% mutate(x = NULL) %>% as.data.frame()
   
   # Make a dataframe containing only "assetid" and geometry
   # Use data.soil instead of data.tree, as some pixels are removed in data.tree (NA values from get.tree)
