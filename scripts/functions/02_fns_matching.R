@@ -1014,6 +1014,8 @@ fn_post_match_auto = function(mf,
     tryCatch(
     {
       # Formula
+      ## Two cases : if only one value of biome across control and treated units considered for the matching, then we do not consider biome (de facto, matched units will have the same biome). If we have at least two biomes, then we need to take it into account in the formula.
+      ## Note that no grouping is needed for the categorical variable "biomes" : according to the documentation "Note that if a categorical variable does not appear in grouping, it will not be coarsened, so exact matching will take place on it". 
       if(length(unique(mf$biomes)) == 1) 
         {
         formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
@@ -1143,7 +1145,7 @@ fn_post_covbal = function(out.cem, mf,
   c_name = data.frame(old = c(colname.travelTime, colname.clayContent, colname.tri, colname.elevation,
                               colname.fcIni, colname.flAvg, colname.biome),
                       new = c("Accessibility", "Clay Content", "Terrain Ruggedness Index (TRI)", "Elevation (m)", "Forest Cover in 2000",
-                              colname.flAvg.new, "Biome"))
+                              colname.flAvg.new, "Biomes"))
   
   # Refer to cobalt::love.plot()
   # https://cloud.r-project.org/web/packages/cobalt/vignettes/cobalt.html#love.plot
@@ -1545,8 +1547,8 @@ fn_post_panel = function(out.cem, mf, ext_output, wdpaid, iso, log, save_dir)
   
   # Pivot Wide ==> Pivot Long
   unmatched.long = unmatched.wide %>%
-    dplyr::select(c(region_afd, region, sub_region, iso3, country_en, group, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, starts_with(treecover), res_m)) %>%
-    pivot_longer(cols = c(starts_with(treecover)),
+    dplyr::select(c(region_afd, region, sub_region, iso3, country_en, group, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, starts_with("treecover"), res_m)) %>%
+    pivot_longer(cols = c(starts_with("treecover")),
                  names_to = c("var", "year"),
                  names_sep = "_",
                  values_to = "fc_ha")

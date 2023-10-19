@@ -162,10 +162,12 @@ data_pa =
 #   opts = list("region" = ""))
 
 # The list of countries (ISO3 codes) to analyze. This can be define manually or from the the dataset loaded.
-#List of countries in the sample
-# list_iso_africa = unique(data_pa[data_pa$region == "Africa", iso3])
-
-list_iso = "COM"
+##List of African countries in the sample that have at least one PA we can analyse
+data_pa_ie_africa = data_pa %>%
+  filter(region == "Africa" & is.na(wdpaid) == FALSE & area_km2 >=1 & marine %in% c(0,1) & status_yr >= yr_min)
+list_iso = unique(data_pa_ie_africa$iso3)
+## Manual definition
+#list_iso = "COM"
       
 # Specify buffer width in meter
 buffer_m = 10000
@@ -315,7 +317,7 @@ max_i = length(list_iso) #Max value of the counter
 tic_post = tic() #start timer
 
 #Append the log, and specify matching parameters and quality assessment
-cat(paste("##########\nPOST-PROCESSING\n##########\n\nPARAMETERS :\nMatching\n#Parameters\n##Method :", match_method, "\n##Automatic cutoffs :", cutoff_method, "\n##Is it K2K matching ?", is_k2k, "\n##K2K method :", k2k_method, "\n#Quality assessement\n##Absolute standardized mean difference (threshold)", th_mean, "\n##Variance ratio between", th_var_min, "and", th_var_max), 
+cat(paste("##########\nPOST-PROCESSING\n##########\n\nPARAMETERS :\nMatching\n#Parameters\n##Method :", match_method, "\n##Automatic cutoffs :", cutoff_method, "\n##Is it K2K matching ?", is_k2k, "\n##K2K method :", k2k_method, "\n#Quality assessement\n##Absolute standardized mean difference (threshold)", th_mean, "\n##Variance ratio between", th_var_min, "and", th_var_max, "\n\n"), 
     file = log, append = TRUE)
   
 # Perform post-processing steps country-by-country, area-by-area
@@ -402,6 +404,7 @@ for (i in list_iso)
                    colname.flAvg = colname.flAvg,
                    colname.tri = colname.tri,
                    colname.elevation = colname.elevation,
+                   colname.biome = colname.biome,
                    iso = i,
                    path_tmp = tmp_post,
                    wdpaid = j,
