@@ -621,7 +621,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
                       stats_elevation = c("mean"),
                       engine = "exactextract")}
     
-    get.tri %<-% {calc_indicators(dl.tri,
+    get.tri %<-% {calc_indicators(dl.tri,    
                       indicators = "tri",
                       stats_tri = c("mean"),
                       engine = "exactextract")}
@@ -661,9 +661,32 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   
   data.bio = unnest(get.bio, biome) 
   
-  test = st_read("/tmp/Rtmp2Rn5xk/matching_pre/teow/wwf_terr_ecos.gpkg") #Ca marche !!
+  data.teow = st_read("/tmp/Rtmp2Rn5xk/matching_pre/teow/wwf_terr_ecos.gpkg") 
+  rast.teow = raster(crs = crs(data.teow), vals = 0, resolution = c(0.0174532925199433, 0.0174532925199433), ext = extent(data.teow)) %>%
+    rasterize(data.teow,.)
+  test2 = st_in
   test2 = rast("/tmp/Rtmp2Rn5xk/matching_pre/soilgrids/clay_0-5cm_mean.tif")
   
+  aoi_test = aoi[1,]
+  poly1 = aoi[1,]$x
+  pol = st_multipolygon(
+    list(list(aoi[17,]$x[[1]][[1]]), list(aoi[18,]$x[[1]][[1]]), list(aoi[19,]$x[[1]][[1]]))
+  ) %>%
+    st_sfc() %>%
+    st_cast()
+  polc = st_sfc(pol, crs=32611)
+  
+  poly = gadm(country = "COM", resolution = 1, level = 0, path = paste(tempdir(), "matching_pre", sep = "/")) %>%
+    st_as_sf() %>%
+    st_make_valid() %>%
+    st_cast("POLYGON")
+  data.bio = init_portfolio(poly,
+                            years = 2000:2021,
+                            outdir = paste(tempdir(), "matching_pre", sep = "/"),
+                            add_resources = FALSE) %>%
+    get_resources("teow") %>%
+    calc_indicators(indicators = "biome") %>%  
+    unnest(biome)
   
     # mutate(elevation_mean = case_when(is.nan(elevation_mean) ~ NA,
     #                                   TRUE ~ elevation_mean))
