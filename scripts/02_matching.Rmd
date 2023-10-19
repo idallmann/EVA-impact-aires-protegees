@@ -165,7 +165,7 @@ data_pa =
 #List of countries in the sample
 # list_iso_africa = unique(data_pa[data_pa$region == "Africa", iso3])
 
-list_iso = "GNB"
+list_iso = "COM"
       
 # Specify buffer width in meter
 buffer_m = 10000

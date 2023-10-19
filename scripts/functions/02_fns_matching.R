@@ -521,6 +521,49 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
 }
 
 
+# Presently (19/102023) there is an issue with mapme.biodiversity::calc_indicators() function to compute the biome indicator from TEOW data. The following function takes mapme.biodiversity functions and dd slight modifications so that it works.
+##INPUTS
+### x : the portfolio where TEOW data have been downloaded through mapme.biodiversity::get_resources() function
+### indicator : the indicator we want to compute from TEOW data ("biome" here).
+fn_calc_biome_temp = function(x, indicator)
+{
+  i <- NULL
+  args <- list() #No additionnal arguments
+  atts <- attributes(x) #Attributes of the portfolio
+  selected_indicator <- available_indicators(indicator) #The indicator available, processing mode and function to extract it
+  processing_mode <- selected_indicator[[indicator]]$processing_mode #Get processing mode
+  params <- mapme.biodiversity:::.check_resource_arguments(selected_indicator, 
+                                                           args) #Check we do have the resource to compute the indicator
+  params$verbose <- atts$verbose #Get verbose
+  fun <- selected_indicator[[indicator]]$fun #Get the function
+  available_resources <- atts$resources #The resources available in the temporary folder of mapme
+  required_resources <- selected_indicator[[indicator]]$resources #The resource required to compute the indicator specified
+  if (processing_mode == "asset") {
+    p <- with_progress(progressr::progressor(steps = nrow(x)))
+    results <- furrr::future_map(1:nrow(x), function(i) {
+      p()
+      resources <- mapme.biodiversity:::.prep(x[i, ], atts$resources, required_resources)
+      mapme.biodiversity:::.compute(x[i, ], resources, fun, params, i)
+    }, .options = furrr::furrr_options(seed = TRUE))
+  }
+  else {
+    resources <- .prep(x, atts$resources, required_resources)
+    results <- .compute(x, resources, fun, params, 1)
+  }
+  biome <- mapme.biodiversity:::.bind_assets(results) %>%
+    mutate(.id = as.numeric(.id))
+  #results <- nest(results, `:=`(!!indicator, !.id))
+  #x[indicator] <- results[indicator]
+  data.biome = left_join(x, biome, by = c("assetid" = ".id"))
+  # x <- relocate(x, !!attributes(x)[["sf_column"]], .after = last_col())
+  # x
+  
+  return(data.biome)
+  
+}
+
+data.biome = fn_calc_biome_temp(x = dl.bio, indicator = "biome")
+test = fn_calc_biome_temp(x = pf_test, indicator = "biome")
 
 #Building a matching dataframe for the country considered : for each pixel in treated and control groups, the data needed for the analysis are downloaded and the indicators computed. Eventually a dataset is obtained that is ready to enter a matching algorithm
 ##INPUTS :
@@ -599,35 +642,36 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   # gc : optimize memory management for the background sessions.
   # Multisession with workers = 6 as in mapme.biodiversity tutorial : https://mapme-initiative.github.io/mapme.biodiversity/articles/quickstart.html?q=parall#enabling-parallel-computing
   # Careful to the format of command to call parallel computations here : VALUE TO COMPUTE %<-% {EXPRESSION}.
+  # Note after each calc_indicators is specified a seed manually (for reproducibility). This is to ensure the Random Number Generating processes in the parellel sessons are independant, and avoid any bug (https://www.r-bloggers.com/2020/09/future-1-19-1-making-sure-proper-random-numbers-are-produced-in-parallel-processing/; https://stackoverflow.com/questions/69365728/how-do-i-suppress-a-random-number-generation-warning-with-future-callr)
   plan(multisession, workers = 6, gc = TRUE)
   with_progress({
     get.soil %<-% {calc_indicators(dl.soil,
                                 indicators = "soilproperties",
                                 stats_soil = c("mean"),
-                                engine = "exactextract")} # the "exactextract" engine is chosen as it is the faster one for large rasters (https://tmieno2.github.io/R-as-GIS-for-Economists/extraction-speed-comparison.html)
+                                engine = "exactextract")} %seed% 1 # the "exactextract" engine is chosen as it is the faster one for large rasters (https://tmieno2.github.io/R-as-GIS-for-Economists/extraction-speed-comparison.html) 
 
     get.travelT  %<-% {calc_indicators(dl.travelT,
                                   indicators = "traveltime",
                                   stats_accessibility = c("mean"),  #Note KfW use "median" here, but for no specific reason a priori (mail to Kemmeng Liu, 28/09/2023). Mean is chosen coherently with the other covariates, though we could test in a second time whether this changes anything to the results.
-                                  engine = "exactextract")}
+                                  engine = "exactextract")} %seed% 2
 
     get.tree  %<-% {calc_indicators(dl.tree,
                                indicators = "treecover_area",
                                min_size=0.5, # FAO definition of forest :  Minimum treecover = 10%, minimum size =0.5 hectare (FAO 2020 Global Fores Resources Assessment, https://www.fao.org/3/I8661EN/i8661en.pdf)
-                               min_cover=10)}
-  
+                               min_cover=10)} %seed% 3
+
     get.elevation %<-% {calc_indicators(dl.elevation,
                       indicators = "elevation",
                       stats_elevation = c("mean"),
-                      engine = "exactextract")}
-    
-    get.tri %<-% {calc_indicators(dl.tri,    
+                      engine = "exactextract")} %seed% 4
+
+    get.tri %<-% {calc_indicators(dl.tri,
                       indicators = "tri",
                       stats_tri = c("mean"),
-                      engine = "exactextract")}
+                      engine = "exactextract")} %seed% 5
     
-    get.bio %<-% {calc_indicators(dl.bio,
-                                  indicators = "biome")}
+    # get.bio %<-% {calc_indicators(dl.bio,
+    #                               indicators = "biome")} %seed% 6 
     
     })
   
@@ -658,13 +702,26 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   data.elevation = unnest(get.elevation, elevation) %>%
     mutate(elevation_mean = case_when(is.nan(elevation_mean) ~ NA,
                                 TRUE ~ elevation_mean))
+  # mutate(elevation_mean = case_when(is.nan(elevation_mean) ~ NA,
+  #                                   TRUE ~ elevation_mean))
   
-  data.bio = unnest(get.bio, biome) 
+  #data.bio = unnest(get.bio, biome) 
   
-  data.teow = st_read("/tmp/Rtmp2Rn5xk/matching_pre/teow/wwf_terr_ecos.gpkg") 
+  data.bio = dl.bio
+  
+  #####
+  ###TEST
+  #####
+  
+  data.teow = st_read(paste(tmp_pre, "teow/wwf_terr_ecos.gpkg", sep = "/")) 
+  
+  data.teow.com = data.teow %>%
+    st_as_sf() %>%
+    st_make_valid() %>%
+    st_crop(st_bbox(aoi))
+  
   rast.teow = raster(crs = crs(data.teow), vals = 0, resolution = c(0.0174532925199433, 0.0174532925199433), ext = extent(data.teow)) %>%
     rasterize(data.teow,.)
-  test2 = st_in
   test2 = rast("/tmp/Rtmp2Rn5xk/matching_pre/soilgrids/clay_0-5cm_mean.tif")
   
   aoi_test = aoi[1,]
@@ -680,16 +737,20 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
     st_as_sf() %>%
     st_make_valid() %>%
     st_cast("POLYGON")
-  data.bio = init_portfolio(poly,
+  pf_test = init_portfolio(poly,
                             years = 2000:2021,
                             outdir = paste(tempdir(), "matching_pre", sep = "/"),
                             add_resources = FALSE) %>%
-    get_resources("teow") %>%
-    calc_indicators(indicators = "biome") %>%  
-    unnest(biome)
+    get_resources("teow") #%>%
+    # calc_indicators(indicators = "biome") %>%  
+    # unnest(biome)
   
-    # mutate(elevation_mean = case_when(is.nan(elevation_mean) ~ NA,
-    #                                   TRUE ~ elevation_mean))
+  atts = attributes(data.bio)
+  indicator = "biome"
+  x = data.bio
+
+  
+
   
   ## End parallel plan : close parallel sessions, so must be done once indicators' datasets are built
   plan(sequential)
@@ -718,7 +779,8 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   df.soil = data.soil %>% mutate(x = NULL) %>% as.data.frame()
   df.elevation = data.elevation %>% mutate(x = NULL) %>% as.data.frame()
   df.tri = data.tri %>% mutate(x=NULL) %>% as.data.frame()
-  df.bio = data.bio %>% mutate(x=NULL) %>% as.data.frame()
+  #df.bio = data.bio %>% mutate(x=NULL) %>% as.data.frame()
+  df.bio = y %>% mutate(geometry = NULL) %>% as.data.frame()
   
   # Make a dataframe containing only "assetid" and geometry
   # Use data.soil instead of data.tree, as some pixels are removed in data.tree (NA values from get.tree)
