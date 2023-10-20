@@ -341,8 +341,8 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
     st_as_sf() %>%
     # Grid is projected to WGS84 because mapme.biodiverty package merely works with this CRS
     st_transform(crs=4326) %>%
-    #Add treatment year variable
-    left_join(dplyr::select(data_pa, c(region_afd, region, sub_region, country_en, iso3, wdpaid, status_yr, year_funding_first, year_funding_all)), by = "wdpaid")
+    #Add relevant variables
+    left_join(dplyr::select(data_pa, c(region_afd, region, sub_region, country_en, iso3, wdpaid, status_yr, year_funding_first, year_funding_all, focus)), by = "wdpaid")
   
   # If two PAs in different groups overlap, then the rasterization with fun = "min" (as in r.group definition) can lead to bad assignment of pixels.
   # For instance, if a PA non-funded (group = 4) overlaps with a funded, analyzed one (group = 2), then the pixel will be assigned to the group 2
@@ -603,7 +603,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   print("----Initialize portfolio")
   # Take only potential control (group = 1) and treatment (group = 2) in the country gridding to lower the number of computations to perform
   grid.aoi = grid.param %>%
-    filter(group %in% c(1,2))
+    filter(group %in% c(2,3))
   # Create a mapme.biodiversity portfolio for the area of interest (aoi). This specifies the period considered and the geospatial units where data are downloaded and indicators computed (here, the treated and control pixels in the country gridding)
   aoi = init_portfolio(grid.aoi,
                        years = yr_first:yr_last,
@@ -655,32 +655,34 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   # Multisession with workers = 6 as in mapme.biodiversity tutorial : https://mapme-initiative.github.io/mapme.biodiversity/articles/quickstart.html?q=parall#enabling-parallel-computing
   # Careful to the format of command to call parallel computations here : VALUE TO COMPUTE %<-% {EXPRESSION}.
   # Note after each calc_indicators is specified a seed manually (for reproducibility). This is to ensure the Random Number Generating processes in the parellel sessons are independant, and avoid any bug (https://www.r-bloggers.com/2020/09/future-1-19-1-making-sure-proper-random-numbers-are-produced-in-parallel-processing/; https://stackoverflow.com/questions/69365728/how-do-i-suppress-a-random-number-generation-warning-with-future-callr)
+  library(future)
+  library(progressr)
   plan(multisession, workers = 6, gc = TRUE)
   with_progress({
-    get.soil %<-% {calc_indicators(dl.soil,
+    get.soil <- calc_indicators(dl.soil,
                                 indicators = "soilproperties",
                                 stats_soil = c("mean"),
-                                engine = "exactextract")} %seed% 1 # the "exactextract" engine is chosen as it is the faster one for large rasters (https://tmieno2.github.io/R-as-GIS-for-Economists/extraction-speed-comparison.html)
+                                engine = "exactextract") %seed% 1 # the "exactextract" engine is chosen as it is the faster one for large rasters (https://tmieno2.github.io/R-as-GIS-for-Economists/extraction-speed-comparison.html)
 
-    get.travelT  %<-% {calc_indicators(dl.travelT,
+    get.travelT  <- calc_indicators(dl.travelT,
                                   indicators = "traveltime",
                                   stats_accessibility = c("mean"),  #Note KfW use "median" here, but for no specific reason a priori (mail to Kemmeng Liu, 28/09/2023). Mean is chosen coherently with the other covariates, though we could test in a second time whether this changes anything to the results.
-                                  engine = "exactextract")} %seed% 2
+                                  engine = "exactextract") %seed% 2
 
-    get.tree  %<-% {calc_indicators(dl.tree,
+    get.tree <- calc_indicators(dl.tree,
                                indicators = "treecover_area",
                                min_size=0.5, # FAO definition of forest :  Minimum treecover = 10%, minimum size =0.5 hectare (FAO 2020 Global Fores Resources Assessment, https://www.fao.org/3/I8661EN/i8661en.pdf)
-                               min_cover=10)} %seed% 3
+                               min_cover=10) %seed% 3
 
-    get.elevation %<-% {calc_indicators(dl.elevation,
+    get.elevation <- calc_indicators(dl.elevation,
                       indicators = "elevation",
                       stats_elevation = c("mean"),
-                      engine = "exactextract")} %seed% 4
+                      engine = "exactextract") %seed% 4
 
-    get.tri %<-% {calc_indicators(dl.tri,
+    get.tri <- calc_indicators(dl.tri,
                       indicators = "tri",
                       stats_tri = c("mean"),
-                      engine = "exactextract")} %seed% 5
+                      engine = "exactextract") %seed% 5
     
     # get.bio %<-% {calc_indicators(dl.bio,
     #                               indicators = "biome")} %seed% 6 
@@ -844,17 +846,17 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log, save_dir)
   
   #Subset to control and treatment units with year of treatment >= yr_min
   mf = mf %>%
-    filter(group==1 | group==2) %>%
+    filter(group ==2 | group==3) %>%
     #Remove observations with NA values only for covariates :
     ## except for creation year, funding years, geographical location, country ISO and name, pixel resolution which are NA for control units
-    drop_na(-c(status_yr, year_funding_first, year_funding_all, region_afd, region, sub_region, iso3, country_en, res_m)) #%>%
+    drop_na(-c(status_yr, year_funding_first, year_funding_all, region_afd, region, sub_region, iso3, country_en, res_m, focus)) #%>%
      #filter(status_yr >= yr_min | is.na(status_yr))
   
   #Write the list of PAs matched
   list_pa = mf %>%
     st_drop_geometry() %>%
     as.data.frame() %>%
-    dplyr::select(c(region_afd, region, sub_region, country_en, iso3, wdpaid, status_yr, year_funding_first, year_funding_all)) %>%
+    dplyr::select(c(region_afd, region, sub_region, country_en, iso3, wdpaid, status_yr, year_funding_first, year_funding_all, focus)) %>%
     mutate(iso3 = iso, .before = "wdpaid") %>%
     filter(wdpaid != 0) %>%
     group_by(wdpaid) %>%
@@ -917,7 +919,7 @@ fn_post_avgLoss_pre_treat = function(mf, colname.flAvg, log)
       
   #Extract treatment year
   treatment.year = mf %>% 
-    filter(group == 2) %>% 
+    filter(group == 3) %>% 
     slice(1)
   treatment.year = treatment.year$status_yr
   
@@ -1135,18 +1137,18 @@ fn_post_covbal = function(out.cem, mf,
   
   #Extract country name
   country.name = mf %>% 
-    filter(group == 2) %>% 
+    filter(group == 3) %>% 
     slice(1)
   country.name = country.name$country_en
   
   #Extract start and end years of pre-treatment period where average loss is computed
   year.start.prefund = mf %>%
-    filter(group == 2) %>% 
+    filter(group == 3) %>% 
     slice(1)
   year.start.prefund = year.start.prefund$start_pre_fund
   
   year.end.prefund = mf %>%
-    filter(group == 2) %>% 
+    filter(group == 3) %>% 
     slice(1)
   year.end.prefund = year.end.prefund$end_pre_fund
   
@@ -1277,7 +1279,7 @@ fn_post_plot_density = function(out.cem, mf,
   
   #Extract country name
   country.name = mf %>% 
-    filter(group == 2) %>% 
+    filter(group == 3) %>% 
     slice(1)
   country.name = country.name$country_en
   
@@ -1647,20 +1649,20 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
         
       #Extract treatment year
       treatment.year = mf %>% 
-        filter(group == 2) %>% 
+        filter(group == 3) %>% 
         slice(1)
       treatment.year = treatment.year$status_yr
       
       #Extract funding years
       funding.years = mf %>% 
-        filter(group == 2) %>% 
+        filter(group == 3) %>% 
         slice(1)
       funding.years = funding.years$year_funding_first
       #funding.years = as.numeric(unlist(strsplit(funding.years$year_funding_all, split = ",")))
       
       #Extract country name
       country.name = mf %>% 
-        filter(group == 2) %>% 
+        filter(group == 3) %>% 
         slice(1)
       country.name = country.name$country_en
       
@@ -1674,12 +1676,14 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
       
      #Open a multisession for dataframe computations
       #Note the computations on unmatched units are the slowest here due to the number of observations relatively higher than for matched units
+      library(future)
+      library(progressr)
       plan(multisession, gc = TRUE, workers = 6)
       with_progress({
  
   # Make dataframe for plotting trend
   ## Matched units
-  df.matched.trend  %<-% {matched.long %>%
+  df.matched.trend  <- matched.long %>%
     #First, compute deforestation relative to 2000 for each pixel (deforestation as computed in Wolf et al. 2021)
     group_by(assetid) %>%
     mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100) %>%
@@ -1702,10 +1706,10 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
               ciFL_up = avgFL_2000_cum + qt(0.975,df=n-1)*sdFL_2000_cum/sqrt(n),
               matched = TRUE) %>%
     ungroup() %>%
-    st_drop_geometry() }
+    st_drop_geometry() %seed% 1
   
   ##Unmatched
-  df.unmatched.trend  %<-% {unmatched.long %>%
+  df.unmatched.trend  <- unmatched.long %>%
       #First, compute deforestation relative to 2000 for each pixel (deforestation as computed in Wolf et al. 2021); compute percentage of forest cover in the pixel in 2000
       group_by(assetid) %>%
       mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100) %>%
@@ -1729,10 +1733,10 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
               matched = FALSE) %>%
       #Compute total forest cover loss, knowing area of the PA and average forest cover in 2000 in treated pixels
     ungroup() %>%
-    st_drop_geometry() }
+    st_drop_geometry() %seed% 2
   
       })
-  
+    
   df.trend = rbind(df.matched.trend, df.unmatched.trend)
      
   
@@ -2087,13 +2091,13 @@ fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp, log, 
                        opts = list("region" = "")) %>%
     left_join(df_gridID_assetID, by = "gridID") %>%
     left_join(df_pix_matched, by = "assetid") %>%
-    mutate(group_plot = case_when(group_matched == 1 ~ "Control (matched)",
-                                  group_matched == 2 ~ "Treatment (matched)",
+    mutate(group_plot = case_when(group_matched == 2 ~ "Control (matched)",
+                                  group_matched == 3 ~ "Treatment (matched)",
                                   TRUE ~ group_name))
   
   #Extract country name
   country.name = grid %>% 
-    filter(group == 2) %>% 
+    filter(group == 3) %>% 
     slice(1)
   country.name = country.name$country_en
   

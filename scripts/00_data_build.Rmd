@@ -1015,7 +1015,7 @@ data_pa_africa = data_wdpa %>%
   mutate(#coord = st_centroid(geom),
         #lon = unlist(map(coord,1)),
         #lat = unlist(map(coord,2)),
-        afd = wdpaid %in% data_pa_afd$wdpaid) %>%
+        focus = wdpaid %in% data_pa_afd$wdpaid) %>%
   #Finally, we need to manually remove lines with more than one WDPA_PID
   ## Remove the marine area of WDPAID 9035 with null area
   filter(!(wdpa_pid == "9035_A")) %>%

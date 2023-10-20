@@ -214,7 +214,7 @@ data_pa_ie_africa = data_pa %>%
   filter(region == "Africa" & is.na(wdpaid) == FALSE & area_km2 >=1 & marine %in% c(0,1) & status_yr >= yr_min & afd == T)
 list_iso = unique(data_pa_ie_africa$iso3)
 ## Manual definition
-list_iso = "CMR"
+list_iso = "COM"
 ```
 
 ## Matching process
@@ -373,7 +373,7 @@ for (i in list_iso)
     cat(paste("###\nWDPAID :", j, "\n###\n\n"), file = log, append = TRUE)
   
     mf_ini_j = mf_ini %>%
-      filter(group == 1 | (group == 2 & wdpaid == j))
+      filter(group == 2 | (group == 3 & wdpaid == j))
     
     #Add average pre-loss
     print("--Add covariate : average tree loss pre-funding")
@@ -517,12 +517,11 @@ install.packages("mapview")
 
 wdpa_vect = wdpa_wld_raw %>%
   clean_names() %>%
-  filter(iso3 == "CMR" & st_geometry_type(geom) == "MULTIPOLYGON") %>%
+  filter(iso3 == "GAB" & st_geometry_type(geom) == "MULTIPOLYGON") %>%
   st_make_valid() %>%
   st_cast("POLYGON") %>%
   vect()
 
-tic = tic()
 wdpa_noverlap = sapply(1:dim(wdpa_vect)[1], 
                                  function(X) {erase(wdpa_vect[X,], wdpa_vect[-X,])}) %>% 
   vect() %>%
@@ -535,6 +534,4 @@ wdpa_overlap = sapply(1:dim(wdpa_vect)[1],
                                  function(X) {intersect(wdpa_vect[X,], wdpa_vect[-X,])}) %>% 
   vect() %>%
   st_as_sf() 
-
-toc()
 ```
