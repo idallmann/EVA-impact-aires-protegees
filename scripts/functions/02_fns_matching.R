@@ -233,31 +233,54 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
     # Project PA polygons to the previously determined UTM zone
     st_transform(crs = utm_code) 
   
-  # Make Buffers around all protected areas
+  # Numerous polygons reported in the WDPA overlap. This can lead be an issue : a pixel can be treated more than once, and the treatment effect of the PA of interest cannot be isolated a priori 
+  # Compute a layer of polygons without overlaps, and with overlaps only. The analysis will be performed on polygons with no overlap and whose non-overlapped area is not too small (10% at least of initial area). Also, the overlapped areas are assigned to a specific group so that they are not used as control.
+  ## Layer without overlap
+  wdpa_prj_vect = wdpa_prj %>% vect()
+  wdpa_prj_noverlap = sapply(1:dim(wdpa_prj_vect)[1], 
+                         function(X) {erase(wdpa_prj_vect[X,], wdpa_prj_vect[-X,])}) %>% 
+    vect() %>%
+    st_as_sf() %>%
+    mutate(area_overlap = expanse(vect(geometry), unit = "km"),
+           rm = area_overlap < 0.1*rep_area)
+  ## Layer of overlaps
+  wdpa_prj_overlap = sapply(1:dim(wdpa_prj_vect)[1], 
+                        function(X) {intersect(wdpa_prj_vect[X,], wdpa_prj_vect[-X,])}) %>% 
+    vect() %>%
+    st_as_sf() 
+  
+  
+  # Make Buffers around all protected areas : done on the polygons with overlaps, as it is the buffer to consider in practice
   buffer = st_buffer(wdpa_prj, dist = buffer_m) %>% 
     # Assign an ID "5" to the buffer group
-    mutate(group=5,
+    mutate(group=6,
            group_name = "Buffer")
+  
+  # Assign polygon overlap to a specific group, so that the corresponding pixerls won't be used as potential control
+  overlap = wdpa_prj_overlap %>%
+    #Assign it the ID 1
+    mutate(group = 1,
+           group_name = "PA overlap")
   
   # Separate PA in sample or not
   ##PAs in the sample
   ###... which can bu used in impact evaluation : in the country of interest, wdpaid known, area above 1km² (Wolf et al. 2021), implemented after yr_min defined by the user, non-marine (terrestrial or coastal, Wolf et al. 2021)
   pa_sample_ie = data_pa %>%
     filter(iso3 == iso & is.na(wdpaid) == FALSE & area_km2 > 1 & status_yr >= yr_min & marine %in% c(0,1))
-  wdpaID_sample_ie = pa_sample_ie[pa_sample_ie$iso3 == iso,]$wdpaid
-  wdpa_sample_ie = wdpa_prj %>% filter(WDPAID %in% wdpaID_sample_ie) %>%
-    mutate(group=2,
+  wdpaID_sample_ie = pa_sample_ie$wdpaid
+  wdpa_sample_ie = wdpa_prj_noverlap %>% filter(WDPAID %in% wdpaID_sample_ie) %>%
+    mutate(group=3,
            group_name = "PA in sample, analyzed") # Assign an ID "2" to the PA in sample, analysed
   ###...which cannot
   pa_sample_no_ie = data_pa %>%
     filter(iso3 == iso & (is.na(wdpaid) == TRUE | area_km2 <= 1 | is.na(area_km2) | status_yr < yr_min | marine == 2)) #PAs not in WDPA, of area less than 1km2 (Wolf et al 2020), not terrestrial/coastal or implemented after yr_min are not analyzed
   wdpaID_sample_no_ie = pa_sample_no_ie[pa_sample_no_ie$iso3 == iso,]$wdpaid 
-  wdpa_sample_no_ie = wdpa_prj %>% filter(WDPAID %in% wdpaID_sample_no_ie) %>%
-    mutate(group=3,
+  wdpa_sample_no_ie = wdpa_noverlap_prj %>% filter(WDPAID %in% wdpaID_sample_no_ie) %>%
+    mutate(group=4,
            group_name = "PA in sample, not analyzed") # Assign an ID "3" to the PA in sample which cannot be studied in the impact evaluation
   ##PAs not in the sample
-  wdpa_no_sample = wdpa_prj %>% filter(!WDPAID %in% c(wdpaID_sample_ie, wdpaID_sample_no_ie)) %>% 
-    mutate(group=4,
+  wdpa_no_sample = wdpa_noverlap_prj %>% filter(!WDPAID %in% c(wdpaID_sample_ie, wdpaID_sample_no_ie)) %>% 
+    mutate(group=5,
            group_name = "Non-funded PA") # Assign an ID "4" to the AP not in sample
   wdpaID_no_sample = wdpa_no_sample$WDPAID
   
@@ -265,7 +288,7 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
   # CAREFUL : the order of the arguments does matter. 
   ## During rasterization, in case a cell of the raster is on both funded analysed and non-funded, we want to cell to take the WDPAID of the funded analysed.
   ## Same funded, not analyzed. As the first layer is taken, wdpa_afd_ie needs to be first !
-  wdpa_groups = rbind(wdpa_sample_ie, wdpa_sample_no_ie, wdpa_no_sample, buffer)
+  wdpa_groups = rbind(overlap, wdpa_sample_ie, wdpa_sample_no_ie, wdpa_no_sample, buffer)
   # Subset to polygons that intersect with country boundary
   wdpa.sub = wdpa_groups %>% 
     st_intersects(gadm_prj, .) %>% 
@@ -301,9 +324,9 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
     rename(wdpaid = mode)
 
   # Control pixels
-  ## Take all background pixels as potential control : assign to group 1
+  ## Take all background pixels as potential control : assign to group 2
   grid.group = grid.group.ini %>%
-    mutate(group = case_when(group == 0 ~ 1,
+    mutate(group = case_when(group == 0 ~ 2,
                              TRUE ~ group))
   
   ## Randomly select background pixels as potential control pixels
@@ -349,15 +372,16 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
   #Idea : the pixel could be treated out of the period considered, so not comparable to toher treatment pixels considered in funded, analyzed.
   # -> Check with Léa, Ingrid and PY if that seems OK
   grid.param = grid.param.ini %>%
-    mutate(group = case_when(wdpaid %in% wdpaID_sample_no_ie & group == 2 ~ 3,
+    mutate(group = case_when(wdpaid %in% wdpaID_sample_no_ie & group == 3 ~ 4,
                              TRUE ~ group)) %>%
     #Add name for the group
     mutate(group_name = case_when(group == 0 ~ "Background",
-                                  group == 1 ~ "Potential control",
-                                  group == 2 ~ "PA in sample, analyzed (potential treatment)",
-                                  group == 3 ~ "PA in sample, not analyzed",
-                                  group == 4 ~ "PA not in sample",
-                                  group == 5 ~ "Buffer")) %>%
+                                  group == 1 ~ "PA overlap",
+                                  group == 2 ~ "Potential control"
+                                  group == 3 ~ "PA in sample, analyzed (potential treatment)",
+                                  group == 4 ~ "PA in sample, not analyzed",
+                                  group == 5 ~ "PA not in sample",
+                                  group == 6 ~ "Buffer")) %>%
   #Add spatial resolution in m : useful to compute share of forest area in a given pixel and extrapolate to the PA for instance
   mutate(res_m = gridSize)
   
@@ -374,7 +398,7 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
   
   ## Extract country name
   country.name = grid.param %>% 
-    filter(group == 2) %>% 
+    filter(group == 3) %>% 
     slice(1)
   country.name = country.name$country_en
   
