@@ -80,7 +80,7 @@ fn_lonlat2UTM = function(lonlat)
 ### utm_code : UTM code of the country
 ### is_ok : a boolean indicating whether or not an error occured inside the function
 ##DATA SAVED :
-### Gridding of the country considered
+### None
 fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, gridSize, log, save_dir)
 {
   
@@ -126,28 +126,6 @@ fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, gridSize, log, save_dir)
   grid = grid.ini[sort(grid.sub)] %>%
     st_as_sf() %>%
     mutate(gridID = seq(1:nrow(.))) # Add id for grid cells
-  
-  #Extract country name
-  country.name = data_pa %>% 
-    filter(iso3 == iso) %>% 
-    slice(1)
-  country.name = country.name$country_en
-  
-  #Visualize and save the grid
-  fig_grid = ggplot() +
-    geom_sf(data = st_geometry(bbox)) +
-    geom_sf(data = st_geometry(gadm_prj)) +
-    geom_sf(data = st_geometry(grid), alpha = 0) +
-    labs(title = paste("Gridding of", country.name))
-  fig_save = paste0(path_tmp, "/fig_grid_", iso, ".png")
-  ggsave(fig_save,
-         plot = fig_grid,
-         device = "png",
-         height = 6, width = 9)
-  aws.s3::put_object(file = fig_save, 
-                     bucket = paste("projet-afd-eva-ap", save_dir, iso, sep = "/"), 
-                     region = "", 
-                     show_progress = FALSE)
   
   #Append the log 
   cat("#Generating observation units\n-> OK\n", file = log, append = TRUE)
@@ -242,7 +220,7 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
     vect() %>%
     st_as_sf() %>%
     mutate(area_overlap = expanse(vect(geometry), unit = "km"),
-           rm = area_overlap < 0.1*rep_area)
+           rm = area_overlap < 0.1*REP_AREA)
   ## Layer of overlaps
   wdpa_prj_overlap = sapply(1:dim(wdpa_prj_vect)[1], 
                         function(X) {intersect(wdpa_prj_vect[X,], wdpa_prj_vect[-X,])}) %>% 
@@ -258,6 +236,9 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
   
   # Assign polygon overlap to a specific group, so that the corresponding pixerls won't be used as potential control
   overlap = wdpa_prj_overlap %>%
+    dplyr::select(contains("_1")) %>%
+    rename_with(.fn = ~gsub("_1", "", .x),
+                .cols = everything()) %>%
     #Assign it the ID 1
     mutate(group = 1,
            group_name = "PA overlap")
@@ -268,20 +249,25 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
   pa_sample_ie = data_pa %>%
     filter(iso3 == iso & is.na(wdpaid) == FALSE & area_km2 > 1 & status_yr >= yr_min & marine %in% c(0,1))
   wdpaID_sample_ie = pa_sample_ie$wdpaid
-  wdpa_sample_ie = wdpa_prj_noverlap %>% filter(WDPAID %in% wdpaID_sample_ie) %>%
+  wdpa_sample_ie = wdpa_prj_noverlap %>% 
+    filter(WDPAID %in% wdpaID_sample_ie & rm == F) %>% #Remove PA with too much overlap
     mutate(group=3,
-           group_name = "PA in sample, analyzed") # Assign an ID "2" to the PA in sample, analysed
+           group_name = "PA in sample, analyzed") %>% # Assign an ID "2" to the PA in sample, analysed
+    dplyr::select(-c(area_overlap, rm))
   ###...which cannot
   pa_sample_no_ie = data_pa %>%
     filter(iso3 == iso & (is.na(wdpaid) == TRUE | area_km2 <= 1 | is.na(area_km2) | status_yr < yr_min | marine == 2)) #PAs not in WDPA, of area less than 1km2 (Wolf et al 2020), not terrestrial/coastal or implemented after yr_min are not analyzed
-  wdpaID_sample_no_ie = pa_sample_no_ie[pa_sample_no_ie$iso3 == iso,]$wdpaid 
-  wdpa_sample_no_ie = wdpa_noverlap_prj %>% filter(WDPAID %in% wdpaID_sample_no_ie) %>%
+  wdpaID_sample_no_ie = pa_sample_no_ie$wdpaid 
+  wdpa_sample_no_ie = wdpa_prj_noverlap %>% filter(WDPAID %in% wdpaID_sample_no_ie) %>%
     mutate(group=4,
-           group_name = "PA in sample, not analyzed") # Assign an ID "3" to the PA in sample which cannot be studied in the impact evaluation
+           group_name = "PA in sample, not analyzed") %>% # Assign an ID "3" to the PA in sample which cannot be studied in the impact evaluation
+    dplyr::select(-c(area_overlap, rm))
   ##PAs not in the sample
-  wdpa_no_sample = wdpa_noverlap_prj %>% filter(!WDPAID %in% c(wdpaID_sample_ie, wdpaID_sample_no_ie)) %>% 
+  wdpa_no_sample = wdpa_prj_noverlap %>% 
+    filter(!(WDPAID %in% c(wdpa_sample_ie$WDPAID, wdpa_sample_no_ie$WDPAID))) %>% 
     mutate(group=5,
-           group_name = "Non-funded PA") # Assign an ID "4" to the AP not in sample
+           group_name = "Non-funded PA") %>% # Assign an ID "4" to the AP not in sample
+    dplyr::select(-c(area_overlap, rm))
   wdpaID_no_sample = wdpa_no_sample$WDPAID
   
   # Merge the dataframes of funded PAs, non-funded PAs and buffers
@@ -372,12 +358,12 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
   #Idea : the pixel could be treated out of the period considered, so not comparable to toher treatment pixels considered in funded, analyzed.
   # -> Check with Léa, Ingrid and PY if that seems OK
   grid.param = grid.param.ini %>%
-    mutate(group = case_when(wdpaid %in% wdpaID_sample_no_ie & group == 3 ~ 4,
+    mutate(group = case_when(wdpaid %in% wdpa_sample_no_ie$WDPAID & group == 3 ~ 4,
                              TRUE ~ group)) %>%
     #Add name for the group
     mutate(group_name = case_when(group == 0 ~ "Background",
                                   group == 1 ~ "PA overlap",
-                                  group == 2 ~ "Potential control"
+                                  group == 2 ~ "Potential control",
                                   group == 3 ~ "PA in sample, analyzed (potential treatment)",
                                   group == 4 ~ "PA in sample, not analyzed",
                                   group == 5 ~ "PA not in sample",
