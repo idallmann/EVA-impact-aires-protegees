@@ -40,7 +40,10 @@ The methodology is not extensively described here to keep the documentation conc
 
 Configuring the Rmarkdown
 
-\#`{r setup, include=FALSE, eval = FALSE} #knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())  #`
+```{r setup, include=FALSE, eval = FALSE}
+
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+```
 
 Downloading and installing the relevant packages
 
@@ -123,19 +126,19 @@ wdpa_wld_raw = s3read_using(
 ## Dataset specific to the PAs portfolio to analyze. Only one is selected depending on the analysis one wants to perform. 
 
 ### PAs supported by the AFD
-# data_pa =
-#   #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
-#   aws.s3::s3read_using(
-#   FUN = data.table::fread,
-#   encoding = "UTF-8",
-#   object = "data_tidy/BDD_PA_AFD_ie.csv",
-#   bucket = "projet-afd-eva-ap",
-#   opts = list("region" = "")) %>%
-#   #Sangha trinational (555547988) created in 2012 actually gathers three former PAs
-#   #in CAF (31458), CMR (1245) and COG (72332) implemented in
-#   #1990, 2001 and 1993 respectively.
-#   # Evaluating the trinational PA is not relevant here : our method relies on pre-treatment obervsations (for matching and DiD) and the outcome is likely to be affected by the initial PAs. On the other hand, evaluating the three earlier PAs might be irrelevant for us : are they funded by the AFD ?? In a first approach, the trinational is removed.
-#   filter(is.na(wdpaid) == TRUE | wdpaid != 555547988)
+data_pa =
+  #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  object = "data_tidy/BDD_PA_AFD_ie.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = "")) %>%
+  #Sangha trinational (555547988) created in 2012 actually gathers three former PAs
+  #in CAF (31458), CMR (1245) and COG (72332) implemented in
+  #1990, 2001 and 1993 respectively.
+  # Evaluating the trinational PA is not relevant here : our method relies on pre-treatment obervsations (for matching and DiD) and the outcome is likely to be affected by the initial PAs. On the other hand, evaluating the three earlier PAs might be irrelevant for us : are they funded by the AFD ?? In a first approach, the trinational is removed.
+  filter(is.na(wdpaid) == TRUE | wdpaid != 555547988)
 
 ## PAs supported by the FAPBM
 # data_pa =
@@ -148,27 +151,19 @@ wdpa_wld_raw = s3read_using(
 #   opts = list("region" = ""))
 
 ## All PAs in Madagascar
-data_pa =
-  #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
-  aws.s3::s3read_using(
-  FUN = data.table::fread,
-  encoding = "UTF-8",
-  object = "data_tidy/BDD_PA_MDG.csv",
-  bucket = "projet-afd-eva-ap",
-  opts = list("region" = ""))
+# data_pa =
+#   #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
+#   aws.s3::s3read_using(
+#   FUN = data.table::fread,
+#   encoding = "UTF-8",
+#   object = "data_tidy/BDD_PA_MDG.csv",
+#   bucket = "projet-afd-eva-ap",
+#   opts = list("region" = ""))
 
-# The list of countries (ISO3 codes) to analyze. This can be define manually or from the the dataset loaded.
-#List of countries in the sample
-# list_iso_africa = unique(data_pa[data_pa$region == "Africa", iso3])
-list_iso = "MDG"
-      
 # Specify buffer width in meter
 buffer_m = 10000
 # Specify the grid cell size in meter
-#gridSize = 10000 
-# Specify to sampling : the ideal, minimal number of pixels in a protected area. 
-## Note that by design this number is indicative, as the pixel size is defined from the protected area reported surface and sampling number, but the area considered in the analysis is the terrestrial area. For PAs with a marine part, the area analyzed is smaller and the number of pixels mechanically lower.
-n_sampling = 1000 
+gridSize = 1000
 
 #Specify the period of study to create the mapme.bidiversity portfolio
 ## Start year
@@ -180,13 +175,23 @@ yr_last = 2021
 #At least two pre-treatment periods of forest cover are needed to compute average pre-treatment deforestation, used as a matching variable.
 yr_min = yr_first+2
 
+# The list of countries (ISO3 codes) to analyze. This can be define manually or from the the dataset loaded.
+##List of African countries in the sample that have at least one PA we can analyse
+data_pa_ie_africa = data_pa %>%
+  filter(region == "Africa" & is.na(wdpaid) == FALSE & area_km2 >=1 & marine %in% c(0,1) & status_yr >= yr_min)
+list_iso = unique(data_pa_ie_africa$iso3)
+## Manual definition
+#list_iso = "COM"
+
 # Define column names of matching covariates
-colname.travelTime = "minutes_median_5k_110mio"
+colname.travelTime = "minutes_mean_5k_110mio"
 colname.clayContent = "clay_0_5cm_mean"
 colname.elevation = "elevation_mean"
 colname.tri = "tri_mean"
-colname.fcIni = "treecover_2000"
+colname.fcIni = "treecover_2000" #that has to change : average pre-treatment forest cover !
 colname.flAvg = "avgLoss_pre_treat"
+colname.biome = "biomes"
+list_cov = paste(colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcIni, colname.flAvg, colname.biome, sep = ";")
 
 #Matching 
 ## Parameters
@@ -196,7 +201,7 @@ k2k_method = "mahalanobis"
 is_k2k = TRUE
 ## Criteria to assess matching quality
 ### Standardized absolte mean difference : threshold
-th_mean = 0.1
+th_mean = 0.25 #Used in conservation science, see Desbureaux 2021 for instance
 ### Variance ratio : thresholds
 th_var_min = 0.5
 th_var_max = 2
@@ -226,10 +231,11 @@ tic_pre = tic() #Start timer
 #Create a log to track progress of the analysis
 log = fn_pre_log(list_iso,
                  buffer = buffer_m,
-                 sampling = n_sampling,
+                 gridSize = gridSize,
                  yr_first = yr_first,
                  yr_last = yr_last,
                  yr_min = yr_min,
+                 list_cov = list_cov,
                  name = paste0("log-", Sys.Date(), "-NAME.txt"),
                  notes = "Specific notes or remarks.")
 
@@ -249,7 +255,7 @@ for (i in list_iso)
                             yr_min = yr_min,
                             path_tmp = tmp_pre, 
                             data_pa = data_pa,
-                            sampling = n_sampling,
+                            gridSize = gridSize,
                             log = log,
                             save_dir = save_dir)
   if(output_grid$is_ok == FALSE) {next}  
@@ -258,7 +264,6 @@ for (i in list_iso)
   utm_code = output_grid$utm_code #UTM code 
   gadm_prj = output_grid$ctry_shp_prj #The country polygon with relevant projection
   grid = output_grid$grid #The country gridding
-  gridSize = output_grid$gridSize #The spatial resolution of the gridding
   
   #Determining Group IDs and WDPA IDs for all observation units
   print("--Determining Group IDs and WDPA IDs")
@@ -279,7 +284,7 @@ for (i in list_iso)
     fn_pre_mf_parallel(grid.param = grid_param, 
                        path_tmp = tmp_pre, 
                        iso = i,
-                       name_output = paste0("matching_frame_spling", n_sampling),
+                       name_output = "matching_frame_spling",
                        ext_output = ".gpkg",
                        yr_first = yr_first, yr_last = yr_last,  
                        log = log,
@@ -311,7 +316,7 @@ max_i = length(list_iso) #Max value of the counter
 tic_post = tic() #start timer
 
 #Append the log, and specify matching parameters and quality assessment
-cat(paste("##########\nPOST-PROCESSING\n##########\n\nPARAMETERS :\nMatching\n#Parameters\n##Method :", match_method, "\n##Automatic cutoffs :", cutoff_method, "\n##Is it K2K matching ?", is_k2k, "\n##K2K method :", k2k_method, "\n#Quality assessement\n##Absolute standardized mean difference (threshold)", th_mean, "\n##Variance ratio between", th_var_min, "and", th_var_max), 
+cat(paste("##########\nPOST-PROCESSING\n##########\n\nPARAMETERS :\nMatching\n#Parameters\n##Method :", match_method, "\n##Automatic cutoffs :", cutoff_method, "\n##Is it K2K matching ?", is_k2k, "\n##K2K method :", k2k_method, "\n#Quality assessement\n##Absolute standardized mean difference (threshold)", th_mean, "\n##Variance ratio between", th_var_min, "and", th_var_max, "\n\n"), 
     file = log, append = TRUE)
   
 # Perform post-processing steps country-by-country, area-by-area
@@ -329,7 +334,7 @@ for (i in list_iso)
   print("--Loading the matching frame")
   output_load = fn_post_load_mf(iso = i, 
                            yr_min = yr_min,
-                           name_input = paste0("matching_frame_spling", n_sampling),
+                           name_input = "matching_frame_spling",
                            ext_input = ".gpkg",
                            log = log,
                            save_dir = save_dir)
@@ -363,7 +368,7 @@ for (i in list_iso)
     
     #Add average pre-loss
     print("--Add covariate : average tree loss pre-funding")
-    output_avgLoss = fn_post_avgLoss_prefund(mf = mf_ini_j, 
+    output_avgLoss = fn_post_avgLoss_pre_treat(mf = mf_ini_j, 
                                              log = log)
     if(output_avgLoss$is_ok == FALSE) {next} else mf_j = output_avgLoss$mf
     
@@ -383,6 +388,7 @@ for (i in list_iso)
                                    colname.tri = colname.tri, 
                                    colname.fcIni = colname.fcIni, 
                                    colname.flAvg = colname.flAvg,
+                                   colname.biome = colname.biome,
                                    log = log)
     if(output_cem$is_ok == FALSE) {next} else out_cem_j = output_cem$out.cem
     
@@ -397,6 +403,7 @@ for (i in list_iso)
                    colname.flAvg = colname.flAvg,
                    colname.tri = colname.tri,
                    colname.elevation = colname.elevation,
+                   colname.biome = colname.biome,
                    iso = i,
                    path_tmp = tmp_post,
                    wdpaid = j,
