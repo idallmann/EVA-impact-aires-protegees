@@ -73,7 +73,7 @@ library(ggrepel) #Refine labelling of some figures
 library(sf) # For handling vector data
 library(terra) # For handling raster data
 library(raster) # For handling raster data
-library(rgeos) 
+# library(rgeos) 
 library(geodata) # For getting country files
 library(wdpar) # For getting protected areas
 library(exactextractr) # For zonal statistics
@@ -206,12 +206,10 @@ th_mean = 0.25 #Used in conservation science, see Desbureaux 2021 for instance
 th_var_min = 0.5
 th_var_max = 2
        
-
-
 # The list of countries (ISO3 codes) to analyze. This can be define manually or from the the dataset loaded.
 ##List of African countries in the sample that have at least one PA supported by the AFD we can analyse
 data_pa_ie_africa = data_pa %>%
-  filter(region == "Africa" & is.na(wdpaid) == FALSE & area_km2 >=1 & marine %in% c(0,1) & status_yr >= yr_min & afd == T)
+  filter(region == "Africa" & is.na(wdpaid) == FALSE & area_km2 >=1 & marine %in% c(0,1) & status_yr >= yr_min & focus == T)
 list_iso = unique(data_pa_ie_africa$iso3)
 ## Manual definition
 list_iso = "COM"
