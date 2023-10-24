@@ -1619,7 +1619,178 @@ fn_post_panel = function(out.cem, mf, ext_output, wdpaid, iso, log, save_dir)
   
   return(output)
   
-}   
+} 
+
+#Assess the difference between matched and unmatched treated units
+
+fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min, th_var_max, save_dir, log)
+{
+  output = tryCatch(
+    
+    {
+      #A dataframe with matched and unmatched units
+      df = rbind(mutate(df_m, matched = T), 
+                 mutate(df_unm, matched = F, weights = 1, subclass = 1)) %>%
+        st_drop_geometry() %>%
+        as.data.frame()
+      
+      #Matched units
+      ##Average values of covariates
+      df_avg_m = df_m %>%
+        st_drop_geometry() %>%
+        filter(group == 3 & wdpaid == wdpaid) %>% #Select treated units only
+        summarize(minutes_mean_5k_110mio = mean(minutes_mean_5k_110mio, na.rm = TRUE), #Compute relevant measures
+                  avgLoss_pre_treat = mean(avgLoss_pre_treat, na.rm = TRUE), 
+                  clay_0_5cm_mean = mean(clay_0_5cm_mean, na.rm = TRUE),
+                  elevation_mean = mean(elevation_mean, na.rm = TRUE),
+                  tri_mean = mean(tri_mean, na.rm = TRUE),
+                  treecover_2000 = mean(treecover_2000, na.rm = TRUE)) %>%
+        t() %>% #Move to long dataframe
+        as.data.frame() %>%
+        rename("avg_m" = "V1")#Change name of the column
+      ##Standard deviations of covariates
+      df_sd_m = df_m %>%
+        st_drop_geometry() %>%
+        filter(group == 3 & wdpaid == wdpaid) %>% #Select treated units only
+        summarize(minutes_mean_5k_110mio = sd(minutes_mean_5k_110mio, na.rm = TRUE),
+                  avgLoss_pre_treat = sd(avgLoss_pre_treat, na.rm = TRUE),
+                  clay_0_5cm_mean = sd(clay_0_5cm_mean, na.rm = TRUE),
+                  elevation_mean = sd(elevation_mean, na.rm = TRUE),
+                  tri_mean = sd(tri_mean, na.rm = TRUE),
+                  treecover_2000 = sd(treecover_2000, na.rm = TRUE)) %>%
+        t() %>%
+        as.data.frame() %>%
+        rename("sd_m" = "V1") 
+      
+      #Unmatched units
+      ##Average of covariates
+      df_avg_unm = df_unm %>%
+        st_drop_geometry() %>%
+        filter(group == 3 & wdpaid == wdpaid) %>% #Select treated units only
+        summarize(minutes_mean_5k_110mio = mean(minutes_mean_5k_110mio, na.rm = TRUE),
+                  avgLoss_pre_treat = mean(avgLoss_pre_treat, na.rm = TRUE),
+                  clay_0_5cm_mean = mean(clay_0_5cm_mean, na.rm = TRUE),
+                  elevation_mean = mean(elevation_mean, na.rm = TRUE),
+                  tri_mean = mean(tri_mean, na.rm = TRUE),
+                  treecover_2000 = mean(treecover_2000, na.rm = TRUE)) %>%
+        t() %>%
+        as.data.frame() %>%
+        rename("avg_unm" = "V1") 
+      ##Standard deviation of covariates
+      df_sd_unm = df_unm %>%
+        st_drop_geometry() %>%
+        filter(group == 3 & wdpaid == wdpaid) %>% #Select treated units only
+        summarize(minutes_mean_5k_110mio = sd(minutes_mean_5k_110mio, na.rm = TRUE),
+                  avgLoss_pre_treat = sd(avgLoss_pre_treat, na.rm = TRUE),
+                  clay_0_5cm_mean = sd(clay_0_5cm_mean, na.rm = TRUE),
+                  elevation_mean = sd(elevation_mean, na.rm = TRUE),
+                  tri_mean = sd(tri_mean, na.rm = TRUE),
+                  treecover_2000 = sd(treecover_2000, na.rm = TRUE)) %>%
+        t() %>%
+        as.data.frame() %>%
+        rename("sd_unm" = "V1") 
+      
+      #Get row names 
+      covariate = row.names(df_avg_m)
+      #Gathering in one table and computing variance ratio, absolute standardized mean difference (SDM), and comparing to pre-defined thresholds
+      tbl = cbind(covariate, df_avg_m, df_avg_unm, df_sd_m, df_sd_unm) %>%
+        rowwise() %>%
+        mutate(std_mean_diff = abs((avg_m - avg_unm)/(sqrt((sd_m^2+sd_unm^2)/2)))) %>% #SDM from https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3144483/#s11title or 10.1080/00273171.2011.568786
+        mutate(var_ratio = (sd_m/sd_unm)^2) %>% #Variance ratio
+        ungroup() %>%
+        mutate(is_var_ok = var_ratio < th_var_max & var_ratio > th_var_min, #Check variance ratio between treated and controls
+               is_mean_ok = abs(std_mean_diff) < th_mean, #Check absolute standardized mean difference
+               is_bal_ok = as.logical(is_var_ok*is_mean_ok), #Binary : TRUE if both variance and mean difference check pass, 0 if at least one does not
+               .after = "var_ratio")
+      
+      #Density plots
+      ##"avg. annual forest loss prior treatment"
+      fig_fl = bal.plot(df, 
+                        var.name = "avgLoss_pre_treat",
+                        which = "both",
+                        treat = df$matched) +
+        #facet_wrap(.~which, labeller = as_labeller(fnl)) +
+        #scale_fill_viridis(discrete = T) +
+        scale_fill_manual(labels = c("Matched", "Unmatched"), values = c("#f5b041","#5dade2")) +
+        labs(title = "Distributional balance for average pre-treatment forest loss",
+             subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+             x = "Forest loss (%)",
+             fill = "Group") +
+        theme_bw() +
+        theme(
+          plot.title = element_text(family="Arial Black", size=16, hjust=0),
+          legend.title = element_blank(),
+          legend.text=element_text(size=14),
+          legend.spacing.x = unit(0.5, 'cm'),
+          legend.spacing.y = unit(0.75, 'cm'),
+          
+          axis.text=element_text(size=12),
+          axis.title=element_text(size=14),
+          axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+          axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+          
+          strip.text.x = element_text(size = 12) # Facet Label
+        )
+      
+      #Saving plots
+      
+      tmp = paste(tempdir(), "fig", sep = "/")
+      ggsave(paste(tmp, paste0("fig_travel_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
+             plot = fig_travel,
+             device = "png",
+             height = 6, width = 9)
+      ggsave(paste(tmp, paste0("fig_clay_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
+             plot = fig_clay,
+             device = "png",
+             height = 6, width = 9)
+      ggsave(paste(tmp, paste0("fig_elevation_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
+             plot = fig_elevation,
+             device = "png",
+             height = 6, width = 9)
+      ggsave(paste(tmp, paste0("fig_tri_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
+             plot = fig_tri,
+             device = "png",
+             height = 6, width = 9)
+      ggsave(paste(tmp, paste0("fig_fc_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
+             plot = fig_fc,
+             device = "png",
+             height = 6, width = 9)
+      ggsave(paste(tmp, paste0("fig_fl_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
+             plot = fig_fl,
+             device = "png",
+             height = 6, width = 9)
+      
+      files <- list.files(tmp, full.names = TRUE)
+      ##Add each file in the bucket (same foler for every file in the temp)
+      for(f in files) 
+      {
+        cat("Uploading file", paste0("'", f, "'"), "\n")
+        aws.s3::put_object(file = f, 
+                           bucket = paste("projet-afd-eva-ap", save_dir, iso, wdpaid, sep = "/"),
+                           region = "", show_progress = TRUE)
+      }
+      do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+
+      
+      #Append the log
+      cat("#Assess difference of matched and unmatched units\n-> OK\n", file = log, append = TRUE)
+      
+      #Return outputs
+      list_output = list("is_ok" = TRUE)
+      return(list_output)
+      
+    },
+    error=function(e)
+    {
+      print(e)
+      cat(paste("#Assess difference of matched and unmatched units\n-> Error :\n", e, "\n"), file = log, append = TRUE)
+      return(list("is_ok" = FALSE))
+    }
+  )
+  
+  return(output)
+    
+}
 
 #Plot the average trend of control and treated units in a given country, before and after the matching
 ## INPUTS :
