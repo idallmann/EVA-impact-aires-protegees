@@ -1215,7 +1215,7 @@ fn_post_covbal = function(out.cem, mf,
   {
     cat("Uploading file", paste0("'", f, "'"), "\n")
     aws.s3::put_object(file = f, 
-                       bucket = paste("projet-afd-eva-ap", save_dir, iso, wdpaid, sep = "/"),
+                       bucket = paste("projet-afd-eva-ap", save_dir, iso, wdpaid, "match_quality", sep = "/"),
                        region = "", show_progress = TRUE)
   }
   do.call(file.remove, list(list.files(paste(path_tmp, "CovBal", sep = "/"), full.names = TRUE)))
@@ -1266,7 +1266,7 @@ fn_post_covbal = function(out.cem, mf,
 ## DATA SAVED :
 ### Density plots of the matching covariates considered, for matched treated and control units
 fn_post_plot_density = function(out.cem, mf, 
-                                colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, colname.tri, colname.elevation, 
+                                colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, colname.tri, colname.elevation, colname.biome,
                                 iso, path_tmp, wdpaid, log, save_dir)
 {
   output = tryCatch(
@@ -1451,6 +1451,45 @@ fn_post_plot_density = function(out.cem, mf,
       strip.text.x = element_text(size = 12) # Facet Label
     )
   
+  #Proportion of biomes : plotted only if biome is taken in the formula, not relevant otherwise
+  formula = as.character(out.cem$formula)[3]
+  if(grepl("biome", formula)) {
+    
+    
+  fig_biome = bal.plot(out.cem, 
+                    var.name = colname.biome,
+                    which = "both") +
+    facet_wrap(.~which, labeller = as_labeller(fnl)) +
+    #scale_fill_viridis(discrete = T) +
+    scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+    labs(title = "Distributional balance for biomes",
+         subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+         x = "",
+         fill = "Group") +
+    theme_bw() +
+    theme(
+      plot.title = element_text(family="Arial Black", size=16, hjust=0),
+      legend.title = element_blank(),
+      legend.text=element_text(size=14),
+      legend.spacing.x = unit(0.5, 'cm'),
+      legend.spacing.y = unit(0.75, 'cm'),
+      
+      axis.text=element_text(size=12),
+      axis.title=element_text(size=14),
+      axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+      axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+      
+      strip.text.x = element_text(size = 12) # Facet Label
+    )
+  
+  tmp = paste(tempdir(), "fig", sep = "/")
+  ggsave(paste(tmp, paste0("fig_biome_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
+         plot = fig_biome,
+         device = "png",
+         height = 6, width = 9)
+  
+  } else print("Biome is not taken as a matching covariate : no density plot")
+  
   #Saving plots
   
   tmp = paste(tempdir(), "fig", sep = "/")
@@ -1485,7 +1524,7 @@ fn_post_plot_density = function(out.cem, mf,
   {
     cat("Uploading file", paste0("'", f, "'"), "\n")
     aws.s3::put_object(file = f, 
-                       bucket = paste("projet-afd-eva-ap", save_dir, iso, wdpaid, sep = "/"),
+                       bucket = paste("projet-afd-eva-ap", save_dir, iso, wdpaid, "match_quality", sep = "/"),
                        region = "", show_progress = TRUE)
   }
   do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
@@ -1703,62 +1742,116 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
                is_bal_ok = as.logical(is_var_ok*is_mean_ok), #Binary : TRUE if both variance and mean difference check pass, 0 if at least one does not
                .after = "var_ratio")
       
-      #Density plots
-      ##"avg. annual forest loss prior treatment"
-      fig_fl = bal.plot(df, 
-                        var.name = "avgLoss_pre_treat",
-                        which = "both",
-                        treat = df$matched) +
-        #facet_wrap(.~which, labeller = as_labeller(fnl)) +
-        #scale_fill_viridis(discrete = T) +
-        scale_fill_manual(labels = c("Matched", "Unmatched"), values = c("#f5b041","#5dade2")) +
-        labs(title = "Distributional balance for average pre-treatment forest loss",
-             subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-             x = "Forest loss (%)",
-             fill = "Group") +
-        theme_bw() +
-        theme(
-          plot.title = element_text(family="Arial Black", size=16, hjust=0),
-          legend.title = element_blank(),
-          legend.text=element_text(size=14),
-          legend.spacing.x = unit(0.5, 'cm'),
-          legend.spacing.y = unit(0.75, 'cm'),
-          
-          axis.text=element_text(size=12),
-          axis.title=element_text(size=14),
-          axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
-          axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
-          
-          strip.text.x = element_text(size = 12) # Facet Label
-        )
+      fig_clay = ggplot(data = df, aes(x = clay_0_5cm_mean, fill = matched)) %>%
+        + geom_histogram(aes(y = ..density..), 
+                       #bins = 30, 
+                       color = "black") %>%
+        + geom_density(alpha = 0.5) %>%
+        + labs(title = "Distribution of clay content among treated units",
+               y = "Density",
+               x = "Mean clay content (0-5 cm)") %>%
+        + scale_fill_brewer(name = "Matched", palette = "Dark2") %>%
+        + theme_minimal() 
+        
+      fig_travel = ggplot(data = df,
+                          aes(x = minutes_mean_5k_110mio, fill = matched)) %>%
+        + geom_histogram(aes(y = ..density..), 
+                         #bins = 30, 
+                         color = "black") %>%
+        + geom_density(alpha = 0.5) %>%
+        + labs(title = "Distribution of travel time to nearest city among treated units",
+               y = "Density",
+               x = "Travel time to nearest city (min)") %>%
+        + scale_fill_brewer(name = "Matched", palette = "Dark2") %>%
+        + theme_minimal() 
+      
+      fig_elevation = ggplot(data = df,
+                             aes(x = elevation_mean, fill = matched)) %>%
+        + geom_histogram(aes(y = ..density..), 
+                         #bins = 30, 
+                         color = "black") %>%
+        + geom_density(alpha = 0.5) %>%
+        + scale_fill_brewer(name = "Matched", palette = "Dark2") %>%
+        + theme_minimal() 
+      
+      fig_loss = ggplot(data = df,
+                        aes(x = avgLoss_pre_treat, fill = matched)) %>%
+        + geom_histogram(aes(y = ..density..), 
+                         #bins = 30, 
+                         color = "black") %>%
+        + geom_density(alpha = 0.5) %>%
+        + labs(title = "Distribution of pre-treatment forest cover loss, among treated units",
+               y = "Density",
+               x = "Forest cover loss (ha)") %>%
+        + scale_fill_brewer(name = "Matched", palette = "Dark2") %>%
+        + theme_minimal()
+      
+      fig_fc2000 = ggplot(data = df,
+                          aes(x = treecover_2000, fill = matched)) %>%
+        + geom_histogram(aes(y = ..density..), 
+                         #bins = 30, 
+                         color = "black") %>%
+        + geom_density(alpha = 0.5) %>%
+        + labs(title = "Distribution of 2000 forest cover, among treated units",
+               y = "Density",
+               x = "Forest cover (ha)") %>%
+        + scale_fill_brewer(name = "Matched", palette = "Dark2") %>%
+        + theme_minimal() 
+      
+      fig_tri = ggplot(data = df,
+                       aes(x = tri_mean, fill = matched)) %>%
+        + geom_histogram(aes(y = ..density..), 
+                         #bins = 30, 
+                         color = "black") %>%
+        + geom_density(alpha = 0.5) %>%
+        + labs(title = "Distribution of soil ruggedness among treated units",
+               y = "Density",
+               x = "Terrain Ruggedness Index (m)") %>%
+        + scale_fill_brewer(name = "Matched", palette = "Dark2") %>%
+        + theme_minimal() 
+      
+      fig_biome = ggplot(data = df,
+                         aes(x = biomes, fill = matched)) %>%
+        + geom_bar(aes(y = ..prop..*100), position = "dodge") %>%
+        + labs(title = "Distribution of biomes among treated units",
+               y = "Proportion (%)",
+               x = "") %>%
+        + scale_fill_brewer(name = "Matched", palette = "Dark2") %>%
+        + theme_minimal() 
       
       #Saving plots
-      
       tmp = paste(tempdir(), "fig", sep = "/")
-      ggsave(paste(tmp, paste0("fig_travel_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
+      ggsave(paste(tmp, paste0("fig_travel_dplot_treated_", iso, "_", wdpaid, ".png"), sep = "/"),
              plot = fig_travel,
              device = "png",
              height = 6, width = 9)
-      ggsave(paste(tmp, paste0("fig_clay_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
+      ggsave(paste(tmp, paste0("fig_clay_dplot_treated_", iso, "_", wdpaid, ".png"), sep = "/"),
              plot = fig_clay,
              device = "png",
              height = 6, width = 9)
-      ggsave(paste(tmp, paste0("fig_elevation_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
+      ggsave(paste(tmp, paste0("fig_elevation_dplot_treated_", iso, "_", wdpaid, ".png"), sep = "/"),
              plot = fig_elevation,
              device = "png",
              height = 6, width = 9)
-      ggsave(paste(tmp, paste0("fig_tri_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
+      ggsave(paste(tmp, paste0("fig_tri_dplot_treated_", iso, "_", wdpaid, ".png"), sep = "/"),
              plot = fig_tri,
              device = "png",
              height = 6, width = 9)
-      ggsave(paste(tmp, paste0("fig_fc_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
-             plot = fig_fc,
+      ggsave(paste(tmp, paste0("fig_fc_dplot_treated_", iso, "_", wdpaid, ".png"), sep = "/"),
+             plot = fig_fc2000,
              device = "png",
              height = 6, width = 9)
-      ggsave(paste(tmp, paste0("fig_fl_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
-             plot = fig_fl,
+      ggsave(paste(tmp, paste0("fig_fl_dplot_treated_", iso, "_", wdpaid, ".png"), sep = "/"),
+             plot = fig_loss,
              device = "png",
              height = 6, width = 9)
+      ggsave(paste(tmp, paste0("fig_biome_dplot_treated_", iso, "_", wdpaid, ".png"), sep = "/"),
+             plot = fig_biome,
+             device = "png",
+             height = 6, width = 9)
+      
+      print(xtable(tbl, type = "latex", auto = T),
+            file = paste(tmp, paste0("tbl_stat_treated_", iso, "_", wdpaid, ".tex"), sep = "/"))
       
       files <- list.files(tmp, full.names = TRUE)
       ##Add each file in the bucket (same foler for every file in the temp)
@@ -1766,7 +1859,7 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
       {
         cat("Uploading file", paste0("'", f, "'"), "\n")
         aws.s3::put_object(file = f, 
-                           bucket = paste("projet-afd-eva-ap", save_dir, iso, wdpaid, sep = "/"),
+                           bucket = paste("projet-afd-eva-ap", save_dir, iso, wdpaid, "match_quality", sep = "/"),
                            region = "", show_progress = TRUE)
       }
       do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
