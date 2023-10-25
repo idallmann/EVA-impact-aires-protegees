@@ -103,8 +103,8 @@ source("scripts/functions/02_fns_matching.R")
 tmp_pre = paste(tempdir(), "matching_pre", sep = "/")
 tmp_post = paste(tempdir(), "matching_post", sep = "/")
 ## Define a directory where outputs are stored in SSPCloud.
-save_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/") #Today's date
-# save_dir = paste("impact_analysis/matching", "2023-08-29", sep = "/") #A specific date
+#save_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/") #Today's date
+save_dir = paste("impact_analysis/matching", "2023-10-23", sep = "/") #A specific date
 
 # Load datasets
 ## WDPA database   
@@ -212,7 +212,9 @@ data_pa_ie_africa = data_pa %>%
   filter(region == "Africa" & is.na(wdpaid) == FALSE & area_km2 >=1 & marine %in% c(0,1) & status_yr >= yr_min & focus == T)
 list_iso = unique(data_pa_ie_africa$iso3)
 ## Manual definition
-list_iso = "COM"
+# list_iso = "COM"
+# list_iso = c("COM", "STP", "GNB", "GMB", "SEN", "MAR", "GAB", "KEN", "CMR", "COG", "MDG", "MOZ", "NER", "TCD")
+list_iso = c( "KEN", "CMR", "COG", "MDG", "MOZ", "NER", "TCD")
 ```
 
 ## Matching process
@@ -518,31 +520,4 @@ aws.s3::put_object(file = log,
                    region = "",
                    show_progress = FALSE)
                  
-```
-
-Test to remove overlap between PAs and take the intersection as a "non-control category"
-
-```{r}
-install.packages("mapview")
-
-
-wdpa_vect = wdpa_wld_raw %>%
-  clean_names() %>%
-  filter(iso3 == "GAB" & st_geometry_type(geom) == "MULTIPOLYGON") %>%
-  st_make_valid() %>%
-  st_cast("POLYGON") %>%
-  vect()
-
-wdpa_noverlap = sapply(1:dim(wdpa_vect)[1], 
-                                 function(X) {erase(wdpa_vect[X,], wdpa_vect[-X,])}) %>% 
-  vect() %>%
-  st_as_sf() %>%
-  ##We keep in this dataset the area of T and cropped T
-  mutate(area_overlap = expanse(vect(geometry), unit = "km"),
-         rm = area_overlap < 0.1*rep_area)
-
-wdpa_overlap = sapply(1:dim(wdpa_vect)[1], 
-                                 function(X) {intersect(wdpa_vect[X,], wdpa_vect[-X,])}) %>% 
-  vect() %>%
-  st_as_sf() 
 ```
