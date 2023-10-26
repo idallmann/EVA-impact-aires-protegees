@@ -230,7 +230,7 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
   
   # Make Buffers around all protected areas : done on the polygons with overlaps, as it is the buffer to consider in practice
   buffer = st_buffer(wdpa_prj, dist = buffer_m) %>% 
-    # Assign an ID "5" to the buffer group
+    # Assign an ID "6" to the buffer group
     mutate(group=6,
            group_name = "Buffer")
   
@@ -252,7 +252,7 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
   wdpa_sample_ie = wdpa_prj_noverlap %>% 
     filter(WDPAID %in% wdpaID_sample_ie & rm == F) %>% #Remove PA with too much overlap
     mutate(group=3,
-           group_name = "PA in sample, analyzed") %>% # Assign an ID "2" to the PA in sample, analysed
+           group_name = "PA in sample, analyzed") %>% # Assign an ID "3" to the PA in sample, analysed
     dplyr::select(-c(area_overlap, rm))
   ###...which cannot
   pa_sample_no_ie = data_pa %>%
@@ -260,13 +260,13 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
   wdpaID_sample_no_ie = pa_sample_no_ie$wdpaid 
   wdpa_sample_no_ie = wdpa_prj_noverlap %>% filter(WDPAID %in% wdpaID_sample_no_ie) %>%
     mutate(group=4,
-           group_name = "PA in sample, not analyzed") %>% # Assign an ID "3" to the PA in sample which cannot be studied in the impact evaluation
+           group_name = "PA in sample, not analyzed") %>% # Assign an ID "4" to the PA in sample which cannot be studied in the impact evaluation
     dplyr::select(-c(area_overlap, rm))
   ##PAs not in the sample
   wdpa_no_sample = wdpa_prj_noverlap %>% 
     filter(!(WDPAID %in% c(wdpa_sample_ie$WDPAID, wdpa_sample_no_ie$WDPAID))) %>% 
     mutate(group=5,
-           group_name = "Non-funded PA") %>% # Assign an ID "4" to the AP not in sample
+           group_name = "PA not in sample") %>% # Assign an ID "5" to the AP not in sample
     dplyr::select(-c(area_overlap, rm))
   wdpaID_no_sample = wdpa_no_sample$WDPAID
   
@@ -593,7 +593,7 @@ fn_calc_biome_temp = function(x, indicator)
 ##DATA SAVED
 ### pivot.all : a dataframe with variables of interest (outcome, matching covariates) for all treated and potential control pixels
 
-fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output, yr_first, yr_last, log, save_dir) 
+fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log, save_dir) 
 {
   output = tryCatch(
     
@@ -766,7 +766,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, name_output, ext_output
   pivot.all$wdpaid = as.integer(pivot.all$wdpaid)
 
   # Save this matching dataframe
-  name_save = paste0(name_output, "_", iso, ext_output)
+  name_save = paste0("matching_frame", "_", iso, ".gpkg")
   s3write_using(pivot.all,
                 sf::st_write,
                 object = paste0(save_dir, "/", iso, "/", name_save),
@@ -838,7 +838,7 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log, save_dir)
     {
       
   #Load the matching dataframe
-  object = paste(save_dir, iso, paste0(name_input, "_", iso, ext_input), sep = "/")
+  object = paste(save_dir, iso, paste0("matching_frame_", iso, ".gpkg"), sep = "/")
   mf = s3read_using(sf::st_read,
                       bucket = "projet-afd-eva-ap",
                       object = object,
@@ -1167,21 +1167,20 @@ fn_post_covbal = function(out.cem, mf,
   country.name = country.name$country_en
   
   #Extract start and end years of pre-treatment period where average loss is computed
-  year.start.prefund = mf %>%
+  df_year = mf %>%
     filter(group == 3) %>% 
     slice(1)
-  year.start.prefund = year.start.prefund$start_pre_fund
-  
-  year.end.prefund = mf %>%
-    filter(group == 3) %>% 
-    slice(1)
-  year.end.prefund = year.end.prefund$end_pre_fund
+  year.start.fl = df_year$start_pre_treat_fl
+  year.end.fl = df_year$end_pre_treat_fl
+  year.start.fc = df_year$start_pre_treat_fc
+  year.end.fc = df_year$end_pre_treat_fc
   
   #Plot covariate balance
-  colname.flAvg.new = paste0("Avg. Annual Forest \n Loss ",  year.start.prefund, "-", year.end.prefund)
+  colname.flAvg.new = paste0("Pre-treatment forest loss\n",  year.start.fl, "-", year.end.fl)
+  colname.fcAvg.new = paste0("Pre-treatment forest cover\n",  year.start.fc, "-", year.end.fc)
   c_name = data.frame(old = c(colname.travelTime, colname.clayContent, colname.tri, colname.elevation,
                               colname.fcAvg, colname.flAvg, colname.biome),
-                      new = c("Accessibility", "Clay Content", "Terrain Ruggedness Index (TRI)", "Elevation (m)", "Forest Cover in 2000",
+                      new = c("Accessibility", "Clay Content", "Terrain Ruggedness Index (TRI)", "Elevation", colname.fcAvg.new,
                               colname.flAvg.new, "Biomes"))
   
   # Refer to cobalt::love.plot()
@@ -1358,7 +1357,7 @@ fn_post_plot_density = function(out.cem, mf,
     #scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
     labs(title = "Distributional balance for clay content",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-         x = "Clay content at 0~20cm soil depth (%)",
+         x = "Clay content at 0-5cm soil depth (g/100g)",
          fill = "Group") +
     theme_bw() +
     theme(
@@ -1425,7 +1424,7 @@ fn_post_plot_density = function(out.cem, mf,
     #scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
       labs(title = "Distributional balance for Terrain Ruggedness Index (TRI)",
           subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-           x = "TRI",
+           x = "Ruggedness (m)",
            fill = "Group") +
       theme_bw() +
       theme(
@@ -1457,7 +1456,7 @@ fn_post_plot_density = function(out.cem, mf,
     #scale_fill_viridis(discrete = T) +
     scale_fill_discrete(labels = c("Control", "Treatment")) +
     #scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
-    labs(title = "Distributional balance for forest cover in 2000",
+    labs(title = "Distributional balance for pre-treatment forest cover",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
          x = "Forest cover (ha)",
          fill = "Group") +
@@ -1493,7 +1492,7 @@ fn_post_plot_density = function(out.cem, mf,
     #scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
     labs(title = "Distributional balance for average pre-treatment forest loss",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-         x = "Forest loss (%)",
+         x = "Forest loss (ha)",
          fill = "Group") +
     theme_bw() +
     theme(
@@ -1705,7 +1704,7 @@ fn_post_plot_hist = function(out.cem, mf,
         #scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
         labs(title = "Distributional balance for clay content",
              subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-             x = "Clay content at 0~20cm soil depth (%)",
+             x = "Clay content at 0-5cm soil depth (g/100g)",
              fill = "Group") +
         theme_bw() +
         theme(
@@ -1772,7 +1771,7 @@ fn_post_plot_hist = function(out.cem, mf,
         #scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
         labs(title = "Distributional balance for Terrain Ruggedness Index (TRI)",
              subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-             x = "TRI",
+             x = "Ruggedness (m)",
              fill = "Group") +
         theme_bw() +
         theme(
@@ -1804,7 +1803,7 @@ fn_post_plot_hist = function(out.cem, mf,
         #scale_fill_viridis(discrete = T) +
         scale_fill_discrete(labels = c("Control", "Treatment")) +
         #scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
-        labs(title = "Distributional balance for forest cover in 2000",
+        labs(title = "Distributional balance for pre-treatment forest cover",
              subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
              x = "Forest cover (ha)",
              fill = "Group") +
@@ -1840,7 +1839,7 @@ fn_post_plot_hist = function(out.cem, mf,
         #scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
         labs(title = "Distributional balance for average pre-treatment forest loss",
              subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-             x = "Forest loss (%)",
+             x = "Forest loss (ha)",
              fill = "Group") +
         theme_bw() +
         theme(
@@ -2177,7 +2176,22 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
                y = "Density",
                x = "Mean clay content (0-5 cm)") %>%
         + scale_fill_brewer(name = "Matched", palette = "Dark2") %>%
-        + theme_minimal() 
+        + theme_bw() %>%
+        + theme(
+          plot.title = element_text(family="Arial Black", size=16, hjust = 0),
+          
+          #legend.title = element_blank(),
+          #legend.text=element_text(size=14),
+          #legend.spacing.x = unit(0.5, 'cm'),
+          #legend.spacing.y = unit(0.75, 'cm'),
+          
+          axis.text=element_text(size=12),
+          axis.title=element_text(size=14),
+          axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+          axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+          
+          strip.text.x = element_text(size = 12) # Facet Label
+        )
         
       fig_travel = ggplot(data = df,
                           aes(x = minutes_mean_5k_110mio, fill = matched)) %>%
@@ -2198,7 +2212,22 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
                          color = "black") %>%
         + geom_density(alpha = 0.5) %>%
         + scale_fill_brewer(name = "Matched", palette = "Dark2") %>%
-        + theme_minimal() 
+        + theme_bw() %>%
+        + theme(
+          plot.title = element_text(family="Arial Black", size=16, hjust = 0),
+          
+          #legend.title = element_blank(),
+          #legend.text=element_text(size=14),
+          #legend.spacing.x = unit(0.5, 'cm'),
+          #legend.spacing.y = unit(0.75, 'cm'),
+          
+          axis.text=element_text(size=12),
+          axis.title=element_text(size=14),
+          axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+          axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+          
+          strip.text.x = element_text(size = 12) # Facet Label
+        )
       
       fig_loss = ggplot(data = df,
                         aes(x = avgLoss_pre_treat, fill = matched)) %>%
@@ -2210,7 +2239,22 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
                y = "Density",
                x = "Forest cover loss (ha)") %>%
         + scale_fill_brewer(name = "Matched", palette = "Dark2") %>%
-        + theme_minimal()
+        + theme_bw() %>%
+        + theme(
+          plot.title = element_text(family="Arial Black", size=16, hjust = 0),
+          
+          #legend.title = element_blank(),
+          #legend.text=element_text(size=14),
+          #legend.spacing.x = unit(0.5, 'cm'),
+          #legend.spacing.y = unit(0.75, 'cm'),
+          
+          axis.text=element_text(size=12),
+          axis.title=element_text(size=14),
+          axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+          axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+          
+          strip.text.x = element_text(size = 12) # Facet Label
+        )
       
       fig_fc2000 = ggplot(data = df,
                           aes(x = treecover_2000, fill = matched)) %>%
@@ -2222,7 +2266,22 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
                y = "Density",
                x = "Forest cover (ha)") %>%
         + scale_fill_brewer(name = "Matched", palette = "Dark2") %>%
-        + theme_minimal() 
+        + theme_bw() %>%
+        + theme(
+          plot.title = element_text(family="Arial Black", size=16, hjust = 0),
+          
+          #legend.title = element_blank(),
+          #legend.text=element_text(size=14),
+          #legend.spacing.x = unit(0.5, 'cm'),
+          #legend.spacing.y = unit(0.75, 'cm'),
+          
+          axis.text=element_text(size=12),
+          axis.title=element_text(size=14),
+          axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+          axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+          
+          strip.text.x = element_text(size = 12) # Facet Label
+        ) 
       
       fig_tri = ggplot(data = df,
                        aes(x = tri_mean, fill = matched)) %>%
@@ -2234,7 +2293,22 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
                y = "Density",
                x = "Terrain Ruggedness Index (m)") %>%
         + scale_fill_brewer(name = "Matched", palette = "Dark2") %>%
-        + theme_minimal() 
+        + theme_bw() %>%
+        + theme(
+          plot.title = element_text(family="Arial Black", size=16, hjust = 0),
+          
+          #legend.title = element_blank(),
+          #legend.text=element_text(size=14),
+          #legend.spacing.x = unit(0.5, 'cm'),
+          #legend.spacing.y = unit(0.75, 'cm'),
+          
+          axis.text=element_text(size=12),
+          axis.title=element_text(size=14),
+          axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+          axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+          
+          strip.text.x = element_text(size = 12) # Facet Label
+        )
       
       fig_biome = ggplot(data = df,
                          aes(x = biomes, fill = matched)) %>%
@@ -2243,7 +2317,22 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
                y = "Proportion (%)",
                x = "") %>%
         + scale_fill_brewer(name = "Matched", palette = "Dark2") %>%
-        + theme_minimal() 
+        + theme_bw() %>%
+        + theme(
+          plot.title = element_text(family="Arial Black", size=16, hjust = 0),
+          
+          #legend.title = element_blank(),
+          #legend.text=element_text(size=14),
+          #legend.spacing.x = unit(0.5, 'cm'),
+          #legend.spacing.y = unit(0.75, 'cm'),
+          
+          axis.text=element_text(size=12),
+          axis.title=element_text(size=14),
+          axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+          axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+          
+          strip.text.x = element_text(size = 12) # Facet Label
+        )
       
       #Saving plots
       tmp = paste(tempdir(), "fig", sep = "/")
@@ -2361,15 +2450,19 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
       wdpa_id = wdpaid #Need to give a name to wdpaid (function argument) different from the varaible in the dataset (wdpaid)
       area_ha = data_pa[data_pa$wdpaid == wdpa_id,]$area_km2*100
       
-      ##Forest cover before treatment, in ha
+      ##Total forest cover before treatment, in ha. Note this forest cover is in the PA without the overlap, as it is computed from the treated pixels.
       fc_tot_pre_treat = unmatched.long %>%
         filter(group == 3 & year == treatment.year-1)
       fc_tot_pre_treat = sum(fc_tot_pre_treat$fc_ha, na.rm = TRUE)
       
+      ##Average forest cover in a pixel before treatment. Note this forest cover is in the PA without the overlap, as it is computed from the treated pixels.
+      # fc_avg_pre_treat = unmatched.long %>%
+      #   filter(group == 3 & year == treatment.year-1)
+      # fc_avg_pre_treat = mean(fc_avg_pre_treat$fc_ha, na.rm = TRUE)
+      
       #Extract number of pixels in the PA
-      #n_pix_pa = length(unique(filter(unmatched.long, group == 2)$assetid))
-      n_pix_pa = area_ha/res_ha #This measure is imperfect for extrapolation of total deforestation avoided, as part of a PA can be coastal. Indeed, this extrapolation assumes implicitly that all the PA is covered by forest potentially deforested in absence of the conservation 
-      n_pix_fc_pre_treat = fc_tot_pre_treat/res_ha
+      #n_pix_pa = area_ha/res_ha #This measure is imperfect for extrapolation of total deforestation avoided, as part of a PA can be coastal. Indeed, this extrapolation assumes implicitly that all the PA is covered by forest potentially deforested in absence of the conservation 
+      n_pix_fc_pre_treat = fc_tot_pre_treat/res_ha #Forest cover 
       
      #Open a multisession for dataframe computations
       #Note the computations on unmatched units are the slowest here due to the number of observations relatively higher than for matched units
@@ -2383,7 +2476,8 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
   df.matched.trend  <- matched.long %>%
     #First, compute deforestation relative to 2000 for each pixel (deforestation as computed in Wolf et al. 2021)
     group_by(assetid) %>%
-    mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100) %>%
+    mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100,
+           FC_rel_pre_treat = fc_ha/fc_ha[year == treatment.year-1]) %>%
     ungroup() %>%
     #Then compute the average forest cover and deforestation in each year, for treated and control groups
     #Standard deviation and 95% confidence interval is also computed for each variable
@@ -2397,6 +2491,10 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
               sdFC_tot = n_pix_fc_pre_treat*sdFC,
               ciFC_tot_low = avgFC_tot - qt(0.975,df=n-1)*sdFC_tot/sqrt(n),
               ciFC_tot_up = avgFC_tot + qt(0.975,df=n-1)*sdFC_tot/sqrt(n),
+              avgFC_rel = mean(FC_rel_pre_treat, na.rm=TRUE), #Compute relative average forest cover, sd and CI
+              sdFC_rel = sd(FC_rel_pre_treat, na.rm = TRUE),
+              ciFC_rel_low = avgFC_rel - qt(0.975,df=n-1)*sdFC_rel/sqrt(n),
+              ciFC_rel_up = avgFC_rel + qt(0.975,df=n-1)*sdFC_rel/sqrt(n),
               avgFL_2000_cum = mean(FL_2000_cum, na.rm = TRUE), #Compute average forest loss relative to 2000 (Wolf et al 2021), sd and CI
               sdFL_2000_cum = sd(FL_2000_cum, na.rm = TRUE),
               ciFL_low = avgFL_2000_cum - qt(0.975,df=n-1)*sdFL_2000_cum/sqrt(n),
@@ -2409,7 +2507,8 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
   df.unmatched.trend  <- unmatched.long %>%
       #First, compute deforestation relative to 2000 for each pixel (deforestation as computed in Wolf et al. 2021); compute percentage of forest cover in the pixel in 2000
       group_by(assetid) %>%
-      mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100) %>%
+      mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100,
+             FC_rel_pre_treat = fc_ha/fc_ha[year == treatment.year-1]) %>%
       ungroup() %>% #Compute average percentage of FC in a pixel in 2000, for each group. Compute also standard deviation
     #Then compute the average forest cover, average forest cover percentage, and deforestation in each year, for treated and control groups
     #Standard deviation and 95% confidence interval is also computed for each variable
@@ -2423,6 +2522,10 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
               sdFC_tot = n_pix_fc_pre_treat*sdFC,
               ciFC_tot_low = avgFC_tot - qt(0.975,df=n-1)*sdFC_tot/sqrt(n),
               ciFC_tot_up = avgFC_tot + qt(0.975,df=n-1)*sdFC_tot/sqrt(n),
+              avgFC_rel = mean(FC_rel_pre_treat, na.rm=TRUE), #Compute average relative forest cover, sd and CI
+              sdFC_rel = sd(FC_rel_pre_treat, na.rm = TRUE),
+              ciFC_rel_low = avgFC_rel - qt(0.975,df=n-1)*sdFC_rel/sqrt(n),
+              ciFC_rel_up = avgFC_rel + qt(0.975,df=n-1)*sdFC_rel/sqrt(n),
               avgFL_2000_cum = mean(FL_2000_cum, na.rm = TRUE), #Compute average forest loss relative to 2000 (Wolf et al 2021), sd and CI
               sdFL_2000_cum = sd(FL_2000_cum, na.rm = TRUE),
               ciFL_low = avgFL_2000_cum - qt(0.975,df=n-1)*sdFL_2000_cum/sqrt(n),
@@ -2484,6 +2587,46 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
       
       strip.text.x = element_text(size = 12) # Facet Label
       ) +
+    guides(size = guide_legend(override.aes = list(color = c("grey30", "orange")))) # Add legend for geom_vline
+  
+  ### Average forest cover in a pixel, relative to average pre-treatment forest cover 
+  fig_trend_unm_fc_rel = ggplot(data = df.trend, aes(x = year, y = avgFC_rel*100)) +
+    geom_line(aes(group = group, color = as.character(group))) +
+    geom_point(aes(color = as.character(group))) +
+    geom_ribbon(aes(ymin = ciFC_rel_low*100, ymax = ciFC_rel_up*100, group = group, fill = as.character(group)), alpha = .1, show.legend = FALSE) +
+    geom_vline(aes(xintercept=as.character(treatment.year), size="Treatment year"), linetype=1, linewidth=0.5, color="orange") +
+    geom_vline(aes(xintercept=as.character(funding.years), size="Funding year"), linetype=2, linewidth=0.5, color="grey30") +
+    scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) + 
+    scale_color_hue(labels = c("Control", "Treatment")) +
+    facet_wrap(matched~., ncol = 2, #scales = 'free_x',
+               labeller = labeller(matched = fct.labs)) +
+    labs(title = "Evolution of forest cover in a pixel on average, relative to pre-treatment (unmatched units)",
+         subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+         caption = paste("Ribbons represent 95% confidence intervals.\nThe protected area has a surface of", format(area_ha, big.mark  = ","), "ha and pixels have a resolution of", res_ha, "ha."),
+         x = "Year", y = "Forest cover relative to pre-treatment (%)", color = "Group") +
+    theme_bw() +
+    theme(
+      axis.text.x = element_text(angle = -20, hjust = 0.5, vjust = 0.5),
+      axis.text=element_text(size=11),
+      axis.title=element_text(size=14),
+      
+      plot.caption = element_text(hjust = 0),
+      
+      #legend.position = "bottom",
+      legend.title = element_blank(),
+      legend.text=element_text(size=14),
+      #legend.spacing.x = unit(1.0, 'cm'),
+      legend.spacing.y = unit(0.75, 'cm'),
+      legend.key.size = unit(2, 'line'),
+      
+      
+      panel.grid.major.x = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.x = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
+      panel.grid.major.y = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.y = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
+      
+      strip.text.x = element_text(size = 12) # Facet Label
+    ) +
     guides(size = guide_legend(override.aes = list(color = c("grey30", "orange")))) # Add legend for geom_vline
   
   ### Total forest cover
@@ -2606,6 +2749,45 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
     ) +
     guides(size = guide_legend(override.aes = list(color = c("grey30", "orange")))) # Add legend for geom_vline
   
+  
+  ### Average forest cover in a pixel, relative to average pre-treatment forest cover 
+  fig_trend_m_fc_rel = ggplot(data = df.matched.trend, aes(x = year, y = avgFC_rel*100)) +
+    geom_line(aes(group = group, color = as.character(group))) +
+    geom_point(aes(color = as.character(group))) +
+    geom_ribbon(aes(ymin = ciFC_rel_low*100, ymax = ciFC_rel_up*100, group = group, fill = as.character(group)), alpha = .1, show.legend = FALSE) +
+    geom_vline(aes(xintercept=as.character(treatment.year), size="Treatment year"), linetype=1, linewidth=0.5, color="orange") +
+    geom_vline(aes(xintercept=as.character(funding.years), size="Funding year"), linetype=2, linewidth=0.5, color="grey30") +
+    scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) + 
+    scale_color_hue(labels = c("Control", "Treatment")) +
+    labs(title = "Evolution of forest cover in a pixel, relative to pre-treatment (matched units)",
+         subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+         caption = paste("Ribbons represent 95% confidence intervals.\nThe protected area has a surface of", format(area_ha, big.mark  = ","), "ha and pixels have a resolution of", res_ha, "ha."),
+         x = "Year", y = "Forest cover relative to pre-treatment (%)", color = "Group") +
+    theme_bw() +
+    theme(
+      axis.text.x = element_text(angle = -20, hjust = 0.5, vjust = 0.5),
+      axis.text=element_text(size=11),
+      axis.title=element_text(size=14),
+      
+      plot.caption = element_text(hjust = 0),
+      
+      #legend.position = "bottom",
+      legend.title = element_blank(),
+      legend.text=element_text(size=14),
+      #legend.spacing.x = unit(1.0, 'cm'),
+      legend.spacing.y = unit(0.75, 'cm'),
+      legend.key.size = unit(2, 'line'),
+      
+      
+      panel.grid.major.x = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.x = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
+      panel.grid.major.y = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.y = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
+      
+      strip.text.x = element_text(size = 12) # Facet Label
+    ) +
+    guides(size = guide_legend(override.aes = list(color = c("grey30", "orange")))) # Add legend for geom_vline
+  
   ### Total forest cover
   fig_trend_m_fc_tot = ggplot(data = df.matched.trend, aes(x = year, y = avgFC_tot)) +
     geom_line(aes(group = group, color = as.character(group))) +
@@ -2691,6 +2873,15 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
          height = 6, width = 9)
   ggsave(paste(tmp, paste0("fig_trend_matched_avgFC_", iso, "_", wdpaid, ".png"), sep = "/"),
          plot = fig_trend_m_fc_pix,
+         device = "png",
+         height = 6, width = 9)
+  
+  ggsave(paste(tmp, paste0("fig_trend_unmatched_avgFC_rel_", iso, "_", wdpaid, ".png"), sep = "/"),
+         plot = fig_trend_unm_fc_rel,
+         device = "png",
+         height = 6, width = 9)
+  ggsave(paste(tmp, paste0("fig_trend_matched_avgFC_rel_", iso, "_", wdpaid, ".png"), sep = "/"),
+         plot = fig_trend_m_fc_rel,
          device = "png",
          height = 6, width = 9)
   

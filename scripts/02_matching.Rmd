@@ -293,8 +293,6 @@ for (i in list_iso)
     fn_pre_mf_parallel(grid.param = grid_param, 
                        path_tmp = tmp_pre, 
                        iso = i,
-                       name_output = "matching_frame_spling",
-                       ext_output = ".gpkg",
                        yr_first = yr_first, yr_last = yr_last,  
                        log = log,
                        save_dir = save_dir)  
@@ -343,8 +341,6 @@ for (i in list_iso)
   print("--Loading the matching frame")
   output_load = fn_post_load_mf(iso = i, 
                            yr_min = yr_min,
-                           name_input = "matching_frame_spling",
-                           ext_input = ".gpkg",
                            log = log,
                            save_dir = save_dir)
   if(output_load$is_ok == FALSE) {next} else mf_ini = output_load$mf
