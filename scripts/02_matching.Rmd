@@ -73,7 +73,7 @@ library(ggrepel) #Refine labelling of some figures
 library(sf) # For handling vector data
 library(terra) # For handling raster data
 library(raster) # For handling raster data
-# library(rgeos) 
+#library(rgeos) 
 library(geodata) # For getting country files
 library(wdpar) # For getting protected areas
 library(exactextractr) # For zonal statistics
@@ -188,10 +188,10 @@ colname.travelTime = "minutes_mean_5k_110mio"
 colname.clayContent = "clay_0_5cm_mean"
 colname.elevation = "elevation_mean"
 colname.tri = "tri_mean"
-colname.fcIni = "treecover_2000" #that has to change : average pre-treatment forest cover !
+colname.fcAvg = "avgCover_pre_treat"
 colname.flAvg = "avgLoss_pre_treat"
 colname.biome = "biomes"
-list_cov = paste(colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcIni, colname.flAvg, colname.biome, sep = ";")
+list_cov = paste(colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcAvg, colname.flAvg, colname.biome, sep = ";")
 
 #Matching 
 ## Parameters
@@ -375,11 +375,11 @@ for (i in list_iso)
     mf_ini_j = mf_ini %>%
       filter(group == 2 | (group == 3 & wdpaid == j))
     
-    #Add average pre-loss
-    print("--Add covariate : average tree loss pre-funding")
-    output_avgLoss = fn_post_avgLoss_pre_treat(mf = mf_ini_j, 
+    #Add average forest cover and forest cover loss before treatment
+    print("--Add covariates : pre-treatment average forest loss and cover")
+    output_add_cov = fn_post_fl_fc_pre_treat(mf = mf_ini_j, 
                                              log = log)
-    if(output_avgLoss$is_ok == FALSE) {next} else mf_j = output_avgLoss$mf
+    if(output_add_cov$is_ok == FALSE) {next} else mf_j = output_add_cov$mf
     
     #Run Coarsened Exact Matching
     print("--Run CEM")
@@ -395,7 +395,7 @@ for (i in list_iso)
                                    colname.clayContent = colname.clayContent, 
                                    colname.elevation = colname.elevation,
                                    colname.tri = colname.tri, 
-                                   colname.fcIni = colname.fcIni, 
+                                   colname.fcAvg = colname.fcAvg, 
                                    colname.flAvg = colname.flAvg,
                                    colname.biome = colname.biome,
                                    log = log)
@@ -408,7 +408,7 @@ for (i in list_iso)
                    mf = mf_j,
                    colname.travelTime = colname.travelTime, 
                    colname.clayContent = colname.clayContent,
-                   colname.fcIni = colname.fcIni, 
+                   colname.fcAvg = colname.fcAvg, 
                    colname.flAvg = colname.flAvg,
                    colname.tri = colname.tri,
                    colname.elevation = colname.elevation,
@@ -420,21 +420,37 @@ for (i in list_iso)
                    save_dir = save_dir)
   if(output_covbal$is_ok == FALSE) {next}
     
-    print("----Density plots")
+    print("----Density plots and histograms")
     output_density = fn_post_plot_density(out.cem = out_cem_j,  
                                          mf = mf_j,
-                                      colname.travelTime = colname.travelTime, 
-                                       colname.clayContent = colname.clayContent,
-                                       colname.fcIni = colname.fcIni, 
-                                       colname.flAvg = colname.flAvg,
-                                    colname.tri = colname.tri,
-                                   colname.elevation = colname.elevation,
-                                   colname.biome = colname.biome,
-                                      iso = i,
-                                      path_tmp = tmp_post,
-                                      wdpaid = j,
-                                   log = log,
-                                   save_dir = save_dir)
+                                         colname.travelTime = colname.travelTime, 
+                                         colname.clayContent = colname.clayContent,
+                                         colname.fcAvg = colname.fcAvg, 
+                                         colname.flAvg = colname.flAvg,
+                                         colname.tri = colname.tri,
+                                         colname.elevation = colname.elevation,
+                                         colname.biome = colname.biome,
+                                         iso = i,
+                                         path_tmp = tmp_post,
+                                         wdpaid = j,
+                                         log = log,
+                                         save_dir = save_dir)
+     if(output_density$is_ok == FALSE) {next}
+    
+    output_hist = fn_post_plot_hist(out.cem = out_cem_j,  
+                                     mf = mf_j,
+                                     colname.travelTime = colname.travelTime, 
+                                     colname.clayContent = colname.clayContent,
+                                     colname.fcAvg = colname.fcAvg, 
+                                     colname.flAvg = colname.flAvg,
+                                     colname.tri = colname.tri,
+                                     colname.elevation = colname.elevation,
+                                     colname.biome = colname.biome,
+                                     iso = i,
+                                     path_tmp = tmp_post,
+                                     wdpaid = j,
+                                     log = log,
+                                     save_dir = save_dir)
      if(output_density$is_ok == FALSE) {next}
     
     #Panelize dataframes

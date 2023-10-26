@@ -901,7 +901,7 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log, save_dir)
 }
 
 
-#Compute average forest loss before PA creation, and add it to the matching frame as a covariate
+#Compute average forest loss and cover before protected area creation, and add them to the matching frame as covariates
 ##INPUTS : 
 ### mf : the matching dataframe
 ### colname.flAvg : name of the average forest loss variable
@@ -910,7 +910,7 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log, save_dir)
 ### mf : matching frame with the new covariate
 ### is_ok : a boolean indicating whether or not an error occured inside the function
 
-fn_post_avgLoss_pre_treat = function(mf, colname.flAvg, log)
+fn_post_fl_fc_pre_treat = function(mf, colname.flAvg, log)
 {
   
   output = tryCatch(
@@ -932,30 +932,55 @@ fn_post_avgLoss_pre_treat = function(mf, colname.flAvg, log)
     as.numeric() %>%
     min()
   
-  #Define period to compute average loss
-  ##If 5 pre-treatment periods are available at least, then average pre-treatment deforestation is computed on this 5 years range
+  #Extract first year treecover is computed
+  ##Select cols with "treecover" in mf, drop geometry, replace "treecover_" by "", convert to num and take min
+  treecover.ini.year = mf[grepl("treecover", names(mf))] %>%
+    st_drop_geometry() %>%
+    names() %>%
+    gsub(paste0("treecover", "_"), "", .) %>%
+    as.numeric() %>%
+    min()
+  
+  #Define period to compute average loss and cover
+  ##If 5 pre-treatment periods are available at least, then average pre-treatment deforestation/forest cover is computed on this 5 years range
   ## If less than 5 are available, compute on this restricted period
-  ## Note that by construction, treatment.year >= treeloss.ini.year +1 (as yr_min = yr_first+2 in the parameters)
+  ## Note that by construction, treatment.year >= treeloss.ini.year +1 (as yr_min = yr_first+2 in the parameters), so that at least one period of forest cover loss is known for building this variable. 
+  ## treecover data starts in 2000 but 2001 for treeloss. Thus if at least one period is accessible for treeloss by construction (2001 if treatment year = 2002), two are for treecover (2000 and 2001). Thus we need to take that into account.
+  ### Period for forest loss
   if((treatment.year-treeloss.ini.year) >=5)
-  {yr_start = (treatment.year)-5
-  yr_end = (treatment.year)-1} else if((treatment.year-treeloss.ini.year <5) & (treatment.year-treeloss.ini.year >0))
-  {yr_start = treeloss.ini.year
-  yr_end = (treatment.year)-1} 
+  {yr_start_loss = (treatment.year)-5
+  yr_end_loss = (treatment.year)-1} else if((treatment.year-treeloss.ini.year <5) & (treatment.year-treeloss.ini.year >0))
+  {yr_start_loss = treeloss.ini.year
+  yr_end_loss = (treatment.year)-1} 
+  ### Period for forest cover
+  if((treatment.year-treecover.ini.year) >=5)
+  {yr_start_cover = (treatment.year)-5
+  yr_end_cover = (treatment.year)-1} else if((treatment.year-treecover.ini.year <5) & (treatment.year-treecover.ini.year >0))
+  {yr_start_cover = treecover.ini.year #here is the real change compared to treeloss : the starting year is 2000 and not 2001
+  yr_end_cover = (treatment.year)-1} 
   #Transform it in variable suffix
-  var_start = yr_start - 2000
-  var_end = yr_end - 2000
+  var_start_loss = yr_start_loss - 2000
+  var_end_loss = yr_end_loss - 2000
+  var_start_cover = yr_start_cover - 2000
+  var_end_cover = yr_end_cover - 2000
   #Select only relevant variables
-  df_fl = mf[grepl("treeloss", names(mf))][var_start:var_end] %>% 
+  df_fl = mf[grepl("treeloss", names(mf))][var_start_loss:var_end_loss] %>% 
+    st_drop_geometry()
+  df_fc = mf[grepl("treecover", names(mf))][var_start_cover:var_end_cover] %>% 
     st_drop_geometry()
   #Compute average loss for each pixel and store it in mf. Also add the start and end years of pre-treatment period where average loss is computed.
   mf$avgLoss_pre_treat = round(rowMeans(df_fl), 2)
-  mf$start_pre_treat = yr_start
-  mf$end_pre_treat = yr_end
+  mf$avgCover_pre_treat = round(rowMeans(df_fc), 2)
+  mf$start_pre_treat_fl = yr_start_loss
+  mf$end_pre_treat_fl = yr_end_loss
+  mf$start_pre_treat_fc = yr_start_cover
+  mf$end_pre_treat_fc = yr_end_cover
+  
   #Remove NA values
-  mf = mf %>% drop_na(avgLoss_pre_treat)
+  mf = mf %>% drop_na(c(avgLoss_pre_treat, avgCover_pre_treat))
   
   #Append the log
-  cat("#Add average pre-treatment treecover loss\n-> OK\n", file = log, append = TRUE)
+  cat("#Add average pre-treatment forest loss and cover\n-> OK\n", file = log, append = TRUE)
   
   #Return output
   return(list("mf" = mf, "is_ok" = TRUE))
@@ -965,7 +990,7 @@ fn_post_avgLoss_pre_treat = function(mf, colname.flAvg, log)
   error = function(e)
   {
     print(e)
-    cat(paste("#Add average pre-treatment treecover loss\n-> Error :\n", e, "\n"), file = log, append = TRUE)
+    cat(paste("#Add average pre-treatment forest loss and cover\n-> Error :\n", e, "\n"), file = log, append = TRUE)
     return(list("is_ok" = FALSE))
   }
   
@@ -974,7 +999,7 @@ fn_post_avgLoss_pre_treat = function(mf, colname.flAvg, log)
   #   #Print the warning and append the log
   #   print(w)
   #   #Append the log 
-  #   cat(paste("#Add average pre-treatment treecover loss\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+  #   cat(paste("#Add average pre-treatment forest loss and cover\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
   #   #Return string to inform user to skip
   #   return(list("is_ok" = TRUE))
   # }
@@ -996,7 +1021,7 @@ fn_post_avgLoss_pre_treat = function(mf, colname.flAvg, log)
 ### k2k_method : metric to use to choose the closest control among the control units matched with a treated unit in CEM matching.
 ### th_mean :the maximum acceptable value for absolute standardized mean difference of covariates between matched treated and control units. Typically 0.1 (https://cran.r-project.org/web/packages/MatchIt/vignettes/assessing-balance.html) or 0.25 in conservation literature (e.g https://conbio.onlinelibrary.wiley.com/doi/abs/10.1111/cobi.13728) 
 ### th_var_min, th_var_max : the range of acceptable value for covariate variance ratio between matched treated and control units. Typicall 0.5 and 2, respectively (https://cran.r-project.org/web/packages/MatchIt/vignettes/assessing-balance.html)
-### colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcIni, colname.flAvg : name of the matching covariates
+### colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcAvg, colname.flAvg : name of the matching covariates
 ### log : a log file to track progress of the processing
 ##OUTPUTS : 
 ### out.cem : an object with all information on matching (parameters, results, etc.)
@@ -1013,7 +1038,7 @@ fn_post_match_auto = function(mf,
                               k2k_method,
                               th_mean, 
                               th_var_min, th_var_max,
-                              colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcIni, colname.flAvg, colname.biome,
+                              colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcAvg, colname.flAvg, colname.biome,
                               log)
 {
 
@@ -1032,13 +1057,13 @@ fn_post_match_auto = function(mf,
         {
         formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
                       + .(as.name(colname.clayContent))  
-                      +  .(as.name(colname.fcIni)) 
+                      +  .(as.name(colname.fcAvg)) 
                       + .(as.name(colname.flAvg))
                       + .(as.name(colname.tri))
                       + .(as.name(colname.elevation))))
       } else formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
                           + .(as.name(colname.clayContent))  
-                          +  .(as.name(colname.fcIni)) 
+                          +  .(as.name(colname.fcAvg)) 
                           + .(as.name(colname.flAvg))
                           + .(as.name(colname.tri))
                           + .(as.name(colname.elevation)))
@@ -1106,7 +1131,7 @@ fn_post_match_auto = function(mf,
 ## INPUTS :
 ### out.cem : list of results from the CEM matching
 ### mf : the matching dataframe
-### colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcIni, colname.flAvg : name of the matching covariates
+### colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcAvg, colname.flAvg : name of the matching covariates
 ### iso : ISO code of the country considered
 ### path_tmp : temporary folder to store figures
 ### wdpaid : the WDPA ID of the protected area considered
@@ -1120,7 +1145,7 @@ fn_post_match_auto = function(mf,
 ### A table with statistics on matched control and treated units 
 ### A table with statistics on unmatched control and treated units,
 fn_post_covbal = function(out.cem, mf, 
-                          colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, colname.tri, colname.elevation, colname.biome,
+                          colname.travelTime, colname.clayContent, colname.fcAvg, colname.flAvg, colname.tri, colname.elevation, colname.biome,
                           iso, path_tmp, wdpaid, log,
                           save_dir)
 {
@@ -1155,7 +1180,7 @@ fn_post_covbal = function(out.cem, mf,
   #Plot covariate balance
   colname.flAvg.new = paste0("Avg. Annual Forest \n Loss ",  year.start.prefund, "-", year.end.prefund)
   c_name = data.frame(old = c(colname.travelTime, colname.clayContent, colname.tri, colname.elevation,
-                              colname.fcIni, colname.flAvg, colname.biome),
+                              colname.fcAvg, colname.flAvg, colname.biome),
                       new = c("Accessibility", "Clay Content", "Terrain Ruggedness Index (TRI)", "Elevation (m)", "Forest Cover in 2000",
                               colname.flAvg.new, "Biomes"))
   
@@ -1255,7 +1280,7 @@ fn_post_covbal = function(out.cem, mf,
 ## INPUTS :
 ### out.cem : list of results from the CEM matching
 ### mf : the matching dataframe
-### colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcIni, colname.flAvg : name of the matching covariates
+### colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcAvg, colname.flAvg : name of the matching covariates
 ### iso : ISO code of the country considered
 ### path_tmp : temporary folder to store figures
 ### wdpaid : the WDPA ID of the protected area considered
@@ -1266,7 +1291,7 @@ fn_post_covbal = function(out.cem, mf,
 ## DATA SAVED :
 ### Density plots of the matching covariates considered, for matched treated and control units
 fn_post_plot_density = function(out.cem, mf, 
-                                colname.travelTime, colname.clayContent, colname.fcIni, colname.flAvg, colname.tri, colname.elevation, colname.biome,
+                                colname.travelTime, colname.clayContent, colname.fcAvg, colname.flAvg, colname.tri, colname.elevation, colname.biome,
                                 iso, path_tmp, wdpaid, log, save_dir)
 {
   output = tryCatch(
@@ -1288,10 +1313,15 @@ fn_post_plot_density = function(out.cem, mf,
   fig_travel = bal.plot(out.cem, 
                       var.name = colname.travelTime,
                       #sample.names = c("Control", "Treatment"),
-                      which = "both") +
+                      which = "both",
+                      type = "density",
+                      disp.means = T,
+                      mirror = F,
+                      alpha.weight = T) +
     facet_wrap(.~which, labeller = as_labeller(fnl)) +
     #scale_fill_viridis(discrete = T) +
-    scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+    scale_fill_discrete(labels = c("Control", "Treatment")) +
+    #scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
     labs(title = "Distributional balance for accessibility",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
          x = "Accessibility (min)",
@@ -1316,10 +1346,16 @@ fn_post_plot_density = function(out.cem, mf,
   ## Density plot for Clay Content
   fig_clay = bal.plot(out.cem, 
                     var.name = colname.clayContent,
-                    which = "both") +
+                    #sample.names = c("Control", "Treatment"),
+                    which = "both",
+                    type = "density",
+                    disp.means = T,
+                    mirror = F,
+                    alpha.weight = T) +
     facet_wrap(.~which, labeller = as_labeller(fnl)) +
     #scale_fill_viridis(discrete = T) +
-    scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+    scale_fill_discrete(labels = c("Control", "Treatment")) +
+    #scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
     labs(title = "Distributional balance for clay content",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
          x = "Clay content at 0~20cm soil depth (%)",
@@ -1344,10 +1380,16 @@ fn_post_plot_density = function(out.cem, mf,
   ## Density plot for Elevation
   fig_elevation = bal.plot(out.cem,
                       var.name = colname.elevation,
-                      which = "both") +
+                      #sample.names = c("Control", "Treatment"),
+                      which = "both",
+                      type = "density",
+                      disp.means = T,
+                      mirror = F,
+                      alpha.weight = T) +
       facet_wrap(.~which, labeller = as_labeller(fnl)) +
-      #scale_fill_viridis(discrete = T) +
-      scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+    #scale_fill_viridis(discrete = T) +
+    scale_fill_discrete(labels = c("Control", "Treatment")) +
+    #scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
       labs(title = "Distributional balance for elevation",
            subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
            x = "Elevation (m)",
@@ -1371,10 +1413,16 @@ fn_post_plot_density = function(out.cem, mf,
   ## Density plot for TRI
   fig_tri = bal.plot(out.cem,
                       var.name = colname.tri,
-                      which = "both") +
+                     #sample.names = c("Control", "Treatment"),
+                     which = "both",
+                     type = "density",
+                     disp.means = T,
+                     mirror = F,
+                     alpha.weight = T) +
       facet_wrap(.~which, labeller = as_labeller(fnl)) +
-      #scale_fill_viridis(discrete = T) +
-      scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+    #scale_fill_viridis(discrete = T) +
+    scale_fill_discrete(labels = c("Control", "Treatment")) +
+    #scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
       labs(title = "Distributional balance for Terrain Ruggedness Index (TRI)",
           subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
            x = "TRI",
@@ -1398,11 +1446,17 @@ fn_post_plot_density = function(out.cem, mf,
   
   ## Density plot for covariate "forest cover 2000"
   fig_fc = bal.plot(out.cem, 
-                  var.name = colname.fcIni,
-                  which = "both") +
+                  var.name = colname.fcAvg,
+                  #sample.names = c("Control", "Treatment"),
+                  which = "both",
+                  type = "density",
+                  disp.means = T,
+                  mirror = F,
+                  alpha.weight = T) +
     facet_wrap(.~which, labeller = as_labeller(fnl)) +
-    scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
-    # scale_x_continuous(trans = "log10") +
+    #scale_fill_viridis(discrete = T) +
+    scale_fill_discrete(labels = c("Control", "Treatment")) +
+    #scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
     labs(title = "Distributional balance for forest cover in 2000",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
          x = "Forest cover (ha)",
@@ -1427,10 +1481,16 @@ fn_post_plot_density = function(out.cem, mf,
   ## Density plot for covariate "avg. annual forest loss prior funding"
   fig_fl = bal.plot(out.cem, 
                   var.name = colname.flAvg,
-                  which = "both") +
+                  #sample.names = c("Control", "Treatment"),
+                  which = "both",
+                  type = "density",
+                  disp.means = T,
+                  mirror = F,
+                  alpha.weight = T) +
     facet_wrap(.~which, labeller = as_labeller(fnl)) +
     #scale_fill_viridis(discrete = T) +
-    scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+    scale_fill_discrete(labels = c("Control", "Treatment")) +
+    #scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
     labs(title = "Distributional balance for average pre-treatment forest loss",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
          x = "Forest loss (%)",
@@ -1458,10 +1518,14 @@ fn_post_plot_density = function(out.cem, mf,
     
   fig_biome = bal.plot(out.cem, 
                     var.name = colname.biome,
-                    which = "both") +
+                    #sample.names = c("Control", "Treatment"),
+                    which = "both",
+                    mirror = F,
+                    alpha.weight = T) +
     facet_wrap(.~which, labeller = as_labeller(fnl)) +
     #scale_fill_viridis(discrete = T) +
-    scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+    scale_fill_discrete(labels = c("Control", "Treatment")) +
+    #scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
     labs(title = "Distributional balance for biomes",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
          x = "",
@@ -1553,6 +1617,355 @@ fn_post_plot_density = function(out.cem, mf,
   #   return(list("is_ok" = TRUE))
   # }
   
+  )
+  
+  return(output)
+  
+}
+
+#Histograms of covariates for control and treatment units, before and after matching
+## INPUTS :
+### out.cem : list of results from the CEM matching
+### mf : the matching dataframe
+### colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcAvg, colname.flAvg : name of the matching covariates
+### iso : ISO code of the country considered
+### path_tmp : temporary folder to store figures
+### wdpaid : the WDPA ID of the protected area considered
+### log : a log file to track progress of the processing
+### save_dir : saving directory
+## OUTPUTS :
+### is_ok : a boolean indicating whether or not an error occured inside the function
+## DATA SAVED :
+### Histograms of the matching covariates considered, for matched treated and control units
+fn_post_plot_hist = function(out.cem, mf, 
+                                colname.travelTime, colname.clayContent, colname.fcAvg, colname.flAvg, colname.tri, colname.elevation, colname.biome,
+                                iso, path_tmp, wdpaid, log, save_dir)
+{
+  output = tryCatch(
+    
+    {
+      
+      # Define Facet Labels
+      fnl = c(`Unadjusted Sample` = "Before Matching",
+              `Adjusted Sample` = "After Matching")
+      
+      #Extract country name
+      country.name = mf %>% 
+        filter(group == 3) %>% 
+        slice(1)
+      country.name = country.name$country_en
+      
+      #Define plots
+      ## Density plot for Travel Time
+      fig_travel = bal.plot(out.cem, 
+                            var.name = colname.travelTime,
+                            #sample.names = c("Control", "Treatment"),
+                            which = "both",
+                            type = "histogram",
+                            disp.means = T,
+                            mirror = F,
+                            alpha.weight = T) +
+        facet_wrap(.~which, labeller = as_labeller(fnl)) +
+        #scale_fill_viridis(discrete = T) +
+        scale_fill_discrete(labels = c("Control", "Treatment")) +
+        #scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+        labs(title = "Distributional balance for accessibility",
+             subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+             x = "Accessibility (min)",
+             fill = "Group") +
+        theme_bw() +
+        theme(
+          plot.title = element_text(family="Arial Black", size=16, hjust = 0),
+          
+          legend.title = element_blank(),
+          legend.text=element_text(size=14),
+          legend.spacing.x = unit(0.5, 'cm'),
+          legend.spacing.y = unit(0.75, 'cm'),
+          
+          axis.text=element_text(size=12),
+          axis.title=element_text(size=14),
+          axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+          axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+          
+          strip.text.x = element_text(size = 12) # Facet Label
+        )
+      
+      ## Density plot for Clay Content
+      fig_clay = bal.plot(out.cem, 
+                          var.name = colname.clayContent,
+                          #sample.names = c("Control", "Treatment"),
+                          which = "both",
+                          type = "histogram",
+                          disp.means = T,
+                          mirror = F,
+                          alpha.weight = T) +
+        facet_wrap(.~which, labeller = as_labeller(fnl)) +
+        #scale_fill_viridis(discrete = T) +
+        scale_fill_discrete(labels = c("Control", "Treatment")) +
+        #scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+        labs(title = "Distributional balance for clay content",
+             subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+             x = "Clay content at 0~20cm soil depth (%)",
+             fill = "Group") +
+        theme_bw() +
+        theme(
+          plot.title = element_text(family="Arial Black", size=16, hjust=0),
+          
+          legend.title = element_blank(),
+          legend.text=element_text(size=14),
+          legend.spacing.x = unit(0.5, 'cm'),
+          legend.spacing.y = unit(0.75, 'cm'),
+          
+          axis.text=element_text(size=12),
+          axis.title=element_text(size=14),
+          axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+          axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+          
+          strip.text.x = element_text(size = 12) # Facet Label
+        )
+      
+      ## Density plot for Elevation
+      fig_elevation = bal.plot(out.cem,
+                               var.name = colname.elevation,
+                               #sample.names = c("Control", "Treatment"),
+                               which = "both",
+                               type = "histogram",
+                               disp.means = T,
+                               mirror = F,
+                               alpha.weight = T) +
+        facet_wrap(.~which, labeller = as_labeller(fnl)) +
+        #scale_fill_viridis(discrete = T) +
+        scale_fill_discrete(labels = c("Control", "Treatment")) +
+        #scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+        labs(title = "Distributional balance for elevation",
+             subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+             x = "Elevation (m)",
+             fill = "Group") +
+        theme_bw() +
+        theme(
+          plot.title = element_text(family="Arial Black", size=16, hjust=0),
+          legend.title = element_blank(),
+          legend.text=element_text(size=14),
+          legend.spacing.x = unit(0.5, 'cm'),
+          legend.spacing.y = unit(0.75, 'cm'),
+          
+          axis.text=element_text(size=12),
+          axis.title=element_text(size=14),
+          axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+          axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+          
+          strip.text.x = element_text(size = 12) # Facet Label
+        )
+      
+      ## Density plot for TRI
+      fig_tri = bal.plot(out.cem,
+                         var.name = colname.tri,
+                         #sample.names = c("Control", "Treatment"),
+                         which = "both",
+                         type = "histogram",
+                         disp.means = T,
+                         mirror = F,
+                         alpha.weight = T) +
+        facet_wrap(.~which, labeller = as_labeller(fnl)) +
+        #scale_fill_viridis(discrete = T) +
+        scale_fill_discrete(labels = c("Control", "Treatment")) +
+        #scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+        labs(title = "Distributional balance for Terrain Ruggedness Index (TRI)",
+             subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+             x = "TRI",
+             fill = "Group") +
+        theme_bw() +
+        theme(
+          plot.title = element_text(family="Arial Black", size=16, hjust=0),
+          
+          legend.title = element_blank(),
+          legend.text=element_text(size=14),
+          legend.spacing.x = unit(0.5, 'cm'),
+          legend.spacing.y = unit(0.75, 'cm'),
+          
+          axis.text=element_text(size=12),
+          axis.title=element_text(size=14),
+          axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+          axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+          
+          strip.text.x = element_text(size = 12) # Facet Label
+        )
+      
+      ## Density plot for covariate "forest cover 2000"
+      fig_fc = bal.plot(out.cem, 
+                        var.name = colname.fcAvg,
+                        #sample.names = c("Control", "Treatment"),
+                        which = "both",
+                        type = "histogram",
+                        disp.means = T,
+                        mirror = F,
+                        alpha.weight = T) +
+        facet_wrap(.~which, labeller = as_labeller(fnl)) +
+        #scale_fill_viridis(discrete = T) +
+        scale_fill_discrete(labels = c("Control", "Treatment")) +
+        #scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+        labs(title = "Distributional balance for forest cover in 2000",
+             subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+             x = "Forest cover (ha)",
+             fill = "Group") +
+        theme_bw() +
+        theme(
+          plot.title = element_text(family="Arial Black", size=16, hjust=0),
+          
+          legend.title = element_blank(),
+          legend.text=element_text(size=14),
+          legend.spacing.x = unit(0.5, 'cm'),
+          legend.spacing.y = unit(0.75, 'cm'),
+          
+          axis.text=element_text(size=12),
+          axis.title=element_text(size=14),
+          axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+          axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+          
+          strip.text.x = element_text(size = 12) # Facet Label
+        )
+      
+      ## Density plot for covariate "avg. annual forest loss prior funding"
+      fig_fl = bal.plot(out.cem, 
+                        var.name = colname.flAvg,
+                        #sample.names = c("Control", "Treatment"),
+                        which = "both",
+                        type = "histogram",
+                        disp.means = T,
+                        mirror = F,
+                        alpha.weight = T) +
+        facet_wrap(.~which, labeller = as_labeller(fnl)) +
+        #scale_fill_viridis(discrete = T) +
+        scale_fill_discrete(labels = c("Control", "Treatment")) +
+        #scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+        labs(title = "Distributional balance for average pre-treatment forest loss",
+             subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+             x = "Forest loss (%)",
+             fill = "Group") +
+        theme_bw() +
+        theme(
+          plot.title = element_text(family="Arial Black", size=16, hjust=0),
+          legend.title = element_blank(),
+          legend.text=element_text(size=14),
+          legend.spacing.x = unit(0.5, 'cm'),
+          legend.spacing.y = unit(0.75, 'cm'),
+          
+          axis.text=element_text(size=12),
+          axis.title=element_text(size=14),
+          axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+          axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+          
+          strip.text.x = element_text(size = 12) # Facet Label
+        )
+      
+      #/!\ Biome already plotted with fn_post_plot_density : no need to plot it again
+      useless_var = colname.biome #To avoid error if colname.biome not used in the function
+      # #Proportion of biomes : plotted only if biome is taken in the formula, not relevant otherwise
+      # formula = as.character(out.cem$formula)[3]
+      # if(grepl("biome", formula)) {
+      #   
+      #   
+      #   fig_biome = bal.plot(out.cem, 
+      #                        var.name = colname.biome,
+      #                        #sample.names = c("Control", "Treatment"),
+      #                        which = "both",
+      #                        mirror = F,
+      #                        alpha.weight = T) +
+      #     facet_wrap(.~which, labeller = as_labeller(fnl)) +
+      #     #scale_fill_viridis(discrete = T) +
+      #     scale_fill_discrete(labels = c("Control", "Treatment")) +
+      #     #scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+      #     labs(title = "Distributional balance for biomes",
+      #          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+      #          x = "",
+      #          fill = "Group") +
+      #     theme_bw() +
+      #     theme(
+      #       plot.title = element_text(family="Arial Black", size=16, hjust=0),
+      #       legend.title = element_blank(),
+      #       legend.text=element_text(size=14),
+      #       legend.spacing.x = unit(0.5, 'cm'),
+      #       legend.spacing.y = unit(0.75, 'cm'),
+      #       
+      #       axis.text=element_text(size=12),
+      #       axis.title=element_text(size=14),
+      #       axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+      #       axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+      #       
+      #       strip.text.x = element_text(size = 12) # Facet Label
+      #     )
+      #   
+      #   tmp = paste(tempdir(), "fig", sep = "/")
+      #   ggsave(paste(tmp, paste0("fig_biome_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
+      #          plot = fig_biome,
+      #          device = "png",
+      #          height = 6, width = 9)
+      #   
+      # } else print("Biome is not taken as a matching covariate : no histogram")
+      
+      #Saving plots
+      
+      tmp = paste(tempdir(), "fig", sep = "/")
+      ggsave(paste(tmp, paste0("fig_travel_hist_", iso, "_", wdpaid, ".png"), sep = "/"),
+             plot = fig_travel,
+             device = "png",
+             height = 6, width = 9)
+      ggsave(paste(tmp, paste0("fig_clay_hist_", iso, "_", wdpaid, ".png"), sep = "/"),
+             plot = fig_clay,
+             device = "png",
+             height = 6, width = 9)
+      ggsave(paste(tmp, paste0("fig_elevation_hist_", iso, "_", wdpaid, ".png"), sep = "/"),
+             plot = fig_elevation,
+             device = "png",
+             height = 6, width = 9)
+      ggsave(paste(tmp, paste0("fig_tri_hist_", iso, "_", wdpaid, ".png"), sep = "/"),
+             plot = fig_tri,
+             device = "png",
+             height = 6, width = 9)
+      ggsave(paste(tmp, paste0("fig_fc_hist_", iso, "_", wdpaid, ".png"), sep = "/"),
+             plot = fig_fc,
+             device = "png",
+             height = 6, width = 9)
+      ggsave(paste(tmp, paste0("fig_fl_hist_", iso, "_", wdpaid, ".png"), sep = "/"),
+             plot = fig_fl,
+             device = "png",
+             height = 6, width = 9)
+      
+      files <- list.files(tmp, full.names = TRUE)
+      ##Add each file in the bucket (same foler for every file in the temp)
+      for(f in files) 
+      {
+        cat("Uploading file", paste0("'", f, "'"), "\n")
+        aws.s3::put_object(file = f, 
+                           bucket = paste("projet-afd-eva-ap", save_dir, iso, wdpaid, "match_quality", sep = "/"),
+                           region = "", show_progress = TRUE)
+      }
+      do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
+      
+      #Append the log
+      cat("#Plot covariates histograms\n->OK\n", file = log, append = TRUE)
+      
+      return(list("is_ok" = TRUE))
+      
+    },
+    
+    error=function(e)
+    {
+      print(e)
+      cat(paste("#Plot covariates histograms\n-> Error :\n", e, "\n"), file = log, append = TRUE)
+      return(list("is_ok" = FALSE))
+    }
+    
+    # warning = function(w)
+    # {
+    #   #Print the warning and append the log
+    #   print(w)
+    #   #Append the log 
+    #   cat(paste("#Plot covariates histograms\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+    #   #Return string to inform user to skip
+    #   return(list("is_ok" = TRUE))
+    # }
+    
   )
   
   return(output)
@@ -1660,8 +2073,21 @@ fn_post_panel = function(out.cem, mf, ext_output, wdpaid, iso, log, save_dir)
   
 } 
 
-#Assess the difference between matched and unmatched treated units
 
+#Assess the difference between matched and unmatched treated units
+## INPUTS
+### df_m : dataframe (df) of matched units, in a wide format (one row = one observation unit)
+### df_unm : same as df_m, for unmatched units
+### iso : ISO code of the country considered
+### wdpaid : the WDPA ID of the protected area considered
+### th_mean :the maximum acceptable value for absolute standardized mean difference of covariates between matched treated and control units. Typically 0.1 (https://cran.r-project.org/web/packages/MatchIt/vignettes/assessing-balance.html) or 0.25 in conservation literature (e.g https://conbio.onlinelibrary.wiley.com/doi/abs/10.1111/cobi.13728) 
+### th_var_min, th_var_max : the range of acceptable value for covariate variance ratio between matched treated and control units. Typicall 0.5 and 2, respectively (https://cran.r-project.org/web/packages/MatchIt/vignettes/assessing-balance.html)
+### log : a log file to track progress of the processing
+### save_dir : saving directory
+## OUTPUTS
+### is_ok : a boolean indicating whether or not an error occured inside the function
+## DATA SAVED :
+### Histograms + density plots of the matching covariates considered, for matched treated and unmatched treated units
 fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min, th_var_max, save_dir, log)
 {
   output = tryCatch(
@@ -1884,6 +2310,7 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
   return(output)
     
 }
+
 
 #Plot the average trend of control and treated units in a given country, before and after the matching
 ## INPUTS :
