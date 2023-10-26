@@ -2361,9 +2361,15 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
       wdpa_id = wdpaid #Need to give a name to wdpaid (function argument) different from the varaible in the dataset (wdpaid)
       area_ha = data_pa[data_pa$wdpaid == wdpa_id,]$area_km2*100
       
+      ##Forest cover before treatment, in ha
+      fc_tot_pre_treat = unmatched.long %>%
+        filter(group == 3 & year == treatment.year-1)
+      fc_tot_pre_treat = sum(fc_tot_pre_treat$fc_ha, na.rm = TRUE)
+      
       #Extract number of pixels in the PA
       #n_pix_pa = length(unique(filter(unmatched.long, group == 2)$assetid))
       n_pix_pa = area_ha/res_ha #This measure is imperfect for extrapolation of total deforestation avoided, as part of a PA can be coastal. Indeed, this extrapolation assumes implicitly that all the PA is covered by forest potentially deforested in absence of the conservation 
+      n_pix_fc_pre_treat = fc_tot_pre_treat/res_ha
       
      #Open a multisession for dataframe computations
       #Note the computations on unmatched units are the slowest here due to the number of observations relatively higher than for matched units
@@ -2387,8 +2393,8 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
               sdFC = sd(fc_ha, na.rm = TRUE),
               ciFC_low = avgFC - qt(0.975,df=n-1)*sdFC/sqrt(n),
               ciFC_up = avgFC + qt(0.975,df=n-1)*sdFC/sqrt(n),
-              avgFC_tot = n_pix_pa*mean(fc_ha, na.rm=TRUE), #Compute total average forest cover, sd and CI
-              sdFC_tot = n_pix_pa*sdFC,
+              avgFC_tot = n_pix_fc_pre_treat*mean(fc_ha, na.rm=TRUE), #Compute total average forest cover, sd and CI
+              sdFC_tot = n_pix_fc_pre_treat*sdFC,
               ciFC_tot_low = avgFC_tot - qt(0.975,df=n-1)*sdFC_tot/sqrt(n),
               ciFC_tot_up = avgFC_tot + qt(0.975,df=n-1)*sdFC_tot/sqrt(n),
               avgFL_2000_cum = mean(FL_2000_cum, na.rm = TRUE), #Compute average forest loss relative to 2000 (Wolf et al 2021), sd and CI
@@ -2413,8 +2419,8 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
               sdFC = sd(fc_ha, na.rm = TRUE),
               ciFC_low = avgFC - qt(0.975,df=n-1)*sdFC/sqrt(n),
               ciFC_up = avgFC + qt(0.975,df=n-1)*sdFC/sqrt(n),
-              avgFC_tot = n_pix_pa*mean(fc_ha, na.rm=TRUE), #Compute total average forest cover, sd and CI
-              sdFC_tot = n_pix_pa*sdFC,
+              avgFC_tot = n_pix_fc_pre_treat*mean(fc_ha, na.rm=TRUE), #Compute total average forest cover, sd and CI
+              sdFC_tot = n_pix_fc_pre_treat*sdFC,
               ciFC_tot_low = avgFC_tot - qt(0.975,df=n-1)*sdFC_tot/sqrt(n),
               ciFC_tot_up = avgFC_tot + qt(0.975,df=n-1)*sdFC_tot/sqrt(n),
               avgFL_2000_cum = mean(FL_2000_cum, na.rm = TRUE), #Compute average forest loss relative to 2000 (Wolf et al 2021), sd and CI

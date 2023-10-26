@@ -421,6 +421,7 @@ for (i in list_iso)
   if(output_covbal$is_ok == FALSE) {next}
     
     print("----Density plots and histograms")
+    #Density plots
     output_density = fn_post_plot_density(out.cem = out_cem_j,  
                                          mf = mf_j,
                                          colname.travelTime = colname.travelTime, 
@@ -436,7 +437,7 @@ for (i in list_iso)
                                          log = log,
                                          save_dir = save_dir)
      if(output_density$is_ok == FALSE) {next}
-    
+    #Histograms
     output_hist = fn_post_plot_hist(out.cem = out_cem_j,  
                                      mf = mf_j,
                                      colname.travelTime = colname.travelTime, 
@@ -451,7 +452,7 @@ for (i in list_iso)
                                      wdpaid = j,
                                      log = log,
                                      save_dir = save_dir)
-     if(output_density$is_ok == FALSE) {next}
+     if(output_hist$is_ok == FALSE) {next}
     
     #Panelize dataframes
     print("----Panelize (Un-)Matched Dataframe")
@@ -470,7 +471,7 @@ for (i in list_iso)
     unmatched.long.j = output_panel$unmatched.long 
     
     #Assess the difference between matched and unmatched treated units
-    print("----Treatment units before and after matchingf")
+    print("----Statistics on treated units before and after matching")
     
     output_m_unm_treated = fn_post_m_unm_treated(df_m = matched.wide.j,
                                                  df_unm = unmatched.wide.j,
@@ -481,10 +482,10 @@ for (i in list_iso)
                                                  th_var_max = th_var_max,
                                                  save_dir = save_dir,
                                                  log = log)
+    if(output_m_unm_treated$is_ok == FALSE) {next}
     
     #Extract matched units and plot them on a grid
     print("----Extract matched units and plot them on a grid")
-    
     ##Extract ID of treated and control pixels
     df_pix_matched_j = matched.wide.j %>%
       st_drop_geometry() %>%
