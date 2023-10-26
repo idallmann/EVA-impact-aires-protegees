@@ -2487,7 +2487,7 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 ## Forest cover by country
 
-Import the clean the dataset
+Import and clean the dataset
 
 ```{r}
 #Dataset of forest as a share of land for each country

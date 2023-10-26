@@ -671,7 +671,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
 
     get.tree <- calc_indicators(dl.tree,
                                indicators = "treecover_area",
-                               min_size=0.5, # FAO definition of forest :  Minimum treecover = 10%, minimum size =0.5 hectare (FAO 2020 Global Fores Resources Assessment, https://www.fao.org/3/I8661EN/i8661en.pdf)
+                               min_size=0.5, # FAO definition of forest :  Minimum treecover = 10%, minimum size =0.5 hectare (FAO 2020 Global Forest Resources Assessment, https://www.fao.org/3/I8661EN/i8661en.pdf)
                                min_cover=10) %seed% 3
 
     get.elevation <- calc_indicators(dl.elevation,
