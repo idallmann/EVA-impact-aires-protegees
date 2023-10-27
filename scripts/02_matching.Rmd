@@ -103,8 +103,8 @@ source("scripts/functions/02_fns_matching.R")
 tmp_pre = paste(tempdir(), "matching_pre", sep = "/")
 tmp_post = paste(tempdir(), "matching_post", sep = "/")
 ## Define a directory where outputs are stored in SSPCloud.
-save_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/") #Today's date
-#save_dir = paste("impact_analysis/matching", "2023-10-23", sep = "/") #A specific date
+#save_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/") #Today's date
+save_dir = paste("impact_analysis/matching", "2023-10-23", sep = "/") #A specific date
 
 # Load datasets
 ## WDPA database   
@@ -212,9 +212,9 @@ data_pa_ie_africa = data_pa %>%
   filter(region == "Africa" & is.na(wdpaid) == FALSE & area_km2 >=1 & marine %in% c(0,1) & status_yr >= yr_min & focus == T)
 list_iso = unique(data_pa_ie_africa$iso3)
 ## Manual definition
- list_iso = "COM"
+list_iso = "KEN"
 # list_iso = c("COM", "STP", "GNB", "GMB", "SEN", "MAR", "GAB", "KEN", "CMR", "COG", "MDG", "MOZ", "NER", "TCD")
-#list_iso = c( "KEN", "CMR", "COG", "MDG", "MOZ", "NER", "TCD")
+#list_iso = c("COG", "MDG", "MOZ", "NER", "TCD")
 ```
 
 ## Matching process
@@ -409,6 +409,7 @@ for (i in list_iso)
                    colname.tri = colname.tri,
                    colname.elevation = colname.elevation,
                    colname.biome = colname.biome,
+                   th_mean = th_mean,
                    iso = i,
                    path_tmp = tmp_post,
                    wdpaid = j,
@@ -501,6 +502,7 @@ for (i in list_iso)
 
     #Plots the evolution of forest cover for treated and control units, before and after matching
     print("----Plots again : trend")
+    #/!\ I have removed the plot for unmatched units : take too much time and useless for the next presentations we have to do !
     output_trend = fn_post_plot_trend(matched.long = matched.long.j, 
                        unmatched.long = unmatched.long.j, 
                        mf = mf_j,
@@ -510,6 +512,7 @@ for (i in list_iso)
                        log = log,
                        save_dir = save_dir)
     if(output_trend$is_ok == FALSE) {next}
+    toc()
   }
     
   # Plot the grid with matched control and treated for the country 
