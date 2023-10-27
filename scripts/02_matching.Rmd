@@ -512,7 +512,7 @@ for (i in list_iso)
                        log = log,
                        save_dir = save_dir)
     if(output_trend$is_ok == FALSE) {next}
-    toc()
+
   }
     
   # Plot the grid with matched control and treated for the country 
