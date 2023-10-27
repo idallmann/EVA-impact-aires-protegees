@@ -454,8 +454,7 @@ for (i in list_iso)
     #Panelize dataframes
     print("----Panelize (Un-)Matched Dataframe")
     output_panel = fn_post_panel(out.cem = out_cem_j, 
-                                  mf = mf_j, 
-                                  ext_output = ".csv", 
+                                  mf = mf_j,  
                                   iso = i,
                                   wdpaid = j,
                                   log = log,
@@ -502,7 +501,7 @@ for (i in list_iso)
 
     #Plots the evolution of forest cover for treated and control units, before and after matching
     print("----Plots again : trend")
-    #/!\ I have removed the plot for unmatched units : take too much time and useless for the next presentations we have to do !
+    #/!\ 27/10/2023 : I have removed the plot for unmatched units : take too much time and useless for the next presentations we have to do !
     output_trend = fn_post_plot_trend(matched.long = matched.long.j, 
                        unmatched.long = unmatched.long.j, 
                        mf = mf_j,

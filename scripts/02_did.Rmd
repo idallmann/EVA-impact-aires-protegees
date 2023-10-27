@@ -200,8 +200,7 @@ for (i in list_iso)
     output_wolf_m_j = fn_fl_wolf(iso = i, 
                                 wdpaid = j, 
                                 alpha = alpha, 
-                                load_dir = load_dir,
-                                ext_input = ".csv")
+                                load_dir = load_dir)
     
     if(output_wolf_m_j$is_ok == FALSE) 
       {
@@ -225,7 +224,7 @@ for (i in list_iso)
     #                   save_dir = save_dir)
     
     #For PAs in general (no funding info)
-      output_att_m_j = fn_did_att_general(iso = i, wdpaid = j, 
+    output_att_m_j = fn_did_att_general(iso = i, wdpaid = j, 
                         is_m = TRUE,
                     data_pa = data_pa,
                     alpha = alpha,
@@ -284,7 +283,6 @@ for (i in list_iso)
 aws.s3::s3write_using(
 FUN = data.table::fwrite,
 df_fc_att,
-# Mettre les options de FUN ici
 object = paste(save_dir, "data_fc_att.csv", sep = "/"),
 bucket = "projet-afd-eva-ap",
 opts = list("region" = ""))
@@ -292,7 +290,6 @@ opts = list("region" = ""))
 aws.s3::s3write_using(
 FUN = data.table::fwrite,
 df_fl_att,
-# Mettre les options de FUN ici bucket = , iso, wdpaid, sep = "/")
 object = paste(save_dir, "data_fl_att.csv", sep = "/"), 
 bucket = "projet-afd-eva-ap",
 opts = list("region" = ""))

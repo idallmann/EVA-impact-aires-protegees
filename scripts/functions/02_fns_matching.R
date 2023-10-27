@@ -1980,7 +1980,6 @@ fn_post_plot_hist = function(out.cem, mf,
 ## INPUTS :
 ### out.cem : list of results from the CEM matching
 ### mf : the matching dataframe
-### ext_output : extension fo the file to import
 ### iso : ISO code of the country considered
 ### wdpaid : the WDPA ID of the protected area considered
 ### log : a log file to track progress of the processing
@@ -1991,7 +1990,7 @@ fn_post_plot_hist = function(out.cem, mf,
 ## DATA SAVED
 ### (un)matched.wide/long dataframes. They contain covariates and outcomes for treatment and control units, before and after matching, in a wide or long format
 
-fn_post_panel = function(out.cem, mf, ext_output, wdpaid, iso, log, save_dir)
+fn_post_panel = function(out.cem, mf, wdpaid, iso, log, save_dir)
 {
   
   output = tryCatch(
@@ -1999,46 +1998,50 @@ fn_post_panel = function(out.cem, mf, ext_output, wdpaid, iso, log, save_dir)
     {
       
   # Convert dataframe of matched objects to pivot wide form
-  matched.wide = match.data(object=out.cem, data=mf)
+  matched.wide = match.data(object=out.cem, data=mf) %>%
+    st_drop_geometry()
+  
   
   # Pivot Wide ==> Pivot Long
   matched.long = matched.wide %>%
-    dplyr::select(c(region_afd, region, sub_region, country_en, iso3, group, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, weights, starts_with("treecover"), res_m)) %>%
+    dplyr::select(c(region_afd, region, sub_region, country_en, iso3, group, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, res_m, minutes_mean_5k_110mio, clay_0_5cm_mean, elevation_mean, tri_mean, biomes, starts_with("treecover"), avgLoss_pre_treat, avgCover_pre_treat, start_pre_treat_fl, end_pre_treat_fl , start_pre_treat_fc, end_pre_treat_fc)) %>%
     pivot_longer(cols = c(starts_with("treecover")),
                  names_to = c("var", "year"),
                  names_sep = "_",
-                 values_to = "fc_ha")
+                 values_to = "fc_ha") %>%
+    st_drop_geometry()
   
   # Pivot wide Dataframe of un-matched objects
-  unmatched.wide = mf
+  unmatched.wide = mf %>%
+    st_drop_geometry()
   
   # Pivot Wide ==> Pivot Long
   unmatched.long = unmatched.wide %>%
-    dplyr::select(c(region_afd, region, sub_region, iso3, country_en, group, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, starts_with("treecover"), res_m)) %>%
-    pivot_longer(cols = c(starts_with("treecover")),
+    dplyr::select(c(region_afd, region, sub_region, country_en, iso3, group, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, res_m, minutes_mean_5k_110mio, clay_0_5cm_mean, elevation_mean, tri_mean, biomes, starts_with("treecover"), avgLoss_pre_treat, avgCover_pre_treat, start_pre_treat_fl, end_pre_treat_fl , start_pre_treat_fc, end_pre_treat_fc)) %>%    pivot_longer(cols = c(starts_with("treecover")),
                  names_to = c("var", "year"),
                  names_sep = "_",
-                 values_to = "fc_ha")
+                 values_to = "fc_ha") %>%
+    st_drop_geometry()
   
   #Save the dataframes
   s3write_using(matched.wide,
                 sf::st_write,
-                object = paste0(save_dir, "/", iso, "/", wdpaid, "/", paste0("matched_wide", "_", iso, "_", wdpaid, ext_output)),
+                object = paste0(save_dir, "/", iso, "/", wdpaid, "/", paste0("matched_wide", "_", iso, "_", wdpaid, ".csv")),
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
   s3write_using(unmatched.wide,
                 sf::st_write,
-                object = paste0(save_dir, "/", iso, "/", wdpaid, "/", paste0("unmatched_wide", "_", iso, "_", wdpaid, ext_output)),
+                object = paste0(save_dir, "/", iso, "/", wdpaid, "/", paste0("unmatched_wide", "_", iso, "_", wdpaid, ".csv")),
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
   s3write_using(matched.long,
                 sf::st_write,
-                object = paste0(save_dir, "/", iso, "/", wdpaid, "/", paste0("matched_long", "_", iso, "_", wdpaid, ext_output)),
+                object = paste0(save_dir, "/", iso, "/", wdpaid, "/", paste0("matched_long", "_", iso, "_", wdpaid, ".csv")),
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
   s3write_using(unmatched.long,
                 sf::st_write,
-                object = paste0(save_dir, "/", iso, "/", wdpaid, "/", paste0("unmatched_long", "_", iso, "_", wdpaid, ext_output)),
+                object = paste0(save_dir, "/", iso, "/", wdpaid, "/", paste0("unmatched_long", "_", iso, "_", wdpaid, ".csv")),
                 bucket = "projet-afd-eva-ap",
                 opts = list("region" = ""))
   
@@ -2460,9 +2463,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
       ### Note that the polygon reported by the WDAP can have a surface different from the reported area : thus the area without overalp can be bigger than the reported area ! 
       ### Example below ("test") with a Kenyan PA.
       area_noverlap_ha = mf %>%
-        filter(group == 3) %>%
-        mutate(area_poly_m2 = st_area(geom),
-               area_pply_ha = area_poly_m2*1e-4)
+        filter(group == 3) 
       area_noverlap_ha = nrow(area_noverlap_ha)*res_ha
       
       # test = wdpa_wld_raw %>% 
@@ -2481,11 +2482,11 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
       yr_end_cover = yr_cover$end_pre_treat_fc
       ### Compute pre-treatment forest area
       fc_tot_pre_treat = unmatched.long %>%
-        st_drop_geometry() %>%
         filter(group == 3 & year >= yr_start_cover & year <= yr_end_cover) %>%
         group_by(assetid) %>%
         summarize(avg_fc_ha = mean(fc_ha, na.rm = TRUE))
       fc_tot_pre_treat = sum(fc_tot_pre_treat$avg_fc_ha, na.rm = TRUE)
+      n_pix_fc_pre_treat = fc_tot_pre_treat/res_ha 
       
       ##Average forest cover in a pixel before treatment. Note this forest cover is in the PA without the overlap, as it is computed from the treated pixels.
       # fc_avg_pre_treat = unmatched.long %>%
@@ -2494,7 +2495,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
       
       #Extract number of pixels in the PA
       #n_pix_pa = area_ha/res_ha #This measure is imperfect for extrapolation of total deforestation avoided, as part of a PA can be coastal. Indeed, this extrapolation assumes implicitly that all the PA is covered by forest potentially deforested in absence of the conservation 
-      n_pix_fc_pre_treat = fc_tot_pre_treat/res_ha #Forest cover 
+
       
      #Open a multisession for dataframe computations
       #Note the computations on unmatched units are the slowest here due to the number of observations relatively higher than for matched units
@@ -2540,8 +2541,8 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
   # df.unmatched.trend  <- unmatched.long %>%
   #     #First, compute deforestation relative to 2000 for each pixel (deforestation as computed in Wolf et al. 2021); compute percentage of forest cover in the pixel in 2000
   #     group_by(assetid) %>%
-  #     mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100,
-  #            FC_rel_pre_treat = fc_ha/fc_ha[year == treatment.year-1]) %>%
+  # mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100,
+  #        FC_rel_pre_treat = fc_ha/mean(fc_ha[year >= yr_start_cover & year <= yr_end_cover], na.rm = TRUE)) %>%
   #     ungroup() %>% #Compute average percentage of FC in a pixel in 2000, for each group. Compute also standard deviation
   #   #Then compute the average forest cover, average forest cover percentage, and deforestation in each year, for treated and control groups
   #   #Standard deviation and 95% confidence interval is also computed for each variable
@@ -2594,7 +2595,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
   #              labeller = labeller(matched = fct.labs)) +
   #   labs(title = "Evolution of forest cover in a pixel on average (unmatched units)",
   #        subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-  #caption = paste("Ribbons represent 95% confidence intervals | WDPA reported surface :", format(area_ha, big.mark  = ","), "ha | Surface without overlap :", format(area_noverlap_ha, digits = 1, big.mark  = ","), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, digits = 1, big.mark  = ","), "ha | Pixel resolution :", res_ha, "ha.\nNote the area without overlap and total forest cover are computed using the polygon reported by the WDPA. Some area have a polygon size different from the reported one, explaining some inconsistencies."),
+  #caption = paste("Ribbons represent 95% confidence intervals | WDPA reported surface :", format(area_ha, big.mark  = ","), "ha | Surface without overlap :", format(area_noverlap_ha, digits = 1, big.mark  = ","), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, digits = 1, big.mark  = ","), "ha | Pixel resolution :", res_ha, "ha.\nNote the area without overlap and total forest cover are computed using the polygon reported by the WDPA.\nSome area have a polygon size different from the reported one, explaining some inconsistencies."),
   #        x = "Year", y = "Forest cover (ha)", color = "Group") +
   #   theme_bw() +
   #   theme(
@@ -2634,7 +2635,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
   #              labeller = labeller(matched = fct.labs)) +
   #   labs(title = "Evolution of forest cover in a pixel on average, relative to pre-treatment (unmatched units)",
   #        subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-  #caption = paste("Ribbons represent 95% confidence intervals | WDPA reported surface :", format(area_ha, big.mark  = ","), "ha | Surface without overlap :", format(area_noverlap_ha, digits = 1, big.mark  = ","), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, digits = 1, big.mark  = ","), "ha | Pixel resolution :", res_ha, "ha.\nNote the area without overlap and total forest cover are computed using the polygon reported by the WDPA. Some area have a polygon size different from the reported one, explaining some inconsistencies."),
+  #caption = paste("Forest cover expressed as a share of pre-treatment cover in the pixel, on average.\nThis can be interpreted as the evolution of forest cover in whole the protected area (without overlap).\nRibbons represent 95% confidence intervals | WDPA reported surface :", format(area_ha, big.mark  = ","), "ha | Surface without overlap :", format(area_noverlap_ha, digits = 1, big.mark  = ","), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, digits = 1, big.mark  = ","), "ha | Pixel resolution :", res_ha, "ha.\nNote the area without overlap and total forest cover are computed using the polygon reported by the WDPA.\nSome area have a polygon size different from the reported one, explaining some inconsistencies."),
   #        x = "Year", y = "Forest cover relative to pre-treatment (%)", color = "Group") +
   #   theme_bw() +
   #   theme(
@@ -2674,7 +2675,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
   #              labeller = labeller(matched = fct.labs)) +
   #   labs(title = "Evolution of total forest cover (unmatched units)",
   #        subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-  #caption = paste("The average forest cover evolution in a pixel is extrapolated to the total forest cover before treatment.\nRibbons represent 95% confidence intervals | WDPA reported surface :", format(area_ha, big.mark  = ","), "ha | Surface without overlap :", format(area_noverlap_ha, digits = 1, big.mark  = ","), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, digits = 1, big.mark  = ","), "ha | Pixel resolution :", res_ha, "ha.\nNote the area without overlap and total forest cover are computed using the polygon reported by the WDPA. Some area have a polygon size different from the reported one, explaining some inconsistencies."),
+  #caption = paste("The average forest cover evolution in a pixel is extrapolated to the total forest cover before treatment.\nRibbons represent 95% confidence intervals | WDPA reported surface :", format(area_ha, big.mark  = ","), "ha | Surface without overlap :", format(area_noverlap_ha, digits = 1, big.mark  = ","), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, digits = 1, big.mark  = ","), "ha | Pixel resolution :", res_ha, "ha.\nNote the area without overlap and total forest cover are computed using the polygon reported by the WDPA.\nSome area have a polygon size different from the reported one, explaining some inconsistencies."),
   #        x = "Year", y = "Forest cover (ha)", color = "Group") +
   #   theme_bw() +
   #   theme(
@@ -2714,7 +2715,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
   #              labeller = labeller(matched = fct.labs)) +
   #   labs(title = "Cumulated deforestation relative to 2000 (unmatched units)",
   #        subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-  #caption = paste("Ribbons represent 95% confidence intervals | WDPA reported surface :", format(area_ha, big.mark  = ","), "ha | Surface without overlap :", format(area_noverlap_ha, digits = 1, big.mark  = ","), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, digits = 1, big.mark  = ","), "ha | Pixel resolution :", res_ha, "ha.\nNote the area without overlap and total forest cover are computed using the polygon reported by the WDPA. Some area have a polygon size different from the reported one, explaining some inconsistencies."),
+  #caption = paste("Ribbons represent 95% confidence intervals | WDPA reported surface :", format(area_ha, big.mark  = ","), "ha | Surface without overlap :", format(area_noverlap_ha, digits = 1, big.mark  = ","), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, digits = 1, big.mark  = ","), "ha | Pixel resolution :", res_ha, "ha.\nNote the area without overlap and total forest cover are computed using the polygon reported by the WDPA.\nSome area have a polygon size different from the reported one, explaining some inconsistencies."),
   #x = "Year", y = "Forest loss relative to 2000 (%)", color = "Group") +
   #   theme_bw() +
   #   theme(
@@ -2754,7 +2755,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
     scale_color_hue(labels = c("Control", "Treatment")) +
     labs(title = "Evolution of forest cover in a pixel on average (matched units)",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-         caption = paste("Ribbons represent 95% confidence intervals | WDPA reported surface :", format(area_ha, big.mark  = ","), "ha | Surface without overlap :", format(area_noverlap_ha, digits = 1, big.mark  = ","), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, digits = 1, big.mark  = ","), "ha | Pixel resolution :", res_ha, "ha.\nNote the area without overlap and total forest cover are computed using the polygon reported by the WDPA. Some area have a polygon size different from the reported one, explaining some inconsistencies."),
+         caption = paste("Ribbons represent 95% confidence intervals | WDPA reported surface :", format(area_ha, big.mark  = ","), "ha | Surface without overlap :", format(area_noverlap_ha, digits = 1, big.mark  = ","), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, digits = 1, big.mark  = ","), "ha | Pixel resolution :", res_ha, "ha.\nNote the area without overlap and total forest cover are computed using the polygon reported by the WDPA.\nSome area have a polygon size different from the reported one, explaining some inconsistencies."),
          x = "Year", y = "Forest cover (ha)", color = "Group") +
     theme_bw() +
     theme(
@@ -2793,7 +2794,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
     scale_color_hue(labels = c("Control", "Treatment")) +
     labs(title = "Evolution of forest cover in a pixel, relative to pre-treatment (matched units)",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-         caption = paste("Ribbons represent 95% confidence intervals | WDPA reported surface :", format(area_ha, big.mark  = ","), "ha | Surface without overlap :", format(area_noverlap_ha, digits = 1, big.mark  = ","), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, digits = 1, big.mark  = ","), "ha | Pixel resolution :", res_ha, "ha.\nNote the area without overlap and total forest cover are computed using the polygon reported by the WDPA. Some area have a polygon size different from the reported one, explaining some inconsistencies."),
+         caption = paste("Forest cover expressed as a share of pre-treatment cover in the pixel, on average.\nThis can be interpreted as the evolution of forest cover in whole the protected area (without overlap).\nRibbons represent 95% confidence intervals | WDPA reported surface :", format(area_ha, big.mark  = ","), "ha | Surface without overlap :", format(area_noverlap_ha, digits = 1, big.mark  = ","), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, digits = 1, big.mark  = ","), "ha | Pixel resolution :", res_ha, "ha.\nNote the area without overlap and total forest cover are computed using the polygon reported by the WDPA.\nSome area have a polygon size different from the reported one, explaining some inconsistencies."),
          x = "Year", y = "Forest cover relative to pre-treatment (%)", color = "Group") +
     theme_bw() +
     theme(
@@ -2831,7 +2832,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
     scale_color_hue(labels = c("Control", "Treatment")) +
     labs(title = "Evolution of total forest cover (matched units)",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-         caption = paste("The average forest cover evolution in a pixel is extrapolated to the total forest cover before treatment.\nRibbons represent 95% confidence intervals | WDPA reported surface :", format(area_ha, big.mark  = ","), "ha | Surface without overlap :", format(area_noverlap_ha, digits = 1, big.mark  = ","), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, digits = 1, big.mark  = ","), "ha | Pixel resolution :", res_ha, "ha.\nNote the area without overlap and total forest cover are computed using the polygon reported by the WDPA. Some area have a polygon size different from the reported one, explaining some inconsistencies."),
+         caption = paste("The average forest cover evolution in a pixel is extrapolated to the total forest cover before treatment.\nRibbons represent 95% confidence intervals | WDPA reported surface :", format(area_ha, big.mark  = ","), "ha | Surface without overlap :", format(area_noverlap_ha, digits = 1, big.mark  = ","), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, digits = 1, big.mark  = ","), "ha | Pixel resolution :", res_ha, "ha.\nNote the area without overlap and total forest cover are computed using the polygon reported by the WDPA.\nSome area have a polygon size different from the reported one, explaining some inconsistencies."),
          x = "Year", y = "Total forest cover (ha)", color = "Group") +
     theme_bw() +
     theme(
@@ -2869,7 +2870,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
     scale_color_hue(labels = c("Control", "Treatment")) +
     labs(title = "Cumulated deforestation relative to 2000 (matched units)",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-         caption = paste("Ribbons represent 95% confidence intervals | WDPA reported surface :", format(area_ha, big.mark  = ","), "ha | Surface without overlap :", format(area_noverlap_ha, digits = 1, big.mark  = ","), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, digits = 1, big.mark  = ","), "ha | Pixel resolution :", res_ha, "ha.\nNote the area without overlap and total forest cover are computed using the polygon reported by the WDPA. Some area have a polygon size different from the reported one, explaining some inconsistencies."),
+         caption = paste("Ribbons represent 95% confidence intervals | WDPA reported surface :", format(area_ha, big.mark  = ","), "ha | Surface without overlap :", format(area_noverlap_ha, digits = 1, big.mark  = ","), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, digits = 1, big.mark  = ","), "ha | Pixel resolution :", res_ha, "ha.\nNote the area without overlap and total forest cover are computed using the polygon reported by the WDPA.\nSome area have a polygon size different from the reported one, explaining some inconsistencies."),
          x = "Year", y = "Forest loss relative to 2000 (%)", color = "Group") +
     theme_bw() +
     theme(
