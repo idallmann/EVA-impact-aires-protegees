@@ -2004,7 +2004,7 @@ fn_post_panel = function(out.cem, mf, wdpaid, iso, log, save_dir)
   
   # Pivot Wide ==> Pivot Long
   matched.long = matched.wide %>%
-    dplyr::select(c(region_afd, region, sub_region, country_en, iso3, group, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, res_m, minutes_mean_5k_110mio, clay_0_5cm_mean, elevation_mean, tri_mean, biomes, starts_with("treecover"), avgLoss_pre_treat, avgCover_pre_treat, start_pre_treat_fl, end_pre_treat_fl , start_pre_treat_fc, end_pre_treat_fc)) %>%
+    dplyr::select(c(region_afd, region, sub_region, country_en, iso3, group, focus, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, res_m, minutes_mean_5k_110mio, clay_0_5cm_mean, elevation_mean, tri_mean, biomes, starts_with("treecover"), avgLoss_pre_treat, avgCover_pre_treat, start_pre_treat_fl, end_pre_treat_fl , start_pre_treat_fc, end_pre_treat_fc)) %>%
     pivot_longer(cols = c(starts_with("treecover")),
                  names_to = c("var", "year"),
                  names_sep = "_",
@@ -2017,7 +2017,7 @@ fn_post_panel = function(out.cem, mf, wdpaid, iso, log, save_dir)
   
   # Pivot Wide ==> Pivot Long
   unmatched.long = unmatched.wide %>%
-    dplyr::select(c(region_afd, region, sub_region, country_en, iso3, group, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, res_m, minutes_mean_5k_110mio, clay_0_5cm_mean, elevation_mean, tri_mean, biomes, starts_with("treecover"), avgLoss_pre_treat, avgCover_pre_treat, start_pre_treat_fl, end_pre_treat_fl , start_pre_treat_fc, end_pre_treat_fc)) %>%    pivot_longer(cols = c(starts_with("treecover")),
+    dplyr::select(c(region_afd, region, sub_region, country_en, iso3, group, focus, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, res_m, minutes_mean_5k_110mio, clay_0_5cm_mean, elevation_mean, tri_mean, biomes, starts_with("treecover"), avgLoss_pre_treat, avgCover_pre_treat, start_pre_treat_fl, end_pre_treat_fl , start_pre_treat_fc, end_pre_treat_fc)) %>%    pivot_longer(cols = c(starts_with("treecover")),
                  names_to = c("var", "year"),
                  names_sep = "_",
                  values_to = "fc_ha") %>%
@@ -2263,13 +2263,13 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
           strip.text.x = element_text(size = 12) # Facet Label
         )
       
-      fig_fc2000 = ggplot(data = df,
+      fig_fc = ggplot(data = df,
                           aes(x = treecover_2000, fill = matched)) %>%
         + geom_histogram(aes(y = ..density..), 
                          #bins = 30, 
                          color = "black") %>%
         + geom_density(alpha = 0.5) %>%
-        + labs(title = "Distribution of 2000 forest cover, among treated units",
+        + labs(title = "Distribution of pre-treatment forest cover, among treated units",
                y = "Density",
                x = "Forest cover (ha)") %>%
         + scale_fill_brewer(name = "Matched", palette = "Dark2") %>%
@@ -2536,42 +2536,42 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
     ungroup() %>%
     st_drop_geometry() %seed% 1
   
-  df.dumb = unmatched.long #Just use the unmacthed.long dataframe to avoid error in the code
+  #df.dumb = unmatched.long #Just use the unmacthed.long dataframe to avoid error in the code
   ##Unmatched
-  # df.unmatched.trend  <- unmatched.long %>%
-  #     #First, compute deforestation relative to 2000 for each pixel (deforestation as computed in Wolf et al. 2021); compute percentage of forest cover in the pixel in 2000
-  #     group_by(assetid) %>%
-  # mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100,
-  #        FC_rel_pre_treat = fc_ha/mean(fc_ha[year >= yr_start_cover & year <= yr_end_cover], na.rm = TRUE)) %>%
-  #     ungroup() %>% #Compute average percentage of FC in a pixel in 2000, for each group. Compute also standard deviation
-  #   #Then compute the average forest cover, average forest cover percentage, and deforestation in each year, for treated and control groups
-  #   #Standard deviation and 95% confidence interval is also computed for each variable
-  #   group_by(group, year) %>%
-  #   summarise(n = n(),
-  #             avgFC = mean(fc_ha, na.rm=TRUE), #Compute average forest cover in a pixel, its sd and ci
-  #             sdFC = sd(fc_ha, na.rm = TRUE),
-  #             ciFC_low = avgFC - qt(0.975,df=n-1)*sdFC/sqrt(n),
-  #             ciFC_up = avgFC + qt(0.975,df=n-1)*sdFC/sqrt(n),
-  #             avgFC_tot = n_pix_fc_pre_treat*mean(fc_ha, na.rm=TRUE), #Compute total average forest cover, sd and CI
-  #             sdFC_tot = n_pix_fc_pre_treat*sdFC,
-  #             ciFC_tot_low = avgFC_tot - qt(0.975,df=n-1)*sdFC_tot/sqrt(n),
-  #             ciFC_tot_up = avgFC_tot + qt(0.975,df=n-1)*sdFC_tot/sqrt(n),
-  #             avgFC_rel = mean(FC_rel_pre_treat, na.rm=TRUE), #Compute average relative forest cover, sd and CI
-  #             sdFC_rel = sd(FC_rel_pre_treat, na.rm = TRUE),
-  #             ciFC_rel_low = avgFC_rel - qt(0.975,df=n-1)*sdFC_rel/sqrt(n),
-  #             ciFC_rel_up = avgFC_rel + qt(0.975,df=n-1)*sdFC_rel/sqrt(n),
-  #             avgFL_2000_cum = mean(FL_2000_cum, na.rm = TRUE), #Compute average forest loss relative to 2000 (Wolf et al 2021), sd and CI
-  #             sdFL_2000_cum = sd(FL_2000_cum, na.rm = TRUE),
-  #             ciFL_low = avgFL_2000_cum - qt(0.975,df=n-1)*sdFL_2000_cum/sqrt(n),
-  #             ciFL_up = avgFL_2000_cum + qt(0.975,df=n-1)*sdFL_2000_cum/sqrt(n),
-  #             matched = FALSE) %>%
-  #     #Compute total forest cover loss, knowing area of the PA and average forest cover in 2000 in treated pixels
-  #   ungroup() %>%
-  #   st_drop_geometry() %seed% 2
+  df.unmatched.trend  <- unmatched.long %>%
+      #First, compute deforestation relative to 2000 for each pixel (deforestation as computed in Wolf et al. 2021); compute percentage of forest cover in the pixel in 2000
+      group_by(assetid) %>%
+  mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100,
+         FC_rel_pre_treat = fc_ha/mean(fc_ha[year >= yr_start_cover & year <= yr_end_cover], na.rm = TRUE)) %>%
+      ungroup() %>% #Compute average percentage of FC in a pixel in 2000, for each group. Compute also standard deviation
+    #Then compute the average forest cover, average forest cover percentage, and deforestation in each year, for treated and control groups
+    #Standard deviation and 95% confidence interval is also computed for each variable
+    group_by(group, year) %>%
+    summarise(n = n(),
+              avgFC = mean(fc_ha, na.rm=TRUE), #Compute average forest cover in a pixel, its sd and ci
+              sdFC = sd(fc_ha, na.rm = TRUE),
+              ciFC_low = avgFC - qt(0.975,df=n-1)*sdFC/sqrt(n),
+              ciFC_up = avgFC + qt(0.975,df=n-1)*sdFC/sqrt(n),
+              avgFC_tot = n_pix_fc_pre_treat*mean(fc_ha, na.rm=TRUE), #Compute total average forest cover, sd and CI
+              sdFC_tot = n_pix_fc_pre_treat*sdFC,
+              ciFC_tot_low = avgFC_tot - qt(0.975,df=n-1)*sdFC_tot/sqrt(n),
+              ciFC_tot_up = avgFC_tot + qt(0.975,df=n-1)*sdFC_tot/sqrt(n),
+              avgFC_rel = mean(FC_rel_pre_treat, na.rm=TRUE), #Compute average relative forest cover, sd and CI
+              sdFC_rel = sd(FC_rel_pre_treat, na.rm = TRUE),
+              ciFC_rel_low = avgFC_rel - qt(0.975,df=n-1)*sdFC_rel/sqrt(n),
+              ciFC_rel_up = avgFC_rel + qt(0.975,df=n-1)*sdFC_rel/sqrt(n),
+              avgFL_2000_cum = mean(FL_2000_cum, na.rm = TRUE), #Compute average forest loss relative to 2000 (Wolf et al 2021), sd and CI
+              sdFL_2000_cum = sd(FL_2000_cum, na.rm = TRUE),
+              ciFL_low = avgFL_2000_cum - qt(0.975,df=n-1)*sdFL_2000_cum/sqrt(n),
+              ciFL_up = avgFL_2000_cum + qt(0.975,df=n-1)*sdFL_2000_cum/sqrt(n),
+              matched = FALSE) %>%
+      #Compute total forest cover loss, knowing area of the PA and average forest cover in 2000 in treated pixels
+    ungroup() %>%
+    st_drop_geometry() %seed% 2
   
       })
     
-  #df.trend = rbind(df.matched.trend, df.unmatched.trend)
+  df.trend = rbind(df.matched.trend, df.unmatched.trend)
   
   #Close multisession
   plan(sequential)
@@ -2581,167 +2581,167 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
   fct.labs <- c("Before Matching", "After Matching")
   names(fct.labs) <- c(FALSE, TRUE)
   
-  # ## Trend Plot for unmatched data
-  # ### Average forest cover in a pixel
-  # fig_trend_unm_fc_pix = ggplot(data = df.trend, aes(x = year, y = avgFC)) +
-  #   geom_line(aes(group = group, color = as.character(group))) +
-  #   geom_point(aes(color = as.character(group))) +
-  #   geom_ribbon(aes(ymin = ciFC_low, ymax = ciFC_up, group = group, fill = as.character(group)), alpha = .1, show.legend = FALSE) +
-  #   geom_vline(aes(xintercept=as.character(treatment.year), size="Treatment year"), linetype=1, linewidth=0.5, color="orange") +
-  #   geom_vline(aes(xintercept=as.character(funding.years), size="Funding year"), linetype=2, linewidth=0.5, color="grey30") +
-  #   scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) + 
-  #   scale_color_hue(labels = c("Control", "Treatment")) +
-  #   facet_wrap(matched~., ncol = 2, #scales = 'free_x',
-  #              labeller = labeller(matched = fct.labs)) +
-  #   labs(title = "Evolution of forest cover in a pixel on average (unmatched units)",
-  #        subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-  #caption = paste("Ribbons represent 95% confidence intervals | WDPA reported surface :", format(area_ha, big.mark  = ","), "ha | Surface without overlap :", format(area_noverlap_ha, digits = 1, big.mark  = ","), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, digits = 1, big.mark  = ","), "ha | Pixel resolution :", res_ha, "ha.\nNote the area without overlap and total forest cover are computed using the polygon reported by the WDPA.\nSome area have a polygon size different from the reported one, explaining some inconsistencies."),
-  #        x = "Year", y = "Forest cover (ha)", color = "Group") +
-  #   theme_bw() +
-  #   theme(
-  #     axis.text.x = element_text(angle = -20, hjust = 0.5, vjust = 0.5),
-  #     axis.text=element_text(size=11),
-  #     axis.title=element_text(size=14),
-  #     
-  #     plot.caption = element_text(hjust = 0),
-  #     
-  #     #legend.position = "bottom",
-  #     legend.title = element_blank(),
-  #     legend.text=element_text(size=14),
-  #     #legend.spacing.x = unit(1.0, 'cm'),
-  #     legend.spacing.y = unit(0.75, 'cm'),
-  #     legend.key.size = unit(2, 'line'),
-  #     
-  #     
-  #     panel.grid.major.x = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
-  #     panel.grid.minor.x = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
-  #     panel.grid.major.y = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
-  #     panel.grid.minor.y = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
-  #     
-  #     strip.text.x = element_text(size = 12) # Facet Label
-  #     ) +
-  #   guides(size = guide_legend(override.aes = list(color = c("grey30", "orange")))) # Add legend for geom_vline
-  # 
-  # ### Average forest cover in a pixel, relative to average pre-treatment forest cover 
-  # fig_trend_unm_fc_rel = ggplot(data = df.trend, aes(x = year, y = avgFC_rel*100)) +
-  #   geom_line(aes(group = group, color = as.character(group))) +
-  #   geom_point(aes(color = as.character(group))) +
-  #   geom_ribbon(aes(ymin = ciFC_rel_low*100, ymax = ciFC_rel_up*100, group = group, fill = as.character(group)), alpha = .1, show.legend = FALSE) +
-  #   geom_vline(aes(xintercept=as.character(treatment.year), size="Treatment year"), linetype=1, linewidth=0.5, color="orange") +
-  #   geom_vline(aes(xintercept=as.character(funding.years), size="Funding year"), linetype=2, linewidth=0.5, color="grey30") +
-  #   scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) + 
-  #   scale_color_hue(labels = c("Control", "Treatment")) +
-  #   facet_wrap(matched~., ncol = 2, #scales = 'free_x',
-  #              labeller = labeller(matched = fct.labs)) +
-  #   labs(title = "Evolution of forest cover in a pixel on average, relative to pre-treatment (unmatched units)",
-  #        subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-  #caption = paste("Forest cover expressed as a share of pre-treatment cover in the pixel, on average.\nThis can be interpreted as the evolution of forest cover in whole the protected area (without overlap).\nRibbons represent 95% confidence intervals | WDPA reported surface :", format(area_ha, big.mark  = ","), "ha | Surface without overlap :", format(area_noverlap_ha, digits = 1, big.mark  = ","), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, digits = 1, big.mark  = ","), "ha | Pixel resolution :", res_ha, "ha.\nNote the area without overlap and total forest cover are computed using the polygon reported by the WDPA.\nSome area have a polygon size different from the reported one, explaining some inconsistencies."),
-  #        x = "Year", y = "Forest cover relative to pre-treatment (%)", color = "Group") +
-  #   theme_bw() +
-  #   theme(
-  #     axis.text.x = element_text(angle = -20, hjust = 0.5, vjust = 0.5),
-  #     axis.text=element_text(size=11),
-  #     axis.title=element_text(size=14),
-  #     
-  #     plot.caption = element_text(hjust = 0),
-  #     
-  #     #legend.position = "bottom",
-  #     legend.title = element_blank(),
-  #     legend.text=element_text(size=14),
-  #     #legend.spacing.x = unit(1.0, 'cm'),
-  #     legend.spacing.y = unit(0.75, 'cm'),
-  #     legend.key.size = unit(2, 'line'),
-  #     
-  #     
-  #     panel.grid.major.x = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
-  #     panel.grid.minor.x = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
-  #     panel.grid.major.y = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
-  #     panel.grid.minor.y = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
-  #     
-  #     strip.text.x = element_text(size = 12) # Facet Label
-  #   ) +
-  #   guides(size = guide_legend(override.aes = list(color = c("grey30", "orange")))) # Add legend for geom_vline
-  # 
-  # ### Total forest cover
-  # fig_trend_unm_fc_tot = ggplot(data = df.trend, aes(x = year, y = avgFC_tot)) +
-  #   geom_line(aes(group = group, color = as.character(group))) +
-  #   geom_point(aes(color = as.character(group))) +
-  #   geom_ribbon(aes(ymin = ciFC_tot_low, ymax = ciFC_tot_up, group = group, fill = as.character(group)), alpha = .1, show.legend = FALSE) +
-  #   geom_vline(aes(xintercept=as.character(treatment.year), size="Treatment year"), linetype=1, linewidth=0.5, color="orange") +
-  #   geom_vline(aes(xintercept=as.character(funding.years), size="Funding year"), linetype=2, linewidth=0.5, color="grey30") +
-  #   scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) +
-  #   scale_color_hue(labels = c("Control", "Treatment")) +
-  #   facet_wrap(matched~., ncol = 2, #scales = 'free_x',
-  #              labeller = labeller(matched = fct.labs)) +
-  #   labs(title = "Evolution of total forest cover (unmatched units)",
-  #        subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-  #caption = paste("The average forest cover evolution in a pixel is extrapolated to the total forest cover before treatment.\nRibbons represent 95% confidence intervals | WDPA reported surface :", format(area_ha, big.mark  = ","), "ha | Surface without overlap :", format(area_noverlap_ha, digits = 1, big.mark  = ","), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, digits = 1, big.mark  = ","), "ha | Pixel resolution :", res_ha, "ha.\nNote the area without overlap and total forest cover are computed using the polygon reported by the WDPA.\nSome area have a polygon size different from the reported one, explaining some inconsistencies."),
-  #        x = "Year", y = "Forest cover (ha)", color = "Group") +
-  #   theme_bw() +
-  #   theme(
-  #     axis.text.x = element_text(angle = -20, hjust = 0.5, vjust = 0.5),
-  #     axis.text=element_text(size=11),
-  #     axis.title=element_text(size=14),
-  #     
-  #     plot.caption = element_text(hjust = 0),
-  #     
-  #     #legend.position = "bottom",
-  #     legend.title = element_blank(),
-  #     legend.text=element_text(size=14),
-  #     #legend.spacing.x = unit(1.0, 'cm'),
-  #     legend.spacing.y = unit(0.75, 'cm'),
-  #     legend.key.size = unit(2, 'line'),
-  #     
-  #     
-  #     panel.grid.major.x = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
-  #     panel.grid.minor.x = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
-  #     panel.grid.major.y = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
-  #     panel.grid.minor.y = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
-  #     
-  #     strip.text.x = element_text(size = 12) # Facet Label
-  #   ) +
-  #   guides(size = guide_legend(override.aes = list(color = c("grey30", "orange")))) # Add legend for geom_vline
-  # 
-  # ### Cumulative deforestation relative to 2000
-  # fig_trend_unm_defo = ggplot(data = df.trend, aes(x = year, y = avgFL_2000_cum)) +
-  #   geom_line(aes(group = group, color = as.character(group))) +
-  #   geom_point(aes(color = as.character(group))) +
-  #   geom_ribbon(aes(ymin = ciFL_low, ymax = ciFL_up, group = group, fill = as.character(group)), alpha = .1, show.legend = FALSE) +
-  #   geom_vline(aes(xintercept=as.character(treatment.year), size="Treatment year"), linetype=1, linewidth=0.5, color="orange") +
-  #   geom_vline(aes(xintercept=as.character(funding.years), size="Funding year"), linetype=2, linewidth=0.5, color="grey30") +
-  #   scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) +
-  #   scale_color_hue(labels = c("Control", "Treatment")) +
-  #   facet_wrap(matched~., ncol = 2, #scales = 'free_x',
-  #              labeller = labeller(matched = fct.labs)) +
-  #   labs(title = "Cumulated deforestation relative to 2000 (unmatched units)",
-  #        subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-  #caption = paste("Ribbons represent 95% confidence intervals | WDPA reported surface :", format(area_ha, big.mark  = ","), "ha | Surface without overlap :", format(area_noverlap_ha, digits = 1, big.mark  = ","), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, digits = 1, big.mark  = ","), "ha | Pixel resolution :", res_ha, "ha.\nNote the area without overlap and total forest cover are computed using the polygon reported by the WDPA.\nSome area have a polygon size different from the reported one, explaining some inconsistencies."),
-  #x = "Year", y = "Forest loss relative to 2000 (%)", color = "Group") +
-  #   theme_bw() +
-  #   theme(
-  #     axis.text.x = element_text(angle = -20, hjust = 0.5, vjust = 0.5),
-  #     axis.text=element_text(size=11),
-  #     axis.title=element_text(size=14),
-  #     
-  #     plot.caption = element_text(hjust = 0),
-  #     
-  #     #legend.position = "bottom",
-  #     legend.title = element_blank(),
-  #     legend.text=element_text(size=14),
-  #     #legend.spacing.x = unit(1.0, 'cm'),
-  #     legend.spacing.y = unit(0.75, 'cm'),
-  #     legend.key.size = unit(2, 'line'),
-  #     
-  #     
-  #     panel.grid.major.x = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
-  #     panel.grid.minor.x = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
-  #     panel.grid.major.y = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
-  #     panel.grid.minor.y = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
-  #     
-  #     strip.text.x = element_text(size = 12) # Facet Label
-  #   ) +
-  #   guides(size = guide_legend(override.aes = list(color = c("grey30", "orange")))) # Add legend for geom_vline
-  
+  ## Trend Plot for unmatched data
+  ### Average forest cover in a pixel
+  fig_trend_unm_fc_pix = ggplot(data = df.trend, aes(x = year, y = avgFC)) +
+    geom_line(aes(group = group, color = as.character(group))) +
+    geom_point(aes(color = as.character(group))) +
+    geom_ribbon(aes(ymin = ciFC_low, ymax = ciFC_up, group = group, fill = as.character(group)), alpha = .1, show.legend = FALSE) +
+    geom_vline(aes(xintercept=as.character(treatment.year), size="Treatment year"), linetype=1, linewidth=0.5, color="orange") +
+    geom_vline(aes(xintercept=as.character(funding.years), size="Funding year"), linetype=2, linewidth=0.5, color="grey30") +
+    scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) +
+    scale_color_hue(labels = c("Control", "Treatment")) +
+    facet_wrap(matched~., ncol = 2, #scales = 'free_x',
+               labeller = labeller(matched = fct.labs)) +
+    labs(title = "Evolution of forest cover in a pixel on average (unmatched units)",
+         subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+  caption = paste("Ribbons represent 95% confidence intervals | WDPA reported surface :", format(area_ha, big.mark  = ","), "ha | Surface without overlap :", format(area_noverlap_ha, digits = 1, big.mark  = ","), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, digits = 1, big.mark  = ","), "ha | Pixel resolution :", res_ha, "ha.\nNote the area without overlap and total forest cover are computed using the polygon reported by the WDPA.\nSome area have a polygon size different from the reported one, explaining some inconsistencies."),
+         x = "Year", y = "Forest cover (ha)", color = "Group") +
+    theme_bw() +
+    theme(
+      axis.text.x = element_text(angle = -20, hjust = 0.5, vjust = 0.5),
+      axis.text=element_text(size=11),
+      axis.title=element_text(size=14),
+
+      plot.caption = element_text(hjust = 0),
+
+      #legend.position = "bottom",
+      legend.title = element_blank(),
+      legend.text=element_text(size=14),
+      #legend.spacing.x = unit(1.0, 'cm'),
+      legend.spacing.y = unit(0.75, 'cm'),
+      legend.key.size = unit(2, 'line'),
+
+
+      panel.grid.major.x = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.x = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
+      panel.grid.major.y = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.y = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
+
+      strip.text.x = element_text(size = 12) # Facet Label
+      ) +
+    guides(size = guide_legend(override.aes = list(color = c("grey30", "orange")))) # Add legend for geom_vline
+
+  ### Average forest cover in a pixel, relative to average pre-treatment forest cover
+  fig_trend_unm_fc_rel = ggplot(data = df.trend, aes(x = year, y = avgFC_rel*100)) +
+    geom_line(aes(group = group, color = as.character(group))) +
+    geom_point(aes(color = as.character(group))) +
+    geom_ribbon(aes(ymin = ciFC_rel_low*100, ymax = ciFC_rel_up*100, group = group, fill = as.character(group)), alpha = .1, show.legend = FALSE) +
+    geom_vline(aes(xintercept=as.character(treatment.year), size="Treatment year"), linetype=1, linewidth=0.5, color="orange") +
+    geom_vline(aes(xintercept=as.character(funding.years), size="Funding year"), linetype=2, linewidth=0.5, color="grey30") +
+    scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) +
+    scale_color_hue(labels = c("Control", "Treatment")) +
+    facet_wrap(matched~., ncol = 2, #scales = 'free_x',
+               labeller = labeller(matched = fct.labs)) +
+    labs(title = "Evolution of forest cover in a pixel on average, relative to pre-treatment (unmatched units)",
+         subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+  caption = paste("Forest cover expressed as a share of pre-treatment cover in the pixel, on average.\nThis can be interpreted as the evolution of forest cover in whole the protected area (without overlap).\nRibbons represent 95% confidence intervals | WDPA reported surface :", format(area_ha, big.mark  = ","), "ha | Surface without overlap :", format(area_noverlap_ha, digits = 1, big.mark  = ","), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, digits = 1, big.mark  = ","), "ha | Pixel resolution :", res_ha, "ha.\nNote the area without overlap and total forest cover are computed using the polygon reported by the WDPA.\nSome area have a polygon size different from the reported one, explaining some inconsistencies."),
+         x = "Year", y = "Forest cover relative to pre-treatment (%)", color = "Group") +
+    theme_bw() +
+    theme(
+      axis.text.x = element_text(angle = -20, hjust = 0.5, vjust = 0.5),
+      axis.text=element_text(size=11),
+      axis.title=element_text(size=14),
+
+      plot.caption = element_text(hjust = 0),
+
+      #legend.position = "bottom",
+      legend.title = element_blank(),
+      legend.text=element_text(size=14),
+      #legend.spacing.x = unit(1.0, 'cm'),
+      legend.spacing.y = unit(0.75, 'cm'),
+      legend.key.size = unit(2, 'line'),
+
+
+      panel.grid.major.x = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.x = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
+      panel.grid.major.y = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.y = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
+
+      strip.text.x = element_text(size = 12) # Facet Label
+    ) +
+    guides(size = guide_legend(override.aes = list(color = c("grey30", "orange")))) # Add legend for geom_vline
+
+  ### Total forest cover
+  fig_trend_unm_fc_tot = ggplot(data = df.trend, aes(x = year, y = avgFC_tot)) +
+    geom_line(aes(group = group, color = as.character(group))) +
+    geom_point(aes(color = as.character(group))) +
+    geom_ribbon(aes(ymin = ciFC_tot_low, ymax = ciFC_tot_up, group = group, fill = as.character(group)), alpha = .1, show.legend = FALSE) +
+    geom_vline(aes(xintercept=as.character(treatment.year), size="Treatment year"), linetype=1, linewidth=0.5, color="orange") +
+    geom_vline(aes(xintercept=as.character(funding.years), size="Funding year"), linetype=2, linewidth=0.5, color="grey30") +
+    scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) +
+    scale_color_hue(labels = c("Control", "Treatment")) +
+    facet_wrap(matched~., ncol = 2, #scales = 'free_x',
+               labeller = labeller(matched = fct.labs)) +
+    labs(title = "Evolution of total forest cover (unmatched units)",
+         subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+  caption = paste("The average forest cover evolution in a pixel is extrapolated to the total forest cover before treatment, without PA overlap.\nRibbons represent 95% confidence intervals | WDPA reported surface :", format(area_ha, big.mark  = ","), "ha | Surface without overlap :", format(area_noverlap_ha, digits = 1, big.mark  = ","), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, digits = 1, big.mark  = ","), "ha | Pixel resolution :", res_ha, "ha.\nNote the area without overlap and total forest cover are computed using the polygon reported by the WDPA.\nSome area have a polygon size different from the reported one, explaining some inconsistencies."),
+         x = "Year", y = "Forest cover (ha)", color = "Group") +
+    theme_bw() +
+    theme(
+      axis.text.x = element_text(angle = -20, hjust = 0.5, vjust = 0.5),
+      axis.text=element_text(size=11),
+      axis.title=element_text(size=14),
+
+      plot.caption = element_text(hjust = 0),
+
+      #legend.position = "bottom",
+      legend.title = element_blank(),
+      legend.text=element_text(size=14),
+      #legend.spacing.x = unit(1.0, 'cm'),
+      legend.spacing.y = unit(0.75, 'cm'),
+      legend.key.size = unit(2, 'line'),
+
+
+      panel.grid.major.x = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.x = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
+      panel.grid.major.y = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.y = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
+
+      strip.text.x = element_text(size = 12) # Facet Label
+    ) +
+    guides(size = guide_legend(override.aes = list(color = c("grey30", "orange")))) # Add legend for geom_vline
+
+  ### Cumulative deforestation relative to 2000
+  fig_trend_unm_defo = ggplot(data = df.trend, aes(x = year, y = avgFL_2000_cum)) +
+    geom_line(aes(group = group, color = as.character(group))) +
+    geom_point(aes(color = as.character(group))) +
+    geom_ribbon(aes(ymin = ciFL_low, ymax = ciFL_up, group = group, fill = as.character(group)), alpha = .1, show.legend = FALSE) +
+    geom_vline(aes(xintercept=as.character(treatment.year), size="Treatment year"), linetype=1, linewidth=0.5, color="orange") +
+    geom_vline(aes(xintercept=as.character(funding.years), size="Funding year"), linetype=2, linewidth=0.5, color="grey30") +
+    scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) +
+    scale_color_hue(labels = c("Control", "Treatment")) +
+    facet_wrap(matched~., ncol = 2, #scales = 'free_x',
+               labeller = labeller(matched = fct.labs)) +
+    labs(title = "Cumulated deforestation relative to 2000 (unmatched units)",
+         subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+  caption = paste("Ribbons represent 95% confidence intervals | WDPA reported surface :", format(area_ha, big.mark  = ","), "ha | Surface without overlap :", format(area_noverlap_ha, digits = 1, big.mark  = ","), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, digits = 1, big.mark  = ","), "ha | Pixel resolution :", res_ha, "ha.\nNote the area without overlap and total forest cover are computed using the polygon reported by the WDPA.\nSome area have a polygon size different from the reported one, explaining some inconsistencies."),
+  x = "Year", y = "Forest loss relative to 2000 (%)", color = "Group") +
+    theme_bw() +
+    theme(
+      axis.text.x = element_text(angle = -20, hjust = 0.5, vjust = 0.5),
+      axis.text=element_text(size=11),
+      axis.title=element_text(size=14),
+
+      plot.caption = element_text(hjust = 0),
+
+      #legend.position = "bottom",
+      legend.title = element_blank(),
+      legend.text=element_text(size=14),
+      #legend.spacing.x = unit(1.0, 'cm'),
+      legend.spacing.y = unit(0.75, 'cm'),
+      legend.key.size = unit(2, 'line'),
+
+
+      panel.grid.major.x = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.x = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
+      panel.grid.major.y = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
+      panel.grid.minor.y = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
+
+      strip.text.x = element_text(size = 12) # Facet Label
+    ) +
+    guides(size = guide_legend(override.aes = list(color = c("grey30", "orange")))) # Add legend for geom_vline
+
   
   # Trend Plot for matched data
   ### Average forest cover in a pixel
@@ -2832,7 +2832,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
     scale_color_hue(labels = c("Control", "Treatment")) +
     labs(title = "Evolution of total forest cover (matched units)",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-         caption = paste("The average forest cover evolution in a pixel is extrapolated to the total forest cover before treatment.\nRibbons represent 95% confidence intervals | WDPA reported surface :", format(area_ha, big.mark  = ","), "ha | Surface without overlap :", format(area_noverlap_ha, digits = 1, big.mark  = ","), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, digits = 1, big.mark  = ","), "ha | Pixel resolution :", res_ha, "ha.\nNote the area without overlap and total forest cover are computed using the polygon reported by the WDPA.\nSome area have a polygon size different from the reported one, explaining some inconsistencies."),
+         caption = paste("The average forest cover evolution in a pixel is extrapolated to the total forest cover before treatment, without PA overlap.\nRibbons represent 95% confidence intervals | WDPA reported surface :", format(area_ha, big.mark  = ","), "ha | Surface without overlap :", format(area_noverlap_ha, digits = 1, big.mark  = ","), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, digits = 1, big.mark  = ","), "ha | Pixel resolution :", res_ha, "ha.\nNote the area without overlap and total forest cover are computed using the polygon reported by the WDPA.\nSome area have a polygon size different from the reported one, explaining some inconsistencies."),
          x = "Year", y = "Total forest cover (ha)", color = "Group") +
     theme_bw() +
     theme(
@@ -2900,37 +2900,37 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
   ##Saving plots
   tmp = paste(tempdir(), "fig", sep = "/")
   
-  # ggsave(paste(tmp, paste0("fig_trend_unmatched_avgFC_", iso, "_", wdpaid, ".png"), sep = "/"),
-  #        plot = fig_trend_unm_fc_pix,
-  #        device = "png",
-  #        height = 6, width = 9)
+  ggsave(paste(tmp, paste0("fig_trend_unmatched_avgFC_", iso, "_", wdpaid, ".png"), sep = "/"),
+         plot = fig_trend_unm_fc_pix,
+         device = "png",
+         height = 6, width = 9)
   ggsave(paste(tmp, paste0("fig_trend_matched_avgFC_", iso, "_", wdpaid, ".png"), sep = "/"),
          plot = fig_trend_m_fc_pix,
          device = "png",
          height = 6, width = 9)
   
-  # ggsave(paste(tmp, paste0("fig_trend_unmatched_avgFC_rel_", iso, "_", wdpaid, ".png"), sep = "/"),
-  #        plot = fig_trend_unm_fc_rel,
-  #        device = "png",
-  #        height = 6, width = 9)
+  ggsave(paste(tmp, paste0("fig_trend_unmatched_avgFC_rel_", iso, "_", wdpaid, ".png"), sep = "/"),
+         plot = fig_trend_unm_fc_rel,
+         device = "png",
+         height = 6, width = 9)
   ggsave(paste(tmp, paste0("fig_trend_matched_avgFC_rel_", iso, "_", wdpaid, ".png"), sep = "/"),
          plot = fig_trend_m_fc_rel,
          device = "png",
          height = 6, width = 9)
   
-  # ggsave(paste(tmp, paste0("fig_trend_unmatched_avgFC_tot_", iso, "_", wdpaid, ".png"), sep = "/"),
-  #        plot = fig_trend_unm_fc_tot,
-  #        device = "png",
-  #        height = 6, width = 9)
+  ggsave(paste(tmp, paste0("fig_trend_unmatched_avgFC_tot_", iso, "_", wdpaid, ".png"), sep = "/"),
+         plot = fig_trend_unm_fc_tot,
+         device = "png",
+         height = 6, width = 9)
   ggsave(paste(tmp, paste0("fig_trend_matched_avgFC_tot_", iso, "_", wdpaid, ".png"), sep = "/"),
          plot = fig_trend_m_fc_tot,
          device = "png",
          height = 6, width = 9)
   
-  # ggsave(paste(tmp, paste0("fig_trend_unmatched_avgFL_cum_2000_", iso, "_", wdpaid, ".png"), sep = "/"),
-  #        plot = fig_trend_unm_defo,
-  #        device = "png",
-  #        height = 6, width = 9)
+  ggsave(paste(tmp, paste0("fig_trend_unmatched_avgFL_cum_2000_", iso, "_", wdpaid, ".png"), sep = "/"),
+         plot = fig_trend_unm_defo,
+         device = "png",
+         height = 6, width = 9)
   ggsave(paste(tmp, paste0("fig_trend_matched_avgFL_cum_2000_", iso, "_", wdpaid, ".png"), sep = "/"),
          plot = fig_trend_m_defo,
          device = "png",

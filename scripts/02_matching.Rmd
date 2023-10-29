@@ -212,9 +212,10 @@ data_pa_ie_africa = data_pa %>%
   filter(region == "Africa" & is.na(wdpaid) == FALSE & area_km2 >=1 & marine %in% c(0,1) & status_yr >= yr_min & focus == T)
 list_iso = unique(data_pa_ie_africa$iso3)
 ## Manual definition
-list_iso = "KEN"
-# list_iso = c("COM", "STP", "GNB", "GMB", "SEN", "MAR", "GAB", "KEN", "CMR", "COG", "MDG", "MOZ", "NER", "TCD")
+#list_iso = "KEN"
+#list_iso = c("COM", "STP", "GNB", "GMB", "SEN", "MAR", "GAB", "KEN", "CMR", "COG", "MDG", "MOZ", "NER", "TCD")
 #list_iso = c("COG", "MDG", "MOZ", "NER", "TCD")
+list_iso = c("COM", "STP", "GNB", "GMB", "SEN", "MAR", "GAB", "KEN", "CMR", "COG", "MDG")
 ```
 
 ## Matching process

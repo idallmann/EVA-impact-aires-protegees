@@ -35,7 +35,7 @@ reports/*
 
 #Ignore specific scripts
 ## Confidential access credentials to S3 server
-_00_minio_nolimit_access.Rmd 
+#_00_minio_nolimit_access.Rmd 
 ## Confidential statistics performed here and not relevant for publishing publicly (though nothing confidential in the script per se)
 _01_stat_project_confidential.Rmd
 ## Script to perform specific stats, not relevant to publish
