@@ -2254,7 +2254,7 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
         + geom_density(alpha = 0.5) %>%
         + geom_vline(aes(xintercept = avg_clay, color = is_m), linetype = 1, linewidth = 1, alpha = .6) %>%
         + labs(title = "Distribution of clay content among treated units",
-               subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+               subtitle = paste0("Protected area in ", country_en, ", WDPAID ", wdpaid),
                caption = "Vertical lines represent the mean of their respective distribution",
                y = "Density",
                x = "Mean clay content (0-5 cm)") %>%
@@ -2287,7 +2287,7 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
         + geom_density(alpha = 0.5) %>%
         + geom_vline(aes(xintercept = avg_clay, color = is_m), linetype = 1, linewidth = 1, alpha = .6) %>%
         + labs(title = "Distribution of travel time to nearest city among treated units",
-               subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+               subtitle = paste0("Protected area in ", country_en, ", WDPAID ", wdpaid),
                caption = "Vertical lines represent the mean of their respective distribution",
                y = "Density",
                x = "Travel time to nearest city (min)") %>%
@@ -2320,7 +2320,7 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
         + geom_density(alpha = 0.5) %>%
         + geom_vline(aes(xintercept = avg_elevation, color = is_m), linetype = 1, linewidth = 1, alpha = .6) %>%
         + labs(title = "Distribution of elevation among treated units",
-               subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+               subtitle = paste0("Protected area in ", country_en, ", WDPAID ", wdpaid),
                caption = "Vertical lines represent the mean of their respective distribution",
                y = "Density",
                x = "Elevation (m)") %>%
@@ -2353,7 +2353,7 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
         + geom_density(alpha = 0.5) %>%
         + geom_vline(aes(xintercept = avg_fl, color = is_m), linetype = 1, linewidth = 1, alpha = .6) %>%
         + labs(title = "Distribution of pre-treatment forest cover loss, among treated units",
-               subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+               subtitle = paste0("Protected area in ", country_en, ", WDPAID ", wdpaid),
                y = "Density",
                caption = "Vertical lines represent the mean of their respective distribution.\nForest cover loss is the average annual forest cover loss, up to three years before treatment.",
                x = "Forest cover loss (ha)") %>%
@@ -2386,7 +2386,7 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
         + geom_density(alpha = 0.5) %>%
         + geom_vline(aes(xintercept = avg_fc, color = is_m), linetype = 1, linewidth = 1, alpha = .6) %>%
         + labs(title = "Distribution of pre-treatment forest cover, among treated units",
-               subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+               subtitle = paste0("Protected area in ", country_en, ", WDPAID ", wdpaid),
                caption = "Vertical lines represent the mean of their respective distribution.\nForest cover here is the average forest cover, up to three years before treatment.",
                y = "Density",
                x = "Forest cover (ha)") %>%
@@ -2419,7 +2419,7 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
         + geom_density(alpha = 0.5) %>%
         + geom_vline(aes(xintercept = avg_tri, color = is_m), linetype = 1, linewidth = 1, alpha = .6) %>%
         + labs(title = "Distribution of soil ruggedness among treated units",
-               subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+               subtitle = paste0("Protected area in ", country_en, ", WDPAID ", wdpaid),
                caption = "Vertical lines represent the mean of their respective distribution",
                y = "Density",
                x = "Terrain Ruggedness Index (m)") %>%
@@ -2456,7 +2456,7 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
       #   + geom_bar( stat = "count", position = "dodge")
       #   #+ geom_bar(aes(x = ..prop..), stat = "count", position = "dodge") %>%
       #   + labs(title = "Distribution of biomes among treated units",
-      #          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+      #          subtitle = paste0("Protected area in ", country_en, ", WDPAID ", wdpaid),
       #          y = "Proportion",
       #          x = "") %>%
       #   + scale_color_brewer(name = "", palette = "Paired") %>%

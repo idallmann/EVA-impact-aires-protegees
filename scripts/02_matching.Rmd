@@ -543,6 +543,22 @@ for (i in list_iso)
   
 }       
 
+#Finally save the dataframe on matching quality
+##Matched control and treated units
+aws.s3::s3write_using(
+FUN = data.table::fwrite,
+df_quality_ct,
+object = paste(save_dir, "df_quality_ct.csv", sep = "/"),
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+##Treated units, before and after matching
+aws.s3::s3write_using(
+FUN = data.table::fwrite,
+df_quality_tt,
+object = paste(save_dir, "df_quality_tt.csv", sep = "/"), 
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+
 #End post-processing timer
 toc_post = toc()
 
