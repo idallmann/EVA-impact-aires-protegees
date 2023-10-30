@@ -852,7 +852,7 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log, save_dir)
     drop_na(-c(status_yr, year_funding_first, year_funding_all, region_afd, region, sub_region, iso3, country_en, res_m, focus)) #%>%
      #filter(status_yr >= yr_min | is.na(status_yr))
   
-  #Write the list of PAs matched
+  #Write the list of PAs to match
   list_pa = mf %>%
     st_drop_geometry() %>%
     as.data.frame() %>%
@@ -1084,10 +1084,35 @@ fn_post_match_auto = function(mf,
       df.cov.m = summary(out.cem, interactions = dummy_int)$sum.matched %>%
         as.data.frame() %>%
         clean_names() %>%
-        mutate(is_var_ok = var_ratio < th_var_max & var_ratio > th_var_min, #Check variance ratio between treated and controls
+        mutate(th_var_min = th_var_min,
+               th_var_max = th_var_max,
+               th_mean = th_mean,
+               is_var_ok = var_ratio < th_var_max & var_ratio > th_var_min, #Check variance ratio between treated and controls
                is_mean_ok = abs(std_mean_diff) < th_mean, #Check absolute standardized mean difference
                is_bal_ok = as.logical(is_var_ok*is_mean_ok), #Binary : TRUE if both variance and mean difference check pass, 0 if at least one does not
-               .after = "std_mean_diff")
+               .after = "var_ratio")
+      
+      # Build a table to report match quality
+      ## Get relevant info on the PA
+      ### Country name and iso
+      df_info = mf %>%
+        st_drop_geometry() %>%
+        filter(group == 3) %>%
+        slice(1)
+      region = df_info$region
+      sub_region = df_info$sub_region
+      country_en = df_info$country_en
+      wdpaid = df_info$wdpaid
+      ## Build the table from previous matchit.summary
+      covariate = row.names(df.cov.m)
+      tbl.quality = cbind(covariate, as.data.frame(df.cov.m)) %>%
+        mutate(region = region,
+               sub_region = sub_region,
+               iso3 = iso,
+               country_en = country_en,
+               wdpaid = wdpaid,
+               .before = "covariate")
+      row.names(tbl.quality) = NULL
       
       #Add a warning if covariate balance tests are not passed
       if(sum(df.cov.m$is_bal_ok) < nrow(df.cov.m) | is.na(sum(df.cov.m$is_bal_ok)) == TRUE)
@@ -1100,7 +1125,7 @@ fn_post_match_auto = function(mf,
       #Append the log : note the step has already been appended at the beginning of the function
       cat("-> OK\n", file = log, append = TRUE)
       
-      return(list("out.cem" = out.cem, "df.cov.m" = df.cov.m, "is_ok" = TRUE))
+      return(list("out.cem" = out.cem, "df.cov.m" = df.cov.m, "tbl.quality" = tbl.quality, "is_ok" = TRUE))
       
     },
     
@@ -1145,7 +1170,7 @@ fn_post_match_auto = function(mf,
 ### A table with number of treated and control units, before and after matching
 ### A table with statistics on matched control and treated units 
 ### A table with statistics on unmatched control and treated units,
-fn_post_covbal = function(out.cem, mf, 
+fn_post_covbal = function(out.cem, tbl.quality, mf, 
                           colname.travelTime, colname.clayContent, colname.fcAvg, colname.flAvg, colname.tri, colname.elevation, colname.biome,
                           th_mean,
                           iso, path_tmp, wdpaid, log,
@@ -1189,49 +1214,51 @@ fn_post_covbal = function(out.cem, mf,
   # https://cloud.r-project.org/web/packages/cobalt/vignettes/cobalt.html#love.plot
   fig_covbal = love.plot(out.cem, 
                        binary = "std", 
-                       abs = TRUE,
-                       #thresholds = c(m = .1),
+                       abs = T,
+                       #thresholds = c(m = th_mean),
                        var.order = "unadjusted",
                        var.names = c_name,
-                       title = paste0("Covariate balance for WDPA ID ", wdpaid, " in ", country.name),
+                       title = paste0("Covariate balance"),
                        sample.names = c("Discarded", "Selected"),
-                       wrap = 15 # at how many characters does axis label break to new line
-  )
-  # Finetune Layouts using ggplot
-  fig_covbal + 
-    geom_vline(aes(xintercept=th_mean, linetype=paste0("Acceptable\nbalance\n(x=", th_mean, ")")), color=c("#2ecc71"), linewidth=0.35) +
+                       alpha = .7,
+                       wrap = 40 # at how many characters does axis label break to new line
+  ) + 
+    geom_vline(aes(xintercept=th_mean, linetype=paste0("Threshold\n(x=", th_mean, ")")), color=c("#74C476"), linewidth=0.5) +
+    labs(subtitle = paste("Protected area in", country.name, "WDPAID", wdpaid)) +
     theme_bw() +
     theme(
-      plot.title = element_text(family="Arial Black", size=16, hjust=0.5),
-      
+      plot.title = element_text(family="Arial Black", size=14, hjust=0),
+      plot.subtitle = element_text(size=12, hjust=0),
       legend.title = element_blank(),
-      legend.text=element_text(size=14),
+      legend.text=element_text(size=12),
       legend.spacing.x = unit(0.5, 'cm'),
       legend.spacing.y = unit(0.75, 'cm'),
       
-      axis.text.x = element_text(angle = 20, hjust = 0.5, vjust = 0.5),
-      axis.text=element_text(size=12),
-      axis.title=element_text(size=14),
+      axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
+      axis.text=element_text(size=10),
+      axis.title=element_text(size=12),
       axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
       axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
       
+      
       panel.grid.major.x = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
       panel.grid.minor.x = element_line(color = 'grey', linewidth = 0.3, linetype = 2)
-    ) + guides(linetype = guide_legend(override.aes = list(color = "#2ecc71"))) # Add legend for geom_vline
+    ) + guides(linetype = guide_legend(override.aes = list(color = "#74C476"))) # Add legend for geom_vline
   
-
   #Saving files
   
   ggsave(paste0(path_tmp, "/CovBal/fig_covbal", "_", iso, "_", wdpaid, ".png"),
          plot = fig_covbal,
          device = "png",
-         height = 6, width = 9)
+         height = 8, width = 12)
   print(xtable(tbl_cem_nn, type = "latex"),
         file = paste0(path_tmp, "/CovBal/tbl_cem_nn", "_", iso, "_", wdpaid, ".tex"))
   print(xtable(tbl_cem_m, type = "latex"),
         file = paste0(path_tmp, "/CovBal/tbl_cem_m", "_", iso, "_", wdpaid, ".tex"))
   print(xtable(tbl_cem_all, type = "latex"),
         file = paste0(path_tmp, "/CovBal/tbl_cem_all", "_", iso, "_", wdpaid, ".tex"))
+  print(xtable(tbl, type = "latex", auto = T),
+        file =paste0(path_tmp, "/CovBal/tbl_quality_ct_", iso, "_", wdpaid, ".tex"))
   
   #Export to S3 storage
   ##List of files to save in the temp folder
@@ -1325,12 +1352,13 @@ fn_post_plot_density = function(out.cem, mf,
     #scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
     labs(title = "Distributional balance for accessibility",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-         x = "Accessibility (min)",
+         x = "Travel time to nearest city (min)",
+         caption = "Vertical lines represent the mean of their respective distribution",
          fill = "Group") +
     theme_bw() +
     theme(
       plot.title = element_text(family="Arial Black", size=16, hjust = 0),
-      
+      plot.caption = element_text(size = 10 ,hjust = 0),
       legend.title = element_blank(),
       legend.text=element_text(size=14),
       legend.spacing.x = unit(0.5, 'cm'),
@@ -1343,7 +1371,7 @@ fn_post_plot_density = function(out.cem, mf,
       
       strip.text.x = element_text(size = 12) # Facet Label
     )
-  
+
   ## Density plot for Clay Content
   fig_clay = bal.plot(out.cem, 
                     var.name = colname.clayContent,
@@ -1360,11 +1388,12 @@ fn_post_plot_density = function(out.cem, mf,
     labs(title = "Distributional balance for clay content",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
          x = "Clay content at 0-5cm soil depth (g/100g)",
+         caption = "Vertical lines represent the mean of their respective distribution",
          fill = "Group") +
     theme_bw() +
     theme(
-      plot.title = element_text(family="Arial Black", size=16, hjust=0),
-      
+      plot.title = element_text(family="Arial Black", size=16, hjust = 0),
+      plot.caption = element_text(size = 10 ,hjust = 0),
       legend.title = element_blank(),
       legend.text=element_text(size=14),
       legend.spacing.x = unit(0.5, 'cm'),
@@ -1394,22 +1423,24 @@ fn_post_plot_density = function(out.cem, mf,
       labs(title = "Distributional balance for elevation",
            subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
            x = "Elevation (m)",
+           caption = "Vertical lines represent the mean of their respective distribution",
            fill = "Group") +
-      theme_bw() +
-      theme(
-          plot.title = element_text(family="Arial Black", size=16, hjust=0),
-          legend.title = element_blank(),
-          legend.text=element_text(size=14),
-          legend.spacing.x = unit(0.5, 'cm'),
-          legend.spacing.y = unit(0.75, 'cm'),
-
-          axis.text=element_text(size=12),
-          axis.title=element_text(size=14),
-          axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
-          axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
-
-          strip.text.x = element_text(size = 12) # Facet Label
-      )
+    theme_bw() +
+    theme(
+      plot.title = element_text(family="Arial Black", size=16, hjust = 0),
+      plot.caption = element_text(size = 10 ,hjust = 0),
+      legend.title = element_blank(),
+      legend.text=element_text(size=14),
+      legend.spacing.x = unit(0.5, 'cm'),
+      legend.spacing.y = unit(0.75, 'cm'),
+      
+      axis.text=element_text(size=12),
+      axis.title=element_text(size=14),
+      axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+      axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+      
+      strip.text.x = element_text(size = 12) # Facet Label
+    )
   
   ## Density plot for TRI
   fig_tri = bal.plot(out.cem,
@@ -1424,26 +1455,27 @@ fn_post_plot_density = function(out.cem, mf,
     #scale_fill_viridis(discrete = T) +
     scale_fill_discrete(labels = c("Control", "Treatment")) +
     #scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
-      labs(title = "Distributional balance for Terrain Ruggedness Index (TRI)",
+      labs(title = "Distributional balance for Terrain Ruggedness Index",
           subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-           x = "Ruggedness (m)",
-           fill = "Group") +
-      theme_bw() +
-      theme(
-          plot.title = element_text(family="Arial Black", size=16, hjust=0),
-
-          legend.title = element_blank(),
-          legend.text=element_text(size=14),
-          legend.spacing.x = unit(0.5, 'cm'),
-          legend.spacing.y = unit(0.75, 'cm'),
-
-          axis.text=element_text(size=12),
-          axis.title=element_text(size=14),
-          axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
-          axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
-
-          strip.text.x = element_text(size = 12) # Facet Label
-      )
+           x = "Terrain Ruggedness Index (m)",
+          caption = "Vertical lines represent the mean of their respective distribution",
+          fill = "Group") +
+    theme_bw() +
+    theme(
+      plot.title = element_text(family="Arial Black", size=16, hjust = 0),
+      plot.caption = element_text(size = 10 ,hjust = 0),
+      legend.title = element_blank(),
+      legend.text=element_text(size=14),
+      legend.spacing.x = unit(0.5, 'cm'),
+      legend.spacing.y = unit(0.75, 'cm'),
+      
+      axis.text=element_text(size=12),
+      axis.title=element_text(size=14),
+      axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+      axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+      
+      strip.text.x = element_text(size = 12) # Facet Label
+    )
   
   ## Density plot for covariate "forest cover 2000"
   fig_fc = bal.plot(out.cem, 
@@ -1461,11 +1493,12 @@ fn_post_plot_density = function(out.cem, mf,
     labs(title = "Distributional balance for pre-treatment forest cover",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
          x = "Forest cover (ha)",
+         caption = "Vertical lines represent the mean of their respective distribution.\nForest cover here is the average forest cover, up to three years before treatment.",
          fill = "Group") +
     theme_bw() +
     theme(
-      plot.title = element_text(family="Arial Black", size=16, hjust=0),
-      
+      plot.title = element_text(family="Arial Black", size=16, hjust = 0),
+      plot.caption = element_text(size = 10 ,hjust = 0),
       legend.title = element_blank(),
       legend.text=element_text(size=14),
       legend.spacing.x = unit(0.5, 'cm'),
@@ -1495,10 +1528,12 @@ fn_post_plot_density = function(out.cem, mf,
     labs(title = "Distributional balance for average pre-treatment forest loss",
          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
          x = "Forest loss (ha)",
+         caption = "Vertical lines represent the mean of their respective distribution.\nForest cover loss is the average annual forest cover loss, up to three years before treatment.",
          fill = "Group") +
     theme_bw() +
     theme(
-      plot.title = element_text(family="Arial Black", size=16, hjust=0),
+      plot.title = element_text(family="Arial Black", size=16, hjust = 0),
+      plot.caption = element_text(size = 10 ,hjust = 0),
       legend.title = element_blank(),
       legend.text=element_text(size=14),
       legend.spacing.x = unit(0.5, 'cm'),
@@ -1523,6 +1558,7 @@ fn_post_plot_density = function(out.cem, mf,
                     which = "both",
                     mirror = F,
                     alpha.weight = T) +
+    coord_flip() +
     facet_wrap(.~which, labeller = as_labeller(fnl)) +
     #scale_fill_viridis(discrete = T) +
     scale_fill_discrete(labels = c("Control", "Treatment")) +
@@ -1533,19 +1569,20 @@ fn_post_plot_density = function(out.cem, mf,
          fill = "Group") +
     theme_bw() +
     theme(
-      plot.title = element_text(family="Arial Black", size=16, hjust=0),
+      plot.title = element_text(family="Arial Black", size=16, hjust = 0),
+      plot.caption = element_text(size = 10 ,hjust = 0),
       legend.title = element_blank(),
       legend.text=element_text(size=14),
       legend.spacing.x = unit(0.5, 'cm'),
       legend.spacing.y = unit(0.75, 'cm'),
       
       axis.text=element_text(size=12),
-      axis.text.x = element_text(angle = 45),
       axis.title=element_text(size=14),
       axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
       axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
       
-      strip.text.x = element_text(size = 12) # Facet Label
+      strip.text.x = element_text(size = 12), # Facet Label
+      panel.spacing = unit(2, "lines")
     )
   
   tmp = paste(tempdir(), "fig", sep = "/")
@@ -1556,6 +1593,7 @@ fn_post_plot_density = function(out.cem, mf,
   
   } else print("Biome is not taken as a matching covariate : no density plot")
   
+  fig_biome
   #Saving plots
   
   tmp = paste(tempdir(), "fig", sep = "/")
@@ -1673,12 +1711,13 @@ fn_post_plot_hist = function(out.cem, mf,
         #scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
         labs(title = "Distributional balance for accessibility",
              subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-             x = "Accessibility (min)",
+             x = "Travel time to nearest city (min)",
+             caption = "Vertical lines represent the mean of their respective distribution",
              fill = "Group") +
         theme_bw() +
         theme(
           plot.title = element_text(family="Arial Black", size=16, hjust = 0),
-          
+          plot.caption = element_text(size = 10 ,hjust = 0),
           legend.title = element_blank(),
           legend.text=element_text(size=14),
           legend.spacing.x = unit(0.5, 'cm'),
@@ -1708,11 +1747,12 @@ fn_post_plot_hist = function(out.cem, mf,
         labs(title = "Distributional balance for clay content",
              subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
              x = "Clay content at 0-5cm soil depth (g/100g)",
+             caption = "Vertical lines represent the mean of their respective distribution",
              fill = "Group") +
         theme_bw() +
         theme(
-          plot.title = element_text(family="Arial Black", size=16, hjust=0),
-          
+          plot.title = element_text(family="Arial Black", size=16, hjust = 0),
+          plot.caption = element_text(size = 10 ,hjust = 0),
           legend.title = element_blank(),
           legend.text=element_text(size=14),
           legend.spacing.x = unit(0.5, 'cm'),
@@ -1742,10 +1782,12 @@ fn_post_plot_hist = function(out.cem, mf,
         labs(title = "Distributional balance for elevation",
              subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
              x = "Elevation (m)",
+             caption = "Vertical lines represent the mean of their respective distribution",
              fill = "Group") +
         theme_bw() +
         theme(
-          plot.title = element_text(family="Arial Black", size=16, hjust=0),
+          plot.title = element_text(family="Arial Black", size=16, hjust = 0),
+          plot.caption = element_text(size = 10 ,hjust = 0),
           legend.title = element_blank(),
           legend.text=element_text(size=14),
           legend.spacing.x = unit(0.5, 'cm'),
@@ -1772,14 +1814,15 @@ fn_post_plot_hist = function(out.cem, mf,
         #scale_fill_viridis(discrete = T) +
         scale_fill_discrete(labels = c("Control", "Treatment")) +
         #scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
-        labs(title = "Distributional balance for Terrain Ruggedness Index (TRI)",
+        labs(title = "Distributional balance for Terrain Ruggedness Index",
              subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-             x = "Ruggedness (m)",
+             x = "Terrain Ruggedness Index (m)",
+             caption = "Vertical lines represent the mean of their respective distribution",
              fill = "Group") +
         theme_bw() +
         theme(
-          plot.title = element_text(family="Arial Black", size=16, hjust=0),
-          
+          plot.title = element_text(family="Arial Black", size=16, hjust = 0),
+          plot.caption = element_text(size = 10 ,hjust = 0),
           legend.title = element_blank(),
           legend.text=element_text(size=14),
           legend.spacing.x = unit(0.5, 'cm'),
@@ -1809,11 +1852,12 @@ fn_post_plot_hist = function(out.cem, mf,
         labs(title = "Distributional balance for pre-treatment forest cover",
              subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
              x = "Forest cover (ha)",
+             caption = "Vertical lines represent the mean of their respective distribution.\nForest cover here is the average forest cover, up to three years before treatment.",
              fill = "Group") +
         theme_bw() +
         theme(
-          plot.title = element_text(family="Arial Black", size=16, hjust=0),
-          
+          plot.title = element_text(family="Arial Black", size=16, hjust = 0),
+          plot.caption = element_text(size = 10 ,hjust = 0),
           legend.title = element_blank(),
           legend.text=element_text(size=14),
           legend.spacing.x = unit(0.5, 'cm'),
@@ -1843,10 +1887,12 @@ fn_post_plot_hist = function(out.cem, mf,
         labs(title = "Distributional balance for average pre-treatment forest loss",
              subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
              x = "Forest loss (ha)",
+             caption = "Vertical lines represent the mean of their respective distribution.\nForest loss is the average annual forest cover loss, up to three years before treatment.",
              fill = "Group") +
         theme_bw() +
         theme(
-          plot.title = element_text(family="Arial Black", size=16, hjust=0),
+          plot.title = element_text(family="Arial Black", size=16, hjust = 0),
+          plot.caption = element_text(size = 10 ,hjust = 0),
           legend.title = element_blank(),
           legend.text=element_text(size=14),
           legend.spacing.x = unit(0.5, 'cm'),
@@ -2100,14 +2146,23 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
     
     {
       #A dataframe with matched and unmatched units
-      df = rbind(mutate(df_m, matched = T), 
-                 mutate(df_unm, matched = F, weights = 1, subclass = 1)) %>%
+      df = rbind(mutate(df_m, is_m = "Matched"), 
+                 mutate(df_unm, is_m = "Unmatched", weights = 1, subclass = 1)) %>%
         st_drop_geometry() %>%
-        as.data.frame()
+        as.data.frame() %>%
+        #Add average of each covariate for matched and unmatched treated units, for latter plotting
+        group_by(is_m) %>%
+        mutate(avg_clay = mean(clay_0_5cm_mean, na.rm = TRUE),
+               avg_fl = mean(avgLoss_pre_treat, na.rm = TRUE),
+               avg_fc = mean(avgCover_pre_treat, na.rm = TRUE),
+               avg_travel =  mean(minutes_mean_5k_110mio, na.rm = TRUE),
+               avg_tri =  mean(tri_mean, na.rm = TRUE),
+               avg_elevation = mean(elevation_mean, na.rm = TRUE)) %>%
+        ungroup()
       
       #Matched units
       ##Average values of covariates
-      df_avg_m = df_m %>%
+      df_mean_m = df_m %>%
         st_drop_geometry() %>%
         filter(group == 3 & wdpaid == wdpaid) %>% #Select treated units only
         summarize(minutes_mean_5k_110mio = mean(minutes_mean_5k_110mio, na.rm = TRUE), #Compute relevant measures
@@ -2115,10 +2170,10 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
                   clay_0_5cm_mean = mean(clay_0_5cm_mean, na.rm = TRUE),
                   elevation_mean = mean(elevation_mean, na.rm = TRUE),
                   tri_mean = mean(tri_mean, na.rm = TRUE),
-                  treecover_2000 = mean(treecover_2000, na.rm = TRUE)) %>%
+                  avgCover_pre_treat = mean(avgCover_pre_treat, na.rm = TRUE)) %>%
         t() %>% #Move to long dataframe
         as.data.frame() %>%
-        rename("avg_m" = "V1")#Change name of the column
+        rename("mean_m" = "V1")#Change name of the column
       ##Standard deviations of covariates
       df_sd_m = df_m %>%
         st_drop_geometry() %>%
@@ -2128,14 +2183,14 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
                   clay_0_5cm_mean = sd(clay_0_5cm_mean, na.rm = TRUE),
                   elevation_mean = sd(elevation_mean, na.rm = TRUE),
                   tri_mean = sd(tri_mean, na.rm = TRUE),
-                  treecover_2000 = sd(treecover_2000, na.rm = TRUE)) %>%
+                  avgCover_pre_treat = sd(avgCover_pre_treat, na.rm = TRUE)) %>%
         t() %>%
         as.data.frame() %>%
         rename("sd_m" = "V1") 
       
       #Unmatched units
       ##Average of covariates
-      df_avg_unm = df_unm %>%
+      df_mean_unm = df_unm %>%
         st_drop_geometry() %>%
         filter(group == 3 & wdpaid == wdpaid) %>% #Select treated units only
         summarize(minutes_mean_5k_110mio = mean(minutes_mean_5k_110mio, na.rm = TRUE),
@@ -2143,10 +2198,10 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
                   clay_0_5cm_mean = mean(clay_0_5cm_mean, na.rm = TRUE),
                   elevation_mean = mean(elevation_mean, na.rm = TRUE),
                   tri_mean = mean(tri_mean, na.rm = TRUE),
-                  treecover_2000 = mean(treecover_2000, na.rm = TRUE)) %>%
+                  avgCover_pre_treat = mean(avgCover_pre_treat, na.rm = TRUE)) %>%
         t() %>%
         as.data.frame() %>%
-        rename("avg_unm" = "V1") 
+        rename("mean_unm" = "V1") 
       ##Standard deviation of covariates
       df_sd_unm = df_unm %>%
         st_drop_geometry() %>%
@@ -2156,36 +2211,58 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
                   clay_0_5cm_mean = sd(clay_0_5cm_mean, na.rm = TRUE),
                   elevation_mean = sd(elevation_mean, na.rm = TRUE),
                   tri_mean = sd(tri_mean, na.rm = TRUE),
-                  treecover_2000 = sd(treecover_2000, na.rm = TRUE)) %>%
+                  tavgCover_pre_treat = sd(avgCover_pre_treat, na.rm = TRUE)) %>%
         t() %>%
         as.data.frame() %>%
         rename("sd_unm" = "V1") 
       
       #Get row names 
-      covariate = row.names(df_avg_m)
+      covariate = row.names(df_mean_m)
+      #Get relevant PA info to add in the quality table
+      df_info = df %>%
+        filter(group == 3) %>%
+        slice(1)
+      region = df_info$region
+      sub_region = df_info$sub_region
+      country_en = df_info$country_en
+      wdpaid = df_info$wdpaid
       #Gathering in one table and computing variance ratio, absolute standardized mean difference (SDM), and comparing to pre-defined thresholds
-      tbl = cbind(covariate, df_avg_m, df_avg_unm, df_sd_m, df_sd_unm) %>%
+      tbl = cbind(covariate, df_mean_m, df_mean_unm, df_sd_m, df_sd_unm) %>%
         rowwise() %>%
-        mutate(std_mean_diff = abs((avg_m - avg_unm)/(sqrt((sd_m^2+sd_unm^2)/2)))) %>% #SDM from https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3144483/#s11title or 10.1080/00273171.2011.568786
+        mutate(std_mean_diff = abs((mean_m - mean_unm)/(sqrt((sd_m^2+sd_unm^2)/2)))) %>% #SDM from https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3144483/#s11title or 10.1080/00273171.2011.568786
         mutate(var_ratio = (sd_m/sd_unm)^2) %>% #Variance ratio
         ungroup() %>%
-        mutate(is_var_ok = var_ratio < th_var_max & var_ratio > th_var_min, #Check variance ratio between treated and controls
+        mutate(th_var_min = th_var_min,
+               th_var_max = th_var_max,
+               th_mean = th_mean,
+               is_var_ok = var_ratio < th_var_max & var_ratio > th_var_min, #Check variance ratio between treated and controls
                is_mean_ok = abs(std_mean_diff) < th_mean, #Check absolute standardized mean difference
                is_bal_ok = as.logical(is_var_ok*is_mean_ok), #Binary : TRUE if both variance and mean difference check pass, 0 if at least one does not
-               .after = "var_ratio")
+               .after = "var_ratio") %>%
+        mutate(region = region,
+               sub_region = sub_region,
+               iso3 = iso,
+               country_en = country_en,
+               wdpaid = wdpaid,
+               .before = "covariate")
       
-      fig_clay = ggplot(data = df, aes(x = clay_0_5cm_mean, fill = matched)) %>%
+      fig_clay = ggplot(data = df, aes(x = clay_0_5cm_mean, fill = is_m)) %>%
         + geom_histogram(aes(y = ..density..), 
                        #bins = 30, 
                        color = "black") %>%
         + geom_density(alpha = 0.5) %>%
+        + geom_vline(aes(xintercept = avg_clay, color = is_m), linetype = 1, linewidth = 1, alpha = .6) %>%
         + labs(title = "Distribution of clay content among treated units",
+               subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+               caption = "Vertical lines represent the mean of their respective distribution",
                y = "Density",
                x = "Mean clay content (0-5 cm)") %>%
-        + scale_fill_brewer(name = "Matched", palette = "Dark2") %>%
+        + scale_color_brewer(name = "", palette = "Paired") %>%
+        + scale_fill_brewer(name = "", palette = "Paired") %>%
         + theme_bw() %>%
         + theme(
           plot.title = element_text(family="Arial Black", size=16, hjust = 0),
+          plot.caption = element_text(size = 10 ,hjust = 0),
           
           #legend.title = element_blank(),
           #legend.text=element_text(size=14),
@@ -2198,19 +2275,41 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
           axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
           
           strip.text.x = element_text(size = 12) # Facet Label
-        )
+        ) %>%
+        + guides(col = "none")
         
       fig_travel = ggplot(data = df,
-                          aes(x = minutes_mean_5k_110mio, fill = matched)) %>%
+                          aes(x = minutes_mean_5k_110mio, fill = is_m)) %>%
         + geom_histogram(aes(y = ..density..), 
                          #bins = 30, 
                          color = "black") %>%
         + geom_density(alpha = 0.5) %>%
+        + geom_vline(aes(xintercept = avg_clay, color = is_m), linetype = 1, linewidth = 1, alpha = .6) %>%
         + labs(title = "Distribution of travel time to nearest city among treated units",
+               subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+               caption = "Vertical lines represent the mean of their respective distribution",
                y = "Density",
                x = "Travel time to nearest city (min)") %>%
-        + scale_fill_brewer(name = "Matched", palette = "Dark2") %>%
-        + theme_minimal() 
+        + scale_color_brewer(name = "", palette = "Paired") %>%
+        + scale_fill_brewer(name = "", palette = "Paired") %>%
+        + theme_bw() %>%
+        + theme(
+          plot.title = element_text(family="Arial Black", size=16, hjust = 0),
+          plot.caption = element_text(size = 10 ,hjust = 0),
+          
+          #legend.title = element_blank(),
+          #legend.text=element_text(size=14),
+          #legend.spacing.x = unit(0.5, 'cm'),
+          #legend.spacing.y = unit(0.75, 'cm'),
+          
+          axis.text=element_text(size=12),
+          axis.title=element_text(size=14),
+          axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+          axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+          
+          strip.text.x = element_text(size = 12) # Facet Label
+        ) %>%
+        + guides(col = "none")
       
       fig_elevation = ggplot(data = df,
                              aes(x = elevation_mean, fill = matched)) %>%
@@ -2218,10 +2317,18 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
                          #bins = 30, 
                          color = "black") %>%
         + geom_density(alpha = 0.5) %>%
-        + scale_fill_brewer(name = "Matched", palette = "Dark2") %>%
+        + geom_vline(aes(xintercept = avg_elevation, color = is_m), linetype = 1, linewidth = 1, alpha = .6) %>%
+        + labs(title = "Distribution of elevation among treated units",
+               subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+               caption = "Vertical lines represent the mean of their respective distribution",
+               y = "Density",
+               x = "Elevation (m)") %>%
+        + scale_color_brewer(name = "", palette = "Paired") %>%
+        + scale_fill_brewer(name = "", palette = "Paired") %>%
         + theme_bw() %>%
         + theme(
           plot.title = element_text(family="Arial Black", size=16, hjust = 0),
+          plot.caption = element_text(size = 10 ,hjust = 0),
           
           #legend.title = element_blank(),
           #legend.text=element_text(size=14),
@@ -2234,21 +2341,27 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
           axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
           
           strip.text.x = element_text(size = 12) # Facet Label
-        )
+        ) %>%
+        + guides(col = "none")
       
       fig_loss = ggplot(data = df,
-                        aes(x = avgLoss_pre_treat, fill = matched)) %>%
+                        aes(x = avgLoss_pre_treat, fill = is_m)) %>%
         + geom_histogram(aes(y = ..density..), 
                          #bins = 30, 
                          color = "black") %>%
         + geom_density(alpha = 0.5) %>%
+        + geom_vline(aes(xintercept = avg_fl, color = is_m), linetype = 1, linewidth = 1, alpha = .6) %>%
         + labs(title = "Distribution of pre-treatment forest cover loss, among treated units",
+               subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
                y = "Density",
+               caption = "Vertical lines represent the mean of their respective distribution.\nForest cover loss is the average annual forest cover loss, up to three years before treatment.",
                x = "Forest cover loss (ha)") %>%
-        + scale_fill_brewer(name = "Matched", palette = "Dark2") %>%
+        + scale_color_brewer(name = "", palette = "Paired") %>%
+        + scale_fill_brewer(name = "", palette = "Paired") %>%
         + theme_bw() %>%
         + theme(
           plot.title = element_text(family="Arial Black", size=16, hjust = 0),
+          plot.caption = element_text(size = 10 ,hjust = 0),
           
           #legend.title = element_blank(),
           #legend.text=element_text(size=14),
@@ -2261,21 +2374,27 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
           axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
           
           strip.text.x = element_text(size = 12) # Facet Label
-        )
+        ) %>%
+        + guides(col = "none")
       
       fig_fc = ggplot(data = df,
-                          aes(x = treecover_2000, fill = matched)) %>%
+                          aes(x = avgCover_pre_treat, fill = is_m)) %>%
         + geom_histogram(aes(y = ..density..), 
                          #bins = 30, 
                          color = "black") %>%
         + geom_density(alpha = 0.5) %>%
+        + geom_vline(aes(xintercept = avg_fc, color = is_m), linetype = 1, linewidth = 1, alpha = .6) %>%
         + labs(title = "Distribution of pre-treatment forest cover, among treated units",
+               subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+               caption = "Vertical lines represent the mean of their respective distribution.\nForest cover here is the average forest cover, up to three years before treatment.",
                y = "Density",
                x = "Forest cover (ha)") %>%
-        + scale_fill_brewer(name = "Matched", palette = "Dark2") %>%
+        + scale_color_brewer(name = "", palette = "Paired") %>%
+        + scale_fill_brewer(name = "", palette = "Paired") %>%
         + theme_bw() %>%
         + theme(
           plot.title = element_text(family="Arial Black", size=16, hjust = 0),
+          plot.caption = element_text(size = 10 ,hjust = 0),
           
           #legend.title = element_blank(),
           #legend.text=element_text(size=14),
@@ -2288,21 +2407,27 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
           axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
           
           strip.text.x = element_text(size = 12) # Facet Label
-        ) 
+        ) %>%
+        + guides(col = "none")
       
       fig_tri = ggplot(data = df,
-                       aes(x = tri_mean, fill = matched)) %>%
+                       aes(x = tri_mean, fill = is_m)) %>%
         + geom_histogram(aes(y = ..density..), 
                          #bins = 30, 
                          color = "black") %>%
         + geom_density(alpha = 0.5) %>%
+        + geom_vline(aes(xintercept = avg_tri, color = is_m), linetype = 1, linewidth = 1, alpha = .6) %>%
         + labs(title = "Distribution of soil ruggedness among treated units",
+               subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+               caption = "Vertical lines represent the mean of their respective distribution",
                y = "Density",
                x = "Terrain Ruggedness Index (m)") %>%
-        + scale_fill_brewer(name = "Matched", palette = "Dark2") %>%
+        + scale_color_brewer(name = "", palette = "Paired") %>%
+        + scale_fill_brewer(name = "", palette = "Paired") %>%
         + theme_bw() %>%
         + theme(
           plot.title = element_text(family="Arial Black", size=16, hjust = 0),
+          plot.caption = element_text(size = 10 ,hjust = 0),
           
           #legend.title = element_blank(),
           #legend.text=element_text(size=14),
@@ -2315,19 +2440,23 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
           axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
           
           strip.text.x = element_text(size = 12) # Facet Label
-        )
+        ) %>%
+        + guides(col = "none")
       
       fig_biome = ggplot(data = df,
-                         aes(x = biomes, fill = matched)) %>%
-        + geom_bar(aes(y = ..prop..*100), position = "dodge") %>%
+                         aes(x = biomes, fill = is_m)) %>%
+        + coord_flip() %>%
+        + geom_bar(aes(y = ..prop..), position = "dodge") %>%
         + labs(title = "Distribution of biomes among treated units",
-               y = "Proportion (%)",
+               subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+               y = "Proportion",
                x = "") %>%
-        + scale_fill_brewer(name = "Matched", palette = "Dark2") %>%
+        + scale_color_brewer(name = "", palette = "Paired") %>%
+        + scale_fill_brewer(name = "", palette = "Paired") %>%
         + theme_bw() %>%
         + theme(
           plot.title = element_text(family="Arial Black", size=16, hjust = 0),
-          
+          plot.caption = element_text(size = 10 ,hjust = 0),          
           #legend.title = element_blank(),
           #legend.text=element_text(size=14),
           #legend.spacing.x = unit(0.5, 'cm'),
@@ -2360,7 +2489,7 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
              device = "png",
              height = 6, width = 9)
       ggsave(paste(tmp, paste0("fig_fc_dplot_treated_", iso, "_", wdpaid, ".png"), sep = "/"),
-             plot = fig_fc2000,
+             plot = fig_fc,
              device = "png",
              height = 6, width = 9)
       ggsave(paste(tmp, paste0("fig_fl_dplot_treated_", iso, "_", wdpaid, ".png"), sep = "/"),
@@ -2373,7 +2502,7 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
              height = 6, width = 9)
       
       print(xtable(tbl, type = "latex", auto = T),
-            file = paste(tmp, paste0("tbl_stat_treated_", iso, "_", wdpaid, ".tex"), sep = "/"))
+            file = paste(tmp, paste0("tbl_quality_tt_", iso, "_", wdpaid, ".tex"), sep = "/"))
       
       files <- list.files(tmp, full.names = TRUE)
       ##Add each file in the bucket (same foler for every file in the temp)
@@ -2391,7 +2520,7 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
       cat("#Assess difference of matched and unmatched units\n-> OK\n", file = log, append = TRUE)
       
       #Return outputs
-      list_output = list("is_ok" = TRUE)
+      list_output = list("tbl.quality" = tbl.quality, "is_ok" = TRUE)
       return(list_output)
       
     },

@@ -322,6 +322,10 @@ for (i in list_iso)
 count_i = 0 #Initialize counter
 max_i = length(list_iso) #Max value of the counter
 tic_post = tic() #start timer
+# Initialize two dataframes to record matching quality assessment : matched control and treated units, matched and unmatched treated
+df_no_match = data.frame(wdpaid = NULL) #To report the PA where matching was not possible
+df_quality_ct = data.frame() #For treated and control
+df_quality_tt = data.frame() #For treated units, before and after matching
 
 #Append the log, and specify matching parameters and quality assessment
 cat(paste("##########\nPOST-PROCESSING\n##########\n\nPARAMETERS :\nMatching\n#Parameters\n##Method :", match_method, "\n##Automatic cutoffs :", cutoff_method, "\n##Is it K2K matching ?", is_k2k, "\n##K2K method :", k2k_method, "\n#Quality assessement\n##Absolute standardized mean difference (threshold)", th_mean, "\n##Variance ratio between", th_var_min, "and", th_var_max, "\n\n"), 
@@ -369,6 +373,7 @@ for (i in list_iso)
     #Append the log to track progress of the process on PA j
     cat(paste("###\nWDPAID :", j, "\n###\n\n"), file = log, append = TRUE)
   
+    #In the matching frame, select control units and treated units in the PA of interest
     mf_ini_j = mf_ini %>%
       filter(group == 2 | (group == 3 & wdpaid == j))
     
@@ -396,12 +401,21 @@ for (i in list_iso)
                                    colname.flAvg = colname.flAvg,
                                    colname.biome = colname.biome,
                                    log = log)
-    if(output_cem$is_ok == FALSE) {next} else out_cem_j = output_cem$out.cem
+    if(output_cem$is_ok == FALSE) 
+      {
+      df_no_match = rbind(df_no_match, data.frame(wdpaid = j)) #Record the unmatched PA
+      next #Go to next PA or country
+      } else out_cem_j = output_cem$out.cem
+    
+    ##Add matching quality metrics of the PA matched in this iteration
+    tbl.quality.j = output_cem$tbl.quality
+    df_quality_ct = rbind(df_quality_ct, tbl.quality.j) 
     
     #Plots : covariates
     print("--Some plots : covariates")
     print("----Covariate balance")
     output_covbal = fn_post_covbal(out.cem = out_cem_j,
+                                   tbl.quality = tbl.quality.j,
                    mf = mf_j,
                    colname.travelTime = colname.travelTime, 
                    colname.clayContent = colname.clayContent,
@@ -480,6 +494,9 @@ for (i in list_iso)
                                                  save_dir = save_dir,
                                                  log = log)
     if(output_m_unm_treated$is_ok == FALSE) {next}
+    
+    ##Add matching quality metrics of the PA matched in this iteration
+    df_quality_tt = rbind(df_quality_tt, output_m_unm_treated$tbl.quality)
     
     #Extract matched units and plot them on a grid
     print("----Extract matched units and plot them on a grid")
