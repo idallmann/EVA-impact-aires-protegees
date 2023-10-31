@@ -215,7 +215,8 @@ list_iso = unique(data_pa_ie_africa$iso3)
 #list_iso = "KEN"
 #list_iso = c("COM", "STP", "GNB", "GMB", "SEN", "MAR", "GAB", "KEN", "CMR", "COG", "MDG", "MOZ", "NER", "TCD")
 #list_iso = c("COG", "MDG", "MOZ", "NER", "TCD")
-list_iso = c("COM", "STP", "GNB", "GMB", "SEN", "MAR", "GAB", "KEN", "CMR", "COG", "MDG")
+#list_iso = c("COM", "STP", "GNB", "GMB", "SEN", "MAR", "GAB", "KEN", "CMR", "COG", "MDG")
+list_iso = "SEN"
 ```
 
 ## Matching process
@@ -408,8 +409,8 @@ for (i in list_iso)
       } else out_cem_j = output_cem$out.cem
     
     ##Add matching quality metrics of the PA matched in this iteration
-    tbl.quality.j = output_cem$tbl.quality
-    df_quality_ct = rbind(df_quality_ct, tbl.quality.j) 
+    tbl.quality.ct.j = output_cem$tbl.quality
+    df_quality_ct = rbind(df_quality_ct, tbl.quality.ct.j) 
     
     #Plots : covariates
     print("--Some plots : covariates")
@@ -496,7 +497,8 @@ for (i in list_iso)
     if(output_m_unm_treated$is_ok == FALSE) {next}
     
     ##Add matching quality metrics of the PA matched in this iteration
-    df_quality_tt = rbind(df_quality_tt, output_m_unm_treated$tbl.quality)
+    tbl.quality.tt.j = output_m_unm_treated$tbl.quality
+    df_quality_tt = rbind(df_quality_tt, tbl.quality.tt.j) 
     
     #Extract matched units and plot them on a grid
     print("----Extract matched units and plot them on a grid")
