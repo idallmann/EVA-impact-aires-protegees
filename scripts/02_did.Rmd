@@ -26,7 +26,9 @@ The process consists of the following steps.
 
 Configuring the Rmarkdown.
 
-\#`{r setup, include=FALSE, eval = FALSE} #knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file()) #`
+```{r setup, include=FALSE, eval = FALSE}
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file()) 
+```
 
 Downloading and importing relevant packages.
 
@@ -66,9 +68,9 @@ source("scripts/functions/02_fns_did.R")
 tmp_did = paste(tempdir(), "did", sep = "/")
 ##Loading and saving directories on the storage. This is either define on today's date, or by a user-defined date.
 #load_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/")
-load_dir = paste("impact_analysis/matching", "2023-09-21", sep = "/")
+load_dir = paste("impact_analysis/matching", "2023-10-23", sep = "/")
 #save_dir = paste("impact_analysis/did", Sys.Date(), sep = "/")
-save_dir = paste("impact_analysis/did", "2023-09-21", sep = "/")
+save_dir = paste("impact_analysis/did", "2023-10-23", sep = "/")
 
 ## Dataset specific to the PAs portfolio to analyze. Only one is selected depending on the analysis one wants to perform. 
 
@@ -88,33 +90,58 @@ save_dir = paste("impact_analysis/did", "2023-09-21", sep = "/")
 #   filter(is.na(wdpaid) == TRUE | wdpaid != 555547988)
 
 ##FAPBM
-data_fapbm =
-  #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
-  aws.s3::s3read_using(
-  FUN = data.table::fread,
-  encoding = "UTF-8",
-  object = "data_tidy/BDD_PA_FAPBM.csv",
-  bucket = "projet-afd-eva-ap",
-  opts = list("region" = ""))
+# data_fapbm =
+#   #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
+#   aws.s3::s3read_using(
+#   FUN = data.table::fread,
+#   encoding = "UTF-8",
+#   object = "data_tidy/BDD_PA_FAPBM.csv",
+#   bucket = "projet-afd-eva-ap",
+#   opts = list("region" = ""))
 
 ##Madagascar (all PAs)
+# data_pa =
+#   #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
+#   aws.s3::s3read_using(
+#   FUN = data.table::fread,
+#   encoding = "UTF-8",
+#   object = "data_tidy/BDD_PA_MDG.csv",
+#   bucket = "projet-afd-eva-ap",
+#   opts = list("region" = ""))
+
+# All PAs in Africa
 data_pa =
-  #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
   aws.s3::s3read_using(
   FUN = data.table::fread,
   encoding = "UTF-8",
-  object = "data_tidy/BDD_PA_MDG.csv",
+  object = "data_tidy/BDD_PA_africa.csv",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
 
+
+#Specify the period of study to create the mapme.bidiversity portfolio
+## Start year
+yr_first = 2000
+## End year
+yr_last = 2021
+## Year to start analysis
+yr_min = yr_first + 2
+
+#Specify the margin of error to define confidence interval (0.05 corresponds 95% confidence interval).
+alpha = 0.05
+
 # The list of countries (ISO3 codes) to analyze. This can be define manually or from the the dataset loaded.
+##List of African countries in the sample that have at least one PA supported by the AFD we can analyse
+data_pa_ie_africa = data_pa %>%
+  filter(region == "Africa" & is.na(wdpaid) == FALSE & area_km2 >=1 & marine %in% c(0,1) & status_yr >= yr_min & focus == T)
+list_iso = unique(data_pa_ie_africa$iso3)
 
 # list_iso = data_pa %>%
 #   filter(region == "Africa") %>%
 #   filter(!(iso3 %in% c("ZZ")))
 # list_iso = unique(list_iso$iso3)
 
-list_iso = "MDG"
+list_iso = "SEN"
 
 ## Information on funding from AFD internal datasets, on AFD funded projects related to protected areas.
 data_fund = 
@@ -147,14 +174,7 @@ data_pa_report =
   group_by(key) %>%
   slice(1)
 
-#Specify the period of study to create the mapme.bidiversity portfolio
-## Start year
-yr_first = 2000
-## End year
-yr_last = 2021
 
-#Specify the margin of error to define confidence interval (0.05 corresponds 95% confidence interval).
-alpha = 0.05
 
 ```
 
@@ -174,12 +194,20 @@ df_fc_att = data.frame() #Effect on forest cover for matched units
 df_fl_att = data.frame() #Effect on deforestation relative to 2000
 ##Initialize a dataframe to store forest loss for visual evidence before/after matching
 df_plot_forest_loss = data.frame()
+#Initialize a dataframe to store pre-did dataframe of each PA in the country. Used later to aggregate results at country or world level
+df_did = data.frame()
+#Initialize a dataframe to store pre-test of parallel trend assumption
+df_pre_test = data.frame()
 
 for (i in list_iso)
 {
   #Update counter and show progress
   count_i = count_i+1
   print(paste0(i, " : country ", count_i, "/", max_i))
+  
+  #Initialize a dataframe to store pre-did dataframe of each PA in the country. Used later to aggregate results at country level
+  df_did_i = data.frame()
+  df_pre_test_i = data.frame()
   
   #Load the matching frame
   print("--Loading the list of PAs in the country considered")
@@ -203,9 +231,7 @@ for (i in list_iso)
                                 load_dir = load_dir)
     
     if(output_wolf_m_j$is_ok == FALSE) 
-      {
-      next
-      } else df_fl_wolf_m_j = output_wolf_m_j$df_fl_wolf_m_j
+      {next} else df_fl_wolf_m_j = output_wolf_m_j$df_fl_wolf_m_j
     df_fl_annual_wolf = rbind(df_fl_annual_wolf, df_fl_wolf_m_j)
     
     #Compute treatment effects
@@ -220,7 +246,6 @@ for (i in list_iso)
     #                   data_report = data_pa_report,
     #                   alpha = alpha,
     #                   load_dir = load_dir,
-    #                   ext_input = ".csv",
     #                   save_dir = save_dir)
     
     #For PAs in general (no funding info)
@@ -229,13 +254,14 @@ for (i in list_iso)
                     data_pa = data_pa,
                     alpha = alpha,
                     load_dir = load_dir,
-                    ext_input = ".csv",
                     save_dir = save_dir)
     
     if(output_att_m_j$is_ok == FALSE) {next} else df_att_m_j = output_att_m_j
     
     df_fc_att = rbind(df_fc_att, df_att_m_j$df_fc_att)
     df_fl_att = rbind(df_fl_att, df_att_m_j$df_fl_att)
+    df_did_i = rbind(df_did_i, df_att_m_j$df_did)
+    df_pre_test_i = rbind(df_pre_test_i, df_att_m_j$df_pre_test)
         
     print("----For unmatched units")
     
@@ -247,9 +273,7 @@ for (i in list_iso)
     #                   load_dir = load_dir,
     #                   ext_input = ".csv",
     #                   save_dir = save_dir)
-    # df_fc_att_unm = rbind(df_fc_att_unm, df_att_unm_j$df_fc_att)
-    # df_fl_att_unm = rbind(df_fl_att, df_att_unm_j$df_fl_att)
-    
+    #
     #For general PAs (funding info unknown)
     # df_att_unm_j = fn_did_att_general(iso = i, wdpaid = j, 
     #                       is_m = FALSE,
@@ -257,9 +281,13 @@ for (i in list_iso)
     #                   alpha = 0.05,
     #                   load_dir = load_dir,
     #                   ext_input = ".csv",
-    #                   save_dir = save_dir)    
+    #                   save_dir = save_dir)
+    #
+    #if(output_att_m_j$is_ok == FALSE) {next} else df_att_m_j = output_att_m_j
+    #df_pre_test = rbind(df_pre_test, df_att_m_j$df_pre_test)
     # df_fc_att_unm = rbind(df_fc_att_unm, df_att_unm_j$df_fc_att)
     # df_fl_att_unm = rbind(df_fl_att, df_att_unm_j$df_fl_att)
+    #df_did_i = rbind(df_did_i, df_att_m_j$df_did)
     
     #Plot visual evidence before-after matching
     print("--Plot visual evidence before-after matching")
@@ -268,17 +296,54 @@ for (i in list_iso)
                                                 alpha = alpha,
                                                 data_pa = data_pa, 
                                                 load_dir = load_dir, 
-                                                ext_input = ".csv", 
                                                 save_dir = save_dir)
     df_plot_forest_loss = rbind(df_plot_forest_loss, df_plot_forest_loss_j)
 
   }  
-
   
+  #Pre-did dataframe for country i
+  ## Keep only one pixel-time observations. As PA in a country can have similar controls, there is a risk a control pixel appears more than once in df_did_i
+  df_did_i_clean = df_did_i %>%
+    group_by(year, assetid) %>%
+    slice(1) %>% 
+    ungroup()
+  ## Store the country pre-did dataframe to df_did that gathers all country pre-did dataframes.
+  df_did = rbind(df_did, df_did_i_clean)
+  aws.s3::s3write_using(
+  FUN = data.table::fwrite,
+  df_did_i_clean,
+  object = paste(save_dir, i, paste0("df_did_", i, ".csv"), sep = "/"),
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
+  
+    ##Store the pre-did dataframe of the country 
+  df_pre_test = rbind(df_pre_test, df_pre_test_i)
+  aws.s3::s3write_using(
+  FUN = data.table::fwrite,
+  df_pre_test_i,
+  object = paste(save_dir, i, paste0("df_pre_test_", i, ".csv"), sep = "/"),
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
   
 }
 
-#Finally save the treatment effects computed for every protected areas analyzed
+#Save the pre-did dataframe of all country in a dataframe. Used for aggregating at country, region or world level
+aws.s3::s3write_using(
+FUN = data.table::fwrite,
+df_did,
+object = paste(save_dir, "df_did.csv", sep = "/"),
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+
+#Save the pre-treatment tests 
+aws.s3::s3write_using(
+FUN = data.table::fwrite,
+df_pre_test,
+object = paste(save_dir, "df_pre_test.csv", sep = "/"),
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+
+#Save the treatment effects computed for every protected areas analyzed
 ## Treatment effect expressed in forest cover loss avoided (ha)
 aws.s3::s3write_using(
 FUN = data.table::fwrite,
