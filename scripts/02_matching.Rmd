@@ -215,8 +215,7 @@ list_iso = unique(data_pa_ie_africa$iso3)
 #list_iso = "KEN"
 #list_iso = c("COM", "STP", "GNB", "GMB", "SEN", "MAR", "GAB", "KEN", "CMR", "COG", "MDG", "MOZ", "NER", "TCD")
 #list_iso = c("COG", "MDG", "MOZ", "NER", "TCD")
-#list_iso = c("COM", "STP", "GNB", "GMB", "SEN", "MAR", "GAB", "KEN", "CMR", "COG", "MDG")
-list_iso = "SEN"
+list_iso = c("COM", "STP", "GNB", "GMB", "SEN", "MAR", "GAB", "KEN", "CMR", "COG", "MDG", "MOZ")
 ```
 
 ## Matching process
@@ -416,7 +415,7 @@ for (i in list_iso)
     print("--Some plots : covariates")
     print("----Covariate balance")
     output_covbal = fn_post_covbal(out.cem = out_cem_j,
-                                   tbl.quality = tbl.quality.j,
+                                   tbl.quality = tbl.quality.ct.j,
                    mf = mf_j,
                    colname.travelTime = colname.travelTime, 
                    colname.clayContent = colname.clayContent,

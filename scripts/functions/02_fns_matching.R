@@ -1593,7 +1593,6 @@ fn_post_plot_density = function(out.cem, mf,
   
   } else print("Biome is not taken as a matching covariate : no density plot")
   
-  fig_biome
   #Saving plots
   
   tmp = paste(tempdir(), "fig", sep = "/")
