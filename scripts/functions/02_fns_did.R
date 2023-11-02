@@ -75,7 +75,7 @@ fn_fl_wolf = function(iso, wdpaid, alpha, load_dir)
                            object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("matched_long", "_", iso, "_", wdpaid, ".csv")),
                            bucket = "projet-afd-eva-ap",
                            opts = list("region" = "")) %>%
-    dplyr::select(c(region, iso3, wdpaid, group, assetid, status_yr, year_funding_first, year_funding_all, res_m, year, var, fc_ha))
+    dplyr::select(c(region, iso3, wdpaid, focus, group, assetid, status_yr, year_funding_first, year_funding_all, res_m, year, var, fc_ha))
   #select(c(region, country_en, iso3, wdpaid, group, status_yr, year_funding_first, year_funding_all, year, var, fc_ha))
   
   ##Extract country iso
@@ -89,6 +89,12 @@ fn_fl_wolf = function(iso, wdpaid, alpha, load_dir)
     filter(group == 3) %>% 
     slice(1)
   region.name = region.name$region
+  
+  ##Extract focus dummy
+  is_focus = df_long %>% 
+    filter(group == 3) %>% 
+    slice(1)
+  is_focus = as.logical(is_focus$focus)
   
   #Compute annual deforestation rates à la Wolf et al. 2021 before and after treatment for treated, and for all the period for controls. This is averaged across pixels.
   df_fl_annual_wolf = df_long %>%
@@ -115,9 +121,11 @@ fn_fl_wolf = function(iso, wdpaid, alpha, load_dir)
               sdFL_annual_wolf_post = sd(FL_annual_wolf_post, na.rm = TRUE),
               sdFL_annual_wolf_tot = sd(FL_annual_wolf_tot, na.rm = TRUE)) %>%
     ungroup() %>%
-    mutate(region = region.name, iso3 = country.iso, wdpaid = wdpaid, .before = "group") %>%
+    mutate(region = region.name, iso3 = country.iso, wdpaid = wdpaid, focus = is_focus, .before = "group") %>%
     mutate(group = case_when(group == 2 ~ "Control",
-                             group == 3 ~ "Treated"))
+                             group == 3 ~ "Treated")) %>%
+    ungroup() %>%
+    as.data.frame()
   
   return(list("df_fl_annual_wolf" = df_fl_annual_wolf, "is_ok" = TRUE))
     },
@@ -339,12 +347,6 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
     mutate(treatment_year = case_when(group == 2 ~ 0,
                                       group == 3 ~ status_yr), #Set treatment year to 0 for control units (required by did::att_gt)
            time = ifelse(group == 3, yes = year-treatment_year, no = NA),
-           area_wdpa_ha = case_when(group == 3 ~ area_ha,
-                                    group == 2 ~ NA),
-           area_noverlap_ha = case_when(group == 3 ~ area_noverlap_ha,
-                                    group == 2 ~ NA),
-           fc_tot_pre_treat = case_when(group == 3 ~ fc_tot_pre_treat,
-                                    group == 2 ~ NA),
            .after = status_yr) %>%
     group_by(assetid) %>%
     # mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100,
@@ -398,7 +400,7 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
                          print_details = F)
   pval_pretest_fl = fl_attgt$Wpval[1]
   
-  ### Store the p-value for pre-test of parallel trends assumption in a dataframe
+  ### Store the P-value for pre-test of parallel trends assumption : in a dataframe
   df_pre_test = data.frame("region" = region.name,
                            "country_en" = country.name,
                            "iso3" = country.iso,
@@ -445,6 +447,9 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
            iso3 = country.iso,
            name_pa = pa.name,
            wdpaid = wdpaid,
+           area_ha = area_ha,
+           area_noverlap_ha = area_noverlap_ha,
+           fc_tot_pre_treat = fc_tot_pre_treat,
            res_ha = res_ha,
            id_projet = id.project,
            status_wdpa = status.wdpa,
@@ -488,6 +493,9 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
            iso3 = country.iso,
            name_pa = pa.name,
            wdpaid = wdpaid,
+           area_ha = area_ha,
+           area_noverlap_ha = area_noverlap_ha,
+           fc_tot_pre_treat = fc_tot_pre_treat,
            res_ha = res_ha,
            id_projet = id.project,
            status_wdpa = status.wdpa,
@@ -517,7 +525,7 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
                           yes = "Deforestation avoided in a pixel,on average (matched units)",
                           no = "Deforestation avoided in a pixel,on average (unmatched units)"),
            subtitle = paste0(pa.name, ", ", country.name, ", implemented in ", treatment.year),
-           caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption", pval_pretest_fc, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the deforestation avoided at pixel level in hectare, due to the conservation program.\nA negative effect means the conservation program has caused higher deforestation."),
+           caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption :", pval_pretest_fc, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the deforestation avoided at pixel level in hectare, due to the conservation program.\nA negative effect means the conservation program has caused higher deforestation."),
            y = "Area (ha)",
            x = "Year relative to treatment (t = 0)") %>%
     + scale_x_continuous(breaks=seq(min(df_fc_attgt$time),max(df_fc_attgt$time),by=1)) %>%
@@ -557,7 +565,7 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
                           yes = "Average deforestation avoided relative to pre-treatment forest cover (matched units)",
                           no = "Average deforestation avoided relative to pre-treatment forest cover (unmatched units)"),
            subtitle = paste0(pa.name, ", ", country.name, ", implemented in ", treatment.year),
-           caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption", pval_pretest_fc, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the deforestation avoided in percentage of pre-treatment forest cover.\nA negative effect means the conservation program has caused higher deforestation."),
+           caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption :", pval_pretest_fc, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the deforestation avoided in percentage of pre-treatment forest cover.\nA negative effect means the conservation program has caused higher deforestation."),
            y = "%",
            x = "Year relative to treatment (t = 0)") %>%
     + scale_x_continuous(breaks=seq(min(df_fc_attgt$time),max(df_fc_attgt$time),by=1)) %>%
@@ -597,7 +605,7 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
                           yes = "Total deforestation avoided (matched units)",
                           no = "Total deforestation avoided (unmatched units)"),
            subtitle = paste0(pa.name, ", ", country.name, ", implemented in ", treatment.year),
-           caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption", pval_pretest_fc, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the total deforestation avoided in the protected areas, in hectare (ha).\nThis measure is an extrapolation to the full protected area of average avoided deforestation at pixel level.\nA negative effect means the conservation program has caused higher deforestation."),
+           caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption :", pval_pretest_fc, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the total deforestation avoided in the protected areas, in hectare (ha).\nThis measure is an extrapolation to the full protected area of average avoided deforestation at pixel level.\nA negative effect means the conservation program has caused higher deforestation."),
            y = "Forest area (ha)",
            x = "Year relative to treatment (t = 0)") %>%
     + scale_x_continuous(breaks=seq(min(df_fc_attgt$time),max(df_fc_attgt$time),by=1)) %>%
@@ -638,7 +646,7 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
                           yes = "Effect of the conservation on the deforestation rate, relative to 2000 (matched units)",
                           no = "Effect of the conservation on the deforestation rate, relative to 2000 (unmatched units)"),
            subtitle = paste0(pa.name, ", ", country.name, ", implemented in ", treatment.year),
-           caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption", pval_pretest_fl, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the reduction of cumulated deforestation rate (relative to 2000 forest cover) in percentage points (pp).\nA negative effect means the conservation program has caused higher deforestation."),
+           caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption :", pval_pretest_fl, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the reduction of cumulated deforestation rate (relative to 2000 forest cover) in percentage points (pp).\nA negative effect means the conservation program has caused higher deforestation."),
            y = "Reduction of deforestation (p.p)",
            x = "Year relative to treatment (t = 0)") %>%
     + scale_x_continuous(breaks=seq(min(df_fc_attgt$time),max(df_fc_attgt$time),by=1)) %>%
@@ -709,7 +717,7 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
   
   
   #Return outputs
-  return(list("df_did" = df_did, "df_fc_att" = df_fc_attgt, "df_fl_att" = df_fl_attgt, "df_pre_test" = df_pre_test, "is_ok" = TRUE))
+  return(list("df_fc_att" = df_fc_attgt, "df_fl_att" = df_fl_attgt, "df_pre_test" = df_pre_test, "is_ok" = TRUE))
   
     },
   
@@ -918,12 +926,6 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
         mutate(treatment_year = case_when(group == 2 ~ 0,
                                           group == 3 ~ status_yr), #Set treatment year to 0 for control units (required by did::att_gt)
                time = ifelse(group == 3, yes = year-treatment_year, no = NA),
-               area_wdpa_ha = case_when(group == 3 ~ area_ha,
-                                        group == 2 ~ NA),
-               area_noverlap_ha = case_when(group == 3 ~ area_noverlap_ha,
-                                            group == 2 ~ NA),
-               fc_tot_pre_treat = case_when(group == 3 ~ fc_tot_pre_treat,
-                                            group == 2 ~ NA),
                .after = status_yr) %>%
         group_by(assetid) %>%
         # mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100,
@@ -977,7 +979,7 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
                              print_details = F)
       pval_pretest_fl = fl_attgt$Wpval[1]
       
-      ### Store the p-value for pre-test of parallel trends assumption in a dataframe
+      ### Store the P-value for pre-test of parallel trends assumption : in a dataframe
       df_pre_test = data.frame("region" = region.name,
                                "country_en" = country.name,
                                "iso3" = country.iso,
@@ -1025,6 +1027,9 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
                iso3 = country.iso,
                name_pa = pa.name,
                wdpaid = wdpaid,
+               area_ha = area_ha,
+               area_noverlap_ha = area_noverlap_ha,
+               fc_tot_pre_treat = fc_tot_pre_treat,
                res_ha = res_ha,
                status_wdpa = status.wdpa,
                iucn_cat = iucn.cat,
@@ -1035,7 +1040,7 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
                funding_year = funding.years,
                funding_year_list = list.funding.years,
                .before = "treatment_year")
-      
+
       # Same for change in deforestation rate
       df_fl_attgt = data.frame("treatment_year" = fl_attgt$group,
                                "year" = fl_attgt$t,
@@ -1062,6 +1067,9 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
                iso3 = country.iso,
                name_pa = pa.name,
                wdpaid = wdpaid,
+               area_ha = area_ha,
+               area_noverlap_ha = area_noverlap_ha,
+               fc_tot_pre_treat = fc_tot_pre_treat,
                res_ha = res_ha,
                status_wdpa = status.wdpa,
                iucn_cat = iucn.cat,
@@ -1085,7 +1093,7 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
                               yes = "Deforestation avoided in a pixel, on average (matched units)",
                               no = "Deforestation avoided in a pixel, on average (unmatched units)"),
                subtitle = paste0(pa.name, ", ", country.name, ", implemented in ", treatment.year),
-               caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption", pval_pretest_fc, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the deforestation avoided at pixel level in hectare, due to the conservation program.\nA negative effect means the conservation program has caused higher deforestation."),
+               caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption :", pval_pretest_fc, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the deforestation avoided at pixel level in hectare, due to the conservation program.\nA negative effect means the conservation program has caused higher deforestation."),
                y = "Area (ha)",
                x = "Year relative to treatment (t = 0)") %>%
         + scale_x_continuous(breaks=seq(min(df_fc_attgt$time),max(df_fc_attgt$time),by=1)) %>%
@@ -1125,7 +1133,7 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
                               yes = "Average deforestation avoided relative to pre-treatment forest cover (matched units)",
                               no = "Average deforestation avoided relative to pre-treatment forest cover (unmatched units)"),
                subtitle = paste0(pa.name, ", ", country.name, ", implemented in ", treatment.year),
-               caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption", pval_pretest_fc, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the deforestation avoided in percentage of pre-treatment forest cover.\nA negative effect means the conservation program has caused higher deforestation."),
+               caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption :", pval_pretest_fc, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the deforestation avoided in percentage of pre-treatment forest cover.\nA negative effect means the conservation program has caused higher deforestation."),
                y = "%",
                x = "Year relative to treatment (t = 0)") %>%
         + scale_x_continuous(breaks=seq(min(df_fc_attgt$time),max(df_fc_attgt$time),by=1)) %>%
@@ -1165,7 +1173,7 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
                               yes = "Total deforestation avoided (matched units)",
                               no = "Total deforestation avoided (unmatched units)"),
                subtitle = paste0(pa.name, ", ", country.name, ", implemented in ", treatment.year),
-               caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption", pval_pretest_fc, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the total deforestation avoided in the protected areas, in hectare (ha).\nThis measure is an extrapolation to the full protected area of average avoided deforestation at pixel level.\nA negative effect means the conservation program has caused higher deforestation."),
+               caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption :", pval_pretest_fc, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the total deforestation avoided in the protected areas, in hectare (ha).\nThis measure is an extrapolation to the full protected area of average avoided deforestation at pixel level.\nA negative effect means the conservation program has caused higher deforestation."),
                y = "Forest area (ha)",
                x = "Year relative to treatment (t = 0)") %>%
         + scale_x_continuous(breaks=seq(min(df_fc_attgt$time),max(df_fc_attgt$time),by=1)) %>%
@@ -1206,7 +1214,7 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
                               yes = "Effect of the conservation on the deforestation rate, relative to 2000 (matched units)",
                               no = "Effect of the conservation on the deforestation rate, relative to 2000 (unmatched units)"),
                subtitle = paste0(pa.name, ", ", country.name, ", implemented in ", treatment.year),
-               caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption", pval_pretest_fl, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the reduction of cumulated deforestation rate (relative to 2000 forest cover) in percentage points (pp).\nA negative effect means the conservation program has caused higher deforestation."),
+               caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption :", pval_pretest_fl, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the reduction of cumulated deforestation rate (relative to 2000 forest cover) in percentage points (pp).\nA negative effect means the conservation program has caused higher deforestation."),
                y = "Reduction of deforestation (p.p)",
                x = "Year relative to treatment (t = 0)") %>%
         + scale_x_continuous(breaks=seq(min(df_fc_attgt$time),max(df_fc_attgt$time),by=1)) %>%
@@ -1277,7 +1285,7 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
       
       
       #Return outputs
-      return(list("df_did" = df_did, "df_fc_att" = df_fc_attgt, "df_fl_att" = df_fl_attgt, "df_pre_test" = df_pre_test, "is_ok" = TRUE))
+      return(list("df_fc_att" = df_fc_attgt, "df_fl_att" = df_fl_attgt, "df_pre_test" = df_pre_test, "is_ok" = TRUE))
       
     },
     
@@ -1325,13 +1333,13 @@ fn_plot_forest_loss = function(iso, wdpaid, data_pa, alpha, load_dir, save_dir)
                                object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("matched_long", "_", iso, "_", wdpaid, ".csv")),
                                bucket = "projet-afd-eva-ap",
                                opts = list("region" = "")) %>%
-    dplyr::select(c(region, iso3, wdpaid, group, assetid, status_yr, year_funding_first, year_funding_all, res_m, year, var, fc_ha))
+    dplyr::select(c(region, iso3, wdpaid, focus, group, assetid, status_yr, year_funding_first, year_funding_all, res_m, year, var, fc_ha))
   
   df_long_unm_raw = s3read_using(data.table::fread,
                                  object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("unmatched_long", "_", iso, "_", wdpaid, ".csv")),
                                  bucket = "projet-afd-eva-ap",
                                  opts = list("region" = "")) %>%
-    dplyr::select(c(region, iso3, wdpaid, group, assetid, status_yr, year_funding_first, year_funding_all, year, res_m, var, fc_ha))
+    dplyr::select(c(region, iso3, wdpaid, focus, group, assetid, status_yr, year_funding_first, year_funding_all, year, res_m, var, fc_ha))
   
   wdpa_id = wdpaid
   #Extract relevant information
@@ -1366,6 +1374,7 @@ fn_plot_forest_loss = function(iso, wdpaid, data_pa, alpha, load_dir, save_dir)
   
   ##Area of the PA and PA/country name
   area_ha = data_pa[data_pa$wdpaid == wdpa_id,]$area_km2*100
+  
   country.name = data_pa %>% 
     filter(iso3 == iso) %>% 
     slice(1)
@@ -1394,7 +1403,8 @@ fn_plot_forest_loss = function(iso, wdpaid, data_pa, alpha, load_dir, save_dir)
               fc_ha_ci_lower = avgfc_ha - qt((1-alpha)/2,df=n-1)*sdfc_ha/sqrt(n),
               fc_rel00_ha_ci_upper = avgfc_rel00_ha + qt((1-alpha)/2,df=n-1)*sdfc_rel00_ha/sqrt(n),
               fc_rel00_ha_ci_lower = avgfc_rel00_ha - qt((1-alpha)/2,df=n-1)*sdfc_rel00_ha/sqrt(n),
-              matched = T) %>%
+              matched = T,
+              focus = focus) %>%
     #Compute total forest cover and forest loss relative to 2000, knowing area of the PA and average forest share in a pixel in 2000
     #CI are computed at 95% confidence level
     ungroup() %>%
@@ -1426,7 +1436,8 @@ fn_plot_forest_loss = function(iso, wdpaid, data_pa, alpha, load_dir, save_dir)
               fc_ha_ci_lower = avgfc_ha - qt((1-alpha)/2,df=n-1)*sdfc_ha/sqrt(n),
               fc_rel00_ha_ci_upper = avgfc_rel00_ha + qt((1-alpha)/2,df=n-1)*sdfc_rel00_ha/sqrt(n),
               fc_rel00_ha_ci_lower = avgfc_rel00_ha - qt((1-alpha)/2,df=n-1)*sdfc_rel00_ha/sqrt(n),
-              matched = F) %>%
+              matched = F,
+              focus = focus) %>%
     #Compute total forest cover and forest loss relative to 2000, knowing area of the PA and average forest share in a pixel in 2000
     #CI are computed at 95% confidence level
     ungroup() %>%
@@ -2003,7 +2014,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
             `Strict` = "Strict\nIUCN cat. I-IV",
             `Non strict` = "Non strict\nIUCN V-VI",
             `Unknown` = "Unknown",
-            `focus` = "FAPBM funded",
+            `focus` = "PA of interest",
             `not focus` = "Others")
   # df_colors = df_plot_fc_att %>% group_by(n) %>% slice(1)
   # colors = ifelse(df_colors$wdpaid %in% list_focus,"#3182BD","black")
@@ -2021,7 +2032,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
     # + scale_x_continuous(breaks=seq(min(df_plot_fc_att$att_per, na.rm = TRUE),max(df_plot_fc_att$att_per, na.rm = TRUE),by=1)) %>%
     + facet_grid(~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
     + labs(title = "Deforestation avoided relative to pre-treatment forest cover",
-           #caption = "FAPBM funded protected areas are in blue, others are in black.",
+           #caption = "Protected areas of interest are in blue, others are in black.",
            x = "%",
            y = "") %>%
     + theme_minimal() %>%
@@ -2103,7 +2114,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
     # + scale_x_continuous(breaks=seq(min(df_plot_fc_att$att_per, na.rm = TRUE),max(df_plot_fc_att$att_per, na.rm = TRUE),by=1)) %>%
     + facet_grid(~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
     + labs(title = "Deforestation avoided relative to pre-treatment forest cover",
-           subtitle = "Protected areas funded by the FAPBM only",
+           subtitle = "Protected areas of interest only",
            x = "%",
            y = "") %>%
     + theme_minimal() %>%
@@ -2265,7 +2276,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
                            na.translate = F) %>%
     + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
     + labs(title = "Total deforestation avoided",
-           subtitle = "Protected areas funded by the FAPBM only",
+           subtitle = "Protected areas of interest only",
            x = "ha",
            y = "") %>%
     + theme_minimal() %>%
@@ -2423,7 +2434,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
                            na.translate = F) %>%
     + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
     + labs(title = "Reduction of deforestation due to the conservation",
-           subtitle = "Protected areas funded by the FAPBM only",
+           subtitle = "Protected areas of interest only",
            x = "p.p.",
            y = "") %>%
     + theme_minimal() %>%
@@ -2518,9 +2529,9 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
            "Effect (10 y., %)" = "att_per_10",
            "Signi. (10 y.)" = "sig_per_10") %>%
     arrange(focus, name_pa)
-  # names(tbl_fc_att_per) = c("Name", "FAPBM", "Creation",  "Protection", 
+  # names(tbl_fc_att_per) = c("Name", "PA of interest", "Creation",  "Protection", 
   #                           "Governance", "Effect (5 y., %)", "Significance (5 y.)","Effect (10 y., %)", "Significance (10 y.)")
-  names(tbl_fc_att_per) = c("Name", "FAPBM", "Creation", "Protection", 
+  names(tbl_fc_att_per) = c("Name", "PA of interest", "Creation", "Protection", 
                             "Effect (5 y., %)", "Signi. (5 y.)","Effect (10 y., %)", "Signi. (10 y.)")
   
   # treatment effect : total deforestation avoided 
@@ -2548,9 +2559,9 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
            "Effect (10 y., %)" = "att_pa_10",
            "Signi. (10 y.)" = "sig_pa_10") %>%
   arrange(focus, name_pa)
-  # names(tbl_fc_att_pa) = c("Name", "FAPBM", "Creation",  "Protection", 
+  # names(tbl_fc_att_pa) = c("Name", "PA of interest", "Creation",  "Protection", 
   #                           "Governance", "Effect (5 y., ha)", "Significance (5 y.)","Effect (10 y., ha)", "Significance (10 y.)")
-  names(tbl_fc_att_pa) = c("Name", "FAPBM", "Creation", "Protection", 
+  names(tbl_fc_att_pa) = c("Name", "PA of interest", "Creation", "Protection", 
                             "Effect (5 y., ha)", "Signi. (5 y.)","Effect (10 y., ha)", "Signi. (10 y.)")
   
   # treatment effect : avoided deforestation, in terms of difference in cumultaed deforestation rate 
@@ -2578,9 +2589,9 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
            "Effect (10 y., %)" = "att_10",
            "Signi. (10 y.)" = "sig_10") %>%
     arrange(focus, name_pa)
-  # names(tbl_fl_att) = c("Name", "FAPBM", "Creation",  "Protection", 
+  # names(tbl_fl_att) = c("Name", "PA of interest", "Creation",  "Protection", 
   #                           "Governance", "Effect (5 y., pp)", "Significance (5 y.)","Effect (10 y., pp)", "Significance (10 y.)")
-  names(tbl_fl_att) = c("Name", "FAPBM", "Creation", "Protection", 
+  names(tbl_fl_att) = c("Name", "PA of interest", "Creation", "Protection", 
                            "Effect (5 y., pp)", "Signi. (5 y.)","Effect (10 y., pp)", "Signi. (10 y.)")
   
   #Saving plots
