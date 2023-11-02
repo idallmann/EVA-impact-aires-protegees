@@ -42,7 +42,7 @@ fn_pre_log = function(list_iso, buffer, gridSize, yr_first, yr_last, yr_min, lis
   file.create(log)
   #Do not forget to end the writing with a \n to avoid warnings
   #cat(paste("#####\nCOUNTRY :", iso, "\nTIME :", print(Sys.time(), tz = "UTC-2"), "\n#####\n\n###\nPRE-PROCESSING\n###\n\n"), file = log, append = TRUE)
-  cat(paste("STARTING TIME :", print(Sys.time(), tz = "UTC-2"), "\nPARAMETERS : \nBuffer =", buffer, "m \nPixel resolution", gridSize, "\nPeriod of analysis", yr_first, "to", yr_last, "\nMinimum treatment year is", yr_min, "\nMatching covariates :", list_cov, "\nCOUNTRIES :", str_iso, "\nNOTES :", notes, "\n\n##########\nPRE-PROCESSING\n##########\n\n"), file = log, append = TRUE)
+  cat(paste("STARTING TIME :", print(Sys.time(), tz = "UTC-2"), "\nPARAMETERS : \nBuffer =", buffer, "m \nPixel resolution", gridSize, "m\nPeriod of analysis", yr_first, "to", yr_last, "\nMinimum treatment year is", yr_min, "\nMatching covariates :", list_cov, "\nCOUNTRIES :", str_iso, "\nNOTES :", notes, "\n\n##########\nPRE-PROCESSING\n##########\n\n"), file = log, append = TRUE)
   
   return(log)
 }
