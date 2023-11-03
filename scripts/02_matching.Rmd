@@ -214,8 +214,7 @@ list_iso = unique(data_pa_ie_africa$iso3)
 ## Manual definition
 #list_iso = "KEN"
 #list_iso = c("COM", "STP", "GNB", "GMB", "SEN", "MAR", "GAB", "KEN", "CMR", "COG", "MDG", "MOZ", "NER", "TCD")
-#list_iso = c("COG", "MDG", "MOZ", "NER", "TCD")
-list_iso = c("COM", "STP", "GNB", "GMB", "SEN", "MAR", "GAB", "KEN", "CMR", "COG", "MDG", "MOZ")
+list_iso = c("COM", "STP", "GNB", "GMB", "SEN", "MAR", "GAB", "KEN", "CMR", "COG", "MDG", "MOZ", "NER", "TCD")
 ```
 
 ## Matching process
@@ -357,7 +356,7 @@ for (i in list_iso)
   if(output_load$is_ok == FALSE) {next} else mf_ini = output_load$mf
   
   list_pa_in = unique(mf_ini[mf_ini$wdpaid != 0, ]$wdpaid)
-  df_list_post_in = rbind(df_list_post, data.frame("iso3" = rep(i, length(list_pa_in)),
+  df_list_post_in = rbind(df_list_post_in, data.frame("iso3" = rep(i, length(list_pa_in)),
                                                    "wdpaid" = list_pa_in))
   
     #Append the log : list of PAs analyzed in the matching frame
@@ -409,11 +408,7 @@ for (i in list_iso)
                                    colname.flAvg = colname.flAvg,
                                    colname.biome = colname.biome,
                                    log = log)
-    if(output_cem$is_ok == FALSE) 
-      {
-      df_no_match = rbind(df_no_match, data.frame(wdpaid = j)) #Record the unmatched PA
-      next #Go to next PA or country
-      } else out_cem_j = output_cem$out.cem
+    if(output_cem$is_ok == FALSE){next} else out_cem_j = output_cem$out.cem
     
     ##Add matching quality metrics of the PA matched in this iteration
     tbl.quality.ct.j = output_cem$tbl.quality
