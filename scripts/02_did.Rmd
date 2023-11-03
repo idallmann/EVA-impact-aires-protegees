@@ -202,7 +202,7 @@ df_fc_att = data.frame() #Effect on forest cover for matched units
 ##df_fc_att_unm = data.frame() #Effect on forest cover for unmacthed units
 df_fl_att = data.frame() #Effect on deforestation relative to 2000
 ##Initialize a dataframe to store forest loss for visual evidence before/after matching
-#df_plot_forest_loss = data.frame()
+df_plot_forest_loss = data.frame()
 #Initialize a dataframe to store pre-test of parallel trend assumption
 df_pre_test = data.frame()
 
@@ -300,16 +300,16 @@ for (i in list_iso)
     # df_fl_att_unm_i = rbind(df_fl_att_i, df_att_unm_j$df_fl_att)
     
     #Plot visual evidence before-after matching
-    # print("--Plot visual evidence before-after matching")
-    # df_plot_forest_loss_j = fn_plot_forest_loss(iso = i, 
-    #                                             wdpaid = j, 
-    #                                             alpha = alpha,
-    #                                             data_pa = data_pa, 
-    #                                             load_dir = load_dir, 
-    #                                             save_dir = save_dir)
-    # df_plot_forest_loss = rbind(df_plot_forest_loss, df_plot_forest_loss_j)
+    print("--Plot visual evidence before-after matching")
+    df_plot_forest_loss_j = fn_plot_forest_loss(iso = i,
+                                                wdpaid = j,
+                                                alpha = alpha,
+                                                data_pa = data_pa,
+                                                load_dir = load_dir,
+                                                save_dir = save_dir)
+    df_plot_forest_loss = rbind(df_plot_forest_loss, df_plot_forest_loss_j)
     
-        #The PA has gone through all DiD steps : report it in the output dataframe
+    #The PA has gone through all DiD steps : report it in the output dataframe
     df_list_did_out = rbind(df_list_did_out, data.frame("iso3" = i, "wdpaid" = j))
 
   }  
@@ -385,6 +385,14 @@ aws.s3::s3write_using(
 FUN = data.table::fwrite,
 df_fl_att,
 object = paste(save_dir, "df_fl_att.csv", sep = "/"), 
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+
+#Save forest loss on the 2000-2021 period computed for each PA
+aws.s3::s3write_using(
+FUN = data.table::fwrite,
+df_plot_forest_loss,
+object = paste(save_dir, "df_fl_2000_2021.csv", sep = "/"), 
 bucket = "projet-afd-eva-ap",
 opts = list("region" = ""))
 
@@ -528,50 +536,19 @@ object = paste(save_dir, "df_fl_att.csv", sep = "/"),
 bucket = "projet-afd-eva-ap",
 opts = list("region" = ""))
 
-#Treatment effects are aggregated by region and country
-#For total avoided deforestation in ha, treatment effects are summed and so are the confidence intervals (CI).
-## If the CI of a treatment effect is NA, then the CI for total treatment effects is NA also. Otherwise CI will be downward biased.
-#For avoided deforestation in % of 2000 forest cover, treatment effects are averaged and so are CI. CI being NA is less a problem here as we use a mean, not a sum
-
-avg_att_fc_ctry = df_fc_att %>%
-  group_by(region, iso3, time) %>%
-  summarize(n_obs = n(),
-            att_per_mean = mean(att_per, na.rm = TRUE),
-            cband_lower_per = mean(cband_lower_per, na.rm = TRUE),
-            cband_upper_per = mean(cband_upper_per, na.rm = TRUE),
-            att_pa_avg = mean(att_pa, na.rm = TRUE),
-            cband_lower_pa = sum(cband_lower_pa, na.rm = T),
-            cband_upper_pa = sum(cband_upper_pa, na.rm = T)) %>%
-  ungroup()
-
-avg_att_fc_region = df_fc_att %>%
-  group_by(region, time) %>%
-  summarize(n_obs = n(),
-            att_per_mean = mean(att_per, na.rm = TRUE),
-            cband_lower_per = mean(cband_lower_per, na.rm = TRUE),
-            cband_upper_per = mean(cband_upper_per, na.rm = TRUE),
-            att_pa_avg = mean(att_pa, na.rm = TRUE),
-            cband_lower_pa = sum(cband_lower_pa, na.rm = T),
-            cband_upper_pa = sum(cband_upper_pa, na.rm = T)) %>%
-  ungroup()
-
-avg_att_fl_ctry = df_fl_att %>%
-  group_by(region, iso3, time) %>%
-  summarize(n_obs = n(),
-            att_mean = mean(att, na.rm = TRUE),
-            cband_lower = mean(cband_lower, na.rm = TRUE),
-            cband_upper = mean(cband_upper, na.rm = TRUE)) %>%
-  ungroup()
-
-avg_att_fl_region = df_fl_att %>%
-  group_by(region, time) %>%
-  summarize(n_obs = n(),
-            att_mean = mean(att, na.rm = TRUE),
-            cband_lower = mean(cband_lower, na.rm = TRUE),
-            cband_upper = mean(cband_upper, na.rm = TRUE)) %>%
-  ungroup()
-
-
+#Call the function to aggregate results at country level and save plots
+## For PA of interest
+fn_plot_att_agg(df_fc_att = df_fc_att,
+                df_fl_att = df_fl_att,
+                is_focus = T,
+                alpha = alpha,
+                save_dir = save_dir)
+# For other PA
+fn_plot_att_agg(df_fc_att = df_fc_att,
+                df_fl_att = df_fl_att,
+                is_focus = F,
+                alpha = alpha,
+                save_dir = save_dir)
 ```
 
 ### Aggregation of annual deforestation rates
@@ -616,196 +593,20 @@ For each protected area, the total deforestation is estimated on the period in t
 
 ```{r, eval = F}
 
-#Compute average and total deforestation ... 
-## across all protected areas in the sample
-df_plot_forest_loss_agg_all = df_plot_forest_loss %>%
-  group_by(matched, group, year) %>%
-  summarize(tot_fc_rel00_ha = sum(fc_tot_rel00_ha, na.rm = TRUE),
-            tot_fc_rel00_ha_ci_lower = sum(fc_tot_rel00_ha_ci_lower, na.rm = FALSE),
-            tot_fc_rel00_ha_ci_upper = sum(fc_tot_rel00_ha_ci_upper, na.rm = FALSE),
-              avg_fc_rel00_ha = mean(fc_tot_rel00_ha, na.rm = TRUE),
-              avg_fc_rel00_ha_ci_lower = mean(fc_tot_rel00_ha_ci_lower, na.rm = TRUE),
-              avg_fc_rel00_ha_ci_upper = mean(fc_tot_rel00_ha_ci_upper, na.rm = TRUE)) %>%
-  ungroup() 
-## for each country
-df_plot_forest_loss_agg_ctry = df_plot_forest_loss %>%
-  group_by(region, iso3, country_en, matched, group, year) %>%
-  summarize(tot_fc_rel00_ha = sum(fc_tot_rel00_ha, na.rm = TRUE),
-            tot_fc_rel00_ha_ci_lower = sum(fc_tot_rel00_ha_ci_lower, na.rm = FALSE),
-            tot_fc_rel00_ha_ci_upper = sum(fc_tot_rel00_ha_ci_upper, na.rm = FALSE),
-              avg_fc_rel00_ha = mean(fc_tot_rel00_ha, na.rm = TRUE),
-              avg_fc_rel00_ha_ci_lower = mean(fc_tot_rel00_ha_ci_lower, na.rm = TRUE),
-              avg_fc_rel00_ha_ci_upper = mean(fc_tot_rel00_ha_ci_upper, na.rm = TRUE)) %>%
-  ungroup() 
-## for each region
-df_plot_forest_loss_agg_all = df_plot_forest_loss %>%
-  group_by(region, matched, group, year) %>%
-  summarize(tot_fc_rel00_ha = sum(fc_tot_rel00_ha, na.rm = TRUE),
-            tot_fc_rel00_ha_ci_lower = sum(fc_tot_rel00_ha_ci_lower, na.rm = FALSE),
-            tot_fc_rel00_ha_ci_upper = sum(fc_tot_rel00_ha_ci_upper, na.rm = FALSE),
-              avg_fc_rel00_ha = mean(fc_tot_rel00_ha, na.rm = TRUE),
-              avg_fc_rel00_ha_ci_lower = mean(fc_tot_rel00_ha_ci_lower, na.rm = TRUE),
-              avg_fc_rel00_ha_ci_upper = mean(fc_tot_rel00_ha_ci_upper, na.rm = TRUE)) %>%
-  ungroup() 
+#Import datasets
+df_plot_forest_loss = aws.s3::s3read_using(
+FUN = data.table::fread,
+object = paste(save_dir, "df_fl_2000_2021.csv", sep = "/"),
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
 
-## For a specific subset of protected areas
-df_plot_forest_loss_agg_focus = df_plot_forest_loss %>%
-  filter(wdpaid %in% unique(data_fapbm$wdpaid)) %>%
-  group_by(matched, group, year) %>%
-  summarize(tot_fc_rel00_ha = sum(fc_tot_rel00_ha, na.rm = TRUE),
-            tot_fc_rel00_ha_ci_lower = sum(fc_tot_rel00_ha_ci_lower, na.rm = TRUE),
-            tot_fc_rel00_ha_ci_upper = sum(fc_tot_rel00_ha_ci_upper, na.rm = TRUE),
-              avg_fc_rel00_ha = mean(fc_tot_rel00_ha, na.rm = TRUE),
-              avg_fc_rel00_ha_ci_lower = mean(fc_tot_rel00_ha_ci_lower, na.rm = TRUE),
-              avg_fc_rel00_ha_ci_upper = mean(fc_tot_rel00_ha_ci_upper, na.rm = TRUE)) %>%
-  ungroup()
+#Call a fcuntion to plot total and average forest loss on the 2000-2021 period, for PA of interest and others
 
-df_plot_forest_loss_agg_nofocus = df_plot_forest_loss %>%
-  filter(!(wdpaid %in% unique(data_fapbm$wdpaid))) %>%
-  group_by(matched, group, year) %>%
-  summarize(tot_fc_rel00_ha = sum(fc_tot_rel00_ha, na.rm = TRUE),
-            tot_fc_rel00_ha_ci_lower = sum(fc_tot_rel00_ha_ci_lower, na.rm = TRUE),
-            tot_fc_rel00_ha_ci_upper = sum(fc_tot_rel00_ha_ci_upper, na.rm = TRUE),
-              avg_fc_rel00_ha = mean(fc_tot_rel00_ha, na.rm = TRUE),
-              avg_fc_rel00_ha_ci_lower = mean(fc_tot_rel00_ha_ci_lower, na.rm = TRUE),
-              avg_fc_rel00_ha_ci_upper = mean(fc_tot_rel00_ha_ci_upper, na.rm = TRUE)) %>%
-  ungroup()
+fn_plot_forest_loss_agg(df_plot_forest_loss = df_plot_forest_loss,
+                        alpha = alpha,
+                        save_dir = save_dir)
 
 
-# Plot the results : total and average deforestation
-## The maximum year to consider. The period where total deforestation is computed is then 2000-year.max.
-year.max = 2021
-## Titles to display
-fct.labs <- c("Before Matching", "After Matching")
-names(fct.labs) <- c(FALSE, TRUE)
-## The number of protected areas (all and in a given subsample, for instance)
-n_pa  = length(unique(df_plot_forest_loss$wdpaid))
-  fct.labs <- c("Before Matching", "After Matching")
-  names(fct.labs) <- c(FALSE, TRUE)
-# n_focus = length(unique(data_pa_fapbm[data_pa_fapbm$wdpaid %in% unique(df_plot_forest_loss$wdpaid),]$wdpaid))
-  n_nofocus  = length(unique(data_pa[data_pa$wdpaid %in% unique(df_plot_forest_loss$wdpaid) & !(data_pa$focus == T),]$wdpaid))
-## The total surface of protected areas (all and in a given subsample, for instance)
-area_tot_ha = sum(data_pa[data_pa$wdpaid %in% unique(df_plot_forest_loss$wdpaid),]$area_km2, na.rm = TRUE) *100
-#area_fapbm_ha = sum(data_pa_fapbm[data_pa_fapbm$wdpaid %in% unique(df_plot_forest_loss$wdpaid),]$area_km2, na.rm = TRUE) *100
-area_nofocus_ha = sum(data_pa[data_pa$wdpaid %in% unique(df_plot_forest_loss$wdpaid) & !(data_pafocus == T),]$area_km2, na.rm = TRUE) *100
-
-## Define the figures
-### For a given subsample
-#### Total deforestation
-fig_forest_loss_agg_tot_focus = ggplot(data = filter(df_plot_forest_loss_agg_focus, year == year.max),
-               aes(y = abs(tot_fc_rel00_ha), fill = as.factor(group), x = group)) %>%
-    + geom_bar(position =  position_dodge(width = 0.8), stat = "identity", show.legend = FALSE) %>%
-    + geom_errorbar(aes(ymax=abs(tot_fc_rel00_ha_ci_upper), ymin=abs(tot_fc_rel00_ha_ci_lower)), width=0.3, colour="grey70", alpha=0.9, size=1) %>%
-    + geom_label(aes(label = format(round(abs(tot_fc_rel00_ha), 0), big.mark = ","), y = 0),
-                 vjust = -0.5,
-                 color = "black",
-                 show.legend = FALSE) %>%
-    + scale_fill_brewer(name = "Group", palette = "Blues") %>%
-    + labs(x = "",
-           y = "Forest cover loss (ha)",
-           title = paste("Total area deforested between 2000 and", year.max),
-           subtitle = paste0("Sample : protected areas of interest (" , n_fapbm, " areas covering ", format(area_fapbm_ha, big.mark = ","), "ha)"),
-           caption = paste(((1-alpha)*100), "% confidence intervals")) %>%
-    + facet_wrap(~matched,
-                 labeller = labeller(matched = fct.labs))  %>%
-    + theme_minimal() %>%
-    + theme(
-      axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
-      axis.text=element_text(size=11, color = "black"),
-      axis.title=element_text(size=14, color = "black", face = "plain"),
-
-      plot.caption = element_text(hjust = 0),
-      plot.title = element_text(size=16, color = "black", face = "plain", hjust = 0),
-      plot.subtitle = element_text(size=12, color = "black", face = "plain", hjust = 0),
-
-      strip.text = element_text(color = "black", size = 12),
-
-      #legend.position = "bottom",
-      #legend.title = element_blank(),
-      legend.text=element_text(size=10),
-      #legend.spacing.x = unit(1.0, 'cm'),
-      legend.spacing.y = unit(0.75, 'cm'),
-      legend.key.size = unit(2, 'line'),
-
-      panel.grid.major.x = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
-      panel.grid.minor.x = element_line(color = 'grey80', linewidth = 0.2, linetype = 2),
-      panel.grid.major.y = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
-      panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
-    )
-fig_forest_loss_agg_tot_fapbm
-
-#### Average deforestation
-fig_forest_loss_agg_avg_nofapbm = ggplot(data = filter(df_plot_forest_loss_agg_nofapbm, year == year.max),
-               aes(y = abs(avg_fc_rel00_ha), fill = as.factor(group), x = group)) %>%
-    + geom_bar(position =  position_dodge(width = 0.8), stat = "identity", show.legend = FALSE) %>%
-    + geom_errorbar(aes(ymax=abs(avg_fc_rel00_ha_ci_upper), ymin=abs(avg_fc_rel00_ha_ci_lower)), width=0.3, colour="grey70", alpha=0.9, size=1) %>%
-    + geom_label(aes(label = format(round(abs(avg_fc_rel00_ha), 0), big.mark = ","), y = 0),
-                 vjust = -0.5,
-                 color = "black",
-                 show.legend = FALSE) %>%
-    + scale_fill_brewer(name = "Group", palette = "Blues") %>%
-    + labs(x = "",
-           y = "Forest cover loss (ha)",
-           title = paste("Area deforested in protected areas on average, between 2000 and", year.max),
-           subtitle = paste0("Sample : non FAPBM protected areas in the analysis (" , n_nofapbm, " areas covering ", format(area_nofapbm_ha, big.mark = ","), " ha)"),
-           caption = paste(((1-alpha)*100), "% confidence intervals")) %>%
-    + facet_wrap(~matched,
-                 labeller = labeller(matched = fct.labs))  %>%
-    + theme_minimal() %>%
-    + theme(
-      axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
-      axis.text=element_text(size=11, color = "black"),
-      axis.title=element_text(size=14, color = "black", face = "plain"),
-
-      plot.caption = element_text(hjust = 0),
-      plot.title = element_text(size=16, color = "black", face = "plain", hjust = 0),
-      plot.subtitle = element_text(size=12, color = "black", face = "plain", hjust = 0),
-
-      strip.text = element_text(color = "black", size = 12),
-
-      #legend.position = "bottom",
-      #legend.title = element_blank(),
-      legend.text=element_text(size=10),
-      #legend.spacing.x = unit(1.0, 'cm'),
-      legend.spacing.y = unit(0.75, 'cm'),
-      legend.key.size = unit(2, 'line'),
-
-      panel.grid.major.x = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
-      panel.grid.minor.x = element_line(color = 'grey80', linewidth = 0.2, linetype = 2),
-      panel.grid.major.y = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
-      panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
-    )
-fig_forest_loss_agg_avg_nofapbm
-
-
-```
-
-Eventually the plots are saved in the remote storage.
-
-```{r, eval = F}
-##Saving plots
-tmp = paste(tempdir(), "fig", sep = "/")
-
-ggsave(paste(tmp, "fig_forest_loss_agg_tot_focus.png", sep = "/"),
-       plot = fig_forest_loss_agg_tot_focus,
-       device = "png",
-       height = 6, width = 9)
-
-ggsave(paste(tmp, "fig_forest_loss_agg_avg_nofocus.png", sep = "/"),
-       plot = fig_forest_loss_agg_avg_nofocus,
-       device = "png",
-       height = 6, width = 9)
-
-  files <- list.files(tmp, full.names = TRUE)
-##Add each file in the bucket (same foler for every file in the temp)
-for(f in files) 
-{
-  cat("Uploading file", paste0("'", f, "'"), "\n")
-  aws.s3::put_object(file = f, 
-                     bucket = paste("projet-afd-eva-ap", save_dir, sep = "/"),
-                     region = "", show_progress = TRUE)
-}
-do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
 ## Display treatment effects in figures and tables
