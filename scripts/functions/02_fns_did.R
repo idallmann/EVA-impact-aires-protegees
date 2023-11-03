@@ -1368,7 +1368,7 @@ fn_plot_forest_loss = function(iso, wdpaid, data_pa, alpha, load_dir, save_dir)
   fc_tot_2000 = df_long_unm_raw %>%
     filter(group == 3 & year == 2000) 
   fc_tot_2000 = sum(fc_tot_2000$fc_ha, na.rm = TRUE)
-  n_pix_fc_2000 = fc_tot_pre_treat/res_ha 
+  n_pix_fc_2000 = fc_tot_2000/res_ha 
   
   #Forest cover loss in final period year is computed for each pixel relative to 2000, then average forest loss is computed for treated and controls
   year.min = 2000
