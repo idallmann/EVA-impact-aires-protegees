@@ -53,7 +53,7 @@ library(latex2exp)
 library(janitor)
 ```
 
-To keep this document concise, each step calls a function defined in a R script. Interested reader can delve deeper into the data processing by looking at this script. The following chunck load the functions in the workspace.
+To keep this document concise, each step calls a function defined in a R script. Interested reader can delve deeper into the data processing by looking at this script. The following chunk load the functions in the workspace.
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
 #Import functions
@@ -144,10 +144,10 @@ data_pa_ie_africa= data_pa %>%
 data_pa_ie_africa_focus = data_pa %>%
   filter(region == "Africa" & is.na(wdpaid) == FALSE & area_km2 >=1 & marine %in% c(0,1) & status_yr >= yr_min & focus == T)
 
-list_iso_ie_africa_focus = unique(data_pa_ie_africa_afd$iso3)
-list_pa_ie_africa_focus = unique(data_pa_ie_africa_afd$wdpaid)
+list_iso_ie_africa_focus = unique(data_pa_ie_africa_focus$iso3)
+list_pa_ie_africa_focus = unique(data_pa_ie_africa_focus$wdpaid)
 list_iso = list_iso_ie_africa_focus
-list_iso = c("SEN", "COM", "STP", "KEN", "GAB")
+list_iso = c("COM", "STP", "GNB", "GMB", "SEN", "MAR", "GAB", "KEN", "CMR", "COG", "MDG", "MOZ", "NER")
 
 ## Information on funding from AFD internal datasets, on AFD funded projects related to protected areas.
 data_fund = 
@@ -196,13 +196,13 @@ df_list_did_in = data.frame()
 df_list_did_out = data.frame()
 #Create empty dataframes that will store the treatment effects computed for each protected area in the portfolio. 
 ##Initialize a dataframe to store annual deforestation rate for each PA, à la Wolf et al. 2021
-df_fl_annual_wolf = data.frame()
+#df_fl_annual_wolf = data.frame()
 ##Initialize a dataframe to store treatment effects of all PA analyzed
 df_fc_att = data.frame() #Effect on forest cover for matched units
 ##df_fc_att_unm = data.frame() #Effect on forest cover for unmacthed units
 df_fl_att = data.frame() #Effect on deforestation relative to 2000
 ##Initialize a dataframe to store forest loss for visual evidence before/after matching
-df_plot_forest_loss = data.frame()
+#df_plot_forest_loss = data.frame()
 #Initialize a dataframe to store pre-test of parallel trend assumption
 df_pre_test = data.frame()
 
@@ -236,15 +236,15 @@ for (i in list_iso)
     print(paste0("WDPA ID ", j, " : ", count_j, "/", max_j))
     
     #Compute annual deforestation rates in treated and control matched areas, à la Wolf et al. 2021.
-    print("--Compute average deforestation rates à la Wolf et al. 2021")
-    output_wolf_m_j = fn_fl_wolf(iso = i, 
-                                wdpaid = j, 
-                                alpha = alpha, 
-                                load_dir = load_dir)
-    
-    if(output_wolf_m_j$is_ok == FALSE) 
-      {next} else df_fl_wolf_m_j = output_wolf_m_j$df_fl_wolf_m_j
-    df_fl_annual_wolf = rbind(df_fl_annual_wolf, df_fl_wolf_m_j)
+    # print("--Compute average deforestation rates à la Wolf et al. 2021")
+    # output_wolf_m_j = fn_fl_wolf(iso = i, 
+    #                             wdpaid = j, 
+    #                             alpha = alpha, 
+    #                             load_dir = load_dir)
+    # 
+    # if(output_wolf_m_j$is_ok == FALSE) 
+    #   {next} else df_fl_wolf_m_j = output_wolf_m_j$df_fl_annual_wolf
+    # df_fl_annual_wolf = rbind(df_fl_annual_wolf, df_fl_wolf_m_j)
     
     #Compute treatment effects
     print("--Compute treatment effects")
@@ -268,13 +268,13 @@ for (i in list_iso)
                     load_dir = load_dir,
                     save_dir = save_dir)
     
-    if(output_att_m_j$is_ok == FALSE) {next} else df_att_m_j = output_att_m_j
+    if(output_att_m_j$is_ok == FALSE) {next} 
     
-    df_fc_att_i = rbind(df_fc_att_i, df_att_m_j$df_fc_att)
-    df_fl_att_i = rbind(df_fl_att_i, df_att_m_j$df_fl_att)
-    df_pre_test_i = rbind(df_pre_test_i, df_att_m_j$df_pre_test)
+    df_fc_att_i = rbind(df_fc_att_i, output_att_m_j$df_fc_att)
+    df_fl_att_i = rbind(df_fl_att_i, output_att_m_j$df_fl_att)
+    df_pre_test_i = rbind(df_pre_test_i, output_att_m_j$df_pre_test)
         
-    print("----For unmatched units")
+    #print("----For unmatched units")
     
     #For AFD PAs (funding info known)
     # df_att_unm_j = fn_did_att_afd(iso = i, wdpaid = j, 
@@ -300,14 +300,14 @@ for (i in list_iso)
     # df_fl_att_unm_i = rbind(df_fl_att_i, df_att_unm_j$df_fl_att)
     
     #Plot visual evidence before-after matching
-    print("--Plot visual evidence before-after matching")
-    df_plot_forest_loss_j = fn_plot_forest_loss(iso = i, 
-                                                wdpaid = j, 
-                                                alpha = alpha,
-                                                data_pa = data_pa, 
-                                                load_dir = load_dir, 
-                                                save_dir = save_dir)
-    df_plot_forest_loss = rbind(df_plot_forest_loss, df_plot_forest_loss_j)
+    # print("--Plot visual evidence before-after matching")
+    # df_plot_forest_loss_j = fn_plot_forest_loss(iso = i, 
+    #                                             wdpaid = j, 
+    #                                             alpha = alpha,
+    #                                             data_pa = data_pa, 
+    #                                             load_dir = load_dir, 
+    #                                             save_dir = save_dir)
+    # df_plot_forest_loss = rbind(df_plot_forest_loss, df_plot_forest_loss_j)
     
         #The PA has gone through all DiD steps : report it in the output dataframe
     df_list_did_out = rbind(df_list_did_out, data.frame("iso3" = i, "wdpaid" = j))
@@ -566,32 +566,32 @@ avg_att_fl_region = df_fl_att %>%
 
 #Aggregate at region level
 ## Compute for each region, for treated units, average annual deforestation rate before treatment, after treatment and on the full period. Confidence intervals are also computed.
-avg_fl_annual_wolf_region = df_fl_annual_wolf %>%
-  filter(group == "Treated") %>%
-  group_by(region) %>%
-  summarize(avg_FL_annual_wolf_pre = mean(avgFL_annual_wolf_pre, na.rm = TRUE),
-            avg_FL_annual_wolf_pre_ci_up = mean(avgFL_annual_wolf_pre, na.rm = TRUE) +  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_pre, na.rm = TRUE)/sqrt(21),
-            avg_FL_annual_wolf_pre_ci_lower = mean(avgFL_annual_wolf_pre, na.rm = TRUE) -  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_pre, na.rm = TRUE)/sqrt(21),
-            med_FL_annual_wolf_pre_ci_up = median(avgFL_annual_wolf_pre, na.rm = TRUE),
-            avg_FL_annual_wolf_tot = mean(avgFL_annual_wolf_tot, na.rm = TRUE),
-            avg_FL_annual_wolf_tot_ci_up = mean(avgFL_annual_wolf_tot, na.rm = TRUE) +  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_tot, na.rm = TRUE)/sqrt(21),
-            avg_FL_annual_wolf_tot_ci_lower = mean(avgFL_annual_wolf_tot, na.rm = TRUE) -  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_tot, na.rm = TRUE)/sqrt(21),
-            med_FL_annual_wolf_tot_ci_up = median(avgFL_annual_wolf_tot, na.rm = TRUE)) 
+# avg_fl_annual_wolf_region = df_fl_annual_wolf %>%
+#   filter(group == "Treated") %>%
+#   group_by(region) %>%
+#   summarize(avg_FL_annual_wolf_pre = mean(avgFL_annual_wolf_pre, na.rm = TRUE),
+#             avg_FL_annual_wolf_pre_ci_up = mean(avgFL_annual_wolf_pre, na.rm = TRUE) +  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_pre, na.rm = TRUE)/sqrt(21),
+#             avg_FL_annual_wolf_pre_ci_lower = mean(avgFL_annual_wolf_pre, na.rm = TRUE) -  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_pre, na.rm = TRUE)/sqrt(21),
+#             med_FL_annual_wolf_pre_ci_up = median(avgFL_annual_wolf_pre, na.rm = TRUE),
+#             avg_FL_annual_wolf_tot = mean(avgFL_annual_wolf_tot, na.rm = TRUE),
+#             avg_FL_annual_wolf_tot_ci_up = mean(avgFL_annual_wolf_tot, na.rm = TRUE) +  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_tot, na.rm = TRUE)/sqrt(21),
+#             avg_FL_annual_wolf_tot_ci_lower = mean(avgFL_annual_wolf_tot, na.rm = TRUE) -  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_tot, na.rm = TRUE)/sqrt(21),
+#             med_FL_annual_wolf_tot_ci_up = median(avgFL_annual_wolf_tot, na.rm = TRUE)) 
 
 #Aggregate at country level
 ## Same that at region level.
-avg_fl_annual_wolf_country = df_fl_annual_wolf %>%
-  filter(group == "Treated") %>%
-  group_by(iso3) %>%
-  summarize(avg_FL_annual_wolf_pre = mean(avgFL_annual_wolf_pre, na.rm = TRUE),
-            avg_FL_annual_wolf_pre_ci_up = mean(avgFL_annual_wolf_pre, na.rm = TRUE) +  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_pre, na.rm = TRUE)/sqrt(21),
-            avg_FL_annual_wolf_pre_ci_lower = mean(avgFL_annual_wolf_pre, na.rm = TRUE) -  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_pre, na.rm = TRUE)/sqrt(21),
-            med_FL_annual_wolf_pre_ci_up = median(avgFL_annual_wolf_pre, na.rm = TRUE),
-            avg_FL_annual_wolf_tot = mean(avgFL_annual_wolf_tot, na.rm = TRUE),
-            avg_FL_annual_wolf_tot_ci_up = mean(avgFL_annual_wolf_tot, na.rm = TRUE) +  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_tot, na.rm = TRUE)/sqrt(21),
-            avg_FL_annual_wolf_tot_ci_lower = mean(avgFL_annual_wolf_tot, na.rm = TRUE) -  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_tot, na.rm = TRUE)/sqrt(21),
-            med_FL_annual_wolf_tot_ci_up = median(avgFL_annual_wolf_tot, na.rm = TRUE)) %>%
-  ungroup() 
+# avg_fl_annual_wolf_country = df_fl_annual_wolf %>%
+#   filter(group == "Treated") %>%
+#   group_by(iso3) %>%
+#   summarize(avg_FL_annual_wolf_pre = mean(avgFL_annual_wolf_pre, na.rm = TRUE),
+#             avg_FL_annual_wolf_pre_ci_up = mean(avgFL_annual_wolf_pre, na.rm = TRUE) +  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_pre, na.rm = TRUE)/sqrt(21),
+#             avg_FL_annual_wolf_pre_ci_lower = mean(avgFL_annual_wolf_pre, na.rm = TRUE) -  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_pre, na.rm = TRUE)/sqrt(21),
+#             med_FL_annual_wolf_pre_ci_up = median(avgFL_annual_wolf_pre, na.rm = TRUE),
+#             avg_FL_annual_wolf_tot = mean(avgFL_annual_wolf_tot, na.rm = TRUE),
+#             avg_FL_annual_wolf_tot_ci_up = mean(avgFL_annual_wolf_tot, na.rm = TRUE) +  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_tot, na.rm = TRUE)/sqrt(21),
+#             avg_FL_annual_wolf_tot_ci_lower = mean(avgFL_annual_wolf_tot, na.rm = TRUE) -  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_tot, na.rm = TRUE)/sqrt(21),
+#             med_FL_annual_wolf_tot_ci_up = median(avgFL_annual_wolf_tot, na.rm = TRUE)) %>%
+#   ungroup() 
   
 
 ```

@@ -78,36 +78,40 @@ fn_fl_wolf = function(iso, wdpaid, alpha, load_dir)
     dplyr::select(c(region, iso3, wdpaid, focus, group, assetid, status_yr, year_funding_first, year_funding_all, res_m, year, var, fc_ha))
   #select(c(region, country_en, iso3, wdpaid, group, status_yr, year_funding_first, year_funding_all, year, var, fc_ha))
   
-  ##Extract country iso
-  country.iso = df_long %>% 
+  ##Extract country info
+  df_info = df_long %>% 
     filter(group == 3) %>% 
     slice(1)
-  country.iso = country.iso$iso3
+  #iso
+  country.iso = df_info$iso3
   
   ##Extract region name
-  region.name = df_long %>% 
-    filter(group == 3) %>% 
-    slice(1)
-  region.name = region.name$region
+region.name = df_info$region
   
   ##Extract focus dummy
-  is_focus = df_long %>% 
-    filter(group == 3) %>% 
-    slice(1)
-  is_focus = as.logical(is_focus$focus)
+  is_focus = as.logical(df_info$focus)
   
   #Compute annual deforestation rates à la Wolf et al. 2021 before and after treatment for treated, and for all the period for controls. This is averaged across pixels.
+  
+  ###########
+  #/!\ Careful : error in the first mutate that mus tbe handle
+  ###########
+  
   df_fl_annual_wolf = df_long %>%
     mutate(treatment_year = case_when(group == 2 ~ 0,
                                       group == 3 ~ status_yr), #Set treatment year to 0 for control units (required by did::att_gt)
-           time = ifelse(group == 3, yes = year-treatment_year, no = NA),
+           time = case_when(group == 3 ~ year-treatment_year,
+                            group == 2 ~ NA),
            .after = status_yr) %>%
     group_by(assetid) %>%
-    # mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100,
-    #        fc_2000 = fc_ha[year == 2000]) %>%
-    mutate(FL_annual_wolf_pre = ifelse(group == 3, yes = ((fc_ha[time == -1]/fc_ha[year == 2000])^(1/(year[time == -1] - 2000))-1)*100, no = NA),
-           FL_annual_wolf_post = ifelse(group == 3, yes = ((fc_ha[time == max(time)]/fc_ha[time == 0])^(1/max(time))-1)*100, no = NA),
-           FL_annual_wolf_tot = ((fc_ha[year == 2021]/fc_ha[year == 2000])^(1/(2021-2000))-1)*100) %>%
+    mutate(FL_annual_wolf_pre = case_when(group == 3 & fc_ha[year == 2000] > 0 ~ ((fc_ha[time == -1]/fc_ha[year == 2000])^(1/(year[time == -1] - 2000))-1)*100,
+                                          group == 3 & fc_ha[year == 2000] == 0 ~ 0,
+                                          group == 2 ~ NA),
+           FL_annual_wolf_post = case_when(group == 3 & fc_ha[time == 0] > 0 ~ ((fc_ha[time == max(time)]/fc_ha[time == 0])^(1/max(time))-1)*100,
+                                           group == 3 & fc_ha[time == 0] == 0 ~ 0,
+                                           group == 2 ~ NA),
+           FL_annual_wolf_tot = case_when(fc_ha[year == 2000] > 0 ~ ((fc_ha[year == 2021]/fc_ha[year == 2000])^(1/(2021-2000))-1)*100,
+                                          fc_ha[year == 2000] == 0 ~ 0)) %>%
     slice(1) %>%
     ungroup() %>%
     group_by(group) %>%
@@ -172,14 +176,14 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
                            object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("matched_long", "_", iso, "_", wdpaid, ".csv")),
                            bucket = "projet-afd-eva-ap",
                            opts = list("region" = "")) %>%
-    dplyr::select(c(region, iso3, wdpaid, focus, group, assetid, status_yr, year_funding_first, year_funding_all, res_m, year, var, fc_ha))
+    dplyr::select(c(region, iso3, country_en, wdpaid, focus, group, assetid, status_yr, year_funding_first, year_funding_all, res_m, year, var, fc_ha))
   #dplyr::select(c(region, country_en, iso3, wdpaid, group, status_yr, year_funding_first, year_funding_all, year, var, fc_ha))
   
   df_long_unm = s3read_using(data.table::fread,
                              object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("unmatched_long", "_", iso, "_", wdpaid, ".csv")),
                              bucket = "projet-afd-eva-ap",
                              opts = list("region" = "")) %>%
-    dplyr::select(c(region, iso3, wdpaid, focus, group, assetid, status_yr, year_funding_first, year_funding_all, year, res_m, var, fc_ha))
+    dplyr::select(c(region, iso3, country_en,  wdpaid, focus, group, assetid, status_yr, year_funding_first, year_funding_all, year, res_m, var, fc_ha))
   #dplyr::select(c(region, country_en, iso3, wdpaid, group, status_yr, year_funding_first, year_funding_all, year, var, fc_ha))
   
   # Define the working datasets depending on the is_m value
@@ -190,40 +194,28 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
   }
   
   #Extract some relevant variables for later plots and treatment effect computations
+  df_info = df_long %>% 
+    filter(group == 3) %>% 
+    slice(1)
   ##Extract spatial resolution of pixels res_m and define pixel area in ha
   res_m = unique(df_long$res_m)
   res_ha = res_m^2*1e-4
   
   ##Extract treatment year
-  treatment.year = df_long %>% 
-    filter(group == 3) %>% 
-    slice(1)
-  treatment.year = treatment.year$status_yr
+treatment.year = df_info$status_yr
   
   ##Extract funding years
-  df_fund_yr = df_long %>% 
-    filter(group == 3) %>% 
-    slice(1)
-  funding.years = df_fund_yr$year_funding_first
-  list.funding.years = df_fund_yr$year_funding_all
+funding.years = df_info$year_funding_first
+  list.funding.years = df_info$year_funding_all
   
   ##Extract country name
-  # country.name = df_long %>% 
-  #   filter(group == 3) %>% 
-  #   slice(1)
-  # country.name = country.name$country_en
+  #country.name = df_info$country_en
   
   ##Extract country iso
-  country.iso = df_long %>% 
-    filter(group == 3) %>% 
-    slice(1)
-  country.iso = country.iso$iso3
+ country.iso = df_info$iso3
   
   ##Extract region name
-  region.name = df_long %>% 
-    filter(group == 3) %>% 
-    slice(1)
-  region.name = region.name$region
+ region.name = df_info$region
   
   ##Area without overlap
   ### Note that the polygon reported by the WDAP can have a surface different from the reported area : thus the area without overalp can be bigger than the reported area ! 
@@ -252,8 +244,11 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
   n_pix_fc_pre_treat = fc_tot_pre_treat/res_ha 
   
   ##Extract more information not in the matched dataframe
+  wdpa_id = wdpaid #Need to give a name to wdpaid (function argument) different from the variable in the dataset (wdpaid)
+  df_info_pa = data_pa %>% 
+    filter(wdpaid == wdpa_id) %>% 
+    slice(1)
   ### Area reported by the WDPA
-  wdpa_id = wdpaid #Need to give a name to wdpaid (function argument) different from the varaible in the dataset (wdpaid)
   area_ha = data_pa[data_pa$wdpaid == wdpa_id,]$area_km2*100
   ### Name of the PA
   pa.name = data_pa %>% 
@@ -261,41 +256,23 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
     slice(1)
   pa.name = pa.name$name_pa
   ### Country name
-  country.name = data_pa %>% 
-    filter(wdpaid == wdpa_id) %>% 
-    slice(1)
-  country.name = country.name$country_en
+country.name = df_info_pa$country_en
   ### AFD project ID
   # id.project = data_pa %>% 
   #   filter(wdpaid == wdpa_id) %>% 
   #   slice(1)
   # id.project = id.project$id_projet
   ### WDPA status
-  status.wdpa = data_pa %>% 
-    filter(wdpaid == wdpa_id) %>% 
-    slice(1)
-  status.wdpa = status.wdpa$status
+status.wdpa = df_info_pa$status
   ### IUCN category and description
-  iucn.wdpa = data_pa %>% 
-    filter(wdpaid == wdpa_id) %>% 
-    slice(1)
-  iucn.cat = iucn.wdpa$iucn_cat
-  iucn.des = iucn.wdpa$iucn_des_en
+iucn.cat = df_info_pa$iucn_cat
+  iucn.des = df_info_pa$iucn_des_en
   ### Ecosystem
-  eco.wdpa = data_pa %>% 
-    filter(wdpaid == wdpa_id) %>% 
-    slice(1)
-  eco.wdpa = eco.wdpa$marine
+ eco.wdpa = df_info_pa$marine
   ### Governance
-  gov.wdpa = data_pa %>% 
-    filter(wdpaid == wdpa_id) %>% 
-    slice(1)
-  gov.wdpa = gov.wdpa$gov_type
+  gov.wdpa = df_info_pa$gov_type
   ### Owner
-  own.wdpa = data_pa %>% 
-    filter(wdpaid == wdpa_id) %>% 
-    slice(1)
-  own.wdpa = own.wdpa$own_type
+own.wdpa = df_info_pa$own_type
   
   ## Extract information on funding
   ### Type of funding
@@ -352,7 +329,7 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
     # mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100,
     #        fc_2000 = fc_ha[year == 2000]) %>%
     mutate(FL_2000_cum = case_when(fc_ha[year == 2000] > 0 ~ (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100, 
-                                   TRUE ~ NA)) %>%
+                                   TRUE ~ 0)) %>%
     ungroup()
   
 
@@ -380,7 +357,10 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
                          data = df_did,
                          print_details = F)
   
-  pval_pretest_fc = fc_attgt$Wpval[1]
+  pval_pretest_fc = ifelse(is.numeric(fc_attgt$Wpval[1]) == TRUE,
+                           yes = fc_attgt$Wpval[1],
+                           no = NA)
+  
   ##For change in deforestation rate (percentage points)
   ### treatment effect computation
   fl_attgt = did::att_gt(yname = "FL_2000_cum",
@@ -398,7 +378,10 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
                          base_period = "varying",
                          data = df_did,
                          print_details = F)
-  pval_pretest_fl = fl_attgt$Wpval[1]
+  
+  pval_pretest_fl = ifelse(is.numeric(fl_attgt$Wpval[1]) == TRUE,
+                           yes = fl_attgt$Wpval[1],
+                           no = NA)
   
   ### Store the P-value for pre-test of parallel trends assumption : in a dataframe
   df_pre_test = data.frame("region" = region.name,
@@ -417,15 +400,17 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
   ### They are divided by the pixel area to compute CI for treatment effect in percentage of pixel area
   df_fc_attgt = data.frame("treatment_year" = fc_attgt$group,
                            "year" = fc_attgt$t,
-                           "att_pix" = fc_attgt$att,
-                           "c" = fc_attgt$c,
+                           "att_pix" = case_when(fc_attgt$att <= .Machine$double.eps ~ 0,
+                                                 TRUE ~ fc_attgt$att),
+                           "c" = case_when(fc_attgt$c == -Inf ~ NA, TRUE ~ fc_attgt$c), #to avoid -Inf as c
                            "se" = fc_attgt$se,  
                            "n" = fc_attgt$n) %>%
     #Compute treatment effect at PA level and in share of pixel area
     ## att_pa : the total avoided deforestation is the avoided deforestation in ha in a given pixel, multiplied by the number of pixel in the PA.
     ## att_per : avoided deforestation in a pixel, as a share of average forest cover in 2000 in matched treated. Can be extrapolated to full PA in principle (avoided deforestation in share of 2000 forest cover)
     mutate(att_pa = att_pix*n_pix_fc_pre_treat,
-           att_per = att_pix/avgFC_pre_treat_m*100) %>% 
+           att_per = case_when(avgFC_pre_treat_m == 0 ~ 0,
+                               TRUE ~ att_pix/avgFC_pre_treat_m*100)) %>% 
     #Compute time relative to treatment year
     mutate(time = year - treatment_year,
            .before = year) %>%
@@ -434,8 +419,10 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
            cband_upper_pix = round(att_pix+c*se, 4),
            cband_lower_pa = cband_lower_pix*n_pix_fc_pre_treat,
            cband_upper_pa = cband_upper_pix*n_pix_fc_pre_treat,
-           cband_lower_per = cband_lower_pix/avgFC_pre_treat_m*100,
-           cband_upper_per = cband_upper_pix/avgFC_pre_treat_m*100,
+           cband_lower_per = case_when(is.na(avgFC_pre_treat_m) == T ~ NA,
+                                       TRUE ~ cband_lower_pix/avgFC_pre_treat_m*100),
+           cband_upper_per = case_when(is.na(avgFC_pre_treat_m) == T ~ NA,
+                                       TRUE ~ cband_upper_pix/avgFC_pre_treat_m*100),
            sig = sign(cband_lower_pix) == sign(cband_upper_pix),
            sig_5 = ifelse(max(time) >=5, yes = sig[time == 5] == TRUE, no = NA),
            sig_10 = ifelse(max(time) >= 10, yes = sig[time == 10] == TRUE, no = NA),
@@ -451,18 +438,12 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
            area_noverlap_ha = area_noverlap_ha,
            fc_tot_pre_treat = fc_tot_pre_treat,
            res_ha = res_ha,
-           id_projet = id.project,
            status_wdpa = status.wdpa,
            iucn_cat = iucn.cat,
            iucn_des_en = iucn.des,
            gov_type = gov.wdpa,
            own_type = own.wdpa,
            marine = eco.wdpa,
-           cofund = cofund,
-           kfw = kfw,
-           ffem = ffem,
-           fund_type = fund.type,
-           dept_report = reporter,
            funding_year = funding.years,
            funding_year_list = list.funding.years,
            .before = "treatment_year")
@@ -470,8 +451,9 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
   # Same for change in deforestation rate
   df_fl_attgt = data.frame("treatment_year" = fl_attgt$group,
                            "year" = fl_attgt$t,
-                           "att" = fl_attgt$att,
-                           "c" = fl_attgt$c,
+                           "att" = case_when(fl_attgt$att <= .Machine$double.eps ~ 0,
+                                             TRUE ~ fl_attgt$att),
+                           "c" = case_when(fl_attgt$c == -Inf ~ NA, TRUE ~ fl_attgt$c),
                            "se" = fl_attgt$se,
                            "n" = fl_attgt$n) %>%
     #Compute time relative to treatment year
@@ -497,18 +479,12 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
            area_noverlap_ha = area_noverlap_ha,
            fc_tot_pre_treat = fc_tot_pre_treat,
            res_ha = res_ha,
-           id_projet = id.project,
            status_wdpa = status.wdpa,
            iucn_cat = iucn.cat,
            iucn_des_en = iucn.des,
            gov_type = gov.wdpa,
            own_type = own.wdpa,
            marine = eco.wdpa,
-           cofund = cofund,
-           kfw = kfw,
-           ffem = ffem,
-           fund_type = fund.type,
-           dept_report = reporter,
            funding_year = funding.years,
            funding_year_list = list.funding.years,
            .before = "treatment_year")
@@ -778,14 +754,14 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
                                object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("matched_long", "_", iso, "_", wdpaid, ".csv")),
                                bucket = "projet-afd-eva-ap",
                                opts = list("region" = "")) %>%
-        dplyr::select(c(region, iso3, wdpaid, focus, group, assetid, status_yr, year_funding_first, year_funding_all, start_pre_treat_fc, end_pre_treat_fc, start_pre_treat_fl, end_pre_treat_fl, res_m, year, var, fc_ha))
+        dplyr::select(c(region, iso3, country_en, wdpaid, focus, group, assetid, status_yr, year_funding_first, year_funding_all, start_pre_treat_fc, end_pre_treat_fc, start_pre_treat_fl, end_pre_treat_fl, res_m, year, var, fc_ha))
       #dplyr::select(c(region, country_en, iso3, wdpaid, group, status_yr, year_funding_first, year_funding_all, year, var, fc_ha))
       
       df_long_unm = s3read_using(data.table::fread,
                                  object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("unmatched_long", "_", iso, "_", wdpaid, ".csv")),
                                  bucket = "projet-afd-eva-ap",
                                  opts = list("region" = "")) %>%
-        dplyr::select(c(region, iso3, wdpaid, focus, group, assetid, status_yr, year_funding_first, year_funding_all,start_pre_treat_fc, end_pre_treat_fc, start_pre_treat_fl, end_pre_treat_fl, year, res_m, var, fc_ha))
+        dplyr::select(c(region, iso3, country_en, wdpaid, focus, group, assetid, status_yr, year_funding_first, year_funding_all,start_pre_treat_fc, end_pre_treat_fc, start_pre_treat_fl, end_pre_treat_fl, year, res_m, var, fc_ha))
       #dplyr::select(c(region, country_en, iso3, wdpaid, group, status_yr, year_funding_first, year_funding_all, year, var, fc_ha))
       
       # Define the working datasets depending on the is_m value
@@ -796,40 +772,28 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
       }
       
       #Extract some relevant variables for later plots and treatment effect computations
+      df_info = df_long %>% 
+        filter(group == 3) %>% 
+        slice(1)
       ##Extract spatial resolution of pixels res_m and define pixel area in ha
       res_m = unique(df_long$res_m)
       res_ha = res_m^2*1e-4
       
       ##Extract treatment year
-      treatment.year = df_long %>% 
-        filter(group == 3) %>% 
-        slice(1)
-      treatment.year = treatment.year$status_yr
+      treatment.year = df_info$status_yr
       
       ##Extract funding years
-      df_fund_yr = df_long %>% 
-        filter(group == 3) %>% 
-        slice(1)
-      funding.years = df_fund_yr$year_funding_first
-      list.funding.years = df_fund_yr$year_funding_all
+      funding.years = df_info$year_funding_first
+      list.funding.years = df_info$year_funding_all
       
       ##Extract country name
-      # country.name = df_long %>% 
-      #   filter(group == 3) %>% 
-      #   slice(1)
-      # country.name = country.name$country_en
+      country.name = df_info$country_en
       
       ##Extract country iso
-      country.iso = df_long %>% 
-        filter(group == 3) %>% 
-        slice(1)
-      country.iso = country.iso$iso3
+      country.iso = df_info$iso3
       
       ##Extract region name
-      region.name = df_long %>% 
-        filter(group == 3) %>% 
-        slice(1)
-      region.name = region.name$region
+      region.name = df_info$region
       
       ##Area without overlap
       ### Note that the polygon reported by the WDAP can have a surface different from the reported area : thus the area without overalp can be bigger than the reported area ! 
@@ -859,50 +823,34 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
       n_pix_fc_pre_treat = fc_tot_pre_treat/res_ha 
       
       ##Extract more information not in the matched dataframe
+      wdpa_id = wdpaid #Need to give a name to wdpaid (function argument) different from the variable in the dataset (wdpaid)
+      df_info_pa = data_pa %>% 
+        filter(wdpaid == wdpa_id) %>% 
+        slice(1)
       ### Area reported by the WDPA
-      wdpa_id = wdpaid #Need to give a name to wdpaid (function argument) different from the varaible in the dataset (wdpaid)
       area_ha = data_pa[data_pa$wdpaid == wdpa_id,]$area_km2*100
       ### Name of the PA
       pa.name = data_pa %>% 
         filter(wdpaid == wdpa_id) %>% 
         slice(1)
       pa.name = pa.name$name_pa
-      ### Country name
-      country.name = data_pa %>% 
-        filter(wdpaid == wdpa_id) %>% 
-        slice(1)
-      country.name = country.name$country_en
+
       ### AFD project ID
       # id.project = data_pa %>% 
       #   filter(wdpaid == wdpa_id) %>% 
       #   slice(1)
       # id.project = id.project$id_projet
       ### WDPA status
-      status.wdpa = data_pa %>% 
-        filter(wdpaid == wdpa_id) %>% 
-        slice(1)
-      status.wdpa = status.wdpa$status
+      status.wdpa = df_info_pa$status
       ### IUCN category and description
-      iucn.wdpa = data_pa %>% 
-        filter(wdpaid == wdpa_id) %>% 
-        slice(1)
-      iucn.cat = iucn.wdpa$iucn_cat
-      iucn.des = iucn.wdpa$iucn_des_en
+      iucn.cat = df_info_pa$iucn_cat
+      iucn.des = df_info_pa$iucn_des_en
       ### Ecosystem
-      eco.wdpa = data_pa %>% 
-        filter(wdpaid == wdpa_id) %>% 
-        slice(1)
-      eco.wdpa = eco.wdpa$marine
+      eco.wdpa = df_info_pa$marine
       ### Governance
-      gov.wdpa = data_pa %>% 
-        filter(wdpaid == wdpa_id) %>% 
-        slice(1)
-      gov.wdpa = gov.wdpa$gov_type
+      gov.wdpa = df_info_pa$gov_type
       ### Owner
-      own.wdpa = data_pa %>% 
-        filter(wdpaid == wdpa_id) %>% 
-        slice(1)
-      own.wdpa = own.wdpa$own_type
+      own.wdpa = df_info_pa$own_type
 
       #Extract number of pixels in the PA
       #n_pix_pa = length(unique(filter(df_long_unm, group == 2)$assetid))
@@ -928,10 +876,8 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
                time = ifelse(group == 3, yes = year-treatment_year, no = NA),
                .after = status_yr) %>%
         group_by(assetid) %>%
-        # mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100,
-        #        fc_2000 = fc_ha[year == 2000]) %>%
         mutate(FL_2000_cum = case_when(fc_ha[year == 2000] > 0 ~ (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100, 
-                                       TRUE ~ NA)) %>%
+                                       TRUE ~ 0)) %>% #If forest cover is null in 2000, then it is null in the following years (reforestation not taken inot account here), and deforestation rate is null
         ungroup()
       
       
@@ -947,7 +893,7 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
                              gname = "treatment_year",
                              idname = "assetid",
                              tname = "year",
-                             control_group = "nevertreated", #Thsi corresponds to control pixels as defined in the matching , with treatment year set to 0
+                             control_group = "nevertreated", #This corresponds to control pixels as defined in the matching , with treatment year set to 0
                              xformla = ~1,
                              alp = alpha, #For 95% confidence interval
                              allow_unbalanced_panel = TRUE, #Ensure no unit is dropped, though every pixel should have data for all years in the period
@@ -958,7 +904,10 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
                              base_period = "varying",
                              data = df_did,
                              print_details = F)
-      pval_pretest_fc = fc_attgt$Wpval[1]
+      
+      pval_pretest_fc = ifelse(is.numeric(fc_attgt$Wpval[1]) == TRUE,
+                                yes = fc_attgt$Wpval[1],
+                                no = NA)
       
       ##For change in deforestation rate (percentage points)
       ### treatment effect computation
@@ -977,7 +926,9 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
                              base_period = "varying",
                              data = df_did,
                              print_details = F)
-      pval_pretest_fl = fl_attgt$Wpval[1]
+      pval_pretest_fl = ifelse(is.numeric(fl_attgt$Wpval[1]) == TRUE,
+                               yes = fl_attgt$Wpval[1],
+                               no = NA)
       
       ### Store the P-value for pre-test of parallel trends assumption : in a dataframe
       df_pre_test = data.frame("region" = region.name,
@@ -985,8 +936,8 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
                                "iso3" = country.iso,
                                "name_pa" = pa.name,
                                "wdpaid" = wdpaid, 
-                               "pval_fc" = pval_pretest_fc, 
-                               "pval_fl" = pval_pretest_fl)
+                               "pval_fc" = as.numeric(pval_pretest_fc), 
+                               "pval_fl" = as.numeric(pval_pretest_fl))
       
       ### Report results in a dataframe
       ### The computed is at pixel level
@@ -997,15 +948,17 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
       ### They are divided by the pixel area to compute CI for treatment effect in percentage of pixel area
       df_fc_attgt = data.frame("treatment_year" = fc_attgt$group,
                                "year" = fc_attgt$t,
-                               "att_pix" = fc_attgt$att,
-                               "c" = fc_attgt$c,
+                               "att_pix" = case_when(fc_attgt$att <= .Machine$double.eps ~ 0,
+                                                     TRUE ~ fc_attgt$att),
+                               "c" = case_when(fc_attgt$c == -Inf ~ NA, TRUE ~ fc_attgt$c), #to avoid -Inf as c
                                "se" = fc_attgt$se,  
                                "n" = fc_attgt$n) %>%
         #Compute treatment effect at PA level and in share of pixel area
         ## att_pa : the total avoided deforestation is the avoided deforestation in ha in a given pixel, multiplied by the number of pixel in the PA.
         ## att_per : avoided deforestation in a pixel, as a share of average forest cover in 2000 in matched treated. Can be extrapolated to full PA in principle (avoided deforestation in share of 2000 forest cover)
         mutate(att_pa = att_pix*n_pix_fc_pre_treat,
-               att_per = att_pix/avgFC_pre_treat_m*100) %>% 
+               att_per = case_when(avgFC_pre_treat_m == 0 ~ 0,
+                                   TRUE ~ att_pix/avgFC_pre_treat_m*100)) %>% 
         #Compute time relative to treatment year
         mutate(time = year - treatment_year,
                .before = year) %>%
@@ -1014,8 +967,10 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
                cband_upper_pix = round(att_pix+c*se, 4),
                cband_lower_pa = cband_lower_pix*n_pix_fc_pre_treat,
                cband_upper_pa = cband_upper_pix*n_pix_fc_pre_treat,
-               cband_lower_per = cband_lower_pix/avgFC_pre_treat_m*100,
-               cband_upper_per = cband_upper_pix/avgFC_pre_treat_m*100,
+               cband_lower_per = case_when(is.na(avgFC_pre_treat_m) == T ~ NA,
+                                           TRUE ~ cband_lower_pix/avgFC_pre_treat_m*100),
+               cband_upper_per = case_when(is.na(avgFC_pre_treat_m) == T ~ NA,
+                                           TRUE ~ cband_upper_pix/avgFC_pre_treat_m*100),
                sig = sign(cband_lower_pix) == sign(cband_upper_pix),
                sig_5 = ifelse(max(time) >=5, yes = sig[time == 5] == TRUE, no = NA),
                sig_10 = ifelse(max(time) >= 10, yes = sig[time == 10] == TRUE, no = NA),
@@ -1044,8 +999,9 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
       # Same for change in deforestation rate
       df_fl_attgt = data.frame("treatment_year" = fl_attgt$group,
                                "year" = fl_attgt$t,
-                               "att" = fl_attgt$att,
-                               "c" = fl_attgt$c,
+                               "att" = case_when(fl_attgt$att <= .Machine$double.eps ~ 0,
+                                                 TRUE ~ fl_attgt$att),
+                               "c" = case_when(fl_attgt$c == -Inf ~ NA, TRUE ~ fl_attgt$c),
                                "se" = fl_attgt$se,
                                "n" = fl_attgt$n) %>%
         #Compute time relative to treatment year
@@ -1341,38 +1297,30 @@ fn_plot_forest_loss = function(iso, wdpaid, data_pa, alpha, load_dir, save_dir)
                                  opts = list("region" = "")) %>%
     dplyr::select(c(region, iso3, wdpaid, focus, group, assetid, status_yr, year_funding_first, year_funding_all, year, res_m, var, fc_ha))
   
-  wdpa_id = wdpaid
+  
   #Extract relevant information
+  df_info = df_long_m_raw %>% 
+    filter(group == 3) %>% 
+    slice(1)
   ##Spatial resolution of pixels res_m and define pixel area in ha
   res_m = unique(df_long_m_raw$res_m)
   res_ha = res_m^2*1e-4
   
   ##treatment year
-  treatment.year = df_long_m_raw %>% 
-    filter(group == 3) %>% 
-    slice(1)
-  treatment.year = treatment.year$status_yr
+ treatment.year = df_info$status_yr
   
   ##funding years
-  funding.years = df_long_m_raw %>% 
-    filter(group == 3) %>% 
-    slice(1)
-  funding.years = funding.years$year_funding_first
+  funding.years = df_info$year_funding_first
   #funding.years = as.numeric(unlist(strsplit(funding.years$year_funding_all, split = ",")))
   
   ##country iso
-  country.iso = df_long_m_raw %>% 
-    filter(group == 3) %>% 
-    slice(1)
-  country.iso = country.iso$iso3
+  country.iso = df_info$iso3
   
   ##region name
-  region.name = df_long_m_raw %>% 
-    filter(group == 3) %>% 
-    slice(1)
-  region.name = region.name$region
+ region.name = df_info$region
   
   ##Area of the PA and PA/country name
+ wdpa_id = wdpaid
   area_ha = data_pa[data_pa$wdpaid == wdpa_id,]$area_km2*100
   
   country.name = data_pa %>% 
@@ -1417,7 +1365,8 @@ fn_plot_forest_loss = function(iso, wdpaid, data_pa, alpha, load_dir, save_dir)
       fc_tot_ha_ci_upper = fc_ha_ci_lower*(area_ha/res_ha),
       fc_tot_rel00_ha_ci_upper = fc_rel00_ha_ci_upper*(area_ha/res_ha),
       fc_tot_rel00_ha_ci_lower = fc_rel00_ha_ci_lower*(area_ha/res_ha),
-      alpha = alpha)
+      alpha = alpha) %>%
+    as.data.frame()
   
   df_long_unm = df_long_unm_raw %>%
     #Compute forest loss relative to 2000 in ha for each pixel
@@ -1450,7 +1399,8 @@ fn_plot_forest_loss = function(iso, wdpaid, data_pa, alpha, load_dir, save_dir)
       fc_tot_ha_ci_upper = fc_ha_ci_lower*(area_ha/res_ha),
       fc_tot_rel00_ha_ci_upper = fc_rel00_ha_ci_upper*(area_ha/res_ha),
       fc_tot_rel00_ha_ci_lower = fc_rel00_ha_ci_lower*(area_ha/res_ha),
-      alpha = alpha)
+      alpha = alpha) %>%
+    as.data.frame()
   
   
   #Define plotting dataset
@@ -1482,7 +1432,7 @@ fn_plot_forest_loss = function(iso, wdpaid, data_pa, alpha, load_dir, save_dir)
     + labs(x = "",
            y = "Forest cover loss (ha)",
            title = paste("Average area deforested between 2000 and", year.max),
-           subtitle = paste("WDPA ID", wdpaid, "in", country.iso, ",implemented in", treatment.year, "and covering", format(area_ha, big.mark = ","), "ha"),
+           subtitle = paste0(pa.name, " in ", country.iso, ", implemented in ", treatment.year, " and covering ", format(area_ha, big.mark = ",", scientific = F), "ha"),
            caption = paste((1-alpha)*100, "% confidence intervals.")) %>%
     + facet_wrap(~matched,
                  labeller = labeller(matched = fct.labs))  %>%
@@ -1516,7 +1466,7 @@ fn_plot_forest_loss = function(iso, wdpaid, data_pa, alpha, load_dir, save_dir)
   
   ggsave(paste(tmp, paste0("fig_fl_2000_", year.max, "_m_unm_", iso, "_", wdpaid, ".png"), sep = "/"),
          plot = fig,
-         device = "png",
+         device = "jpg",
          height = 6, width = 9)
   
   files <- list.files(tmp, full.names = TRUE)
@@ -2102,7 +2052,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
       panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
     )
   
-  fig_att_per_focus = ggplot(filter(df_plot_fc_att, focus == 1),
+  fig_att_per_focus = ggplot(filter(df_plot_fc_att, focus == "focus"),
                                     aes(x = att_per, 
                                         y = factor(name_pa, levels = unique(rev(sort(name_pa)))),
                                         xmin = cband_lower_per, xmax = cband_upper_per)) %>%
@@ -2265,7 +2215,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
       panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
     )
   
-  fig_att_pa_focus = ggplot(filter(df_plot_fc_att, focus == 1), 
+  fig_att_pa_focus = ggplot(filter(df_plot_fc_att, focus == "focus"), 
                                    aes(x = att_pa, 
                                        y = factor(name_pa, levels = unique(rev(sort(name_pa)))),
                                        xmin = cband_lower_pa, xmax = cband_upper_pa)) %>%
@@ -2423,7 +2373,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
       panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
     )
   
-  fig_att_fl_focus = ggplot(filter(df_plot_fl_att, focus == 1),
+  fig_att_fl_focus = ggplot(filter(df_plot_fl_att, focus == "focus"),
                                    aes(x = att, 
                                        y = factor(name_pa, levels = unique(rev(sort(name_pa)))),
                                        xmin = cband_lower, xmax = cband_upper)) %>%
