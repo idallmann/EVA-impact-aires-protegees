@@ -3071,13 +3071,15 @@ fn_plot_att_agg = function(df_fc_att, df_fl_att, is_focus, alpha = alpha, save_d
   df_plot_fc_att_agg = left_join(list_ctry_plot, temp_fc, by = c("iso3", "country_en", "time")) %>%
     group_by(time, country_en) %>%
     arrange(country_en) %>%
-    mutate(n = row_number()) %>%
+    mutate(n = row_number(),
+           country_en_n = paste0(country_en, " (", n_pa, ")")) %>%
     ungroup()
   
   df_plot_fl_att_agg = left_join(list_ctry_plot, temp_fl, by = c("iso3", "country_en", "time"))%>%
     group_by(time, country_en) %>%
     arrange(country_en) %>%
-    mutate(n = row_number()) %>%
+    mutate(n = row_number(),
+           country_en_n = paste0(country_en, " (", n_pa, ")")) %>%
     ungroup()
   
   
@@ -3090,7 +3092,7 @@ fn_plot_att_agg = function(df_fc_att, df_fl_att, is_focus, alpha = alpha, save_d
   ## Att in share of pre-treatment forest cover
   fig_att_per_agg = ggplot(df_plot_fc_att_agg, 
                        aes(x = att_per, 
-                           y = factor(name_pa, levels = unique(rev(sort(name_pa)))),
+                           y = factor(country_en_n, levels = unique(rev(sort(country_en_n)))),
                            xmin = cband_lower_per, xmax = cband_upper_per)) %>%
     + geom_point(aes(color = sig_per)) %>%
     + geom_vline(xintercept = 0) %>%
@@ -3103,6 +3105,7 @@ fn_plot_att_agg = function(df_fc_att, df_fl_att, is_focus, alpha = alpha, save_d
            subtitle = ifelse(is_focus == T,
                              yes = "Sample : protected areas of interest",
                              no = "Sample : other protected areas"),
+           caption = "95% confidence intervals are represented | The number of PA in each country is indicated in parentheses",
            x = "%",
            y = "") %>%
     + theme_minimal() %>%
@@ -3135,7 +3138,7 @@ fn_plot_att_agg = function(df_fc_att, df_fl_att, is_focus, alpha = alpha, save_d
   ##treatment effect : total deforestation avoided
   fig_att_pa_agg = ggplot(df_plot_fc_att_agg, 
                       aes(x = att_pa, 
-                          y = factor(name_pa, levels = unique(rev(sort(name_pa)))),
+                          y = factor(country_en_n, levels = unique(rev(sort(country_en_n)))),
                           xmin = cband_lower_pa, xmax = cband_upper_pa)) %>%
     + geom_point(aes(color = sig_pa)) %>%
     + geom_vline(xintercept = 0) %>%
@@ -3147,6 +3150,7 @@ fn_plot_att_agg = function(df_fc_att, df_fl_att, is_focus, alpha = alpha, save_d
            subtitle = ifelse(is_focus == T,
                              yes = "Sample : protected areas of interest",
                              no = "Sample : other protected areas"),
+           caption = "95% confidence intervals are represented | The number of PA in each country is indicated in parentheses",
            x = "ha",
            y = "") %>%
     + theme_minimal() %>%
@@ -3178,7 +3182,7 @@ fn_plot_att_agg = function(df_fc_att, df_fl_att, is_focus, alpha = alpha, save_d
   ##treatment effect : avoided deforestation in percentage points
   fig_att_fl_agg = ggplot(df_plot_fl_att_agg, 
                       aes(x = att, 
-                          y = factor(name_pa, levels = unique(rev(sort(name_pa)))),
+                          y = factor(country_en_n, levels = unique(rev(sort(country_en_n)))),
                           xmin = cband_lower, xmax = cband_upper)) %>%
     + geom_point(aes(color = sig)) %>%
     + geom_vline(xintercept = 0) %>%
@@ -3190,6 +3194,7 @@ fn_plot_att_agg = function(df_fc_att, df_fl_att, is_focus, alpha = alpha, save_d
            subtitle = ifelse(is_focus == T,
                              yes = "Sample : protected areas of interest",
                              no = "Sample : other protected areas"),
+           caption = "95% confidence intervals are represented | The number of PA in each country is indicated in parentheses",
            x = "p.p.",
            y = "") %>%
     + theme_minimal() %>%
@@ -3241,7 +3246,7 @@ fn_plot_att_agg = function(df_fc_att, df_fl_att, is_focus, alpha = alpha, save_d
     arrange(country_en)
   # names(tbl_fc_att_per) = c("Name", "PA of interest", "Creation",  "Protection", 
   #                           "Governance", "Effect (5 y., %)", "Significance (5 y.)","Effect (10 y., %)", "Significance (10 y.)")
-  names(tbl_fc_att_per) = c("Country", "# PA", "Effect (5 y., %)", "Signi. (5 y.)","Effect (10 y., %)", "Signi. (10 y.)")
+  names(tbl_fc_att_per_agg) = c("Country", "# PA", "Effect (5 y., %)", "Signi. (5 y.)","Effect (10 y., %)", "Signi. (10 y.)")
   
   # treatment effect : total deforestation avoided 
   tbl_fc_att_pa_agg = df_plot_fc_att_agg %>%
@@ -3263,7 +3268,7 @@ fn_plot_att_agg = function(df_fc_att, df_fl_att, is_focus, alpha = alpha, save_d
     arrange(country_en)
   # names(tbl_fc_att_pa) = c("Name", "PA of interest", "Creation",  "Protection", 
   #                           "Governance", "Effect (5 y., ha)", "Significance (5 y.)","Effect (10 y., ha)", "Significance (10 y.)")
-  names(tbl_fc_att_pa) = c("Country", "# PA", "Effect (5 y., ha)", "Signi. (5 y.)","Effect (10 y., ha)", "Signi. (10 y.)")
+  names(tbl_fc_att_pa_agg) = c("Country", "# PA", "Effect (5 y., ha)", "Signi. (5 y.)","Effect (10 y., ha)", "Signi. (10 y.)")
   
   # treatment effect : avoided deforestation, in terms of difference in cumultaed deforestation rate 
   tbl_fl_att_agg = df_plot_fl_att_agg %>%
@@ -3285,36 +3290,39 @@ fn_plot_att_agg = function(df_fc_att, df_fl_att, is_focus, alpha = alpha, save_d
     arrange(country_en)
   # names(tbl_fl_att) = c("Name", "PA of interest", "Creation",  "Protection", 
   #                           "Governance", "Effect (5 y., pp)", "Significance (5 y.)","Effect (10 y., pp)", "Significance (10 y.)")
-  names(tbl_fl_att) = c("Country", "# PA" , "Effect (5 y., pp)", "Signi. (5 y.)","Effect (10 y., pp)", "Signi. (10 y.)")
+  names(tbl_fl_att_agg) = c("Country", "# PA" , "Effect (5 y., pp)", "Signi. (5 y.)","Effect (10 y., pp)", "Signi. (10 y.)")
   
   
   ##Saving plots
   tmp = paste(tempdir(), "fig", sep = "/")
   
-  ggsave(paste(tmp, "fig_att_per_agg.png", sep = "/"),
+  ggsave(ifelse(is_focus == T, yes = paste(tmp, "fig_att_per_agg_focus.png", sep = "/"), no = paste(tmp, "fig_att_per_agg_nofocus.png", sep = "/")),
          plot = fig_att_per_agg,
          device = "png",
          height = 8, width = 12)
   
-  ggsave(paste(tmp, "fig_att_pa_agg.png", sep = "/"),
+  ggsave(ifelse(is_focus == T, yes = paste(tmp, "fig_att_pa_agg_focus.png", sep = "/"), no = paste(tmp, "fig_att_pa_agg_nofocus.png", sep = "/")),
          plot = fig_att_pa_agg,
          device = "png",
          height = 8, width = 12)
   
-  ggsave(paste(tmp, "fig_att_fl_agg.png", sep = "/"),
+  ggsave(ifelse(is_focus == T, yes = paste(tmp, "fig_att_fl_agg_focus.png", sep = "/"), no = paste(tmp, "fig_att_fl_agg_nofocus.png", sep = "/")),
          plot = fig_att_fl_agg,
          device = "png",
          height = 8, width = 12)
   
   
   print(xtable(tbl_fc_att_pa_agg, type = "latex", auto = T),
-        file = paste(tmp, "tbl_fc_att_pa_agg.tex", sep = "/"))
+        row.names = FALSE,
+        file = ifelse(is_focus == T, yes = paste(tmp, "tbl_fc_att_pa_agg_focus.tex", sep = "/"), no = paste(tmp, "tbl_fc_att_pa_agg_nofocus.tex", sep = "/")))
   
   print(xtable(tbl_fc_att_per_agg, type = "latex", auto = T),
-        file = paste(tmp, "tbl_fc_att_per_agg.tex", sep = "/"))
+        row.names = FALSE,
+        file = ifelse(is_focus == T, yes = paste(tmp, "tbl_fc_att_per_agg_focus.tex", sep = "/"), no = paste(tmp, "tbl_fc_att_per_agg_nofocus.tex", sep = "/")))
   
   print(xtable(tbl_fl_att_agg, type = "latex", auto = T),
-        file = paste(tmp, "tbl_fl_att_agg.tex", sep = "/"))
+        row.names = FALSE,
+        file = ifelse(is_focus == T, yes = paste(tmp, "tbl_fl_att_agg_focus.tex", sep = "/"), no = paste(tmp, "tbl_fl_att_agg_nofocus.tex", sep = "/")))
   
   files <- list.files(tmp, full.names = TRUE)
   ##Add each file in the bucket (same foler for every file in the temp)

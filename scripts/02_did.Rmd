@@ -491,13 +491,13 @@ opts = list("region" = ""))
 ## Input of DiD : equivalent to output of post-processing a priori
 df_list_did_in = aws.s3::s3read_using(
 FUN = data.table::fread,
-object = paste(save_dir, "df_did_list_in.csv", sep = "/"),
+object = paste(save_dir, "df_list_did_in.csv", sep = "/"),
 bucket = "projet-afd-eva-ap",
 opts = list("region" = ""))
 ## Output of DiD : losses due to a too small never treated group to compute DiD
 df_list_did_out = aws.s3::s3read_using(
 FUN = data.table::fread,
-object = paste(save_dir, "df_did_list_out.csv", sep = "/"),
+object = paste(save_dir, "df_list_did_out.csv", sep = "/"),
 bucket = "projet-afd-eva-ap",
 opts = list("region" = ""))
 
