@@ -325,6 +325,11 @@ own.wdpa = df_info_pa$own_type
                                       group == 3 ~ status_yr), #Set treatment year to 0 for control units (required by did::att_gt)
            time = ifelse(group == 3, yes = year-treatment_year, no = NA),
            .after = status_yr) %>%
+    #Remove any time, assetid duplicate (case of WDPAID 555555493 in Kenya, asset id 161654 162057 162457 162856)
+    group_by(assetid, time) %>%
+    slice(1) %>%
+    ungroup() %>%
+    group_by(assetid) %>%
     group_by(assetid) %>%
     # mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100,
     #        fc_2000 = fc_ha[year == 2000]) %>%
@@ -875,11 +880,14 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
                                           group == 3 ~ status_yr), #Set treatment year to 0 for control units (required by did::att_gt)
                time = ifelse(group == 3, yes = year-treatment_year, no = NA),
                .after = status_yr) %>%
+        #Remove any time, assetid duplicate (case of WDPAID 555555493 in Kenya, asset id 161654 162057 162457 162856)
+        group_by(assetid, time) %>%
+        slice(1) %>%
+        ungroup() %>%
         group_by(assetid) %>%
         mutate(FL_2000_cum = case_when(fc_ha[year == 2000] > 0 ~ (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100, 
                                        TRUE ~ 0)) %>% #If forest cover is null in 2000, then it is null in the following years (reforestation not taken inot account here), and deforestation rate is null
         ungroup()
-      
       
       #Compute dynamic treatment effect with did package. 
       ## Control are "never treated" units, no covariate is added in the regression estimated with doubly-robust method
@@ -1289,13 +1297,13 @@ fn_plot_forest_loss = function(iso, wdpaid, data_pa, alpha, load_dir, save_dir)
                                object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("matched_long", "_", iso, "_", wdpaid, ".csv")),
                                bucket = "projet-afd-eva-ap",
                                opts = list("region" = "")) %>%
-    dplyr::select(c(region, iso3, wdpaid, focus, group, assetid, status_yr, year_funding_first, year_funding_all, res_m, year, var, fc_ha))
+    dplyr::select(c(region, iso3, wdpaid, focus, group, assetid, status_yr, year_funding_first, year_funding_all, start_pre_treat_fc, end_pre_treat_fc, res_m, year, var, fc_ha))
   
   df_long_unm_raw = s3read_using(data.table::fread,
                                  object = paste0(load_dir, "/", iso, "/", wdpaid, "/", paste0("unmatched_long", "_", iso, "_", wdpaid, ".csv")),
                                  bucket = "projet-afd-eva-ap",
                                  opts = list("region" = "")) %>%
-    dplyr::select(c(region, iso3, wdpaid, focus, group, assetid, status_yr, year_funding_first, year_funding_all, year, res_m, var, fc_ha))
+    dplyr::select(c(region, iso3, wdpaid, focus, group, assetid, status_yr, year_funding_first, year_funding_all,start_pre_treat_fc, end_pre_treat_fc, year, res_m, var, fc_ha))
   
   
   #Extract relevant information
@@ -1332,15 +1340,37 @@ fn_plot_forest_loss = function(iso, wdpaid, data_pa, alpha, load_dir, save_dir)
     slice(1)
   pa.name = pa.name$name_pa
   
+  #Is it a PA of interest ?
+  is_focus = as.logical(df_info$focus)
   
-  #Forest cover loss is computed for each pixel relative to 2000, then average forest cover evolution and loss is computed for treated and controls
+  ##Area without overlap
+  ### Note that the polygon reported by the WDAP can have a surface different from the reported area : thus the area without overalp can be bigger than the reported area ! 
+  ### Example below ("test") with a Kenyan PA.
+  area_noverlap_ha = df_long_unm_raw %>%
+    filter(group == 3) %>%
+    group_by(assetid) %>%
+    slice(1) %>%
+    ungroup()
+  area_noverlap_ha = nrow(area_noverlap_ha)*res_ha
+  
+  ### Compute forest cover in 2000 in the area without overlap
+  fc_tot_2000 = df_long_unm_raw %>%
+    filter(group == 3 & year == 2000) 
+  fc_tot_2000 = sum(fc_tot_2000$fc_ha, na.rm = TRUE)
+  n_pix_fc_2000 = fc_tot_pre_treat/res_ha 
+  
+  #Forest cover loss in final period year is computed for each pixel relative to 2000, then average forest loss is computed for treated and controls
+  year.min = 2000
+  year.max = 2021
+  
   df_long_m = df_long_m_raw %>%
-    #Compute forest loss relative to 2000 in ha for each pixel
+    #Keep only min and max year to lower computation burden
+    filter(year %in% c(year.min, year.max)) %>%
     group_by(assetid) %>%
     mutate(fc_rel00_ha = fc_ha - fc_ha[year == 2000],
            .after = "fc_ha") %>%
     ungroup() %>%
-    #Compute average forest cover and forest cover loss relative to 2000 for each group, year
+    #Compute average forest cover and forest cover loss relative to 2000 for each group
     group_by(group, year) %>%
     summarise(n= n(),
               avgfc_ha = mean(fc_ha, na.rm = TRUE),
@@ -1350,25 +1380,28 @@ fn_plot_forest_loss = function(iso, wdpaid, data_pa, alpha, load_dir, save_dir)
               fc_ha_ci_upper = avgfc_ha + qt((1-alpha)/2,df=n-1)*sdfc_ha/sqrt(n),
               fc_ha_ci_lower = avgfc_ha - qt((1-alpha)/2,df=n-1)*sdfc_ha/sqrt(n),
               fc_rel00_ha_ci_upper = avgfc_rel00_ha + qt((1-alpha)/2,df=n-1)*sdfc_rel00_ha/sqrt(n),
-              fc_rel00_ha_ci_lower = avgfc_rel00_ha - qt((1-alpha)/2,df=n-1)*sdfc_rel00_ha/sqrt(n),
-              matched = T,
-              focus = focus) %>%
+              fc_rel00_ha_ci_lower = avgfc_rel00_ha - qt((1-alpha)/2,df=n-1)*sdfc_rel00_ha/sqrt(n)
+              ) %>%
     #Compute total forest cover and forest loss relative to 2000, knowing area of the PA and average forest share in a pixel in 2000
     #CI are computed at 95% confidence level
     ungroup() %>%
     mutate(#per_fc_2000_avg = min(fc_ha[year == 2000]/res_ha, 1),
       #fc_tot_ha = fc_ha*(area_ha*per_fc_2000_avg/res_ha),
-      fc_tot_ha = avgfc_ha*(area_ha/res_ha),
+      fc_tot_ha = avgfc_ha*n_pix_fc_2000,
       #fc_tot_rel00_ha = avgfc_rel00_ha*(area_ha*per_fc_2000_avg/res_ha),
-      fc_tot_rel00_ha = avgfc_rel00_ha*(area_ha/res_ha),
-      fc_tot_ha_ci_upper = fc_ha_ci_upper*(area_ha/res_ha),
-      fc_tot_ha_ci_upper = fc_ha_ci_lower*(area_ha/res_ha),
-      fc_tot_rel00_ha_ci_upper = fc_rel00_ha_ci_upper*(area_ha/res_ha),
-      fc_tot_rel00_ha_ci_lower = fc_rel00_ha_ci_lower*(area_ha/res_ha),
-      alpha = alpha) %>%
+      fc_tot_rel00_ha = avgfc_rel00_ha*n_pix_fc_2000,
+      fc_tot_ha_ci_upper = fc_ha_ci_upper*n_pix_fc_2000,
+      fc_tot_ha_ci_upper = fc_ha_ci_lower*n_pix_fc_2000,
+      fc_tot_rel00_ha_ci_upper = fc_rel00_ha_ci_upper*n_pix_fc_2000,
+      fc_tot_rel00_ha_ci_lower = fc_rel00_ha_ci_lower*n_pix_fc_2000,
+      alpha = alpha,
+      matched = T,
+      focus = is_focus) %>%
     as.data.frame()
   
   df_long_unm = df_long_unm_raw %>%
+    #Keep only min and max year to lower computation burden
+    filter(year %in% c(year.min, year.max)) %>%
     #Compute forest loss relative to 2000 in ha for each pixel
     group_by(assetid) %>%
     mutate(fc_rel00_ha = fc_ha - fc_ha[year == 2000],
@@ -1384,22 +1417,22 @@ fn_plot_forest_loss = function(iso, wdpaid, data_pa, alpha, load_dir, save_dir)
               fc_ha_ci_upper = avgfc_ha + qt((1-alpha)/2,df=n-1)*sdfc_ha/sqrt(n),
               fc_ha_ci_lower = avgfc_ha - qt((1-alpha)/2,df=n-1)*sdfc_ha/sqrt(n),
               fc_rel00_ha_ci_upper = avgfc_rel00_ha + qt((1-alpha)/2,df=n-1)*sdfc_rel00_ha/sqrt(n),
-              fc_rel00_ha_ci_lower = avgfc_rel00_ha - qt((1-alpha)/2,df=n-1)*sdfc_rel00_ha/sqrt(n),
-              matched = F,
-              focus = focus) %>%
-    #Compute total forest cover and forest loss relative to 2000, knowing area of the PA and average forest share in a pixel in 2000
+              fc_rel00_ha_ci_lower = avgfc_rel00_ha - qt((1-alpha)/2,df=n-1)*sdfc_rel00_ha/sqrt(n)) %>%
+    #Compute total forest cover and forest loss relative to 2000, knowing forest cover in 2000
     #CI are computed at 95% confidence level
     ungroup() %>%
     mutate(#per_fc_2000_avg = min(fc_ha[year == 2000]/res_ha, 1),
       #fc_tot_ha = fc_ha*(area_ha*per_fc_2000_avg/res_ha),
-      fc_tot_ha = avgfc_ha*(area_ha/res_ha),
+      fc_tot_ha = avgfc_ha*n_pix_fc_2000,
       #fc_tot_rel00_ha = avgfc_rel00_ha*(area_ha*per_fc_2000_avg/res_ha),
-      fc_tot_rel00_ha = avgfc_rel00_ha*(area_ha/res_ha),
-      fc_tot_ha_ci_upper = fc_ha_ci_upper*(area_ha/res_ha),
-      fc_tot_ha_ci_upper = fc_ha_ci_lower*(area_ha/res_ha),
-      fc_tot_rel00_ha_ci_upper = fc_rel00_ha_ci_upper*(area_ha/res_ha),
-      fc_tot_rel00_ha_ci_lower = fc_rel00_ha_ci_lower*(area_ha/res_ha),
-      alpha = alpha) %>%
+      fc_tot_rel00_ha = avgfc_rel00_ha*n_pix_fc_2000,
+      fc_tot_ha_ci_upper = fc_ha_ci_upper*n_pix_fc_2000,
+      fc_tot_ha_ci_upper = fc_ha_ci_lower*n_pix_fc_2000,
+      fc_tot_rel00_ha_ci_upper = fc_rel00_ha_ci_upper*n_pix_fc_2000,
+      fc_tot_rel00_ha_ci_lower = fc_rel00_ha_ci_lower*n_pix_fc_2000,
+      alpha = alpha,
+      matched = F,
+      focus = is_focus) %>%
     as.data.frame()
   
   
@@ -1412,10 +1445,9 @@ fn_plot_forest_loss = function(iso, wdpaid, data_pa, alpha, load_dir, save_dir)
            iso3 = country.iso,
            wdpaid = wdpaid, 
            name_pa = pa.name,
-           area_ha = area_ha)
-  
-  #The period where deforestation is plotted
-  year.max = max(df_long_m$year)
+           area_ha = area_ha,
+           area_noverlap_ha = area_noverlap_ha,
+           fc_2000_ha = fc_tot_2000)
   
   #Plot
   fct.labs <- c("Before Matching", "After Matching")
@@ -1432,8 +1464,8 @@ fn_plot_forest_loss = function(iso, wdpaid, data_pa, alpha, load_dir, save_dir)
     + labs(x = "",
            y = "Forest cover loss (ha)",
            title = paste("Average area deforested between 2000 and", year.max),
-           subtitle = paste0(pa.name, " in ", country.iso, ", implemented in ", treatment.year, " and covering ", format(area_ha, big.mark = ",", scientific = F), "ha"),
-           caption = paste((1-alpha)*100, "% confidence intervals.")) %>%
+           subtitle = paste0(pa.name, " in ", country.name, ", implemented in ", treatment.year, " with a 2000 forest cover of ", format(fc_tot_2000, big.mark = ",", digits = 1, scientific = F), "ha"),
+           caption = paste((1-alpha)*100, "% confidence intervals | WDPA reported area :", format(area_ha, big.mark = ",", digits = 1, scientific = F), "ha | Area without overlap :", format(area_noverlap_ha, big.mark = ",", digits = 1, scientific = F), "ha\nWDPA reported area does not necessarily correspond to the area of the reported polygon, explaining discrepancies in the previous areas.")) %>%
     + facet_wrap(~matched,
                  labeller = labeller(matched = fct.labs))  %>%
     + theme_minimal() %>%

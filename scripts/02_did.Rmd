@@ -514,6 +514,20 @@ The aggregation of results at country and regional level is not necessarily rele
 
 ```{r, eval = FALSE}
 
+#Import datasets
+## Treatment effect expressed in forest cover loss avoided (ha)
+df_fc_att = aws.s3::s3read_using(
+FUN = data.table::fread,
+object = paste(save_dir, "df_fc_att.csv", sep = "/"),
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+## Treatment effect expressed in change of deforestation rate (percentage points)
+df_fl_att = aws.s3::s3read_using(
+FUN = data.table::fread,
+object = paste(save_dir, "df_fl_att.csv", sep = "/"),
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+
 #Treatment effects are aggregated by region and country
 #For total avoided deforestation in ha, treatment effects are summed and so are the confidence intervals (CI).
 ## If the CI of a treatment effect is NA, then the CI for total treatment effects is NA also. Otherwise CI will be downward biased.
@@ -525,9 +539,9 @@ avg_att_fc_ctry = df_fc_att %>%
             att_per_mean = mean(att_per, na.rm = TRUE),
             cband_lower_per = mean(cband_lower_per, na.rm = TRUE),
             cband_upper_per = mean(cband_upper_per, na.rm = TRUE),
-            att_pa_tot = sum(att_pa, na.rm = TRUE),
-            cband_lower_pa = sum(cband_lower_pa, na.rm = FALSE),
-            cband_upper_pa = sum(cband_upper_pa, na.rm = FALSE)) %>%
+            att_pa_avg = mean(att_pa, na.rm = TRUE),
+            cband_lower_pa = sum(cband_lower_pa, na.rm = T),
+            cband_upper_pa = sum(cband_upper_pa, na.rm = T)) %>%
   ungroup()
 
 avg_att_fc_region = df_fc_att %>%
@@ -536,9 +550,9 @@ avg_att_fc_region = df_fc_att %>%
             att_per_mean = mean(att_per, na.rm = TRUE),
             cband_lower_per = mean(cband_lower_per, na.rm = TRUE),
             cband_upper_per = mean(cband_upper_per, na.rm = TRUE),
-            att_pa_tot = sum(att_pa, na.rm = TRUE),
-            cband_lower_pa = sum(cband_lower_pa, na.rm = FALSE),
-            cband_upper_pa = sum(cband_upper_pa, na.rm = FALSE)) %>%
+            att_pa_avg = mean(att_pa, na.rm = TRUE),
+            cband_lower_pa = sum(cband_lower_pa, na.rm = T),
+            cband_upper_pa = sum(cband_upper_pa, na.rm = T)) %>%
   ungroup()
 
 avg_att_fl_ctry = df_fl_att %>%
