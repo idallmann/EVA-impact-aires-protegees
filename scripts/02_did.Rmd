@@ -69,8 +69,8 @@ tmp_did = paste(tempdir(), "did", sep = "/")
 ##Loading and saving directories on the storage. This is either define on today's date, or by a user-defined date.
 #load_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/")
 load_dir = paste("impact_analysis/matching", "2023-10-23", sep = "/")
-#save_dir = paste("impact_analysis/did", Sys.Date(), sep = "/")
-save_dir = paste("impact_analysis/did", "2023-10-23", sep = "/")
+save_dir = paste("impact_analysis/did", Sys.Date(), sep = "/")
+#save_dir = paste("impact_analysis/did", "2023-10-2", sep = "/")
 
 ## Dataset specific to the PAs portfolio to analyze. Only one is selected depending on the analysis one wants to perform. 
 
@@ -147,7 +147,7 @@ data_pa_ie_africa_focus = data_pa %>%
 list_iso_ie_africa_focus = unique(data_pa_ie_africa_focus$iso3)
 list_pa_ie_africa_focus = unique(data_pa_ie_africa_focus$wdpaid)
 list_iso = list_iso_ie_africa_focus
-list_iso = c("COM", "STP", "GNB", "GMB", "SEN", "MAR", "GAB", "KEN", "CMR", "COG", "MDG", "MOZ", "NER")
+list_iso = c("COM", "STP", "GNB", "GMB", "SEN", "MAR", "GAB", "KEN", "CMR", "COG", "MDG", "MOZ", "NER", "TCD")
 
 ## Information on funding from AFD internal datasets, on AFD funded projects related to protected areas.
 data_fund = 
