@@ -208,13 +208,12 @@ th_var_max = 2
        
 # The list of countries (ISO3 codes) to analyze. This can be define manually or from the the dataset loaded.
 ##List of African countries in the sample that have at least one PA supported by the AFD we can analyse
-data_pa_ie_africa = data_pa %>%
+data_pa_ie_africa_focus = data_pa %>%
   filter(region == "Africa" & is.na(wdpaid) == FALSE & area_km2 >=1 & marine %in% c(0,1) & status_yr >= yr_min & focus == T)
-list_iso = unique(data_pa_ie_africa$iso3)
+list_iso = unique(data_pa_ie_africa_focus$iso3)
 ## Manual definition
 #list_iso = "KEN"
-#list_iso = c("COM", "STP", "GNB", "GMB", "SEN", "MAR", "GAB", "KEN", "CMR", "COG", "MDG", "MOZ", "NER", "TCD")
-list_iso = c("COM", "STP", "GNB", "GMB", "SEN", "MAR", "GAB", "KEN", "CMR", "COG", "MDG", "MOZ", "NER", "TCD")
+
 ```
 
 ## Matching process
