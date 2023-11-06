@@ -618,7 +618,7 @@ Note some protected areas can be removed from the display, because the matching 
 ```{r, eval = F}
 # Define a list of protected areas that will not be displayed
 list_wdpa_bad = c()
-# Define a list of protected areas where a focus is needed
+# Define a list of protect ed areas where a focus is needed
 list_wdpa_focus = list_pa_ie_africa_focus
 
 # Get rid of some protected areas in the dataset used to plotting figures and tables
