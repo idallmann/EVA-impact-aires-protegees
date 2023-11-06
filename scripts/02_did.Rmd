@@ -432,6 +432,23 @@ object = paste(load_dir, "df_quality_tt.csv", sep = "/"),
 bucket = "projet-afd-eva-ap",
 opts = list("region" = ""))
 
+##Total forest cover in 2000 
+df_fc_2000 = aws.s3::s3read_using(
+FUN = data.table::fread,
+object = paste(save_dir, "df_fl_2000_2021.csv", sep = "/"), 
+bucket = "projet-afd-eva-ap",
+opts = list("region" = "")) %>%
+  filter(group == "Treated" & matched == F & year == 2000) %>%
+  select(c(region, iso3, country_en, wdpaid, focus, fc_tot_ha))
+
+#For pre-test, closer look to ...
+## PA of interest
+df_pre_test_focus = df_pre_test %>%
+  filter(wdpaid %in% list_pa_ie_africa_focus)
+## Other PA
+df_pre_test_nofocus = df_pre_test %>%
+  filter(!(wdpaid %in% list_pa_ie_africa_focus))
+
 #For matching quality, compute aggregated quality metrics
 ##For all PA
 df_quality_ct_agg = df_quality_ct %>%
@@ -459,14 +476,63 @@ df_quality_ct_agg_focus = df_quality_ct_agg %>%
 df_quality_tt_agg_focus = df_quality_tt_agg %>%
   filter(wdpaid %in% list_pa_ie_africa_focus)
 
-#List of PA with acceptable matching and pre-test (strict criterion)
+##For other PA
+df_quality_ct_agg_nofocus = df_quality_ct_agg %>%
+  filter(!(wdpaid %in% list_pa_ie_africa_focus))
+df_quality_tt_agg_nofocus = df_quality_tt_agg %>%
+  filter(!(wdpaid %in% list_pa_ie_africa_focus))
+
+#List of PA with acceptable initial forest cover, matching and pre-test (strict criterion)
+list_pa_fc_2000 = unique(filter(df_fc_2000, fc_tot_ha >= 0.5)$wdpaid)
 list_pa_good_ct = df_quality_ct_agg[df_quality_ct_agg$is_ok == TRUE,]$wdpaid
 list_pa_good_tt = df_quality_tt_agg[df_quality_tt_agg$is_ok == TRUE,]$wdpaid
 list_pa_good_pre_fc = df_pre_test[df_pre_test$is_ok_fc == TRUE,]$wdpaid
 list_pa_good_pre_fl = df_pre_test[df_pre_test$is_ok_fl == TRUE,]$wdpaid
-list_pa_keep_fc = data_pa[data_pa$wdpaid %in% list_pa_good_ct
+list_pa_keep_fc = data_pa[data_pa$wdpaid %in% list_pa_fc_2000
+                          & data_pa$wdpaid %in% list_pa_good_ct
                        & data_pa$wdpaid %in% list_pa_good_tt
                        & data_pa$wdpaid %in% list_pa_good_pre_fc,]$wdpaid
+
+
+```
+
+## Tidy datasets with acceptable quality
+
+The previous section makes it possible to filter PA with acceptable initial forest cover, matching quality and pre-test. Then, it is possible to build a dataset of a subset of PA. For presentations to non-academic, we choose to maximize the number of operations, so we only remove PA with non-acceptable initial forest cover. For academic publications and comunications, we also remove PA with bad matching quality and pre-test.
+
+```{r, eval = F}
+
+#Import datasets
+## Treatment effect expressed in forest cover loss avoided (ha)
+df_fc_att = aws.s3::s3read_using(
+FUN = data.table::fread,
+object = paste(save_dir, "df_fc_att.csv", sep = "/"),
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+## Treatment effect expressed in change of deforestation rate (percentage points)
+df_fl_att = aws.s3::s3read_using(
+FUN = data.table::fread,
+object = paste(save_dir, "df_fl_att.csv", sep = "/"),
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+
+#Tidy datasets for non-academic
+##The following are selected :
+### Acceptable forest cover in 2000
+df_fc_att_tidy_noaca = df_fc_att %>%
+  filter(wdpaid %in% list_pa_fc_2000)
+df_fl_att_tidy_noaca = df_fl_att %>%
+  filter(wdpaid %in% list_pa_fc_2000)
+
+#Tidy datasets for academic
+##The following are selected :
+### Acceptable forest cover in 2000
+## Acceptable matching quality (matched control and treated, treated)
+## Acceptable pre-test
+df_fc_att_tidy_aca = df_fc_att %>%
+  filter(wdpaid %in% list_pa_keep_fc)
+df_fl_att_tidy_aca = df_fl_att %>%
+  filter(wdpaid %in% list_pa_keep_fc)
 ```
 
 ## Assess the loss of observations
@@ -512,6 +578,8 @@ n_post = nrow(df_list_post_out) #Number of PA after post-processing
 n_post_focus = nrow(filter(df_list_post_out, wdpaid %in% list_pa_ie_africa_focus)) #Number of AFD supported PA after post-processing
 n_did = nrow(df_list_did_out) #Number of PA after post-processing
 n_did_focus = nrow(filter(df_list_did_out, wdpaid %in% list_pa_ie_africa_focus)) #Number of AFD supported PA after post-processing
+n_final_noaca = length(unique(df_fc_att_tidy_aca$wdpaid))
+n_final_noaca_focus = length(unique(filter(df_fc_att_tidy_noaca, focus == T)$wdpaid))
 ```
 
 ## Compute aggregated metrics at country and region level
@@ -522,30 +590,17 @@ The aggregation of results at country and regional level is not necessarily rele
 
 ```{r, eval = FALSE}
 
-#Import datasets
-## Treatment effect expressed in forest cover loss avoided (ha)
-df_fc_att = aws.s3::s3read_using(
-FUN = data.table::fread,
-object = paste(save_dir, "df_fc_att.csv", sep = "/"),
-bucket = "projet-afd-eva-ap",
-opts = list("region" = ""))
-## Treatment effect expressed in change of deforestation rate (percentage points)
-df_fl_att = aws.s3::s3read_using(
-FUN = data.table::fread,
-object = paste(save_dir, "df_fl_att.csv", sep = "/"),
-bucket = "projet-afd-eva-ap",
-opts = list("region" = ""))
-
 #Call the function to aggregate results at country level and save plots
-## For PA of interest
-fn_plot_att_agg(df_fc_att = df_fc_att,
-                df_fl_att = df_fl_att,
+##After non-academic filtering
+### For PA of interest
+fn_plot_att_agg(df_fc_att = df_fc_att_tidy_noaca,
+                df_fl_att = df_fl_att_tidy_noaca,
                 is_focus = T,
                 alpha = alpha,
                 save_dir = save_dir)
-# For other PA
-fn_plot_att_agg(df_fc_att = df_fc_att,
-                df_fl_att = df_fl_att,
+### For other PA
+fn_plot_att_agg(df_fc_att = df_fc_att_tidy_noaca,
+                df_fl_att = df_fl_att_tidy_noaca,
                 is_focus = F,
                 alpha = alpha,
                 save_dir = save_dir)
@@ -600,12 +655,15 @@ object = paste(save_dir, "df_fl_2000_2021.csv", sep = "/"),
 bucket = "projet-afd-eva-ap",
 opts = list("region" = ""))
 
-#Call a fcuntion to plot total and average forest loss on the 2000-2021 period, for PA of interest and others
 
-fn_plot_forest_loss_agg(df_plot_forest_loss = df_plot_forest_loss,
+#After non-academic filtering
+df_plot_forest_loss_noaca = df_plot_forest_loss %>%
+  filter(wdpaid %in% list_pa_fc_2000)
+
+#Call a fcuntion to plot total and average forest loss on the 2000-2021 period, for PA of interest and others
+fn_plot_forest_loss_agg(df_plot_forest_loss = df_plot_forest_loss_noaca,
                         alpha = alpha,
                         save_dir = save_dir)
-
 
 ```
 
@@ -616,30 +674,34 @@ The treatment effects computed for each protected areas can be displayed in figu
 Note some protected areas can be removed from the display, because the matching is not satisfying or pre-treatment trends are too different between treated and control units (thus the matched control risk to be an irrelevant counterfactual). Also, one might want to highlight some protected areas. For instance when comparing a subset of protected areas in a given country to the others (protected areas in Madagascar supported by the AFD versus the others for instance).
 
 ```{r, eval = F}
-# Define a list of protected areas that will not be displayed
-list_wdpa_bad = c()
-# Define a list of protect ed areas where a focus is needed
+# Define a list of protected areas where a focus is needed
 list_wdpa_focus = list_pa_ie_africa_focus
-
-# Get rid of some protected areas in the dataset used to plotting figures and tables
-df_fc_att_tidy = df_fc_att %>%
-  filter(!wdpaid %in% list_wdpa_bad)
-df_fl_att_tidy = df_fl_att %>%
-  filter(!wdpaid %in% list_wdpa_bad)
 
 # A function to create figures and tables
 ##For AFD supported protected areas (funding info)
-# fn_plot_att_afd(df_fc_att = df_fc_att_tidy,
-#             df_fl_att = df_fl_att_tidy, 
-#             alpha = alpha,
-#             save_dir = save_dir)
-##For other protected areas (no funding info)
-fn_plot_att_general(df_fc_att = df_fc_att_tidy,
-            df_fl_att = df_fl_att_tidy, 
+### For each WDPAID supported by AFD, is it at least once supported by KfW or FFEM ?
+df_fund_cof = data_fund_nodupl %>%
+  filter(is.na(wdpaid) == F) %>%
+  group_by(wdpaid) %>%
+  summarize(id_projet = paste(id_projet, collapse = ","),
+            ffem = sum(ffem, na.rm = TRUE),
+            kfw = sum(kfw, na.rm = T)) %>%
+  ungroup()
+df_fc_att_tidy_noaca_afd = df_fc_att_tidy_noaca %>%
+  left_join(df_fund_cof, by = "wdpaid") 
+df_fl_att_tidy_noaca_afd = df_fl_att_tidy_noaca %>%
+  left_join(df_fund_cof, by = "wdpaid")
+fn_plot_att_afd(df_fc_att = df_fc_att_tidy_noaca_afd,
+            df_fl_att = df_fl_att_tidy_noaca_afd,
             list_focus = list_wdpa_focus,
             alpha = alpha,
             save_dir = save_dir)
-
+##For other protected areas (no funding info)
+fn_plot_att_general(df_fc_att = df_fc_att_tidy_noaca,
+            df_fl_att = df_fl_att_tidy_noaca, 
+            list_focus = list_wdpa_focus,
+            alpha = alpha,
+            save_dir = save_dir)
 ```
 
 ## 
