@@ -69,8 +69,8 @@ tmp_did = paste(tempdir(), "did", sep = "/")
 ##Loading and saving directories on the storage. This is either define on today's date, or by a user-defined date.
 #load_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/")
 load_dir = paste("impact_analysis/matching", "2023-10-23", sep = "/")
-save_dir = paste("impact_analysis/did", Sys.Date(), sep = "/")
-#save_dir = paste("impact_analysis/did", "2023-10-2", sep = "/")
+#save_dir = paste("impact_analysis/did", Sys.Date(), sep = "/")
+save_dir = paste("impact_analysis/did", "2023-10-23", sep = "/")
 
 ## Dataset specific to the PAs portfolio to analyze. Only one is selected depending on the analysis one wants to perform. 
 
@@ -687,21 +687,24 @@ df_fund_cof = data_fund_nodupl %>%
             ffem = sum(ffem, na.rm = TRUE),
             kfw = sum(kfw, na.rm = T)) %>%
   ungroup()
+
 df_fc_att_tidy_noaca_afd = df_fc_att_tidy_noaca %>%
   left_join(df_fund_cof, by = "wdpaid") 
 df_fl_att_tidy_noaca_afd = df_fl_att_tidy_noaca %>%
   left_join(df_fund_cof, by = "wdpaid")
+
 fn_plot_att_afd(df_fc_att = df_fc_att_tidy_noaca_afd,
             df_fl_att = df_fl_att_tidy_noaca_afd,
             list_focus = list_wdpa_focus,
             alpha = alpha,
             save_dir = save_dir)
+
 ##For other protected areas (no funding info)
-fn_plot_att_general(df_fc_att = df_fc_att_tidy_noaca,
-            df_fl_att = df_fl_att_tidy_noaca, 
-            list_focus = list_wdpa_focus,
-            alpha = alpha,
-            save_dir = save_dir)
+# fn_plot_att_general(df_fc_att = df_fc_att_tidy_noaca,
+#             df_fl_att = df_fl_att_tidy_noaca, 
+#             list_focus = list_wdpa_focus,
+#             alpha = alpha,
+#             save_dir = save_dir)
 ```
 
 ## 
