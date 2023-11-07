@@ -139,14 +139,14 @@ th_var_max = 2
 
 # The list of countries (ISO3 codes) to analyze. This can be define manually or from the the dataset loaded.
 ##List of African countries in the sample that have at least one PA supported by the AFD we can analyse
-data_pa_ie_africa= data_pa %>%
+data_pa_ie_= data_pa %>%
   filter(region == "Africa" & is.na(wdpaid) == FALSE & area_km2 >=1 & marine %in% c(0,1) & status_yr >= yr_min)
-data_pa_ie_africa_focus = data_pa %>%
+data_pa_ie_focus = data_pa %>%
   filter(region == "Africa" & is.na(wdpaid) == FALSE & area_km2 >=1 & marine %in% c(0,1) & status_yr >= yr_min & focus == T)
 
-list_iso_ie_africa_focus = unique(data_pa_ie_africa_focus$iso3)
-list_pa_ie_africa_focus = unique(data_pa_ie_africa_focus$wdpaid)
-list_iso = list_iso_ie_africa_focus
+list_iso_ie_focus = unique(data_pa_ie_africa_focus$iso3)
+list_pa_ie_focus = unique(data_pa_ie_africa_focus$wdpaid)
+list_iso = list_iso_ie_focus
 list_iso = c("COM", "STP", "GNB", "GMB", "SEN", "MAR", "GAB", "KEN", "CMR", "COG", "MDG", "MOZ", "NER", "TCD")
 
 ## Information on funding from AFD internal datasets, on AFD funded projects related to protected areas.
@@ -444,10 +444,10 @@ opts = list("region" = "")) %>%
 #For pre-test, closer look to ...
 ## PA of interest
 df_pre_test_focus = df_pre_test %>%
-  filter(wdpaid %in% list_pa_ie_africa_focus)
+  filter(wdpaid %in% list_pa_ie_focus)
 ## Other PA
 df_pre_test_nofocus = df_pre_test %>%
-  filter(!(wdpaid %in% list_pa_ie_africa_focus))
+  filter(!(wdpaid %in% list_pa_ie_focus))
 
 #For matching quality, compute aggregated quality metrics
 ##For all PA
@@ -472,15 +472,15 @@ df_quality_tt_agg = df_quality_tt %>%
 
 ##For PA of interest
 df_quality_ct_agg_focus = df_quality_ct_agg %>%
-  filter(wdpaid %in% list_pa_ie_africa_focus)
+  filter(wdpaid %in% list_pa_ie_focus)
 df_quality_tt_agg_focus = df_quality_tt_agg %>%
-  filter(wdpaid %in% list_pa_ie_africa_focus)
+  filter(wdpaid %in% list_pa_ie_focus)
 
 ##For other PA
 df_quality_ct_agg_nofocus = df_quality_ct_agg %>%
-  filter(!(wdpaid %in% list_pa_ie_africa_focus))
+  filter(!(wdpaid %in% list_pa_ie_focus))
 df_quality_tt_agg_nofocus = df_quality_tt_agg %>%
-  filter(!(wdpaid %in% list_pa_ie_africa_focus))
+  filter(!(wdpaid %in% list_pa_ie_focus))
 
 #List of PA with acceptable initial forest cover, matching and pre-test (strict criterion)
 list_pa_fc_2000 = unique(filter(df_fc_2000, fc_tot_ha >= 0.5)$wdpaid)
@@ -567,19 +567,57 @@ object = paste(save_dir, "df_list_did_out.csv", sep = "/"),
 bucket = "projet-afd-eva-ap",
 opts = list("region" = ""))
 
-#Compute losses
-n_ini = nrow(data_pa) #Number of PA in Africa
-n_ini_focus = nrow(filter(data_pa, focus == T)) #number of AFD supported PA in Africa
-n = nrow(filter(data_pa, iso3 %in% list_iso_ie_africa_focus)) #Number of PA in the African countries with at least one AFD supported PA we can analyse
-n_focus = nrow(filter(data_pa, iso3 %in% list_iso_ie_africa_focus & focus == T)) #Number of AFD supported PA we can analyse
-n_pre = nrow(df_list_post_in) #Number of PA after pre-processing
-n_pre_focus = nrow(filter(df_list_post_in, wdpaid %in% list_pa_ie_africa_focus)) #Number of AFD supported PA after pre-processing
-n_post = nrow(df_list_post_out) #Number of PA after post-processing
-n_post_focus = nrow(filter(df_list_post_out, wdpaid %in% list_pa_ie_africa_focus)) #Number of AFD supported PA after post-processing
-n_did = nrow(df_list_did_out) #Number of PA after post-processing
-n_did_focus = nrow(filter(df_list_did_out, wdpaid %in% list_pa_ie_africa_focus)) #Number of AFD supported PA after post-processing
-n_final_noaca = length(unique(df_fc_att_tidy_aca$wdpaid))
-n_final_noaca_focus = length(unique(filter(df_fc_att_tidy_noaca, focus == T)$wdpaid))
+#Compute losses (PA and countries)
+## Initial sample
+### All PA
+n_pa_ini = nrow(data_pa) 
+n_ctry_ini = length(unique(data_pa$iso3)) 
+### PA of interest
+n_pa_ini_focus = nrow(filter(data_pa, focus == T)) 
+n_ctry_ini_focus = length(unique(filter(data_pa, focus == T)$iso3))
+## Sub-sample (if so)
+### All PA
+n_pa = nrow(filter(data_pa, iso3 %in% list_iso_ie_focus)) 
+n_ctry = length(unique(filter(data_pa, iso3 %in% list_iso_ie_focus)$iso3))
+### PA of interest
+n_pa_focus = nrow(filter(data_pa, iso3 %in% list_iso_ie_focus & focus == T))
+n_ctry_focus = length(unique(filter(data_pa, iso3 %in% list_iso_ie_focus & focus == T)$iso3))
+## After matching pre-processing
+### All PA
+n_pa_pre = nrow(df_list_post_in) 
+n_ctry_pre = length(unique(df_list_post_in$iso3))
+### PA of interest
+n_pa_pre_focus = nrow(filter(df_list_post_in, wdpaid %in% list_pa_ie_focus)) 
+n_ctry_pre_focus  = length(unique(filter(df_list_post_in, wdpaid %in% list_pa_ie_africa_focus)$iso3))
+## After matching post-processing (= before DiD)
+### All PA
+n_pa_post = nrow(df_list_post_out) 
+n_ctry_post = length(unique(df_list_post_out$iso3))
+### PA of interest
+n_pa_post_focus = nrow(filter(df_list_post_out, wdpaid %in% list_pa_ie_focus)) 
+n_ctry_post_focus = length(unique(filter(df_list_post_out, wdpaid %in% list_pa_ie_focus)$iso3))
+## After DiD
+### All PA
+n_pa_did = nrow(df_list_did_out) 
+n_ctry_did = length(unique(df_list_did_out$iso3))
+### PA of interest
+n_pa_did_focus = nrow(filter(df_list_did_out, wdpaid %in% list_pa_ie_focus))
+n_ctry_did_focus = length(unique(filter(df_list_did_out, wdpaid %in% list_pa_ie_focus)$iso3))
+## After final filtering : matching quality, pre-test, non-null forest cover before treatment
+### With non-academic filtering (only non-null forest cover)
+#### All PA
+n_pa_final_noaca = length(unique(df_fc_att_tidy_noaca$wdpaid))
+n_ctry_final_noaca = length(unique(df_fc_att_tidy_noaca$iso3))
+#### PA of interest
+n_pa_final_noaca_focus = length(unique(filter(df_fc_att_tidy_noaca, focus == T)$wdpaid))
+n_ctry_final_noaca_focus = length(unique(filter(df_fc_att_tidy_noaca, focus == T)$iso3))
+### With academic filtering (all)
+### All PA
+n_pa_final_aca = length(unique(df_fc_att_tidy_aca$wdpaid))
+n_ctry_final_aca = length(unique(df_fc_att_tidy_aca$iso3))
+### PA of interest
+n_pa_final_aca_focus = length(unique(filter(df_fc_att_tidy_aca, focus == T)$wdpaid))
+n_ctry_final_aca_focus = length(unique(filter(df_fc_att_tidy_aca, focus == T)$iso3))
 ```
 
 ## Compute aggregated metrics at country and region level
@@ -675,7 +713,7 @@ Note some protected areas can be removed from the display, because the matching 
 
 ```{r, eval = F}
 # Define a list of protected areas where a focus is needed
-list_wdpa_focus = list_pa_ie_africa_focus
+list_wdpa_focus = list_pa_ie_focus
 
 # A function to create figures and tables
 ##For AFD supported protected areas (funding info)
