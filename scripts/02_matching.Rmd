@@ -127,22 +127,23 @@ wdpa_wld_raw = s3read_using(
 ## Dataset specific to the PAs portfolio to analyze. Only one is selected depending on the analysis one wants to perform. 
 
 ### PAs supported by the AFD
-# data_pa =
-#   #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
-#   aws.s3::s3read_using(
-#   FUN = data.table::fread,
-#   encoding = "UTF-8",
-#   object = "data_tidy/BDD_PA_AFD_ie.csv",
-#   bucket = "projet-afd-eva-ap",
-#   opts = list("region" = "")) %>%
-#   #Sangha trinational (555547988) created in 2012 actually gathers three former PAs
-#   #in CAF (31458), CMR (1245) and COG (72332) implemented in
-#   #1990, 2001 and 1993 respectively.
-#   # Evaluating the trinational PA is not relevant here : our method relies on pre-treatment obervsations (for matching and DiD) and the outcome is likely to be affected by the initial PAs. On the other hand, evaluating the three earlier PAs might be irrelevant for us : are they funded by the AFD ?? In a first approach, the trinational is removed.
-#   filter(is.na(wdpaid) == TRUE | wdpaid != 555547988)
+data_pa =
+  #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  object = "data_tidy/BDD_PA_AFD_ie.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = "")) %>%
+  #Sangha trinational (555547988) created in 2012 actually gathers three former PAs
+  #in CAF (31458), CMR (1245) and COG (72332) implemented in
+  #1990, 2001 and 1993 respectively.
+  # Evaluating the trinational PA is not relevant here : our method relies on pre-treatment obervsations (for matching and DiD) and the outcome is likely to be affected by the initial PAs. On the other hand, evaluating the three earlier PAs might be irrelevant for us : are they funded by the AFD ?? In a first approach, the trinational is removed.
+  filter(is.na(wdpaid) == TRUE | wdpaid != 555547988)
 
 ## PAs supported by the FAPBM
 # data_pa =
+#   #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
 #   aws.s3::s3read_using(
 #   FUN = data.table::fread,
 #   encoding = "UTF-8",
@@ -168,6 +169,7 @@ data_pa =
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
 
+
 # Specify buffer width in meter
 buffer_m = 10000
 # Specify the grid cell size in meter
@@ -183,15 +185,25 @@ yr_last = 2021
 #At least two pre-treatment periods of forest cover are needed to compute average pre-treatment deforestation, used as a matching variable.
 yr_min = yr_first+2
 
+# The list of countries (ISO3 codes) to analyze. This can be define manually or from the the dataset loaded.
+##List of African countries in the sample that have at least one PA we can analyse
+data_pa_ie_africa = data_pa %>%
+  filter(region == "Africa" & is.na(wdpaid) == FALSE & area_km2 >=1 & marine %in% c(0,1) & status_yr >= yr_min)
+list_iso = unique(data_pa_ie_africa$iso3)
+## Manual definition
+#list_iso = "COM"
+
 # Define column names of matching covariates
 colname.travelTime = "minutes_mean_5k_110mio"
 colname.clayContent = "clay_0_5cm_mean"
 colname.elevation = "elevation_mean"
 colname.tri = "tri_mean"
+
 colname.fcAvg = "avgCover_pre_treat"
 colname.flAvg = "avgLoss_pre_treat"
 colname.biome = "biomes"
 list_cov = paste(colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcAvg, colname.flAvg, colname.biome, sep = ";")
+
 
 #Matching 
 ## Parameters

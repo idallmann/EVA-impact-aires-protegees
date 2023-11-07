@@ -43,7 +43,6 @@ fn_pre_log = function(list_iso, buffer, gridSize, yr_first, yr_last, yr_min, lis
   #Do not forget to end the writing with a \n to avoid warnings
   #cat(paste("#####\nCOUNTRY :", iso, "\nTIME :", print(Sys.time(), tz = "UTC-2"), "\n#####\n\n###\nPRE-PROCESSING\n###\n\n"), file = log, append = TRUE)
   cat(paste("STARTING TIME :", print(Sys.time(), tz = "UTC-2"), "\nPARAMETERS : \nBuffer =", buffer, "m \nPixel resolution", gridSize, "m\nPeriod of analysis", yr_first, "to", yr_last, "\nMinimum treatment year is", yr_min, "\nMatching covariates :", list_cov, "\nCOUNTRIES :", str_iso, "\nNOTES :", notes, "\n\n##########\nPRE-PROCESSING\n##########\n\n"), file = log, append = TRUE)
-  
   return(log)
 }
 
@@ -81,13 +80,14 @@ fn_lonlat2UTM = function(lonlat)
 ### is_ok : a boolean indicating whether or not an error occured inside the function
 ##DATA SAVED :
 ### None
+
 fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, gridSize, log, save_dir)
 {
   
   output = withCallingHandlers(
     
     {
-      
+
   # Download country polygon
   gadm = gadm(country = iso, resolution = 1, level = 0, path = path_tmp) %>% 
     st_as_sf() %>%
@@ -136,29 +136,29 @@ fn_pre_grid = function(iso, yr_min, path_tmp, data_pa, gridSize, log, save_dir)
                      "utm_code" = utm_code,
                      "is_ok" = TRUE)
   return(list_output)
-  
+ 
     },
-  
-  error = function(e)
-  {
-    #Print the error and append the log
-    print(e)
-    #Append the log 
-    cat(paste("#Generating observation units\n-> Error :\n", e, "\n"), file = log, append = TRUE)
-    #Return string to inform user to skip
-    return(list("is_ok" = FALSE))
-  },
-  
-  warning = function(w)
-  {
-    #Print the warning and append the log
-    print(w)
-    #Append the log 
-    cat(paste("#Generating observation units\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
-    #Return string to inform user to skip
-    return(list("is_ok" = TRUE))
-  }
-  
+    
+    error = function(e)
+    {
+      #Print the error and append the log
+      print(e)
+      #Append the log 
+      cat(paste("#Generating observation units\n-> Error :\n", e, "\n"), file = log, append = TRUE)
+      #Return string to inform user to skip
+      return(list("is_ok" = FALSE))
+    },
+    
+    warning = function(w)
+    {
+      #Print the warning and append the log
+      print(w)
+      #Append the log 
+      cat(paste("#Generating observation units\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+      #Return string to inform user to skip
+      return(list("is_ok" = TRUE))
+    }
+    
   )
   
   return(output)
@@ -500,29 +500,29 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
   #Return the output
   list_output = list("grid.param" = grid.param, "is_ok" = TRUE)
   return(list_output)
-  
+ 
     },
-  
-  error = function(e)
-  {
-    #Print the error and append the log
-    print(e)
-    #Append the log 
-    cat(paste("#Determining Group IDs and WDPA IDs\n-> Error :\n", e, "\n"), file = log, append = TRUE)
-    #Return string to inform user to skip
-    return(list("is_ok" = FALSE))
-  },
-  
-  warning = function(w)
-  {
-    #Print the warning and append the log
-    print(w)
-    #Append the log 
-    cat(paste("#Determining Group IDs and WDPA IDs\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
-    #Return string to inform user to skip
-    return(list("is_ok" = TRUE))
-  }
-  
+    
+    error = function(e)
+    {
+      #Print the error and append the log
+      print(e)
+      #Append the log 
+      cat(paste("#Determining Group IDs and WDPA IDs\n-> Error :\n", e, "\n"), file = log, append = TRUE)
+      #Return string to inform user to skip
+      return(list("is_ok" = FALSE))
+    },
+    
+    warning = function(w)
+    {
+      #Print the warning and append the log
+      print(w)
+      #Append the log 
+      cat(paste("#Determining Group IDs and WDPA IDs\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+      #Return string to inform user to skip
+      return(list("is_ok" = TRUE))
+    }
+    
   )
   
   #Return outputs
@@ -598,6 +598,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
   output = tryCatch(
     
     {
+
   tic = tic()
   
   print("----Initialize portfolio")
@@ -874,27 +875,27 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log, save_dir)
   
   #Return output
   return(list("mf" = mf, "is_ok" = TRUE))
-  
+ 
     },
-  
-  error = function(e)
-  {
-    print(e)
-    cat(paste("Error in loading the matching frame :\n", e, "\n"), file = log, append = TRUE)
-    return(list("is_ok" = FALSE))
-  }
-  
-  # warning = function(w)
-  # {
-  #   #Print the warning and append the log
-  #   print(w)
-  #   #Append the log 
-  #   cat(paste("Warining while loading the matching frame :\n", w, "\n"), file = log, append = TRUE)
-  #   #Return string to inform user to skip
-  #   return(list("is_ok" = TRUE))
-  # }
-  
-  
+    
+    error = function(e)
+    {
+      print(e)
+      cat(paste("Error in loading the matching frame :\n", e, "\n"), file = log, append = TRUE)
+      return(list("is_ok" = FALSE))
+    }
+    
+    # warning = function(w)
+    # {
+    #   #Print the warning and append the log
+    #   print(w)
+    #   #Append the log 
+    #   cat(paste("Warining while loading the matching frame :\n", w, "\n"), file = log, append = TRUE)
+    #   #Return string to inform user to skip
+    #   return(list("is_ok" = TRUE))
+    # }
+    
+    
   )
   
   return(output)
@@ -910,7 +911,9 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log, save_dir)
 ### mf : matching frame with the new covariate
 ### is_ok : a boolean indicating whether or not an error occured inside the function
 
+
 fn_post_fl_fc_pre_treat = function(mf, colname.flAvg, log)
+
 {
   
   output = tryCatch(
@@ -1042,7 +1045,7 @@ fn_post_match_auto = function(mf,
                               colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcAvg, colname.flAvg, colname.biome,
                               log)
 {
-
+  
   #Append the log file : CEM step
   cat("#Run Coarsened Exact Matching\n", 
       file = log, append = TRUE)
@@ -1116,41 +1119,76 @@ fn_post_match_auto = function(mf,
       
       #Add a warning if covariate balance tests are not passed
       if(sum(df.cov.m$is_bal_ok) < nrow(df.cov.m) | is.na(sum(df.cov.m$is_bal_ok)) == TRUE)
+
       {
-        message("Matched control and treated units are not balanced enough. Increase sample size, turn to less restrictive tests or visually check balance.")
-        cat("-> Careful : matched control and treated units are not balanced enough. Increase sample size, turn to less restrictive tests or visually check balance.\n", 
-            file = log, append = TRUE)
-      }
+        # Formula
+        ## Two cases : if only one value of biome across control and treated units considered for the matching, then we do not consider biome (de facto, matched units will have the same biome). If we have at least two biomes, then we need to take it into account in the formula.
+        ## Note that no grouping is needed for the categorical variable "biomes" : according to the documentation "Note that if a categorical variable does not appear in grouping, it will not be coarsened, so exact matching will take place on it". 
+        if(length(unique(mf$biomes)) == 1) 
+        {
+          formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
+                                + .(as.name(colname.clayContent))  
+                                +  .(as.name(colname.fcIni)) 
+                                + .(as.name(colname.flAvg))
+                                + .(as.name(colname.tri))
+                                + .(as.name(colname.elevation))))
+        } else formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
+                                     + .(as.name(colname.clayContent))  
+                                     +  .(as.name(colname.fcIni)) 
+                                     + .(as.name(colname.flAvg))
+                                     + .(as.name(colname.tri))
+                                     + .(as.name(colname.elevation))
+                                     + .(as.name(colname.biome))))
+        
+        #Try to perform matching
+        out.cem = matchit(formula,
+                          data = mf,
+                          method = match_method,
+                          cutpoints = cutoff_method,
+                          k2k = is_k2k,
+                          k2k.method = k2k_method)
+        
+        # Then the performance of the matching is assessed, based on https://cran.r-project.org/web/packages/MatchIt/vignettes/assessing-balance.html
+        ## Covariate balance : standardized mean difference and variance ratio
+        ## For both tests and the joint one, a dummy variable is defined, with value TRUE is the test is passed
+        df.cov.m = summary(out.cem, interactions = dummy_int)$sum.matched %>%
+          as.data.frame() %>%
+          clean_names() %>%
+          mutate(is_var_ok = var_ratio < th_var_max & var_ratio > th_var_min, #Check variance ratio between treated and controls
+                 is_mean_ok = abs(std_mean_diff) < th_mean, #Check absolute standardized mean difference
+                 is_bal_ok = as.logical(is_var_ok*is_mean_ok), #Binary : TRUE if both variance and mean difference check pass, 0 if at least one does not
+                 .after = "std_mean_diff")
+        
+        #Add a warning if covariate balance tests are not passed
+        if(sum(df.cov.m$is_bal_ok) < nrow(df.cov.m) | is.na(sum(df.cov.m$is_bal_ok)) == TRUE)
+        {
+          message("Matched control and treated units are not balanced enough. Increase sample size, turn to less restrictive tests or visually check balance.")
+          cat("-> Careful : matched control and treated units are not balanced enough. Increase sample size, turn to less restrictive tests or visually check balance.\n", 
+              file = log, append = TRUE)
+        }
+        
+        #Append the log : note the step has already been appended at the beginning of the function
+        cat("-> OK\n", file = log, append = TRUE)
+        
+        return(list("out.cem" = out.cem, "df.cov.m" = df.cov.m, "is_ok" = TRUE))
+        
+      },
       
-      #Append the log : note the step has already been appended at the beginning of the function
-      cat("-> OK\n", file = log, append = TRUE)
+      error=function(e)
+      {
+        print(e)
+        cat(paste("-> Error :\n", e, "\n"), file = log, append = TRUE)
+        return(list("is_ok" = FALSE))
+      },
       
       return(list("out.cem" = out.cem, "df.cov.m" = df.cov.m, "tbl.quality" = tbl.quality, "is_ok" = TRUE))
-      
-    },
-    
-    error=function(e)
-    {
-      print(e)
-      cat(paste("-> Error :\n", e, "\n"), file = log, append = TRUE)
-      return(list("is_ok" = FALSE))
-    },
-    
-    warning = function(w)
-    {
-      #Print the warning and append the log
-      #Append the log 
-      cat(paste("-> Warning :\n", w, "\n"),
-          file = log, append = TRUE)
-      return(list("is_ok" = FALSE)) #Here warning comes from an absence of matching : thus must skip to next country
-    }
-    
-  )
+
+    )
   
   return(output)
   
 }
-    
+
 
 
 #Plot covariates balance (plots and summary table)
@@ -1170,9 +1208,11 @@ fn_post_match_auto = function(mf,
 ### A table with number of treated and control units, before and after matching
 ### A table with statistics on matched control and treated units 
 ### A table with statistics on unmatched control and treated units,
+
 fn_post_covbal = function(out.cem, tbl.quality, mf, 
                           colname.travelTime, colname.clayContent, colname.fcAvg, colname.flAvg, colname.tri, colname.elevation, colname.biome,
                           th_mean,
+
                           iso, path_tmp, wdpaid, log,
                           save_dir)
 {
@@ -1181,6 +1221,7 @@ fn_post_covbal = function(out.cem, tbl.quality, mf,
     
     {
       
+
   #Save summary table from matching
   smry_cem = summary(out.cem)
   tbl_cem_nn = smry_cem$nn
@@ -1278,29 +1319,30 @@ fn_post_covbal = function(out.cem, tbl.quality, mf,
   
   return(list("is_ok" = TRUE))
   
+
     },
-  
-  error=function(e)
-  {
-    print(e)
-    cat(paste("#Plot covariates balance\n-> Error :\n", e, "\n"), file = log, append = TRUE)
-    return(list("is_ok" = FALSE))
-  }
-  
-  # warning = function(w)
-  # {
-  #   #Print the warning and append the log
-  #   print(w)
-  #   #Append the log 
-  #   cat(paste("#Plot covariates balance\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
-  #   #Return string to inform user to skip
-  #   return(list("is_ok" = TRUE))
-  # }
-  
+    
+    error=function(e)
+    {
+      print(e)
+      cat(paste("#Plot covariates balance\n-> Error :\n", e, "\n"), file = log, append = TRUE)
+      return(list("is_ok" = FALSE))
+    }
+    
+    # warning = function(w)
+    # {
+    #   #Print the warning and append the log
+    #   print(w)
+    #   #Append the log 
+    #   cat(paste("#Plot covariates balance\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+    #   #Return string to inform user to skip
+    #   return(list("is_ok" = TRUE))
+    # }
+    
   )
   
   return(output)
-
+  
 }
 
 
@@ -1637,25 +1679,26 @@ fn_post_plot_density = function(out.cem, mf,
   
   return(list("is_ok" = TRUE))
   
+
     },
-  
-  error=function(e)
-  {
-    print(e)
-    cat(paste("#Plot covariates density\n-> Error :\n", e, "\n"), file = log, append = TRUE)
-    return(list("is_ok" = FALSE))
-  }
-  
-  # warning = function(w)
-  # {
-  #   #Print the warning and append the log
-  #   print(w)
-  #   #Append the log 
-  #   cat(paste("#Plot covariates density\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
-  #   #Return string to inform user to skip
-  #   return(list("is_ok" = TRUE))
-  # }
-  
+    
+    error=function(e)
+    {
+      print(e)
+      cat(paste("#Plot covariates density\n-> Error :\n", e, "\n"), file = log, append = TRUE)
+      return(list("is_ok" = FALSE))
+    }
+    
+    # warning = function(w)
+    # {
+    #   #Print the warning and append the log
+    #   print(w)
+    #   #Append the log 
+    #   cat(paste("#Plot covariates density\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+    #   #Return string to inform user to skip
+    #   return(list("is_ok" = TRUE))
+    # }
+    
   )
   
   return(output)
@@ -2042,6 +2085,7 @@ fn_post_panel = function(out.cem, mf, wdpaid, iso, log, save_dir)
     
     {
       
+
   # Convert dataframe of matched objects to pivot wide form
   matched.wide = match.data(object=out.cem, data=mf) %>%
     st_drop_geometry()
@@ -2099,25 +2143,26 @@ fn_post_panel = function(out.cem, mf, wdpaid, iso, log, save_dir)
                      "is_ok" = TRUE)
   return(list_output)
   
+
     },
-  
-  error=function(e)
-{
-  print(e)
-  cat(paste("#Panelize dataframe\n-> Error :\n", e, "\n"), file = log, append = TRUE)
-  return(list("is_ok" = FALSE))
-}
-
-# warning = function(w)
-# {
-#   #Print the warning and append the log
-#   print(w)
-#   #Append the log 
-#   cat(paste("#Panelize dataframe\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
-#   #Return string to inform user to skip
-#   return(list("is_ok" = TRUE))
-# }
-
+    
+    error=function(e)
+    {
+      print(e)
+      cat(paste("#Panelize dataframe\n-> Error :\n", e, "\n"), file = log, append = TRUE)
+      return(list("is_ok" = FALSE))
+    }
+    
+    # warning = function(w)
+    # {
+    #   #Print the warning and append the log
+    #   print(w)
+    #   #Append the log 
+    #   cat(paste("#Panelize dataframe\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+    #   #Return string to inform user to skip
+    #   return(list("is_ok" = TRUE))
+    # }
+    
   )
   
   return(output)
@@ -2560,7 +2605,7 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
 ### Cumulated deforestation relative to 2000 forest cover, in treated and control pixels, before and after matching
 fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wdpaid, log, save_dir) 
 {
-    
+  
   output = tryCatch(
     
     {
@@ -2568,7 +2613,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
       #Extract spatial resolution of pixels res_m and define pixel area in ha
       res_m = unique(mf$res_m)
       res_ha = res_m^2*1e-4
-        
+      
       #Extract treatment year
       treatment.year = mf %>% 
         filter(group == 3) %>% 
@@ -2641,12 +2686,13 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
       #n_pix_pa = area_ha/res_ha #This measure is imperfect for extrapolation of total deforestation avoided, as part of a PA can be coastal. Indeed, this extrapolation assumes implicitly that all the PA is covered by forest potentially deforested in absence of the conservation 
 
       
-     #Open a multisession for dataframe computations
+      #Open a multisession for dataframe computations
       #Note the computations on unmatched units are the slowest here due to the number of observations relatively higher than for matched units
       library(future)
       library(progressr)
       plan(multisession, gc = TRUE, workers = 6)
       with_progress({
+
  
   # Make dataframe for plotting trend
   ## Matched units
@@ -3097,24 +3143,24 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
   return(list("is_ok" = TRUE))
   
     },
-  
-  error=function(e)
-  {
-    print(e)
-    cat(paste("#Plot matched and unmatched trends\n-> Error :\n", e, "\n\n"), file = log, append = TRUE)
-    return(list("is_ok" = FALSE))
-  }
-  
-  # warning = function(w)
-  # {
-  #   #Print the warning and append the log
-  #   print(w)
-  #   #Append the log 
-  #   cat(paste("#Plot matched and unmatched trends\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
-  #   #Return string to inform user to skip
-  #   return(list("is_ok" = TRUE))
-  # }
-  
+    
+    error=function(e)
+    {
+      print(e)
+      cat(paste("#Plot matched and unmatched trends\n-> Error :\n", e, "\n\n"), file = log, append = TRUE)
+      return(list("is_ok" = FALSE))
+    }
+    
+    # warning = function(w)
+    # {
+    #   #Print the warning and append the log
+    #   print(w)
+    #   #Append the log 
+    #   cat(paste("#Plot matched and unmatched trends\n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+    #   #Return string to inform user to skip
+    #   return(list("is_ok" = TRUE))
+    # }
+    
   )
   return(output)
   
@@ -3140,7 +3186,7 @@ fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp, log, 
   output = tryCatch(
     
     {
-      
+
   #Import dataframe where each pixel in the grid has both its grid ID and asset ID from the portfolio creation
   df_gridID_assetID = s3read_using(data.table::fread,
                                    object = paste0(save_dir, "/", iso, "/", paste0("df_gridID_assetID_", iso, ".csv")),
@@ -3202,28 +3248,28 @@ fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp, log, 
   return(list("is_ok" = TRUE))
   
     },
-  
-  error = function(e)
-  {
-    print(e)
-    if(is_pa == TRUE)
+    
+    error = function(e)
     {
-      cat(paste("#Plot the grid with matched control and treated for the PA \n-> Error :\n", e, "\n"), file = log, append = TRUE)
-    } else cat(paste("#Plot the grid with matched control and treated for all the PAs in the country \n-> Error :\n", e, "\n"), file = log, append = TRUE)
-    return(list("is_ok" = FALSE))
-  }
-  
-  # warning = function(w)
-  # {
-  #   #Print the warning and append the log
-  #   print(w)
-  #   if(is_pa == TRUE)
-  #   {
-  #     cat(paste("#Plot the grid with matched control and treated for the PA \n-> Warning :\n", w, "\n"), file = log, append = TRUE)
-  #   } else cat(paste("#Plot the grid with matched control and treated for all the PAs in the country \n-> Warning :\n", w, "\n"), file = log, append = TRUE)
-  #   return(list("is_ok" = TRUE))
-  # }
-  
+      print(e)
+      if(is_pa == TRUE)
+      {
+        cat(paste("#Plot the grid with matched control and treated for the PA \n-> Error :\n", e, "\n"), file = log, append = TRUE)
+      } else cat(paste("#Plot the grid with matched control and treated for all the PAs in the country \n-> Error :\n", e, "\n"), file = log, append = TRUE)
+      return(list("is_ok" = FALSE))
+    }
+    
+    # warning = function(w)
+    # {
+    #   #Print the warning and append the log
+    #   print(w)
+    #   if(is_pa == TRUE)
+    #   {
+    #     cat(paste("#Plot the grid with matched control and treated for the PA \n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+    #   } else cat(paste("#Plot the grid with matched control and treated for all the PAs in the country \n-> Warning :\n", w, "\n"), file = log, append = TRUE)
+    #   return(list("is_ok" = TRUE))
+    # }
+    
   )
   
   return(output)
