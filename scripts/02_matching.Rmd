@@ -43,6 +43,7 @@ Configuring the Rmarkdown
 ```{r setup, include=FALSE, eval = FALSE}
 
 knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+
 ```
 
 Downloading and installing the relevant packages
@@ -72,7 +73,7 @@ library(ggrepel) #Refine labelling of some figures
 library(sf) # For handling vector data
 library(terra) # For handling raster data
 library(raster) # For handling raster data
-library(rgeos) 
+#library(rgeos) 
 library(geodata) # For getting country files
 library(wdpar) # For getting protected areas
 library(exactextractr) # For zonal statistics
@@ -102,8 +103,8 @@ source("scripts/functions/02_fns_matching.R")
 tmp_pre = paste(tempdir(), "matching_pre", sep = "/")
 tmp_post = paste(tempdir(), "matching_post", sep = "/")
 ## Define a directory where outputs are stored in SSPCloud.
-save_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/") #Today's date
-# save_dir = paste("impact_analysis/matching", "2023-08-29", sep = "/") #A specific date
+#save_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/") #Today's date
+save_dir = paste("impact_analysis/matching", "2023-10-23", sep = "/") #A specific date
 
 # Load datasets
 ## WDPA database   
@@ -152,13 +153,22 @@ data_pa =
 
 ## All PAs in Madagascar
 # data_pa =
-#   #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
 #   aws.s3::s3read_using(
 #   FUN = data.table::fread,
 #   encoding = "UTF-8",
 #   object = "data_tidy/BDD_PA_MDG.csv",
 #   bucket = "projet-afd-eva-ap",
 #   opts = list("region" = ""))
+
+# All PAs in Africa
+data_pa =
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  object = "data_tidy/BDD_PA_africa.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
+
 
 # Specify buffer width in meter
 buffer_m = 10000
@@ -188,10 +198,12 @@ colname.travelTime = "minutes_mean_5k_110mio"
 colname.clayContent = "clay_0_5cm_mean"
 colname.elevation = "elevation_mean"
 colname.tri = "tri_mean"
-colname.fcIni = "treecover_2000" #that has to change : average pre-treatment forest cover !
+
+colname.fcAvg = "avgCover_pre_treat"
 colname.flAvg = "avgLoss_pre_treat"
 colname.biome = "biomes"
-list_cov = paste(colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcIni, colname.flAvg, colname.biome, sep = ";")
+list_cov = paste(colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcAvg, colname.flAvg, colname.biome, sep = ";")
+
 
 #Matching 
 ## Parameters
@@ -206,6 +218,14 @@ th_mean = 0.25 #Used in conservation science, see Desbureaux 2021 for instance
 th_var_min = 0.5
 th_var_max = 2
        
+# The list of countries (ISO3 codes) to analyze. This can be define manually or from the the dataset loaded.
+##List of African countries in the sample that have at least one PA supported by the AFD we can analyse
+data_pa_ie_africa_focus = data_pa %>%
+  filter(region == "Africa" & is.na(wdpaid) == FALSE & area_km2 >=1 & marine %in% c(0,1) & status_yr >= yr_min & focus == T)
+list_iso = unique(data_pa_ie_africa_focus$iso3)
+## Manual definition
+#list_iso = "KEN"
+
 ```
 
 ## Matching process
@@ -284,8 +304,6 @@ for (i in list_iso)
     fn_pre_mf_parallel(grid.param = grid_param, 
                        path_tmp = tmp_pre, 
                        iso = i,
-                       name_output = "matching_frame_spling",
-                       ext_output = ".gpkg",
                        yr_first = yr_first, yr_last = yr_last,  
                        log = log,
                        save_dir = save_dir)  
@@ -314,6 +332,12 @@ for (i in list_iso)
 count_i = 0 #Initialize counter
 max_i = length(list_iso) #Max value of the counter
 tic_post = tic() #start timer
+# Initialize two dataframes to record matching quality assessment : matched control and treated units, matched and unmatched treated
+df_quality_ct = data.frame() #For treated and control
+df_quality_tt = data.frame() #For treated units, before and after matching
+#Initialize a dataframe to store the PA in inputs and outputs of the post-processing. Useful to assess the potential loss during pre-processing and post-processing
+df_list_post_in = data.frame()
+df_list_post_out = data.frame()
 
 #Append the log, and specify matching parameters and quality assessment
 cat(paste("##########\nPOST-PROCESSING\n##########\n\nPARAMETERS :\nMatching\n#Parameters\n##Method :", match_method, "\n##Automatic cutoffs :", cutoff_method, "\n##Is it K2K matching ?", is_k2k, "\n##K2K method :", k2k_method, "\n#Quality assessement\n##Absolute standardized mean difference (threshold)", th_mean, "\n##Variance ratio between", th_var_min, "and", th_var_max, "\n\n"), 
@@ -330,31 +354,35 @@ for (i in list_iso)
   #Append the log to track progress of the process on country i
   cat(paste("#####\nCOUNTRY :", i, "\n"), file = log, append = TRUE)
   
-  #Load the matching frame
+  #Initialize a dataframe to record matching quality assessment at country level
+  df_quality_ct_i = data.frame()
+  df_quality_tt_i = data.frame()
+  
+  #Load the matching frame, and report loaded PA in a dataframe
   print("--Loading the matching frame")
   output_load = fn_post_load_mf(iso = i, 
                            yr_min = yr_min,
-                           name_input = "matching_frame_spling",
-                           ext_input = ".gpkg",
                            log = log,
                            save_dir = save_dir)
   if(output_load$is_ok == FALSE) {next} else mf_ini = output_load$mf
   
-  list_pa = unique(mf_ini[mf_ini$wdpaid != 0, ]$wdpaid)
+  list_pa_in = unique(mf_ini[mf_ini$wdpaid != 0, ]$wdpaid)
+  df_list_post_in = rbind(df_list_post_in, data.frame("iso3" = rep(i, length(list_pa_in)),
+                                                   "wdpaid" = list_pa_in))
   
     #Append the log : list of PAs analyzed in the matching frame
-  cat(paste("LIST OF WDPAIDs :", paste(list_pa, collapse = ", "), "\n#####\n\n"), 
+  cat(paste("LIST OF WDPAIDs :", paste(list_pa_in, collapse = ", "), "\n#####\n\n"), 
       file = log, append = TRUE)
     
   #Initialization
   ##Counter
   count_j = 0
-  max_j = length(list_pa)
+  max_j = length(list_pa_in)
   ##List of control and treatment pixels matched
   df_pix_matched = data.frame()
   
   #Loop over the different PAs
-  for (j in list_pa)
+  for (j in list_pa_in)
   {
     #Update counter and show progress
     count_j = count_j+1
@@ -363,14 +391,15 @@ for (i in list_iso)
     #Append the log to track progress of the process on PA j
     cat(paste("###\nWDPAID :", j, "\n###\n\n"), file = log, append = TRUE)
   
+    #In the matching frame, select control units and treated units in the PA of interest
     mf_ini_j = mf_ini %>%
-      filter(group == 1 | (group == 2 & wdpaid == j))
+      filter(group == 2 | (group == 3 & wdpaid == j))
     
-    #Add average pre-loss
-    print("--Add covariate : average tree loss pre-funding")
-    output_avgLoss = fn_post_avgLoss_pre_treat(mf = mf_ini_j, 
+    #Add average forest cover and forest cover loss before treatment
+    print("--Add covariates : pre-treatment average forest loss and cover")
+    output_add_cov = fn_post_fl_fc_pre_treat(mf = mf_ini_j, 
                                              log = log)
-    if(output_avgLoss$is_ok == FALSE) {next} else mf_j = output_avgLoss$mf
+    if(output_add_cov$is_ok == FALSE) {next} else mf_j = output_add_cov$mf
     
     #Run Coarsened Exact Matching
     print("--Run CEM")
@@ -386,24 +415,30 @@ for (i in list_iso)
                                    colname.clayContent = colname.clayContent, 
                                    colname.elevation = colname.elevation,
                                    colname.tri = colname.tri, 
-                                   colname.fcIni = colname.fcIni, 
+                                   colname.fcAvg = colname.fcAvg, 
                                    colname.flAvg = colname.flAvg,
                                    colname.biome = colname.biome,
                                    log = log)
-    if(output_cem$is_ok == FALSE) {next} else out_cem_j = output_cem$out.cem
+    if(output_cem$is_ok == FALSE){next} else out_cem_j = output_cem$out.cem
+    
+    ##Add matching quality metrics of the PA matched in this iteration
+    tbl.quality.ct.j = output_cem$tbl.quality
+    df_quality_ct = rbind(df_quality_ct, tbl.quality.ct.j) 
     
     #Plots : covariates
     print("--Some plots : covariates")
     print("----Covariate balance")
     output_covbal = fn_post_covbal(out.cem = out_cem_j,
+                                   tbl.quality = tbl.quality.ct.j,
                    mf = mf_j,
                    colname.travelTime = colname.travelTime, 
                    colname.clayContent = colname.clayContent,
-                   colname.fcIni = colname.fcIni, 
+                   colname.fcAvg = colname.fcAvg, 
                    colname.flAvg = colname.flAvg,
                    colname.tri = colname.tri,
                    colname.elevation = colname.elevation,
                    colname.biome = colname.biome,
+                   th_mean = th_mean,
                    iso = i,
                    path_tmp = tmp_post,
                    wdpaid = j,
@@ -411,27 +446,44 @@ for (i in list_iso)
                    save_dir = save_dir)
   if(output_covbal$is_ok == FALSE) {next}
     
-    print("----Density plots")
+    print("----Density plots and histograms")
+    #Density plots
     output_density = fn_post_plot_density(out.cem = out_cem_j,  
                                          mf = mf_j,
-                                      colname.travelTime = colname.travelTime, 
-                                       colname.clayContent = colname.clayContent,
-                                       colname.fcIni = colname.fcIni, 
-                                       colname.flAvg = colname.flAvg,
-                                    colname.tri = colname.tri,
-                                   colname.elevation = colname.elevation,
-                                      iso = i,
-                                      path_tmp = tmp_post,
-                                      wdpaid = j,
-                                   log = log,
-                                   save_dir = save_dir)
+                                         colname.travelTime = colname.travelTime, 
+                                         colname.clayContent = colname.clayContent,
+                                         colname.fcAvg = colname.fcAvg, 
+                                         colname.flAvg = colname.flAvg,
+                                         colname.tri = colname.tri,
+                                         colname.elevation = colname.elevation,
+                                         colname.biome = colname.biome,
+                                         iso = i,
+                                         path_tmp = tmp_post,
+                                         wdpaid = j,
+                                         log = log,
+                                         save_dir = save_dir)
      if(output_density$is_ok == FALSE) {next}
+    #Histograms
+    output_hist = fn_post_plot_hist(out.cem = out_cem_j,  
+                                     mf = mf_j,
+                                     colname.travelTime = colname.travelTime, 
+                                     colname.clayContent = colname.clayContent,
+                                     colname.fcAvg = colname.fcAvg, 
+                                     colname.flAvg = colname.flAvg,
+                                     colname.tri = colname.tri,
+                                     colname.elevation = colname.elevation,
+                                     colname.biome = colname.biome,
+                                     iso = i,
+                                     path_tmp = tmp_post,
+                                     wdpaid = j,
+                                     log = log,
+                                     save_dir = save_dir)
+     if(output_hist$is_ok == FALSE) {next}
     
     #Panelize dataframes
     print("----Panelize (Un-)Matched Dataframe")
     output_panel = fn_post_panel(out.cem = out_cem_j, 
-                                  mf = mf_j, 
-                                  ext_output = ".csv", 
+                                  mf = mf_j,  
                                   iso = i,
                                   wdpaid = j,
                                   log = log,
@@ -443,9 +495,26 @@ for (i in list_iso)
     matched.long.j = output_panel$matched.long
     unmatched.long.j = output_panel$unmatched.long 
     
+    #Assess the difference between matched and unmatched treated units
+    print("----Statistics on treated units before and after matching")
+    
+    output_m_unm_treated = fn_post_m_unm_treated(df_m = matched.wide.j,
+                                                 df_unm = unmatched.wide.j,
+                                                 iso = i,
+                                                 wdpaid = j,
+                                                 th_mean = th_mean, 
+                                                 th_var_min = th_var_min, 
+                                                 th_var_max = th_var_max,
+                                                 save_dir = save_dir,
+                                                 log = log)
+    if(output_m_unm_treated$is_ok == FALSE) {next}
+    
+    ##Add matching quality metrics of the PA matched in this iteration
+    tbl.quality.tt.j = output_m_unm_treated$tbl.quality
+    df_quality_tt = rbind(df_quality_tt, tbl.quality.tt.j) 
+    
     #Extract matched units and plot them on a grid
     print("----Extract matched units and plot them on a grid")
-    
     ##Extract ID of treated and control pixels
     df_pix_matched_j = matched.wide.j %>%
       st_drop_geometry() %>%
@@ -465,6 +534,7 @@ for (i in list_iso)
 
     #Plots the evolution of forest cover for treated and control units, before and after matching
     print("----Plots again : trend")
+    #/!\ 27/10/2023 : I have removed the plot for unmatched units : take too much time and useless for the next presentations we have to do !
     output_trend = fn_post_plot_trend(matched.long = matched.long.j, 
                        unmatched.long = unmatched.long.j, 
                        mf = mf_j,
@@ -474,6 +544,10 @@ for (i in list_iso)
                        log = log,
                        save_dir = save_dir)
     if(output_trend$is_ok == FALSE) {next}
+    
+    #The PA has gone through all post-processing steps : report it in the output dataframe
+    df_list_post_out = rbind(df_list_post_out, data.frame("iso3" = i, "wdpaid" = j)) 
+
   }
     
   # Plot the grid with matched control and treated for the country 
@@ -486,6 +560,37 @@ for (i in list_iso)
    if(output_grid$is_ok == FALSE) {next}
   
 }       
+
+#Save the dataframe on matching quality
+##Matched control and treated units
+aws.s3::s3write_using(
+FUN = data.table::fwrite,
+df_quality_ct,
+object = paste(save_dir, "df_quality_ct.csv", sep = "/"),
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+##Treated units, before and after matching
+aws.s3::s3write_using(
+FUN = data.table::fwrite,
+df_quality_tt,
+object = paste(save_dir, "df_quality_tt.csv", sep = "/"), 
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+#Save the dataframes reporting PAs in input and output of post-processing
+##Input
+aws.s3::s3write_using(
+FUN = data.table::fwrite,
+df_list_post_in,
+object = paste(save_dir, "df_list_post_in.csv", sep = "/"),
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+##Output
+aws.s3::s3write_using(
+FUN = data.table::fwrite,
+df_list_post_out,
+object = paste(save_dir, "df_list_post_out.csv", sep = "/"),
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
 
 #End post-processing timer
 toc_post = toc()

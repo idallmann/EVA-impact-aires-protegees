@@ -2077,6 +2077,13 @@ resp_token = httr::POST(url_token,
                   encode = "form") 
 token = fromJSON(rawToChar(resp_token$content))$data$access_token
 
+#Check token is still valid
+## With httr
+url_token_valid = "https://api.resourcewatch.org/auth/user/me"
+resp_token_valid = httr::GET(url_token_valid,
+                             body = body_token,
+                             encode = "form")
+
 #Create an API key
 
 ##The request to perform
@@ -2480,7 +2487,7 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 ## Forest cover by country
 
-Import the clean the dataset
+Import and clean the dataset
 
 ```{r}
 #Dataset of forest as a share of land for each country
@@ -2517,24 +2524,48 @@ data_fc =
          area_land_km2 = 0.01*area_land_ha,
          fc_2010_per = fc_2010_ha/area_land_ha*100)
 
+#Non-marine PA funded by the AFD : # and total area by country
+## Non-marine
 data_pa_afd = data_stat_nodupl %>% 
+  filter(marine %in% c(0,1)) %>%
   group_by(region, iso3, country_en) %>%
   summarize(n_afd = n(),
             area_afd_km2 = sum(area_km2)) %>%
   ungroup()
-  
+## Non-marine we can analyse
+data_pa_afd_ie = data_stat_nodupl %>% 
+  filter(marine %in% c(0,1) & area_km2 >= 1 & status_yr >= 2002 & status != "Proposed" & is.na(wdpaid) == FALSE) %>%
+  group_by(region, iso3, country_en) %>%
+  summarize(n_afd_ie = n(),
+            area_afd_ie_km2 = sum(area_km2)) %>%
+  ungroup()
+
+#Non-marine PA reported in the WDPA worldwide: # and total area by country
+## Non-marine
 data_pa_wdpa = data_wdpa %>% 
   st_drop_geometry() %>%
+  filter(marine %in% c(0,1)) %>%
   filter(grepl(";", iso3) == FALSE) %>%
   group_by(region, iso3, country_en) %>%
   summarize(n_wdpa = n(),
             area_wdpa_km2 = sum(rep_area)) %>%
   ungroup()
+## Non-marine we can analyse
+data_pa_wdpa_ie = data_wdpa %>% 
+  st_drop_geometry() %>%
+  filter(marine %in% c(0,1) & rep_area >= 1 & status_yr >= 2002 & status != "Proposed" & is.na(wdpaid) == FALSE) %>%
+  filter(grepl(";", iso3) == FALSE) %>%
+  group_by(region, iso3, country_en) %>%
+  summarize(n_wdpa_ie = n(),
+            area_wdpa_ie_km2 = sum(rep_area)) %>%
+  ungroup()
 
 data_fc_africa =  data_fc %>%
   filter(region == "Africa") %>%
-  left_join(select(data_pa_afd, c(iso3, n_afd, area_afd_km2)), by = "iso3") %>%
-  left_join(select(data_pa_wdpa, c(iso3, n_wdpa, area_wdpa_km2)), by = "iso3")
+  left_join(dplyr::select(data_pa_afd, c(iso3, n_afd, area_afd_km2)), by = "iso3") %>%
+  left_join(dplyr::select(data_pa_wdpa, c(iso3, n_wdpa, area_wdpa_km2)), by = "iso3") %>%
+    left_join(dplyr::select(data_pa_afd_ie, c(iso3, n_afd_ie, area_afd_ie_km2)), by = "iso3") %>%
+  left_join(dplyr::select(data_pa_wdpa_ie, c(iso3, n_wdpa_ie, area_wdpa_ie_km2)), by = "iso3")
 ```
 
 Perform plots
@@ -2542,37 +2573,70 @@ Perform plots
 ```{r}
 tbl_fc_africa = data_fc_africa %>%
   # filter(year %in% c(2000, 2010, 2020)) %>%
-  select(c(country_en, iso3, n_afd, n_wdpa, area_afd_km2, area_wdpa_km2, fc_2010_per)) %>%
+  dplyr::select(c(country_en, iso3, area_land_km2, n_wdpa, n_wdpa_ie, n_afd, n_afd_ie, area_wdpa_km2, area_wdpa_ie_km2, area_afd_km2, area_afd_ie_km2, fc_2010_per)) %>%
   mutate(country_en = case_when(iso3 == "MYT" ~ "Mayotte",
                              iso3 == "SHN" ~ "Saint Helena",
                              iso3 == "ESH" ~ "Western Sahara",
                              iso3 == "ATF" ~ "French Southern and Antarctic Lands",
                              iso3 == "REU" ~ "Reunion",
                              TRUE ~ country_en),
-         area_afd_km2 = case_when(is.na(area_afd_km2) == TRUE ~ "/",
-                                  is.na(area_afd_km2) == F ~ format(area_afd_km2, digit = 1, big.mark = ",", scientific = F)),
-         area_wdpa_km2 = case_when(is.na(area_wdpa_km2) == TRUE ~ "/",
-                                  is.na(area_wdpa_km2) == F ~ format(area_wdpa_km2, digit = 1, big.mark = ",", scientific = F)),
+        per_pa_afd = case_when(is.na(area_afd_km2) == TRUE ~ "/",
+                               is.na(area_afd_km2) == F ~ format(area_afd_km2/area_land_km2*100, digits = 1, big.mark = ",", scientific = F)),
+         per_pa_wdpa = case_when(is.na(area_wdpa_km2) == TRUE ~ "/",
+                                 is.na(area_wdpa_km2) == F ~ format(area_wdpa_km2/area_land_km2*100, digits = 1, big.mark = ",", scientific = F)),
+        per_pa_afd_ie = case_when(is.na(area_afd_ie_km2) == TRUE ~ "/",
+                               is.na(area_afd_ie_km2) == F ~ format(area_afd_ie_km2/area_land_km2*100, digits = 1, big.mark = ",", scientific = F)),
+         per_pa_wdpa_ie = case_when(is.na(area_wdpa_ie_km2) == TRUE ~ "/",
+                                 is.na(area_wdpa_ie_km2) == F ~ format(area_wdpa_ie_km2/area_land_km2*100, digits = 1, big.mark = ",", scientific = F)),
+          included = case_when(fc_2010_per >= 5 & n_wdpa > 0 & area_wdpa_km2 > 0 ~ "Included",
+                     fc_2010_per < 1 & (n_wdpa == 0 | area_wdpa_km2 == 0) ~ "Excluded",
+                     fc_2010_per < 5 & n_wdpa > 0 & area_wdpa_km2 > 0 ~ "?"),
+        area_land_km2 = format(area_land_km2, digit = 1, big.mark = ",", scientific = F),
+         # area_afd_km2 = case_when(is.na(area_afd_km2) == TRUE ~ "/",
+         #                          is.na(area_afd_km2) == F ~ format(area_afd_km2, digits = 1, big.mark = ",", scientific = F)),
+         # area_wdpa_km2 = case_when(is.na(area_wdpa_km2) == TRUE ~ "/",
+         #                          is.na(area_wdpa_km2) == F ~ format(area_wdpa_km2, digits = 1, big.mark = ",", scientific = F)),
+         # area_afd_ie_km2 = case_when(is.na(area_afd_ie_km2) == TRUE ~ "/",
+         #                          is.na(area_afd_ie_km2) == F ~ format(area_afd_ie_km2, digits = 1, big.mark = ",", scientific = F)),
+         # area_wdpa_ie_km2 = case_when(is.na(area_wdpa_ie_km2) == TRUE ~ "/",
+         #                          is.na(area_wdpa_ie_km2) == F ~ format(area_wdpa_ie_km2, digits = 1, big.mark = ",", scientific = F)),
          n_afd = as.character(n_afd),
          n_wdpa = as.character(n_wdpa),
-         fc_2010_per = as.character(round(fc_2010_per, 1))) %>%
+         n_afd_ie = as.character(n_afd_ie),
+         n_wdpa_ie = as.character(n_wdpa_ie),
+         fc_2010_per = as.character(round(fc_2010_per, 1))
+                             ) %>%
   replace_na(replace = list("n_afd" = "/",
                             "n_wdpa" = "/",
+                            "n_afd_ie" = "/",
+                            "n_wdpa_ie" = "/",
                             # "area_afd_km2" = "/",
                             # "area_wdpa_km2" = "/",
-                            "fc_2010_per")) %>%
+                            "included" = "Excluded",
+                            "fc_2010_per" = "/")) %>%
   # group_by(iso3) %>%
   # pivot_wider(names_from = "year",
   #              values_from = "fc_per",
   #             names_prefix = "FC (%) in ") %>%
   # ungroup() %>%
+  select(c(country_en, iso3, area_land_km2, n_wdpa, n_wdpa_ie, n_afd, n_afd_ie, per_pa_wdpa, per_pa_wdpa_ie, per_pa_afd, per_pa_afd_ie, fc_2010_per, included)) %>%
   rename("AFD (#)" = "n_afd",
+         "AFD (#, IE)" = "n_afd_ie",
          "Total #" = "n_wdpa",
-         "AFD (km²)" = "area_afd_km2",
-         "Total (km²)" = "area_wdpa_km2",
+         "Total # (IE)" = "n_wdpa_ie",
+         "AFD (%)" = "per_pa_afd",
+         "AFD (%, IE)" = "per_pa_afd_ie",
+         "Total (%)" = "per_pa_wdpa",
+         "Total (%, IE)" = "per_pa_wdpa_ie",
+         # "AFD (km²)" = "area_afd_km2",
+         # "AFD (km², IE)" = "area_afd_ie_km2",
+         # "Total (km²)" = "area_wdpa_km2",
+         # "Total (km², IE)" = "area_wdpa_ie_km2",
+         "Land area (km²)" = "area_land_km2",
          "Code" = "iso3",
          "Country" = "country_en",
-         "Forest cover in 2010 (%)" = "fc_2010_per"
+         "Forest cover in 2010 (%)" = "fc_2010_per",
+         "Analysis" = "included"
          ) %>%
   arrange(-as.numeric(`Forest cover in 2010 (%)`))
   # replace_na(replace = list("FC in 2010 (%)" = "/",
@@ -2595,7 +2659,7 @@ tmp = paste(tempdir(), "fig", sep = "/")
 print(xtable(tbl_fc_africa, 
              type = "latex", 
              auto = T,
-             caption = "Data source: Global Forest Watch"),
+             caption = "Data source: Global Forest Watch. Protected areas (PA) considered are reported in the WDPA and terrestrial or coastal. IE : restriction to PA we can analysis ($>1km^2$, created after 2002, without 'proposed' status). Analysis : included if forest cover (FC) above 5% and at least one PA and total area non-null; excluded if forest cover below 1% and no PA reported/null total area reported; unknown (?) if forest cover below 5% and at least one PA reported/non-zero total area."),
       include.rownames=FALSE,
       file = paste(tmp, "tbl_fc_africa.tex", sep = "/"))
 
