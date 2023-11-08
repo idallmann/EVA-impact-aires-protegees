@@ -826,20 +826,21 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
 ### ext_output : extension fo the file to import
 ### yr_min : the minimum treatment year to be considered in the analysis. As some matching covariates are defined with pre-treatment data (e.g average tree cover loss before treatment), this minimal year is greater than the first year in the period considered
 ### log : a log file to track progress of the processing
+### load_dir : loading directory
 ### save_dir : saving directory
 ##OUTPUTS :
 ### mf : matching dataframe. More precisely, it gives for each observation units in a country values of different covariates to perform matching.
 ### is_ok : a boolean indicating whether or not an error occured inside the function
 ##DATA SAVED
 ### The list of PAs in the matching frame, characterized by their WDPAID. Useful to loop over each PAs we want to analyze in a given country
-fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log, save_dir)
+fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log, load_dir, save_dir)
 {
   output = tryCatch(
     
     {
       
   #Load the matching dataframe
-  object = paste(save_dir, iso, paste0("matching_frame_spling_", iso, ".gpkg"), sep = "/")
+  object = paste(load_dir, iso, paste0("matching_frame_spling_", iso, ".gpkg"), sep = "/")
   mf = s3read_using(sf::st_read,
                       bucket = "projet-afd-eva-ap",
                       object = object,
@@ -3133,12 +3134,13 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
 ### df_pix_matched : dataframe with ID of matched pixels (ID from mapme.biodiversity portfolio)
 ### path_tmp : temporary folder to store figures
 ### log : a log file to track progress of the processing
+### load_dir : loading directory
 ### save_dir : saving directory
 ##OUTPUTS
 ### is_ok : a boolean indicating whether or not an error occured inside the function
 ##DATA SAVED
 ### Country grid with matched control and treated, for a given protected area (PA) or all protected areas in a country
-fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp, log, save_dir)
+fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp, log, load_dir, save_dir)
 {
   
   output = tryCatch(
@@ -3147,7 +3149,7 @@ fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp, log, 
 
   #Import dataframe where each pixel in the grid has both its grid ID and asset ID from the portfolio creation
   df_gridID_assetID = s3read_using(data.table::fread,
-                                   object = paste0(save_dir, "/", iso, "/", paste0("df_gridID_assetID_", iso, ".csv")),
+                                   object = paste0(load_dir, "/", iso, "/", paste0("df_gridID_assetID_", iso, ".csv")),
                                    bucket = "projet-afd-eva-ap",
                                    opts = list("region" = ""))
   
@@ -3155,7 +3157,7 @@ fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp, log, 
   #Merge with a dataframe so that each pixel in the grid has both its grid ID and asset ID from the portfolio creation
   #Merge with matched pixels dataframe
   grid =  s3read_using(sf::read_sf,
-                       object = paste0(save_dir, "/", iso, "/", paste0("grid_param_", iso, ".gpkg")),
+                       object = paste0(load_dir, "/", iso, "/", paste0("grid_param_", iso, ".gpkg")),
                        bucket = "projet-afd-eva-ap",
                        opts = list("region" = "")) %>%
     left_join(df_gridID_assetID, by = "gridID") %>%

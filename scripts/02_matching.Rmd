@@ -102,9 +102,10 @@ source("scripts/functions/02_fns_matching.R")
 ## Define the path to a temporary, working directory processing steps.
 tmp_pre = paste(tempdir(), "matching_pre", sep = "/")
 tmp_post = paste(tempdir(), "matching_post", sep = "/")
-## Define a directory where outputs are stored in SSPCloud.
+## Define a directory where outputs are loaded from/stored in SSPCloud.
 #save_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/") #Today's date
 save_dir = paste("impact_analysis/matching", "2023-10-23", sep = "/") #A specific date
+load_dir = paste("impact_analysis/matching", "2023-10-23", sep = "/")
 
 # Load datasets
 ## WDPA database   
@@ -276,7 +277,6 @@ for (i in list_iso)
                             path_tmp = tmp_pre, 
                             data_pa = data_pa,
                             gridSize = gridSize,
-                            log = log,
                             save_dir = save_dir)
   if(output_grid$is_ok == FALSE) {next}  
   
@@ -363,6 +363,7 @@ for (i in list_iso)
   output_load = fn_post_load_mf(iso = i, 
                            yr_min = yr_min,
                            log = log,
+                           load_dir = load_dir,
                            save_dir = save_dir)
   if(output_load$is_ok == FALSE) {next} else mf_ini = output_load$mf
   
@@ -529,6 +530,7 @@ for (i in list_iso)
                       df_pix_matched = df_pix_matched_j,
                       path_tmp = tmp_post,
                       log = log,
+                      load_dir = load_dir,
                       save_dir = save_dir)
      if(output_grid$is_ok == FALSE) {next}
 
@@ -556,6 +558,7 @@ for (i in list_iso)
                     df_pix_matched = df_pix_matched,
                     path_tmp = tmp_post,
                     log = log,
+                    load_dir = load_dir,
                     save_dir = save_dir)
    if(output_grid$is_ok == FALSE) {next}
   
@@ -608,3 +611,47 @@ aws.s3::put_object(file = log,
 ## Assess losses related to the overlap removal
 
 In the matching pre-processing, the PA analysed are removed any overlap with other PA polygon reported in the WDPA. If the overlap is greater than 10% of the initial area, then the PA is removed from the sample. This operation is necessary to isolate the treatment effect of the PA of interest, not from a mix of different PA. The overlaps are also not considered for control. It is important to quantify the loss of area implied by this operation, and count how many PA are removed from our sample.
+
+```{r, eval = F}
+
+df_pa_overlap = data.frame()
+
+for (i %in% list_iso) 
+{
+  
+    # The polygons of PAs are taken from WDPA, cleaned
+  wdpa_prj = wdpa_raw %>%
+    filter(ISO3 == i) %>%
+    #st_make_valid() %>%
+    #celanign of PAs from the wdap_clean function :
+    #Status filtering is performed manually juste after. 
+    #The geometry precision is set to default. Used to be 1000 in Kemmeng code
+    # Overlaps are not erased because we rasterize polygons
+    #UNESCO Biosphere Reserves are not excluded so that our analysis of AFD portfolio is the most extensive
+    wdpa_clean(retain_status = status, #NULL to remove proposed
+               erase_overlaps = FALSE,
+               exclude_unesco = FALSE,
+               verbose = TRUE) %>% 
+    # Remove the PAs that are only proposed, or have geometry type "point"
+    #filter(STATUS != "Proposed") %>%  #24/08/2023 : "Proposed" status concerns only 6 PAs in the sample, including one implemented after 2000.
+    filter(GEOMETRY_TYPE != "POINT") %>%
+    # Project PA polygons to the previously determined UTM zone
+    st_transform(crs = utm_code) 
+  
+  # Numerous polygons reported in the WDPA overlap. This can lead be an issue : a pixel can be treated more than once, and the treatment effect of the PA of interest cannot be isolated a priori 
+  # Compute a layer of polygons without overlaps, and with overlaps only. The analysis will be performed on polygons with no overlap and whose non-overlapped area is not too small (10% at least of initial area). Also, the overlapped areas are assigned to a specific group so that they are not used as control.
+  ## Layer without overlap
+  wdpa_prj_vect = wdpa_prj %>% terra::vect()
+  wdpa_prj_noverlap = sapply(1:dim(wdpa_prj_vect)[1], 
+                         function(X) {erase(wdpa_prj_vect[X,], wdpa_prj_vect[-X,])}) %>% 
+    terra::vect() %>%
+    st_as_sf() %>%
+    mutate(area_overlap = expanse(terra::vect(geometry), unit = "km"),
+           rm = area_overlap < 0.1*REP_AREA)
+  ## Layer of overlaps
+  wdpa_prj_overlap = sapply(1:dim(wdpa_prj_vect)[1], 
+                        function(X) {intersect(wdpa_prj_vect[X,], wdpa_prj_vect[-X,])}) %>% 
+    terra::vect() %>%
+    st_as_sf() 
+}
+```
