@@ -604,3 +604,7 @@ aws.s3::put_object(file = log,
                    show_progress = FALSE)
                  
 ```
+
+## Assess losses related to the overlap removal
+
+In the matching pre-processing, the PA analysed are removed any overlap with other PA polygon reported in the WDPA. If the overlap is greater than 10% of the initial area, then the PA is removed from the sample. This operation is necessary to isolate the treatment effect of the PA of interest, not from a mix of different PA. The overlaps are also not considered for control. It is important to quantify the loss of area implied by this operation, and count how many PA are removed from our sample.

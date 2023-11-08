@@ -1117,49 +1117,7 @@ fn_post_match_auto = function(mf,
                .before = "covariate")
       row.names(tbl.quality) = NULL
       
-      #Add a warning if covariate balance tests are not passed
-      if(sum(df.cov.m$is_bal_ok) < nrow(df.cov.m) | is.na(sum(df.cov.m$is_bal_ok)) == TRUE)
-
-      {
-        # Formula
-        ## Two cases : if only one value of biome across control and treated units considered for the matching, then we do not consider biome (de facto, matched units will have the same biome). If we have at least two biomes, then we need to take it into account in the formula.
-        ## Note that no grouping is needed for the categorical variable "biomes" : according to the documentation "Note that if a categorical variable does not appear in grouping, it will not be coarsened, so exact matching will take place on it". 
-        if(length(unique(mf$biomes)) == 1) 
-        {
-          formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
-                                + .(as.name(colname.clayContent))  
-                                +  .(as.name(colname.fcIni)) 
-                                + .(as.name(colname.flAvg))
-                                + .(as.name(colname.tri))
-                                + .(as.name(colname.elevation))))
-        } else formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
-                                     + .(as.name(colname.clayContent))  
-                                     +  .(as.name(colname.fcIni)) 
-                                     + .(as.name(colname.flAvg))
-                                     + .(as.name(colname.tri))
-                                     + .(as.name(colname.elevation))
-                                     + .(as.name(colname.biome))))
-        
-        #Try to perform matching
-        out.cem = matchit(formula,
-                          data = mf,
-                          method = match_method,
-                          cutpoints = cutoff_method,
-                          k2k = is_k2k,
-                          k2k.method = k2k_method)
-        
-        # Then the performance of the matching is assessed, based on https://cran.r-project.org/web/packages/MatchIt/vignettes/assessing-balance.html
-        ## Covariate balance : standardized mean difference and variance ratio
-        ## For both tests and the joint one, a dummy variable is defined, with value TRUE is the test is passed
-        df.cov.m = summary(out.cem, interactions = dummy_int)$sum.matched %>%
-          as.data.frame() %>%
-          clean_names() %>%
-          mutate(is_var_ok = var_ratio < th_var_max & var_ratio > th_var_min, #Check variance ratio between treated and controls
-                 is_mean_ok = abs(std_mean_diff) < th_mean, #Check absolute standardized mean difference
-                 is_bal_ok = as.logical(is_var_ok*is_mean_ok), #Binary : TRUE if both variance and mean difference check pass, 0 if at least one does not
-                 .after = "std_mean_diff")
-        
-        #Add a warning if covariate balance tests are not passed
+         #Add a warning if covariate balance tests are not passed
         if(sum(df.cov.m$is_bal_ok) < nrow(df.cov.m) | is.na(sum(df.cov.m$is_bal_ok)) == TRUE)
         {
           message("Matched control and treated units are not balanced enough. Increase sample size, turn to less restrictive tests or visually check balance.")
@@ -1170,7 +1128,7 @@ fn_post_match_auto = function(mf,
         #Append the log : note the step has already been appended at the beginning of the function
         cat("-> OK\n", file = log, append = TRUE)
         
-        return(list("out.cem" = out.cem, "df.cov.m" = df.cov.m, "is_ok" = TRUE))
+        return(list("out.cem" = out.cem, "df.cov.m" = df.cov.m, "tbl.quality" = tbl.quality, "is_ok" = TRUE))
         
       },
       
@@ -1181,7 +1139,7 @@ fn_post_match_auto = function(mf,
         return(list("is_ok" = FALSE))
       },
       
-      return(list("out.cem" = out.cem, "df.cov.m" = df.cov.m, "tbl.quality" = tbl.quality, "is_ok" = TRUE))
+      
 
     )
   
