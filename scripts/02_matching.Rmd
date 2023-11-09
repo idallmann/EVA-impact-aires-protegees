@@ -603,6 +603,6 @@ cat(paste("END OF POST-PROCESSING :", toc_post$callback_msg, "\n\n"),
 aws.s3::put_object(file = log,
                    bucket = paste("projet-afd-eva-ap", save_dir, sep = "/"),
                    region = "",
-                   show_progress = FALSE)
+                   show_progress = FALSE)  
                  
 ```

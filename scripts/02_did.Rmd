@@ -128,7 +128,7 @@ yr_last = 2021
 yr_min = yr_first + 2
 
 #Specify the margin of error to define confidence interval (0.05 corresponds 95% confidence interval).
-alpha = 0.05
+alpha = 0.1 #09/11/2023 : changed to 90% confidence intervals
 
 # Criteria to assess matching quality
 ## Standardized absolte mean difference : threshold
@@ -439,7 +439,7 @@ object = paste(save_dir, "df_fl_2000_2021.csv", sep = "/"),
 bucket = "projet-afd-eva-ap",
 opts = list("region" = "")) %>%
   filter(group == "Treated" & matched == F & year == 2000) %>%
-  select(c(region, iso3, country_en, wdpaid, focus, fc_tot_ha))
+  dplyr::select(c(region, iso3, country_en, wdpaid, focus, fc_tot_ha))
 
 #For pre-test, closer look to ...
 ## PA of interest
@@ -539,7 +539,7 @@ df_fl_att_tidy_aca = df_fl_att %>%
 
 Some PA can be dropped during the matching and DiD process for several reasons : the PA without overlap can be too small compared to the initial area, no observation unit in a given PA is matched, matching quality is poor, pre-test does not hold. In any communication, it is necessary to be explicit about such losses. In both matching and DiD processes, dataframe are built to report the PAs in the different steps : before and after pre-processing, post-processing and DiD.
 
-### Losses related to overlap removal
+### Compute overlap removal
 
 In the matching pre-processing, the PA analysed are removed any overlap with other PA polygon reported in the WDPA. If the overlap is greater than 10% of the initial area of the polygon reported in the WDPA, then the PA is removed from the sample. This operation is necessary to isolate the treatment effect of the PA of interest, not from a mix of different PA. The overlaps are also not considered for control. It is important to quantify the loss of area implied by this operation, and count how many PA are removed from our sample.
 
@@ -632,23 +632,29 @@ for (i in list_iso)
   df_pa_overlap = rbind(df_pa_overlap, df_pa_overlap_i)
 }
 
-#Then we determine in the dataframe of overlap which PA are Pa of interest
-df_pa_focus = data_pa %>%
-  dplyr::select(c(wdpa_pid, focus, marine, status_yr, status))
-df_pa_overlap_focus = df_pa_overlap %>%
-  left_join(df_pa_focus, by = "wdpa_pid") %>%
-  filter(is.na(focus) == F)
+#Then we asees losses in the sample
+## For each PA of the sample, is the overlap too important or not
+df_pa_overlap_focus = data_pa %>%
+  filter(iso3 %in% list_iso) %>%
+  dplyr::select(c(wdpa_pid, focus, marine, status_yr, status)) %>%
+  left_join(df_pa_overlap, by = "wdpa_pid")
+## The PA we can analyse 
+df_pa_overlap_ie = df_pa_overlap_focus %>%
+  filter(marine %in% c(0,1) & status_yr >= yr_min & area_km2 >= 1 & status %in% c("Proposed", "Designated", "Inscribed", "Established"))
+df_pa_overlap_ie_focus = df_pa_overlap_focus %>%
+  filter(marine %in% c(0,1) & status_yr >= yr_min & area_km2 >= 1 & status %in% c("Proposed", "Designated", "Inscribed", "Established") & focus == T)
+#The PA we can analyse and with acceptable overlap extent
 df_pa_overlap_ie_rm = df_pa_overlap_focus %>%
-  filter(marine %in% c(0,1) & status_yr >= yr_min & area_km2 >= 1)
+  filter(marine %in% c(0,1) & status_yr >= yr_min & area_km2 >= 1 & rm_rep == F & status %in% c("Proposed", "Designated", "Inscribed", "Established"))
+df_pa_overlap_ie_rm_focus = df_pa_overlap_focus %>%
+  filter(marine %in% c(0,1) & status_yr >= yr_min & area_km2 >= 1 & rm_rep == F & status %in% c("Proposed", "Designated", "Inscribed", "Established") & focus == T)
 
-#Finally we can assess the losses due to the overlap restricitoon
-## In the sample, number of PA to remove 
-n_pa_rm_poly = sum(df_pa_overlap$rm_poly)
-## Among the PA we can analyse in the sample, the losses
-n_pa_ie_rm_poly = sum(df_pa_overlap_ie_rm$rm_poly)
-## Among the PA of interest we can analyse, the losses
-n_pa_ie_focus_rm_poly = sum(filter(df_pa_overlap_ie_rm, focus == T)$rm_poly)
+
+test = df_pa_overlap_ie_rm %>%
+  filter(!(wdpaid %in% df_list_post_in$wdpaid))
 ```
+
+### Compute losses for each steps
 
 ```{r, eval = F}
 
@@ -697,9 +703,30 @@ n_ctry_focus = length(unique(filter(data_pa, iso3 %in% list_iso_ie_focus & focus
 ### All PA
 n_pa_pre = nrow(df_list_post_in) 
 n_ctry_pre = length(unique(df_list_post_in$iso3))
+#### Part due to filtering
+n_pa_pre_filt = length(unique(df_pa_overlap_ie$wdpaid))
+n_ctry_pre_filt = length(unique(df_pa_overlap_ie$iso3))
+#### Part due to filtering AND overlap removal
+n_pa_pre_filt_over = length(unique(df_pa_overlap_ie_rm$wdpaid))
+n_ctry_pre_filt_over = length(unique(df_pa_overlap_ie_rm$iso3))
 ### PA of interest
 n_pa_pre_focus = nrow(filter(df_list_post_in, wdpaid %in% list_pa_ie_focus)) 
 n_ctry_pre_focus  = length(unique(filter(df_list_post_in, wdpaid %in% list_pa_ie_focus)$iso3))
+#### Part due to filtering
+n_pa_pre_filt_focus = length(unique(df_pa_overlap_ie_focus$wdpaid))
+n_ctry_pre_filt_focus = length(unique(df_pa_overlap_ie_focus$iso3))
+#### Part due to filtering AND overlap removal
+n_pa_pre_filt_over_focus = length(unique(df_pa_overlap_ie_rm_focus$wdpaid))
+n_ctry_pre_filt_over_focus = length(unique(df_pa_overlap_ie_rm_focus$iso3))
+
+###
+#/!\ Some PA in the WDPA have a polygon that is badly reported : it can be located in a different country. This can explain a mismatch between the PA in input of the post-processing, and the PA in input of pre-processing minus losses related to filtering and overlap.
+#The following code makes it possible to visualize them on a map
+# df_poly_bad_report = df_pa_overlap_ie_rm %>%
+#    filter(!(wdpaid %in% df_list_post_in$wdpaid))
+# mapview::mapview(df_poly_bad_report)
+###
+
 ## After matching post-processing (= before DiD)
 ### All PA
 n_pa_post = nrow(df_list_post_out) 
@@ -816,7 +843,9 @@ fn_plot_forest_loss_agg(df_plot_forest_loss = df_plot_forest_loss_noaca,
 
 ```
 
-## Display treatment effects in figures and tables
+## Display treatment effects 
+
+## In figures and tables
 
 The treatment effects computed for each protected areas can be displayed in figures or tables. Again, a function is used for protected areas supported by the AFD to include information on funding (funding year for instance), and an other for non-supported ones.
 
@@ -856,4 +885,15 @@ fn_plot_att_afd(df_fc_att = df_fc_att_tidy_noaca_afd,
 #             save_dir = save_dir)
 ```
 
-## 
+### On a map
+
+On a map, we want to plot for each country the polygon of all PA (of interest and others), their estimated treatment effect (5 and 10 years) , their significance.
+
+```{r, eval = F}
+
+#For forest cover, non-academic filtering
+df_att_map = df_fc_att_tidy_noaca %>%
+  dplyr::select(-c(att_pa, att_pix,  cband_lower_pix, cband_upper_pix, cband_lower_pa, cband_upper_pa, cband_lower_per, cband_upper_per, sig, sig_end, alpha, c, se, n)) %>%
+  filter(time %in% c(5, 10))
+##Reste à pivoter et ajouter polygone depuis la WDPA avec WDPA_PID
+```
