@@ -212,15 +212,19 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
     st_transform(crs = utm_code) 
   
   # Numerous polygons reported in the WDPA overlap. This can lead be an issue : a pixel can be treated more than once, and the treatment effect of the PA of interest cannot be isolated a priori 
-  # Compute a layer of polygons without overlaps, and with overlaps only. The analysis will be performed on polygons with no overlap and whose non-overlapped area is not too small (10% at least of initial area). Also, the overlapped areas are assigned to a specific group so that they are not used as control.
+  # Compute a layer of polygons without overlaps, and with overlaps only. The analysis will be performed on polygons with no overlap and whose non-overlapped area is not too small (10% at least of initial area of the reported polygon). Also, the overlapped areas are assigned to a specific group so that they are not used as control.
   ## Layer without overlap
-  wdpa_prj_vect = wdpa_prj %>% terra::vect()
+  wdpa_prj_vect = wdpa_prj %>% 
+    #Compute the area of the reported polygon
+    mutate(area_poly = expanse(terra::vect(geometry), unit = "km")) %>%
+    terra::vect()
   wdpa_prj_noverlap = sapply(1:dim(wdpa_prj_vect)[1], 
                          function(X) {erase(wdpa_prj_vect[X,], wdpa_prj_vect[-X,])}) %>% 
     terra::vect() %>%
     st_as_sf() %>%
-    mutate(area_overlap = expanse(terra::vect(geometry), unit = "km"),
-           rm = area_overlap < 0.1*REP_AREA)
+    #Compute the area of the polygon without the potential overlaps, and assess whether the PA should be kept (PA removed if the polygon without overlap has an area below 10% of the initial reported polygon)
+    mutate(area_noverlap = expanse(terra::vect(geometry), unit = "km"),
+           rm = area_noverlap < 0.1*area_poly)
   ## Layer of overlaps
   wdpa_prj_overlap = sapply(1:dim(wdpa_prj_vect)[1], 
                         function(X) {intersect(wdpa_prj_vect[X,], wdpa_prj_vect[-X,])}) %>% 
