@@ -681,9 +681,6 @@ df_pa_overlap_ie_rm = df_pa_overlap_focus %>%
 df_pa_overlap_ie_rm_focus = df_pa_overlap_focus %>%
   filter(marine %in% c(0,1) & status_yr >= yr_min & area_km2 >= 1 & rm_rep == F & status %in% c("Proposed", "Designated", "Inscribed", "Established") & focus == T)
 
-
-test = df_pa_overlap_ie_rm %>%
-  filter(!(wdpaid %in% df_list_post_in$wdpaid))
 ```
 
 ### Compute losses for each steps
@@ -736,20 +733,20 @@ n_ctry_focus = length(unique(filter(data_pa, iso3 %in% list_iso_ie_focus & focus
 n_pa_pre = nrow(df_list_post_in) 
 n_ctry_pre = length(unique(df_list_post_in$iso3))
 #### Part due to filtering
-n_pa_pre_filt = length(unique(df_pa_overlap_ie$wdpaid))
-n_ctry_pre_filt = length(unique(df_pa_overlap_ie$iso3))
+n_pa_pre_filt = n_pa - length(unique(df_pa_overlap_ie$wdpaid))
+n_ctry_pre_filt = n_ctry - length(unique(df_pa_overlap_ie$iso3))
 #### Part due to filtering AND overlap removal
-n_pa_pre_filt_over = length(unique(df_pa_overlap_ie_rm$wdpaid))
-n_ctry_pre_filt_over = length(unique(df_pa_overlap_ie_rm$iso3))
+n_pa_pre_filt_over = n_pa - length(unique(df_pa_overlap_ie_rm$wdpaid))
+n_ctry_pre_filt_over = n_ctry - length(unique(df_pa_overlap_ie_rm$iso3))
 ### PA of interest
 n_pa_pre_focus = nrow(filter(df_list_post_in, wdpaid %in% list_pa_ie_focus)) 
 n_ctry_pre_focus  = length(unique(filter(df_list_post_in, wdpaid %in% list_pa_ie_focus)$iso3))
 #### Part due to filtering
-n_pa_pre_filt_focus = length(unique(df_pa_overlap_ie_focus$wdpaid))
-n_ctry_pre_filt_focus = length(unique(df_pa_overlap_ie_focus$iso3))
+n_pa_pre_filt_focus = n_pa_focus - length(unique(df_pa_overlap_ie_focus$wdpaid))
+n_ctry_pre_filt_focus = n_ctry_focus - length(unique(df_pa_overlap_ie_focus$iso3))
 #### Part due to filtering AND overlap removal
-n_pa_pre_filt_over_focus = length(unique(df_pa_overlap_ie_rm_focus$wdpaid))
-n_ctry_pre_filt_over_focus = length(unique(df_pa_overlap_ie_rm_focus$iso3))
+n_pa_pre_filt_over_focus = n_pa_focus - length(unique(df_pa_overlap_ie_rm_focus$wdpaid))
+n_ctry_pre_filt_over_focus = n_ctry_focus - length(unique(df_pa_overlap_ie_rm_focus$iso3))
 
 ###
 #/!\ Some PA in the WDPA have a polygon that is badly reported : it can be located in a different country. This can explain a mismatch between the PA in input of the post-processing, and the PA in input of pre-processing minus losses related to filtering and overlap.
@@ -927,5 +924,5 @@ On a map, we want to plot for each country the polygon of all PA (of interest an
 df_att_map = df_fc_att_tidy_noaca %>%
   dplyr::select(-c(att_pa, att_pix,  cband_lower_pix, cband_upper_pix, cband_lower_pa, cband_upper_pa, cband_lower_per, cband_upper_per, sig, sig_end, alpha, c, se, n)) %>%
   filter(time %in% c(5, 10))
-##Reste à pivoter et ajouter polygone depuis la WDPA avec WDPA_PID
+##Reste à pivoter et ajouter polygone depuis la WDPA avec WDPA_PID. 
 ```
