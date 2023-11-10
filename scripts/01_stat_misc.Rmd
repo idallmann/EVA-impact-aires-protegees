@@ -8,6 +8,10 @@ Configuring Rmarkdown.
 
 \#`{r setup, include=FALSE, eval = FALSE} #knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file()) #`
 
+```{r, eval = F}
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+```
+
 Installing and importing relevant packages.
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
@@ -57,6 +61,17 @@ data_pa_fapbm =
   object = "data_tidy/BDD_PA_FAPBM.csv",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
+
+# PA in Africa
+data_pa_africa = 
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  object = "data_tidy/BDD_PA_africa.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
+
+
 
 #Import WDPA data
 ## Download and save data
@@ -137,16 +152,31 @@ lst_ctry_stat_wdpa = df_ctry_stat_wdpa$iso3
 
 ## Performing descriptive statistics
 
-### FAPBM portfolio and Madagascar
+### PA of interest, other PA and all PA in a given sample
+
+```{r, eval = F}
+
+#Define the datasets : with PA of interest (focus), other PA (no focus) and all PA (all)
+## For PA in Africa
+data_pa_focus = data_pa_africa %>% filter(focus == T)
+data_pa_nofocus = data_pa_africa %>% filter(focus == F)
+data_pa_all = data_pa_africa
+## For FAPBM and Madagascar
+data_pa_focus = data_pa_fapbm
+data_pa_nofocus = data_wdpa_mdg %>% filter(!(wdpaid %in% data_pa_fapbm$wdpaid))
+data_pa_all = data_wdpa_mdg
+
+
+```
 
 #### IUCN : non-marine
 
-FAPBM
+PA of interest
 
 ```{r, eval = FALSE}
 #Building the relevant dataset
 ##For all PAs ..
-data_cat_iucn = data_pa_fapbm %>%
+data_cat_iucn = data_pa_focus %>%
   filter(marine %in% c(0,1)) %>%
   group_by(iucn_des_en, iucn_des_fr) %>%
   #number of PAs per IUCN category
@@ -160,7 +190,7 @@ data_cat_iucn = data_pa_fapbm %>%
 
 
 ##... and for referenced PAs only
-data_cat_iucn_ref = data_pa_fapbm %>%
+data_cat_iucn_ref = data_pa_focus %>%
   filter(marine %in% c(0,1)) %>%
   #Remove not referenced PAs
   subset(!(iucn_des_fr %in% c("Non catégorisée", "Non référencée"))) %>%
@@ -189,7 +219,7 @@ pie_cat_iucn_en = ggplot(data_cat_iucn,
   #              show.legend = FALSE) %>%
   + labs(x = "", y = "",
          title = "Distribution of non-marine protected areas by IUCN categories (%)",
-         subtitle = paste("Sample :", sum(data_cat_iucn$n_iucn), "non-marine protected areas funded by FAPBM")) %>%
+         subtitle = paste("Sample :", sum(data_cat_iucn$n_iucn), "non-marine protected areas of interest")) %>%
   #+ scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
   + scale_fill_manual(name = "Categories",
                       values = c("Not categorized" = "#7570B3",
@@ -215,7 +245,7 @@ pie_cat_iucn_ref_en = ggplot(data_cat_iucn_ref,
   #              show.legend = FALSE) %>%
   + labs(x = "", y = "",
          title = "Distribution of non-marine protected areas by IUCN categories \nexcept for not categorized (%)",
-         subtitle = paste("Sample :", sum(data_cat_iucn_ref$n_iucn), "out of", sum(data_cat_iucn$n_iucn),  "non-marine protected areas funded by FAPBM")) %>%
+         subtitle = paste("Sample :", sum(data_cat_iucn_ref$n_iucn), "out of", sum(data_cat_iucn$n_iucn),  "non-marine protected areas of interest")) %>%
   #+ scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
     + scale_fill_manual(name = "Categories",
                       values = c("Not categorized" = "#7570B3",
@@ -264,12 +294,12 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 ```
 
-All protected areas in Madagascar (reported by the WDPA)
+All protected areas (reported by the WDPA)
 
 ```{r, eval = FALSE}
 #Building the relevant dataset
 ##For all PAs ..
-data_cat_iucn = data_wdpa_mdg %>%
+data_cat_iucn = data_pa_all %>%
   filter(marine %in% c(0,1)) %>%
   group_by(iucn_des_en, iucn_des_fr) %>%
   #number of PAs per IUCN category
@@ -283,7 +313,7 @@ data_cat_iucn = data_wdpa_mdg %>%
 
 
 ##... and for referenced PAs only
-data_cat_iucn_ref = data_wdpa_mdg %>%
+data_cat_iucn_ref = data_pa_all %>%
   filter(marine %in% c(0,1)) %>%
   #Remove not referenced PAs
   subset(!(iucn_des_fr %in% c("Non catégorisée", "Non référencée"))) %>%
@@ -312,7 +342,7 @@ pie_cat_iucn_en = ggplot(data_cat_iucn,
   #              show.legend = FALSE) %>%
   + labs(x = "", y = "",
          title = "Distribution of non-marine protected areas by IUCN categories (%)",
-         subtitle = paste("Sample :", sum(data_cat_iucn$n_iucn), "non-marine protected areas in Madagascar")) %>%
+         subtitle = paste("Sample :", sum(data_cat_iucn$n_iucn), "non-marine protected areas")) %>%
   # + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
       + scale_fill_manual(name = "Categories",
                       values = c("Not categorized" = "#7570B3",
@@ -338,7 +368,7 @@ pie_cat_iucn_ref_en = ggplot(data_cat_iucn_ref,
   #              show.legend = FALSE) %>%
   + labs(x = "", y = "",
          title = "Distribution of non-marine protected areas by IUCN categories \nexcept for not categorized (%)",
-         subtitle = paste("Sample :", sum(data_cat_iucn_ref$n_iucn), "out of", sum(data_cat_iucn$n_iucn),  "non-marine protected areas in Madagascar")) %>%
+         subtitle = paste("Sample :", sum(data_cat_iucn_ref$n_iucn), "out of", sum(data_cat_iucn$n_iucn),  "non-marine protected areas")) %>%
   # + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
     + scale_fill_manual(name = "Categories",
                       values = c("Not categorized" = "#7570B3",
@@ -385,14 +415,13 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
-Madagascar protected areas without FAPBM funded protected areas.
+All protected areas except PA of interest
 
 ```{r, eval = FALSE}
 #Building the relevant dataset
 ##For all PAs ..
-data_cat_iucn = data_wdpa_mdg %>%
+data_cat_iucn = data_pa_nofocus %>%
   filter(marine %in% c(0,1)) %>%
-  filter(!(wdpaid %in% data_pa_fapbm$wdpaid)) %>%
   group_by(iucn_des_en, iucn_des_fr) %>%
   #number of PAs per IUCN category
   summarize(n_iucn = n()) %>%
@@ -405,9 +434,8 @@ data_cat_iucn = data_wdpa_mdg %>%
 
 
 ##... and for referenced PAs only
-data_cat_iucn_ref = data_wdpa_mdg %>%
+data_cat_iucn_ref = data_pa_nofocus %>%
   filter(marine %in% c(0,1)) %>%
-  filter(!(wdpaid %in% data_pa_fapbm$wdpaid)) %>%
   #Remove not referenced PAs
   subset(!(iucn_des_fr %in% c("Non catégorisée", "Non référencée"))) %>%
   group_by(iucn_des_en, iucn_des_fr) %>%
@@ -435,7 +463,7 @@ pie_cat_iucn_en = ggplot(data_cat_iucn,
   #              show.legend = FALSE) %>%
   + labs(x = "", y = "",
          title = "Distribution of non-marine protected areas by IUCN categories (%)",
-         subtitle = paste("Sample :", sum(data_cat_iucn$n_iucn), "non-marine, not FAPBM funded protected areas in Madagascar")) %>%
+         subtitle = paste("Sample :", sum(data_cat_iucn$n_iucn), "other non-marine protected areas")) %>%
   # + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
       + scale_fill_manual(name = "Categories",
                       values = c("Not categorized" = "#7570B3",
@@ -461,7 +489,7 @@ pie_cat_iucn_ref_en = ggplot(data_cat_iucn_ref,
   #              show.legend = FALSE) %>%
   + labs(x = "", y = "",
          title = "Distribution of non-marine protected areas by IUCN categories \nexcept for not categorized (%)",
-         subtitle = paste("Sample :", sum(data_cat_iucn_ref$n_iucn), "out of", sum(data_cat_iucn$n_iucn),  "non-marine, not FAPBM funded protected areas in Madagascar")) %>%
+         subtitle = paste("Sample :", sum(data_cat_iucn_ref$n_iucn), "out of", sum(data_cat_iucn$n_iucn),  "other non-marine protected areas")) %>%
   # + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
     + scale_fill_manual(name = "Categories",
                       values = c("Not categorized" = "#7570B3",
@@ -509,12 +537,12 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 #### IUCN : marine
 
-FAPBM
+PA of interest
 
 ```{r, eval = FALSE}
 #Building the relevant dataset
 ##For all PAs ..
-data_cat_iucn = data_pa_fapbm %>%
+data_cat_iucn = data_pa_focus %>%
   filter(marine ==2) %>%
   group_by(iucn_des_en, iucn_des_fr) %>%
   #number of PAs per IUCN category
@@ -528,7 +556,7 @@ data_cat_iucn = data_pa_fapbm %>%
 
 
 ##... and for referenced PAs only
-data_cat_iucn_ref = data_pa_fapbm %>%
+data_cat_iucn_ref = data_pa_focus %>%
   filter(marine == 2) %>%
   #Remove not referenced PAs
   subset(!(iucn_des_fr %in% c("Non catégorisée", "Non référencée"))) %>%
@@ -557,7 +585,7 @@ pie_cat_iucn_en = ggplot(data_cat_iucn,
   #              show.legend = FALSE) %>%
   + labs(x = "", y = "",
          title = "Distribution of marine protected areas by IUCN categories (%)",
-         subtitle = paste("Sample :", sum(data_cat_iucn$n_iucn), "marine protected areas funded by FAPBM")) %>%
+         subtitle = paste("Sample :", sum(data_cat_iucn$n_iucn), "marine protected areas of interest")) %>%
   #+ scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
   + scale_fill_manual(name = "Categories",
                       values = c("Not categorized" = "#7570B3",
@@ -583,7 +611,7 @@ pie_cat_iucn_ref_en = ggplot(data_cat_iucn_ref,
   #              show.legend = FALSE) %>%
   + labs(x = "", y = "",
          title = "Distribution of marine protected areas by IUCN categories \nexcept for not categorized (%)",
-         subtitle = paste("Sample :", sum(data_cat_iucn_ref$n_iucn), "out of", sum(data_cat_iucn$n_iucn),  "marine protected areas funded by FAPBM")) %>%
+         subtitle = paste("Sample :", sum(data_cat_iucn_ref$n_iucn), "out of", sum(data_cat_iucn$n_iucn),  "marine protected areas of interest")) %>%
   #+ scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
     + scale_fill_manual(name = "Categories",
                       values = c("Not categorized" = "#7570B3",
@@ -632,12 +660,12 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 ```
 
-All protected areas in Madagascar (reported by the WDPA)
+All protected areas (reported by the WDPA)
 
 ```{r, eval = FALSE}
 #Building the relevant dataset
 ##For all PAs ..
-data_cat_iucn = data_wdpa_mdg %>%
+data_cat_iucn = data_pa_all %>%
   filter(marine == 2) %>%
   group_by(iucn_des_en, iucn_des_fr) %>%
   #number of PAs per IUCN category
@@ -680,7 +708,7 @@ pie_cat_iucn_en = ggplot(data_cat_iucn,
   #              show.legend = FALSE) %>%
   + labs(x = "", y = "",
          title = "Distribution of marine protected areas by IUCN categories (%)",
-         subtitle = paste("Sample :", sum(data_cat_iucn$n_iucn), "marine protected areas in Madagascar")) %>%
+         subtitle = paste("Sample :", sum(data_cat_iucn$n_iucn), "marine protected areas ")) %>%
   # + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
       + scale_fill_manual(name = "Categories",
                       values = c("Not categorized" = "#7570B3",
@@ -706,7 +734,7 @@ pie_cat_iucn_ref_en = ggplot(data_cat_iucn_ref,
   #              show.legend = FALSE) %>%
   + labs(x = "", y = "",
          title = "Distribution of marine protected areas by IUCN categories \nexcept for not categorized (%)",
-         subtitle = paste("Sample :", sum(data_cat_iucn_ref$n_iucn), "out of", sum(data_cat_iucn$n_iucn),  "marine protected areas in Madagascar")) %>%
+         subtitle = paste("Sample :", sum(data_cat_iucn_ref$n_iucn), "out of", sum(data_cat_iucn$n_iucn),  "marine protected areas")) %>%
   # + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
     + scale_fill_manual(name = "Categories",
                       values = c("Not categorized" = "#7570B3",
@@ -753,14 +781,13 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
-Madagascar protected areas without FAPBM funded protected areas.
+PA not of interest
 
 ```{r, eval = FALSE}
 #Building the relevant dataset
 ##For all PAs ..
-data_cat_iucn = data_wdpa_mdg %>%
+data_cat_iucn = data_pa_nofocus %>%
   filter(marine == 2) %>%
-  filter(!(wdpaid %in% data_pa_fapbm$wdpaid)) %>%
   group_by(iucn_des_en, iucn_des_fr) %>%
   #number of PAs per IUCN category
   summarize(n_iucn = n()) %>%
@@ -773,9 +800,8 @@ data_cat_iucn = data_wdpa_mdg %>%
 
 
 ##... and for referenced PAs only
-data_cat_iucn_ref = data_wdpa_mdg %>%
+data_cat_iucn_ref = data_pa_nofocus %>%
   filter(marine == 2) %>%
-  filter(!(wdpaid %in% data_pa_fapbm$wdpaid)) %>%
   #Remove not referenced PAs
   subset(!(iucn_des_fr %in% c("Non catégorisée", "Non référencée"))) %>%
   group_by(iucn_des_en, iucn_des_fr) %>%
@@ -803,7 +829,7 @@ pie_cat_iucn_en = ggplot(data_cat_iucn,
   #              show.legend = FALSE) %>%
   + labs(x = "", y = "",
          title = "Distribution of marine protected areas by IUCN categories (%)",
-         subtitle = paste("Sample :", sum(data_cat_iucn$n_iucn), "marine, not FAPBM funded protected areas in Madagascar")) %>%
+         subtitle = paste("Sample :", sum(data_cat_iucn$n_iucn), "marine, not FAPBM funded protected areas")) %>%
   # + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
       + scale_fill_manual(name = "Categories",
                       values = c("Not categorized" = "#7570B3",
@@ -829,7 +855,7 @@ pie_cat_iucn_ref_en = ggplot(data_cat_iucn_ref,
   #              show.legend = FALSE) %>%
   + labs(x = "", y = "",
          title = "Distribution of marine protected areas by IUCN categories \nexcept for not categorized (%)",
-         subtitle = paste("Sample :", sum(data_cat_iucn_ref$n_iucn), "out of", sum(data_cat_iucn$n_iucn),  "marine, not FAPBM funded protected areas in Madagascar")) %>%
+         subtitle = paste("Sample :", sum(data_cat_iucn_ref$n_iucn), "out of", sum(data_cat_iucn$n_iucn),  "other marine protected areas")) %>%
   # + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
     + scale_fill_manual(name = "Categories",
                       values = c("Not categorized" = "#7570B3",
@@ -877,12 +903,12 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 #### Ecosystem
 
-FAPBM funded protected areas.
+PA of interest
 
 ```{r, eval = FALSE}
 
 #Build datasets
-data_eco = data_pa_fapbm %>%
+data_eco = data_pa_focus %>%
   #subset non-referencded PAs (have NA ecosysteme)
   subset(is.na(marine) == FALSE) %>%
   mutate(marine = as.factor(marine))
@@ -895,7 +921,7 @@ data_eco$ecosyst_fr = fct_recode(data_eco$marine,
                               "Côtier"="1", 
                               "Marin"="2")
 
-data_eco_hist = data_eco %>%
+data_eco_hist = data_pa_focus %>%
   group_by(ecosyst_en, ecosyst_fr) %>%
   summarize(n = n(),
             freq = round(n/nrow(data_eco), 2)*100) %>%
@@ -910,7 +936,7 @@ pie_eco_en = ggplot(data_eco_hist,
              size=2.5, show.legend = FALSE) %>%
 + coord_polar("y", start=0) %>%
 + labs(title = "Proportion of protected areas by ecosystem type",
-       subtitle = paste("Sample :", sum(data_eco_hist$n), "protected areas funded by the FAPBM"),
+       subtitle = paste("Sample :", sum(data_eco_hist$n), "protected areas of interest"),
          x = "Ecosystem type",
          y = "Proportion of protected areas") %>%
   #+ scale_fill_brewer(name = "Ecosystem", palette="Paired") %>%
@@ -954,12 +980,12 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 ```
 
-All protected areas in Madagascar (reported by the WDPA)
+All PA
 
 ```{r, eval = FALSE}
 
 #Build datasets
-data_eco = data_wdpa_mdg %>%
+data_eco = data_pa_all %>%
   #subset non-referencded PAs (have NA ecosysteme)
   subset(is.na(marine) == FALSE) %>%
   mutate(marine = as.factor(marine))
@@ -987,7 +1013,7 @@ pie_eco_en = ggplot(data_eco_hist,
              size=2.5, show.legend = FALSE) %>%
 + coord_polar("y", start=0) %>%
 + labs(title = "Proportion of protected areas by ecosystem type",
-       subtitle = paste("Sample :", sum(data_eco_hist$n), "protected areas in Madagascar"),
+       subtitle = paste("Sample :", sum(data_eco_hist$n), "protected areas"),
          x = "Ecosystem type",
          y = "Proportion of protected areas") %>%
   # + scale_fill_brewer(name = "Ecosystem", palette="Paired") %>%
@@ -1030,15 +1056,14 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 ```
 
-Madagascar without FAPBM
+PA not of interest
 
 ```{r, eval = FALSE}
 
 #Build datasets
-data_eco = data_wdpa_mdg %>%
+data_eco = data_pa_nofocus %>%
   #subset non-referencded PAs (have NA ecosysteme)
   subset(is.na(marine) == FALSE) %>%
-  filter(!(wdpaid %in% data_pa_fapbm$wdpaid)) %>%
   mutate(marine = as.factor(marine))
 data_eco$ecosyst_en = fct_recode(data_eco$marine, 
                               "Terrestrial"="0", 
@@ -1064,7 +1089,7 @@ pie_eco_en = ggplot(data_eco_hist,
              size=2.5, show.legend = FALSE) %>%
 + coord_polar("y", start=0) %>%
 + labs(title = "Proportion of protected areas by ecosystem type",
-       subtitle = paste("Sample :", sum(data_eco_hist$n), "protected areas in Madagascar, not funded by the FAPBM"),
+       subtitle = paste("Sample :", sum(data_eco_hist$n), "other protected areas"),
          x = "Ecosystem type",
          y = "Proportion of protected areas") %>%
   # + scale_fill_brewer(name = "Ecosystem", palette="Paired") %>%
@@ -1108,13 +1133,13 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 #### Governance : non-marine
 
-FAPBM funded protected areas
+PA of interest
 
 ```{r, eval = FALSE}
 
 #Table of the governance type distribution
 ##English version
-data_gov_en = data_pa_fapbm %>%
+data_gov_en = data_pa_focus %>%
   filter(marine %in% c(0,1)) %>%
   mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Not referenced",
                               TRUE ~ gov_type)) %>%
@@ -1132,7 +1157,7 @@ names(tbl_gov_en) = c("Governance","Number of PAs","Share of PAs (%)")
 #PAs with nureported or unreferenced governance types are removed
 ##Tables
 ###English
-data_gov_knwn_en = data_pa_fapbm %>%
+data_gov_knwn_en = data_pa_focus %>%
   filter(marine %in% c(0,1)) %>%
   mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Not referenced",
                               TRUE ~ gov_type)) %>%
@@ -1161,7 +1186,7 @@ pie_gov_knwn_en =
                size=2.5, show.legend = FALSE) %>%
   + coord_polar("y", start=0) %>%
   + labs(title = "Governance type of non-marine protected areas \nexcept for not reported governance",
-         subtitle = paste("Sample :", sum(data_gov_knwn_en$n), "out of", sum(data_gov_en$n), "non-marine protected areas funded by FAPBM")) %>%
+         subtitle = paste("Sample :", sum(data_gov_knwn_en$n), "out of", sum(data_gov_en$n), "non-marine protected areas of interest")) %>%
   # + scale_fill_brewer(name = "Governance", palette="Paired") %>%
   + scale_fill_manual(name = "Governance",
                       values = c("Not Reported" = "#A6CEE3",
@@ -1182,7 +1207,7 @@ pie_gov_knwn_en
 tmp = paste(tempdir(), "fig", sep = "/")
 
 print(xtable(tbl_gov_knwn_en, 
-             caption = "Governance of non-marine protected areas funded by FAPBM (when known)",
+             caption = "Governance of non-marine protected areas of interest (when known)",
              type = "latex"),
       file = paste(tmp, "tbl_gov_knwn_en.tex", sep  ="/"))
 
@@ -1211,13 +1236,13 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
-All protected areas in Madagascar (reported by the WDPA)
+All protected areas (reported by the WDPA)
 
 ```{r, eval = FALSE}
 
 #Table of the governance type distribution
 ##English version
-data_gov_en = data_wdpa_mdg %>%
+data_gov_en = data_pa_all %>%
   filter(marine %in% c(0,1)) %>%
   mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Not referenced",
                               TRUE ~ gov_type)) %>%
@@ -1235,7 +1260,7 @@ names(tbl_gov_en) = c("Governance","Number of PAs","Share of PAs (%)")
 #PAs with nureported or unreferenced governance types are removed
 ##Tables
 ###English
-data_gov_knwn_en = data_wdpa_mdg %>%
+data_gov_knwn_en = data_pa_all %>%
   filter(marine %in% c(0,1)) %>%
   mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Not referenced",
                               TRUE ~ gov_type)) %>%
@@ -1264,7 +1289,7 @@ pie_gov_knwn_en =
                size=2.5, show.legend = FALSE) %>%
   + coord_polar("y", start=0) %>%
   + labs(title = "Governance type of non-marine protected areas \nexcept for not reported governance",
-         subtitle = paste("Sample :", sum(data_gov_knwn_en$n), "out of", sum(data_gov_en$n), "protected areas in Madagascar")) %>%
+         subtitle = paste("Sample :", sum(data_gov_knwn_en$n), "out of", sum(data_gov_en$n), "protected areas")) %>%
   #+ scale_fill_brewer(name = "Governance", palette="Paired") %>%
   + scale_fill_manual(name = "Governance",
                       values = c("Not Reported" = "#A6CEE3",
@@ -1283,7 +1308,7 @@ pie_gov_knwn_en
 tmp = paste(tempdir(), "fig", sep = "/")
 
 print(xtable(tbl_gov_knwn_en, 
-             caption = "Governance of non-marine protected areas in Madagascar (when known)",
+             caption = "Governance of non-marine protected areas (when known)",
              type = "latex"),
       file = paste(tmp, "tbl_gov_knwn_en.tex", sep  ="/"))
 
@@ -1312,14 +1337,13 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
-Madagascar without FAPBM funded protected areas
+Other PA
 
 ```{r, eval = FALSE}
 
 #Table of the governance type distribution
 ##English version
-data_gov_en = data_wdpa_mdg %>%
-  filter(!(wdpaid %in% data_pa_fapbm$wdpaid)) %>%
+data_gov_en = data_pa_nofocus %>%
   filter(marine %in% c(0,1)) %>%
   mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Not referenced",
                               TRUE ~ gov_type)) %>%
@@ -1337,8 +1361,7 @@ names(tbl_gov_en) = c("Governance","Number of PAs","Share of PAs (%)")
 #PAs with nureported or unreferenced governance types are removed
 ##Tables
 ###English
-data_gov_knwn_en = data_wdpa_mdg %>%
-  filter(!(wdpaid %in% data_pa_fapbm$wdpaid)) %>%
+data_gov_knwn_en = data_pa_nofocus %>%
   filter(marine %in% c(0,1)) %>%
   mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Not referenced",
                               TRUE ~ gov_type)) %>%
@@ -1367,7 +1390,7 @@ pie_gov_knwn_en =
                size=2.5, show.legend = FALSE) %>%
   + coord_polar("y", start=0) %>%
   + labs(title = "Governance type of non-marine protected areas \nexcept for not reported governance",
-         subtitle = paste("Sample :", sum(data_gov_knwn_en$n), "out of", sum(data_gov_en$n), "protected areas in Madagascar, not funded by the FAPBM")) %>%
+         subtitle = paste("Sample :", sum(data_gov_knwn_en$n), "out of", sum(data_gov_en$n), "other protected areas")) %>%
   #+ scale_fill_brewer(name = "Governance", palette="Paired") %>%
   + scale_fill_manual(name = "Governance",
                       values = c("Not Reported" = "#A6CEE3",
@@ -1386,7 +1409,7 @@ pie_gov_knwn_en
 tmp = paste(tempdir(), "fig", sep = "/")
 
 print(xtable(tbl_gov_knwn_en, 
-             caption = "Governance of non-marine protected areas in Madagascar, not funded by the FAPBM (when known)",
+             caption = "Governance of non-marine other protected areas (when known)",
              type = "latex"),
       file = paste(tmp, "tbl_gov_knwn_en.tex", sep  ="/"))
 
@@ -1417,13 +1440,13 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 #### Governance : marine
 
-FAPBM funded protected areas
+PA of interest
 
 ```{r, eval = FALSE}
 
 #Table of the governance type distribution
 ##English version
-data_gov_en = data_pa_fapbm %>%
+data_gov_en = data_pa_focus %>%
   filter(marine == 2) %>%
   mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Not referenced",
                               TRUE ~ gov_type)) %>%
@@ -1441,7 +1464,7 @@ names(tbl_gov_en) = c("Governance","Number of PAs","Share of PAs (%)")
 #PAs with nureported or unreferenced governance types are removed
 ##Tables
 ###English
-data_gov_knwn_en = data_pa_fapbm %>%
+data_gov_knwn_en = data_pa_focus %>%
   filter(marine == 2) %>%
   mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Not referenced",
                               TRUE ~ gov_type)) %>%
@@ -1470,7 +1493,7 @@ pie_gov_knwn_en =
                size=2.5, show.legend = FALSE) %>%
   + coord_polar("y", start=0) %>%
   + labs(title = "Governance type of marine protected areas \nexcept for not reported governance",
-         subtitle = paste("Sample :", sum(data_gov_knwn_en$n), "out of", sum(data_gov_en$n), "protected areas funded by FAPBM")) %>%
+         subtitle = paste("Sample :", sum(data_gov_knwn_en$n), "out of", sum(data_gov_en$n), "protected areas of interest")) %>%
   # + scale_fill_brewer(name = "Governance", palette="Paired") %>%
   + scale_fill_manual(name = "Governance",
                       values = c("Not Reported" = "#A6CEE3",
@@ -1491,7 +1514,7 @@ pie_gov_knwn_en
 tmp = paste(tempdir(), "fig", sep = "/")
 
 print(xtable(tbl_gov_knwn_en, 
-             caption = "Governance of marine protected areas funded by FAPBM (when known)",
+             caption = "Governance of marine protected areas of interest (when known)",
              type = "latex"),
       file = paste(tmp, "tbl_gov_knwn_en.tex", sep  ="/"))
 
@@ -1520,13 +1543,13 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
-All protected areas in Madagascar (reported by the WDPA)
+All PA
 
 ```{r, eval = FALSE}
 
 #Table of the governance type distribution
 ##English version
-data_gov_en = data_wdpa_mdg %>%
+data_gov_en = data_pa_all %>%
   filter(marine == 2) %>%
   mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Not referenced",
                               TRUE ~ gov_type)) %>%
@@ -1544,7 +1567,7 @@ names(tbl_gov_en) = c("Governance","Number of PAs","Share of PAs (%)")
 #PAs with nureported or unreferenced governance types are removed
 ##Tables
 ###English
-data_gov_knwn_en = data_wdpa_mdg %>%
+data_gov_knwn_en = data_pa_all %>%
   filter(marine == 2) %>%
   mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Not referenced",
                               TRUE ~ gov_type)) %>%
@@ -1573,7 +1596,7 @@ pie_gov_knwn_en =
                size=2.5, show.legend = FALSE) %>%
   + coord_polar("y", start=0) %>%
   + labs(title = "Governance type of marine protected areas \nexcept for not reported governance",
-         subtitle = paste("Sample :", sum(data_gov_knwn_en$n), "out of", sum(data_gov_en$n), "protected areas in Madagascar")) %>%
+         subtitle = paste("Sample :", sum(data_gov_knwn_en$n), "out of", sum(data_gov_en$n), "protected areas")) %>%
   #+ scale_fill_brewer(name = "Governance", palette="Paired") %>%
   + scale_fill_manual(name = "Governance",
                       values = c("Not Reported" = "#A6CEE3",
@@ -1592,7 +1615,7 @@ pie_gov_knwn_en
 tmp = paste(tempdir(), "fig", sep = "/")
 
 print(xtable(tbl_gov_knwn_en, 
-             caption = "Governance of marine protected areas in Madagascar (when known)",
+             caption = "Governance of marine protected areas (when known)",
              type = "latex"),
       file = paste(tmp, "tbl_gov_knwn_en.tex", sep  ="/"))
 
@@ -1621,14 +1644,13 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
-Madagascar without FAPBM funded protected areas
+Other PA
 
 ```{r, eval = FALSE}
 
 #Table of the governance type distribution
 ##English version
-data_gov_en = data_wdpa_mdg %>%
-  filter(!(wdpaid %in% data_pa_fapbm$wdpaid)) %>%
+data_gov_en = data_pa_nofocus %>%
   filter(marine == 2) %>%
   mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Not referenced",
                               TRUE ~ gov_type)) %>%
@@ -1646,8 +1668,7 @@ names(tbl_gov_en) = c("Governance","Number of PAs","Share of PAs (%)")
 #PAs with nureported or unreferenced governance types are removed
 ##Tables
 ###English
-data_gov_knwn_en = data_wdpa_mdg %>%
-  filter(!(wdpaid %in% data_pa_fapbm$wdpaid)) %>%
+data_gov_knwn_en = data_pa_nofocus %>%
   filter(marine == 2) %>%
   mutate(gov_type = case_when(is.na(gov_type) == TRUE ~ "Not referenced",
                               TRUE ~ gov_type)) %>%
@@ -1676,7 +1697,7 @@ pie_gov_knwn_en =
                size=2.5, show.legend = FALSE) %>%
   + coord_polar("y", start=0) %>%
   + labs(title = "Governance type of marine protected areas \nexcept for not reported governance",
-         subtitle = paste("Sample :", sum(data_gov_knwn_en$n), "out of", sum(data_gov_en$n), "protected areas in Madagascar, not funded by the FAPBM")) %>%
+         subtitle = paste("Sample :", sum(data_gov_knwn_en$n), "out of", sum(data_gov_en$n), "other protected areas")) %>%
   #+ scale_fill_brewer(name = "Governance", palette="Paired") %>%
   + scale_fill_manual(name = "Governance",
                       values = c("Not Reported" = "#A6CEE3",
@@ -1695,7 +1716,7 @@ pie_gov_knwn_en
 tmp = paste(tempdir(), "fig", sep = "/")
 
 print(xtable(tbl_gov_knwn_en, 
-             caption = "Governance of marine protected areas in Madagascar, not funded by the FAPBM (when known)",
+             caption = "Governance of marine other protected areas (when known)",
              type = "latex"),
       file = paste(tmp, "tbl_gov_knwn_en.tex", sep  ="/"))
 
@@ -1730,40 +1751,34 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 #Statistics
 
 ## PAs in the WDAP
-n_mdg = data_wdpa_mdg %>%
-  filter(iso3 == "MDG") %>%
-  nrow()
-n_fapbm = data_pa_fapbm %>%
-  filter(iso3 == "MDG") %>%
-  nrow()
+n_all = nrow(data_pa_all)
+n_focus = nrow(data_pa_focus)
 
 ## PAs in the WDAP, not marine
-n_mdg_nomarine = data_wdpa_mdg %>%
-  filter(iso3 == "MDG" & marine %in% c(0,1)) %>%
+n_all_nomarine = data_pa_all %>%
+  filter(marine %in% c(0,1)) %>%
   nrow()
-n_fapbm_nomarine = data_pa_fapbm %>%
-  filter(iso3 == "MDG" & marine %in% c(0,1)) %>%
+n_focus_nomarine = data_pa_focus %>%
+  filter(marine %in% c(0,1)) %>%
   nrow()
 
 ## PA we can analyze with our methodology
 yr_min = 2002
-n_mdg_ie = data_wdpa_mdg %>%
-  filter(iso3 == "MDG") %>%
-  filter(status_yr >= yr_min & marine %in% c(0,1) & rep_area > 1 ) %>%
+n_all_ie = data_pa_all %>%
+  filter(is.na(wdpaid) == F & status_yr >= yr_min & marine %in% c(0,1) & area_km2 > 1 ) %>%
   nrow()
-n_fapbm_ie = data_pa_fapbm %>%
-  filter(iso3 == "MDG") %>%
-  filter(status_yr >= yr_min & marine %in% c(0,1) & area_km2 > 1 ) %>%
+n_focus_ie = data_pa_focus %>%
+  filter(is.na(wdpaid) == F & status_yr >= yr_min & marine %in% c(0,1) & area_km2 > 1 ) %>%
   nrow()
 ```
 
 #### Area of PAs : non-marine
 
-FAPBM funded protected areas
+PA of interest
 
 ```{r, eval = FALSE}
 
-tbl_area_fapbm = data_pa_fapbm %>%
+tbl_area_focus = data_pa_focus %>%
   filter(marine %in% c(0,1)) %>%
   summarize(n = n(),
             tot = format(sum(area_km2), big.mark = ",", digits = 1, scientific = FALSE),
@@ -1771,7 +1786,7 @@ tbl_area_fapbm = data_pa_fapbm %>%
             max = format(max(area_km2), big.mark = ",", digits = 1, scientific = FALSE),
             mean = format(mean(area_km2), big.mark = ",", digits = 1, scientific = FALSE)
             )
-names(tbl_area_fapbm) = c("Number of PAs", "Total area (km²)", "Min. area (km²)", "Max. area (km²)", "Average area (km²)")
+names(tbl_area_focus) = c("Number of PAs", "Total area (km²)", "Min. area (km²)", "Max. area (km²)", "Average area (km²)")
 ```
 
 ```{r, eval = FALSE}
@@ -1779,10 +1794,10 @@ names(tbl_area_fapbm) = c("Number of PAs", "Total area (km²)", "Min. area (km²
 
 tmp = paste(tempdir(), "fig", sep = "/")
 
-print(xtable(tbl_area_fapbm, 
-             caption = "Statistics on non-marine protected areas funded by FAPBM",
+print(xtable(tbl_area_focus, 
+             caption = "Statistics on non-marine protected areas of interest",
              type = "latex"), 
-      file = paste(tmp, "tbl_area_fapbm.tex", sep = "/"))
+      file = paste(tmp, "tbl_area_focus.tex", sep = "/"))
 
 #Export to S3 storage
 
@@ -1804,11 +1819,11 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))  
 ```
 
-All protected areas in Madagascar (reported by the WDPA)
+All PA
 
 ```{r, eval = FALSE}
 
-tbl_area_mdg = data_wdpa_mdg %>%
+tbl_area_all = data_pa_all %>%
   st_drop_geometry() %>%
   filter(marine %in% c(0,1)) %>%
   summarize(n = n(),
@@ -1817,7 +1832,7 @@ tbl_area_mdg = data_wdpa_mdg %>%
             max = format(max(rep_area), big.mark = ",", digits = 1, scientific = FALSE),
             mean = format(mean(rep_area), big.mark = ",", digits = 1, scientific = FALSE)
             )
-names(tbl_area_mdg) = c("Number of PAs", "Total area (km²)", "Min. area (km²)", "Max. area (km²)", "Average area (km²)")
+names(tbl_area_all) = c("Number of PAs", "Total area (km²)", "Min. area (km²)", "Max. area (km²)", "Average area (km²)")
 ```
 
 ```{r, eval = FALSE}
@@ -1825,10 +1840,10 @@ names(tbl_area_mdg) = c("Number of PAs", "Total area (km²)", "Min. area (km²)"
 
 tmp = paste(tempdir(), "fig", sep = "/")
 
-print(xtable(tbl_area_mdg, 
-             caption = "Statistics on non-marine protected areas in Madagascar",
+print(xtable(tbl_area_all, 
+             caption = "Statistics on non-marine protected areas",
              type = "latex"), 
-      file = paste(tmp, "tbl_area_mdg.tex", sep = "/"))
+      file = paste(tmp, "tbl_area_all.tex", sep = "/"))
 
 
 #Export to S3 storage
@@ -1851,21 +1866,20 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
-Madagascar without FAPBM funded protected areas.
+Other PA
 
 ```{r, eval = FALSE}
 
-tbl_area_mdg_nofapbm = data_wdpa_mdg %>%
+tbl_area_nofocus = data_pa_nofocus %>%
   st_drop_geometry() %>%
   filter(marine %in% c(0,1)) %>%
-  filter(!(wdpaid %in% data_pa_fapbm$wdpaid)) %>%
   summarize(n = n(),
             tot = format(sum(rep_area), big.mark = ",", digits = 1, scientific = FALSE),
             min = format(min(rep_area), big.mark = ",", digits = 1, scientific = FALSE),
             max = format(max(rep_area), big.mark = ",", digits = 1, scientific = FALSE),
             mean = format(mean(rep_area), big.mark = ",", digits = 1, scientific = FALSE)
             )
-names(tbl_area_mdg_nofapbm) = c("Number of PAs", "Total area (km²)", "Min. area (km²)", "Max. area (km²)", "Average area (km²)")
+names(tbl_area_nofocus) = c("Number of PAs", "Total area (km²)", "Min. area (km²)", "Max. area (km²)", "Average area (km²)")
 ```
 
 ```{r, eval = FALSE}
@@ -1873,10 +1887,10 @@ names(tbl_area_mdg_nofapbm) = c("Number of PAs", "Total area (km²)", "Min. area
 
 tmp = paste(tempdir(), "fig", sep = "/")
 
-print(xtable(tbl_area_mdg_nofapbm, 
-             caption = "Statistics on non-marine protected areas in Madagascar, not funded by the FAPBM",
+print(xtable(tbl_area_nofocus, 
+             caption = "Statistics on non-marine other protected areas",
              type = "latex"), 
-      file = paste(tmp, "tbl_area_mdg_nofapbm.tex", sep = "/"))
+      file = paste(tmp, "tbl_area_nofocus.tex", sep = "/"))
 
 
 #Export to S3 storage
@@ -1901,11 +1915,11 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 #### Area of PAs : marine
 
-FAPBM funded protected areas
+PA of interest
 
 ```{r, eval = FALSE}
 
-tbl_area_fapbm = data_pa_fapbm %>%
+tbl_area_focus = data_pa_focus %>%
   filter(marine == 2) %>%
   summarize(n = n(),
             tot = format(sum(area_km2), big.mark = ",", digits = 1, scientific = FALSE),
@@ -1913,7 +1927,7 @@ tbl_area_fapbm = data_pa_fapbm %>%
             max = format(max(area_km2), big.mark = ",", digits = 1, scientific = FALSE),
             mean = format(mean(area_km2), big.mark = ",", digits = 1, scientific = FALSE)
             )
-names(tbl_area_fapbm) = c("Number of PAs", "Total area (km²)", "Min. area (km²)", "Max. area (km²)", "Average area (km²)")
+names(tbl_area_focus) = c("Number of PAs", "Total area (km²)", "Min. area (km²)", "Max. area (km²)", "Average area (km²)")
 ```
 
 ```{r, eval = FALSE}
@@ -1921,10 +1935,10 @@ names(tbl_area_fapbm) = c("Number of PAs", "Total area (km²)", "Min. area (km²
 
 tmp = paste(tempdir(), "fig", sep = "/")
 
-print(xtable(tbl_area_fapbm, 
-             caption = "Statistics on marine protected areas funded by FAPBM",
+print(xtable(tbl_area_focus, 
+             caption = "Statistics on marine protected areas of interest",
              type = "latex"), 
-      file = paste(tmp, "tbl_area_fapbm.tex", sep = "/"))
+      file = paste(tmp, "tbl_area_focus.tex", sep = "/"))
 
 #Export to S3 storage
 
@@ -1946,11 +1960,11 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))  
 ```
 
-All protected areas in Madagascar (reported by the WDPA)
+All PA
 
 ```{r, eval = FALSE}
 
-tbl_area_mdg = data_wdpa_mdg %>%
+tbl_area_all = data_pa_all %>%
   st_drop_geometry() %>%
   filter(marine == 2) %>%
   summarize(n = n(),
@@ -1959,7 +1973,7 @@ tbl_area_mdg = data_wdpa_mdg %>%
             max = format(max(rep_area), big.mark = ",", digits = 1, scientific = FALSE),
             mean = format(mean(rep_area), big.mark = ",", digits = 1, scientific = FALSE)
             )
-names(tbl_area_mdg) = c("Number of PAs", "Total area (km²)", "Min. area (km²)", "Max. area (km²)", "Average area (km²)")
+names(tbl_area_all) = c("Number of PAs", "Total area (km²)", "Min. area (km²)", "Max. area (km²)", "Average area (km²)")
 ```
 
 ```{r, eval = FALSE}
@@ -1967,10 +1981,10 @@ names(tbl_area_mdg) = c("Number of PAs", "Total area (km²)", "Min. area (km²)"
 
 tmp = paste(tempdir(), "fig", sep = "/")
 
-print(xtable(tbl_area_mdg, 
-             caption = "Statistics on marine protected areas in Madagascar",
+print(xtable(tbl_area_all, 
+             caption = "Statistics on marine protected areas",
              type = "latex"), 
-      file = paste(tmp, "tbl_area_mdg.tex", sep = "/"))
+      file = paste(tmp, "tbl_area_all.tex", sep = "/"))
 
 
 #Export to S3 storage
@@ -1993,21 +2007,20 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
-Madagascar without FAPBM funded protected areas.
+Other PA
 
 ```{r, eval = FALSE}
 
-tbl_area_mdg_nofapbm = data_wdpa_mdg %>%
+tbl_area_nofocus = data_pa_nofocus %>%
   st_drop_geometry() %>%
   filter(marine == 2) %>%
-  filter(!(wdpaid %in% data_pa_fapbm$wdpaid)) %>%
   summarize(n = n(),
             tot = format(sum(rep_area), big.mark = ",", digits = 1, scientific = FALSE),
             min = format(min(rep_area), big.mark = ",", digits = 1, scientific = FALSE),
             max = format(max(rep_area), big.mark = ",", digits = 1, scientific = FALSE),
             mean = format(mean(rep_area), big.mark = ",", digits = 1, scientific = FALSE)
             )
-names(tbl_area_mdg_nofapbm) = c("Number of PAs", "Total area (km²)", "Min. area (km²)", "Max. area (km²)", "Average area (km²)")
+names(tbl_area_nofocus) = c("Number of PAs", "Total area (km²)", "Min. area (km²)", "Max. area (km²)", "Average area (km²)")
 ```
 
 ```{r, eval = FALSE}
@@ -2015,10 +2028,10 @@ names(tbl_area_mdg_nofapbm) = c("Number of PAs", "Total area (km²)", "Min. area
 
 tmp = paste(tempdir(), "fig", sep = "/")
 
-print(xtable(tbl_area_mdg_nofapbm, 
-             caption = "Statistics on marine protected areas in Madagascar, not funded by the FAPBM",
+print(xtable(tbl_area_nofocus, 
+             caption = "Statistics on marine other protected areas",
              type = "latex"), 
-      file = paste(tmp, "tbl_area_mdg_nofapbm.tex", sep = "/"))
+      file = paste(tmp, "tbl_area_nofocus.tex", sep = "/"))
 
 
 #Export to S3 storage
@@ -2112,7 +2125,7 @@ req_api = request('https://data-api.globalforestwatch.org/auth/apikey') %>%
 resp_api = req_perform(req_api)
 ```
 
-All protected areas in Madagascar (reported by the WDPA)
+All PA
 
 ```{r, eval = F}
 ##2000 tree cover 
