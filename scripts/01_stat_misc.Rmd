@@ -2754,4 +2754,6 @@ df_map_fc_att_tidy_noaca_nofocus,
 object = paste(save_dir, "df_map_fc_att_tidy_noaca_nofocus.gpkg", sep = "/"), 
 bucket = "projet-afd-eva-ap",
 opts = list("region" = ""))
+
+#The maps can be drawn using the tmap library or directly on QGIS !
 ```

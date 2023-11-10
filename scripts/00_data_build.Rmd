@@ -166,7 +166,7 @@ data_siop_pa =
   clean_names() %>%
   #Keep only project IDs corresponding to PAs reported
   filter(id_projet %in% data_pa_afd$id_projet) %>%
-  select(c(id_projet, id_concours,
+  dplyr::select(c(id_projet, id_concours,
            libelle_court_direction_regionale,
            pays_de_realisation, autres_pays_de_realisation,
            mt_fin_global_af_d_prevu_devise,
@@ -1044,6 +1044,25 @@ s3write_using(x = data_pa_africa,
               object = "data_tidy/BDD_PA_africa.csv",
               bucket = "projet-afd-eva-ap",
               opts = list("region" = ""))
+```
+
+##### TerrIndigena
+
+Build a dataset for TerrIndigena project supported by AFD Agriculture, Rural development and Biodiversity technical division.
+
+```{r, eval = F}
+
+#Import datasets
+terr_siop =
+  #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
+  s3read_using(data.table::fread,
+              object = "data_raw/TerrIndigena/TerrIndigena_siop.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = "")) %>%
+  clean_names() %>%
+  dplyr::select(c(libelle_court_direction_regionale, pays, id_pays, id_projet, id_concours, nom_du_projet, annee_doctroi_projet))
+
+
 ```
 
 ### Datasets for confidential analysis
