@@ -2674,3 +2674,84 @@ for(f in files)
 }
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
+
+### Maps of Geo4Impact results
+
+```{r, eval = F}
+
+#Loading directory
+load_dir = paste("impact_analysis/did", "2023-10-23", sep = "/")
+save_dir = paste("descriptive_stats/misc/map_att")
+
+#Import datasets
+## The sample
+data_pa =
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  object = "data_tidy/BDD_PA_africa.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
+
+data_pa2 = data_pa %>%
+  dplyr::select(c(wdpaid, wdpa_pid, iso3, name, status_yr, status, iucn_cat, marine, gov_type, year_funding_first, year_funding_all)) %>%
+  rename("treatment_year" = "status_yr")
+
+## WDPA 
+wdpa_wld_raw = s3read_using(
+              sf::st_read,
+              object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
+wdpa_poly = wdpa_wld_raw %>%
+  st_as_sf() %>%
+  dplyr::select(c(WDPA_PID, geom))
+
+## Treatment effects computed from the sample
+### After non-academic filtering (cf DiD)
+df_fc_att_tidy_noaca = aws.s3::s3read_using(
+FUN = data.table::fread,
+object = paste(load_dir, "df_fc_att_tidy_noaca.csv", sep = "/"),
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+
+### For PA out of focus
+df_fc_att_tidy_noaca_nofocus = df_fc_att_tidy_noaca %>%
+  filter(focus == F & time %in% c(5,10)) %>%
+  dplyr::select(c(wdpaid, time, att_per, sig)) %>%
+  pivot_wider(names_from = "time",
+              values_from = c("att_per", "sig"))
+
+## Treatment effects computed for Geo4Impact presentation, performed 2023-08-29
+### The more recent version of the code are not compatible with the computation of the TE on this folder. Then, I create manually a dataset with computed treatment effects
+df_fc_att_geo4impact = data.frame(wdpaid = c(1240, 555547995, 15089, 9035, 555705345, 72324, 303873, 903025, 903026, 903129, 317051, 342655, 478033, 555651504, 902838),
+                                  att_per_5 = c(0.140, -0.325, 0.151, -0.085,  -0.318, 0.017, 0.005,  0.621,  0.331, -0.191, -2.988,  0.162,  0.407, -2.392,  1.071),
+                                  sig_5 = c(TRUE, FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE, FALSE, TRUE, FALSE, FALSE),
+                                  att_per_10 = c(0.443,  -0.891, 0.259, -0.132, -1.478,  0.009, 0.017, 1.618, 1.084, -0.082, NA, -0.130, 1.620, NA, 2.123),
+                                  sig_10 = c(TRUE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE, TRUE, FALSE, NA, FALSE, TRUE, NA, TRUE ))
+
+#Create a dataset to map results
+df_map_fc_att_tidy_noaca_geo4impact = df_fc_att_geo4impact %>%
+  left_join(data_pa2, by = "wdpaid") %>% 
+  left_join(wdpa_poly, by = c("wdpa_pid" = "WDPA_PID"))
+  
+df_map_fc_att_tidy_noaca_nofocus = df_fc_att_tidy_noaca_nofocus %>%
+  left_join(data_pa2, by = "wdpaid") %>% 
+  left_join(wdpa_poly, by = c("wdpa_pid" = "WDPA_PID"))
+
+#Save datasets
+## GEo4Impact
+aws.s3::s3write_using(
+FUN = sf::st_write,
+df_map_fc_att_tidy_noaca_geo4impact,
+object = paste(save_dir, "df_map_fc_att_tidy_noaca_geo4impact.gpkg", sep = "/"), 
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+## Non-focus PA
+aws.s3::s3write_using(
+FUN = sf::st_write,
+df_map_fc_att_tidy_noaca_nofocus,
+object = paste(save_dir, "df_map_fc_att_tidy_noaca_nofocus.gpkg", sep = "/"), 
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+```

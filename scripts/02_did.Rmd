@@ -533,6 +533,38 @@ df_fc_att_tidy_aca = df_fc_att %>%
   filter(wdpaid %in% list_pa_keep_fc)
 df_fl_att_tidy_aca = df_fl_att %>%
   filter(wdpaid %in% list_pa_keep_fc)
+
+#Save the tidy datasets
+## Non-academic filtering
+### FC
+aws.s3::s3write_using(
+FUN = data.table::fwrite,
+df_fc_att_tidy_noaca,
+object = paste(save_dir, "df_fc_att_tidy_noaca.csv", sep = "/"), 
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+### FL
+aws.s3::s3write_using(
+FUN = data.table::fwrite,
+df_fl_att_tidy_noaca,
+object = paste(save_dir, "df_fl_att_tidy_noaca.csv", sep = "/"), 
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+## Academic filtering
+### FC
+aws.s3::s3write_using(
+FUN = data.table::fwrite,
+df_fc_att_tidy_aca,
+object = paste(save_dir, "df_fc_att_tidy_aca.csv", sep = "/"), 
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+### FL
+aws.s3::s3write_using(
+FUN = data.table::fwrite,
+df_fl_att_tidy_aca,
+object = paste(save_dir, "df_fl_att_tidy_aca.csv", sep = "/"), 
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
 ```
 
 ## Assess the loss of observations
@@ -843,7 +875,7 @@ fn_plot_forest_loss_agg(df_plot_forest_loss = df_plot_forest_loss_noaca,
 
 ```
 
-## Display treatment effects 
+## Display treatment effects
 
 ## In figures and tables
 
