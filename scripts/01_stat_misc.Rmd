@@ -11,7 +11,7 @@ Configuring Rmarkdown.
 Installing and importing relevant packages.
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
-install.packages(c("stargazer", "janitor", "questionr", "countrycode", "WDI"))
+install.packages(c("stargazer", "janitor", "questionr", "countrycode", "WDI", "mapme.biodiversity"))
 library(tidyverse)
 library(stargazer)
 library(dplyr)
@@ -29,6 +29,7 @@ library(questionr)
 library(aws.s3)
 library(WDI)
 library(countrycode)
+library(mapme.biodiversity)
 ```
 
 ## Importing datasets
@@ -2675,7 +2676,7 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
-### Maps of Geo4Impact results
+## Maps of Geo4Impact results
 
 ```{r, eval = F}
 
@@ -2756,4 +2757,35 @@ bucket = "projet-afd-eva-ap",
 opts = list("region" = ""))
 
 #The maps can be drawn using the tmap library or directly on QGIS !
+```
+
+## Evolution of forest cover for specific polygons
+
+Using the mapme.biodiversity R package, one can plot the evolution of forest cover for any polygon using Global Forest Watch data (Hansen et al. 2013).
+
+```{r, eval = F}
+
+#Import the polygon(s) of interest
+terr_tidy =
+  #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
+  s3read_using(sf::st_read,
+              object = "data_tidy/TerrIndigena/TE_TerrIndigena1y2_20230208_Pg_tidy.gpkg",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
+
+# Version of Global Forest Cover data to consider
+list_version_gfc = mapme.biodiversity:::.available_gfw_versions() #all versions available
+version_gfc = list_version_gfc[length(list_version_gfc)] #last version considered
+
+#Download forest cover data : initialize a portfolio, get data and compute forest cover
+dl.fc = init_portfolio(terr_tidy,
+                       years = 2000:2022,
+                       add_resources = FALSE) %>%
+  get_resources(resources = c("gfw_treecover", "gfw_lossyear"),
+                vers_treecover = version_gfc,
+                vers_lossyear = version_gfc) %>%
+  calc_indicators(indicators = "treecover_area",
+                  min_size=0.5, # FAO definition of forest :  Minimum treecover = 10%, minimum size =0.5 hectare (FAO 2020 Global Forest Resources Assessment, https://www.fao.org/3/I8661EN/i8661en.pdf)
+                  min_cover=10)
+
 ```

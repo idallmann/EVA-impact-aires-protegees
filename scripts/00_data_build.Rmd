@@ -1046,13 +1046,14 @@ s3write_using(x = data_pa_africa,
               opts = list("region" = ""))
 ```
 
-##### TerrIndigena
+##### For TerrIndigena
 
 Build a dataset for TerrIndigena project supported by AFD Agriculture, Rural development and Biodiversity technical division.
 
 ```{r, eval = F}
 
 #Import datasets
+##SIOP information
 terr_siop =
   #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
   s3read_using(data.table::fread,
@@ -1060,9 +1061,40 @@ terr_siop =
               bucket = "projet-afd-eva-ap",
               opts = list("region" = "")) %>%
   clean_names() %>%
-  dplyr::select(c(libelle_court_direction_regionale, pays, id_pays, id_projet, id_concours, nom_du_projet, annee_doctroi_projet))
+  dplyr::select(c(id_projet, nom_du_projet, annee_doctroi_projet)) %>%
+  group_by(id_projet) %>%
+  slice(1) %>%
+  ungroup() %>%
+  rename("name_pa" = "nom_du_projet",
+         "status_yr" = "annee_doctroi_projet")
 
+#Polygons
+##Raw
+terr_poly_raw = 
+    #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
+  s3read_using(sf::st_read,
+              object = "data_raw/TerrIndigena/TE_TerrIndigena1y2_20230208_Pg.gpkg",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = "")) %>%
+  #Make polygon valid to avoid errors
+  st_make_valid()
 
+##Tidy
+terr_poly_tidy = terr_poly_raw %>%
+  dplyr::select(c(IDentif, Pais, geom)) %>%
+  mutate(IDentif = gsub(" ", "_", IDentif)) %>%
+  rename("ID_raw" = "IDentif",
+         "country_en" = "Pais") %>%
+  #Cast multipoygons to polygon to avoid 
+  st_cast("POLYGON", do_split = F) 
+  
+#Save the dataset
+s3write_using(x = terr_poly_tidy,
+              FUN = sf::st_write,
+              delim = ";",
+              object = "data_tidy/TerrIndigena/TE_TerrIndigena1y2_20230208_Pg_tidy.gpkg",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
 ```
 
 ### Datasets for confidential analysis
