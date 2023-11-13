@@ -71,7 +71,13 @@ data_pa_africa =
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
 
+# PA in African countries where at least one AFD PA can be analyszed
+data_pa_africa_ie_afd = data_pa_africa %>%
+  filter(focus == T & status_yr >= 2002 & area_km2 > 1 & marine %in% c(0,1))
+list_iso_africa_ie_focus = unique(data_pa_africa_ie_afd$iso3)
 
+data_pa_africa_ie = data_pa_africa %>%
+  filter(iso3 %in% list_iso_africa_ie_focus)
 
 #Import WDPA data
 ## Download and save data
@@ -156,11 +162,14 @@ lst_ctry_stat_wdpa = df_ctry_stat_wdpa$iso3
 
 ```{r, eval = F}
 
+#Define the saving directory
+save_dir = "AFD_africa_ie"
+
 #Define the datasets : with PA of interest (focus), other PA (no focus) and all PA (all)
 ## For PA in Africa
-data_pa_focus = data_pa_africa %>% filter(focus == T)
-data_pa_nofocus = data_pa_africa %>% filter(focus == F)
-data_pa_all = data_pa_africa
+data_pa_focus = data_pa_africa_ie %>% filter(focus == T)
+data_pa_nofocus = data_pa_africa_ie %>% filter(focus == F)
+data_pa_all = data_pa_africa_ie
 ## For FAPBM and Madagascar
 data_pa_focus = data_pa_fapbm
 data_pa_nofocus = data_wdpa_mdg %>% filter(!(wdpaid %in% data_pa_fapbm$wdpaid))
@@ -283,8 +292,8 @@ files <- list.files(tmp, full.names = TRUE)
 for(f in files) 
   {
   cat("Uploading file", paste0("'", f, "'"), "\n")
-  aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/IUCN/FAPBM/no_marine", 
+  aws.s3::put_object(file = f,
+                     bucket = paste("projet-afd-eva-ap/descriptive_stats", save_dir, "focus/IUCN/no_marine", sep = "/"),
                      region = "", show_progress = TRUE)
   }
 
@@ -406,7 +415,7 @@ for(f in files)
   {
   cat("Uploading file", paste0("'", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/IUCN/MDG/no_marine", 
+                     bucket = paste("projet-afd-eva-ap/descriptive_stats", save_dir, "all/IUCN/no_marine", sep = "/"),
                      region = "", show_progress = TRUE)
   }
 
@@ -526,7 +535,7 @@ for(f in files)
   {
   cat("Uploading file", paste0("'", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/IUCN/MDG_noFAPBM/no_marine", 
+                     bucket = paste("projet-afd-eva-ap/descriptive_stats", save_dir, "nofocus/no_marine", sep = "/"),
                      region = "", show_progress = TRUE)
   }
 
@@ -650,7 +659,7 @@ for(f in files)
   {
   cat("Uploading file", paste0("'", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/IUCN/FAPBM/marine", 
+                     bucket = paste("projet-afd-eva-ap/descriptive_stats", save_dir, "focus/IUCN/marine", sep = "/"),
                      region = "", show_progress = TRUE)
   }
 
@@ -772,7 +781,7 @@ for(f in files)
   {
   cat("Uploading file", paste0("'", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/IUCN/MDG/marine", 
+                     bucket = paste("projet-afd-eva-ap/descriptive_stats", save_dir, "all/IUCN/marine", sep = "/"),
                      region = "", show_progress = TRUE)
   }
 
@@ -892,7 +901,7 @@ for(f in files)
   {
   cat("Uploading file", paste0("'", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/IUCN/MDG_noFAPBM/marine", 
+                     bucket = paste("projet-afd-eva-ap/descriptive_stats", save_dir, "nofocus/IUCN/marine", sep = "/"),
                      region = "", show_progress = TRUE)
   }
 
@@ -921,7 +930,7 @@ data_eco$ecosyst_fr = fct_recode(data_eco$marine,
                               "Côtier"="1", 
                               "Marin"="2")
 
-data_eco_hist = data_pa_focus %>%
+data_eco_hist = data_eco %>%
   group_by(ecosyst_en, ecosyst_fr) %>%
   summarize(n = n(),
             freq = round(n/nrow(data_eco), 2)*100) %>%
@@ -970,7 +979,7 @@ for(f in files)
   count = count+1
   cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/ecosysteme/FAPBM", 
+                     bucket = paste("projet-afd-eva-ap/descriptive_stats", save_dir, "focus/ecosysteme", sep = "/"),
                      region = "", show_progress = TRUE)
   }
 
@@ -1046,7 +1055,7 @@ for(f in files)
   count = count+1
   cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/ecosysteme/MDG", 
+                     bucket = paste("projet-afd-eva-ap/descriptive_stats", save_dir, "all/ecosysteme", sep = "/"),
                      region = "", show_progress = TRUE)
   }
 
@@ -1122,7 +1131,7 @@ for(f in files)
   count = count+1
   cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/ecosysteme/MDG_noFAPBM", 
+                     bucket = paste("projet-afd-eva-ap/descriptive_stats", save_dir, "nofocus/ecosysteme", sep = "/"),
                      region = "", show_progress = TRUE)
   }
 
@@ -1179,7 +1188,7 @@ pie_gov_knwn_en =
   ggplot(data_gov_knwn_en, 
        aes(x="", y= freq, fill= gov_type)) %>%
   + geom_bar(width = 1, stat = "identity", color="white") %>%
-  + geom_label(aes(x=1.3, 
+  + geom_label_repel(aes(x=1.3, 
                    label = paste0(format(freq, digits = 2), "%")), 
                color = "black", 
                position = position_stack(vjust = 0.55), 
@@ -1194,7 +1203,12 @@ pie_gov_knwn_en =
                                  "Government-delegated management" = "#B2DF8A",
                                  "Non-profit organisations" = "#33A02C",
                                  "Collaborative governance" = "#FB9A99",
-                                 "Federal or national ministry or agency" = "#E31A1C")) %>%
+                                 "Federal or national ministry or agency" = "#E31A1C",
+                                 "Indigenous peoples" = "#E6F598",
+                                 "Joint governance" ="#FEE08B",
+                                 "For-profit organisations" = "#FDAE61",
+                                 "Sub-national ministry or agency" = "#F46D43")
+                                 ) %>%
   + theme_void()
 pie_gov_knwn_en
 
@@ -1227,7 +1241,7 @@ for(f in files)
   count = count+1
   cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/gouvernance/FAPBM/no_marine", 
+                     bucket = paste("projet-afd-eva-ap/descriptive_stats", save_dir, "focus/governance/no_marine", sep = "/"),
                      region = "", show_progress = TRUE)
   }
 
@@ -1282,7 +1296,7 @@ pie_gov_knwn_en =
   ggplot(data_gov_knwn_en, 
        aes(x="", y= freq, fill= gov_type)) %>%
   + geom_bar(width = 1, stat = "identity", color="white") %>%
-  + geom_label(aes(x=1.3, 
+  + geom_label_repel(aes(x=1.3, 
                    label = paste0(format(freq, digits = 2), "%")), 
                color = "black", 
                position = position_stack(vjust = 0.55), 
@@ -1297,7 +1311,12 @@ pie_gov_knwn_en =
                                  "Government-delegated management" = "#B2DF8A",
                                  "Non-profit organisations" = "#33A02C",
                                  "Collaborative governance" = "#FB9A99",
-                                 "Federal or national ministry or agency" = "#E31A1C")) %>%
+                                 "Federal or national ministry or agency" = "#E31A1C",
+                                 "Indigenous peoples" = "#E6F598",
+                                 "Joint governance" ="#FEE08B",
+                                 "For-profit organisations" = "#FDAE61",
+                                 "Sub-national ministry or agency" = "#F46D43")
+                                 ) %>%
   + theme_void()
 pie_gov_knwn_en
 ```
@@ -1328,7 +1347,7 @@ for(f in files)
   count = count+1
   cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/gouvernance/MDG/no_marine", 
+                     bucket = paste("projet-afd-eva-ap/descriptive_stats", save_dir, "all/governance/no_marine", sep = "/"),
                      region = "", show_progress = TRUE)
   }
 
@@ -1383,7 +1402,7 @@ pie_gov_knwn_en =
   ggplot(data_gov_knwn_en, 
        aes(x="", y= freq, fill= gov_type)) %>%
   + geom_bar(width = 1, stat = "identity", color="white") %>%
-  + geom_label(aes(x=1.3, 
+  + geom_label_repel(aes(x=1.3, 
                    label = paste0(format(freq, digits = 2), "%")), 
                color = "black", 
                position = position_stack(vjust = 0.55), 
@@ -1398,7 +1417,12 @@ pie_gov_knwn_en =
                                  "Government-delegated management" = "#B2DF8A",
                                  "Non-profit organisations" = "#33A02C",
                                  "Collaborative governance" = "#FB9A99",
-                                 "Federal or national ministry or agency" = "#E31A1C")) %>%
+                                 "Federal or national ministry or agency" = "#E31A1C",
+                                 "Indigenous peoples" = "#E6F598",
+                                 "Joint governance" ="#FEE08B",
+                                 "For-profit organisations" = "#FDAE61",
+                                 "Sub-national ministry or agency" = "#F46D43")
+                                 ) %>%
   + theme_void()
 pie_gov_knwn_en
 ```
@@ -1429,7 +1453,7 @@ for(f in files)
   count = count+1
   cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/gouvernance/MDG_noFAPBM/no_marine", 
+                     bucket = paste("projet-afd-eva-ap/descriptive_stats", save_dir, "nofocus/governance/no_marine", sep = "/"),
                      region = "", show_progress = TRUE)
   }
 
@@ -1486,7 +1510,7 @@ pie_gov_knwn_en =
   ggplot(data_gov_knwn_en, 
        aes(x="", y= freq, fill= gov_type)) %>%
   + geom_bar(width = 1, stat = "identity", color="white") %>%
-  + geom_label(aes(x=1.3, 
+  + geom_label_repel(aes(x=1.3, 
                    label = paste0(format(freq, digits = 2), "%")), 
                color = "black", 
                position = position_stack(vjust = 0.55), 
@@ -1501,7 +1525,12 @@ pie_gov_knwn_en =
                                  "Government-delegated management" = "#B2DF8A",
                                  "Non-profit organisations" = "#33A02C",
                                  "Collaborative governance" = "#FB9A99",
-                                 "Federal or national ministry or agency" = "#E31A1C")) %>%
+                                 "Federal or national ministry or agency" = "#E31A1C",
+                                 "Indigenous peoples" = "#E6F598",
+                                 "Joint governance" ="#FEE08B",
+                                 "For-profit organisations" = "#FDAE61",
+                                 "Sub-national ministry or agency" = "#F46D43")
+                                 ) %>%
   + theme_void()
 pie_gov_knwn_en
 
@@ -1534,7 +1563,7 @@ for(f in files)
   count = count+1
   cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/gouvernance/FAPBM/marine", 
+                     bucket = paste("projet-afd-eva-ap/descriptive_stats", save_dir, "focus/governance/marine", sep = "/"),
                      region = "", show_progress = TRUE)
   }
 
@@ -1589,7 +1618,7 @@ pie_gov_knwn_en =
   ggplot(data_gov_knwn_en, 
        aes(x="", y= freq, fill= gov_type)) %>%
   + geom_bar(width = 1, stat = "identity", color="white") %>%
-  + geom_label(aes(x=1.3, 
+  + geom_label_repel(aes(x=1.3, 
                    label = paste0(format(freq, digits = 2), "%")), 
                color = "black", 
                position = position_stack(vjust = 0.55), 
@@ -1604,7 +1633,12 @@ pie_gov_knwn_en =
                                  "Government-delegated management" = "#B2DF8A",
                                  "Non-profit organisations" = "#33A02C",
                                  "Collaborative governance" = "#FB9A99",
-                                 "Federal or national ministry or agency" = "#E31A1C")) %>%
+                                 "Federal or national ministry or agency" = "#E31A1C",
+                                 "Indigenous peoples" = "#E6F598",
+                                 "Joint governance" ="#FEE08B",
+                                 "For-profit organisations" = "#FDAE61",
+                                 "Sub-national ministry or agency" = "#F46D43")
+                                 ) %>%
   + theme_void()
 pie_gov_knwn_en
 ```
@@ -1635,7 +1669,7 @@ for(f in files)
   count = count+1
   cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/gouvernance/MDG/marine", 
+                     bucket = paste("projet-afd-eva-ap/descriptive_stats", save_dir, "all/governance/marine", sep = "/"),
                      region = "", show_progress = TRUE)
   }
 
@@ -1690,7 +1724,7 @@ pie_gov_knwn_en =
   ggplot(data_gov_knwn_en, 
        aes(x="", y= freq, fill= gov_type)) %>%
   + geom_bar(width = 1, stat = "identity", color="white") %>%
-  + geom_label(aes(x=1.3, 
+  + geom_label_repel(aes(x=1.3, 
                    label = paste0(format(freq, digits = 2), "%")), 
                color = "black", 
                position = position_stack(vjust = 0.55), 
@@ -1705,7 +1739,12 @@ pie_gov_knwn_en =
                                  "Government-delegated management" = "#B2DF8A",
                                  "Non-profit organisations" = "#33A02C",
                                  "Collaborative governance" = "#FB9A99",
-                                 "Federal or national ministry or agency" = "#E31A1C")) %>%
+                                 "Federal or national ministry or agency" = "#E31A1C",
+                                 "Indigenous peoples" = "#E6F598",
+                                 "Joint governance" ="#FEE08B",
+                                 "For-profit organisations" = "#FDAE61",
+                                 "Sub-national ministry or agency" = "#F46D43")
+                                 ) %>%
   + theme_void()
 pie_gov_knwn_en
 ```
@@ -1736,7 +1775,7 @@ for(f in files)
   count = count+1
   cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/gouvernance/MDG_noFAPBM/marine", 
+                     bucket =paste("projet-afd-eva-ap/descriptive_stats", save_dir, "nofocus/governance/marine", sep = "/"),
                      region = "", show_progress = TRUE)
   }
 
@@ -1810,7 +1849,7 @@ for(f in files)
   count = count+1
   cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/surface/FAPBM/no_marine", 
+                     bucket = paste("projet-afd-eva-ap/descriptive_stats", save_dir, "focus/surface/no_marine", sep = "/"),
                      region = "", show_progress = TRUE)
   }
 
@@ -1857,7 +1896,7 @@ for(f in files)
   count = count+1
   cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/surface/MDG/no_marine", 
+                     bucket = paste("projet-afd-eva-ap/descriptive_stats", save_dir, "all/surface/no_marine", sep = "/"),
                      region = "", show_progress = TRUE)
   }
 
@@ -1904,7 +1943,7 @@ for(f in files)
   count = count+1
   cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/surface/MDG_noFAPBM/no_marine", 
+                     bucket = paste("projet-afd-eva-ap/descriptive_stats", save_dir, "nofocus/surface/no_marine", sep = "/"),
                      region = "", show_progress = TRUE)
   }
 
@@ -1951,7 +1990,7 @@ for(f in files)
   count = count+1
   cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/surface/FAPBM/marine", 
+                     bucket = paste("projet-afd-eva-ap/descriptive_stats", save_dir, "focus/surface/marine", sep = "/"), 
                      region = "", show_progress = TRUE)
   }
 
@@ -1998,7 +2037,7 @@ for(f in files)
   count = count+1
   cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/surface/MDG/marine", 
+                     bucket = paste("projet-afd-eva-ap/descriptive_stats", save_dir, "all/surface/marine", sep = "/"),
                      region = "", show_progress = TRUE)
   }
 
@@ -2045,7 +2084,7 @@ for(f in files)
   count = count+1
   cat("Uploading file", paste0(count, "/", length(files), " '", f, "'"), "\n")
   aws.s3::put_object(file = f, 
-                     bucket = "projet-afd-eva-ap/descriptive_stats/surface/MDG_noFAPBM/marine", 
+                     bucket = paste("projet-afd-eva-ap/descriptive_stats", save_dir, "nofocus/surface/marine", sep = "/"),
                      region = "", show_progress = TRUE)
   }
 
