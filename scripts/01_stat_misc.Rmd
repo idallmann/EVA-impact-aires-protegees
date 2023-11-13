@@ -2840,4 +2840,122 @@ dl.fc = init_portfolio(terr_tidy,
                   min_size=0.5, # FAO definition of forest :  Minimum treecover = 10%, minimum size =0.5 hectare (FAO 2020 Global Forest Resources Assessment, https://www.fao.org/3/I8661EN/i8661en.pdf)
                   min_cover=10)
 
+#Create a dataset with evolution of forest cover
+data.fc = dl.fc %>%
+  st_drop_geometry() %>%
+  unnest(treecover_area) %>%
+  group_by(ID_raw) %>%
+  mutate(treecover_base2000 = (treecover - treecover[years == 2000])/treecover[years == 2000],
+         treecover_ini = treecover[years == 2000]) %>%
+  ungroup()
+
+#Map : polygons and ID
+  
+#Figures
+## Evolution of relative forest cover for all polygons
+fig_fc_all = ggplot(data = data.fc,
+                aes(x = years, y = treecover_base2000*100, color = ID_raw)) %>%
+  + geom_point() %>%
+  + geom_line() %>%
+  + labs(title = "Country-wise evolution of forest cover for the TerrIndigena project areas",
+         x = "Year", 
+         y = "Evolution of forest cover relative to 2000 (%)",
+         caption = "Interpretation : a value of -0.10 in 2015 represents a loss of 10% of 2000 forest cover") %>%
+  + scale_color_discrete(name = "Project ID") %>%
+  + facet_wrap(~country_en) %>%
+  + theme_minimal() %>%
+  + theme(plot.caption = element_text(hjust = 0))
+
+  ggsave(paste0(tempdir(), "/terrindigena/fig_terrindigena_fc_all.png"),
+         plot = fig_fc_all,
+         device = "png",
+         height = 8, width = 12)
+  files <- list.files(paste0(tempdir(), "/terrindigena"), full.names = TRUE)
+  ##Add each file in the bucket (same foler for every file in the temp)
+  for (f in files) 
+  {
+    cat("Uploading file", paste0("'", f, "'"), "\n")
+    aws.s3::put_object(file = f, 
+                       bucket = "projet-afd-eva-ap/descriptive_stats/misc/TerrIndigena",
+                       region = "", show_progress = TRUE)
+  }
+  do.call(file.remove, list(list.files(paste0(tempdir(), "/terrindigena"), full.names = TRUE)))
+
+##Evolution by country
+for (i in unique(data.fc$country_en)) 
+{
+  fig_fc_i = ggplot(data = filter(data.fc, country_en == i),
+                aes(x = years, y = treecover_base2000*100, color = ID_raw)) %>%
+  + geom_point() %>%
+  + geom_line() %>%
+  + scale_color_brewer(name = "Project ID", palette = "Blues") %>%
+  + labs(title = "Evolution of forest cover for the TerrIndigena project areas",
+         subtitle = paste("Country :", i),
+         x = "Year", 
+         y = "Evolution of forest cover relative to 2000 (%)",
+         caption = "Interpretation : a value of -0.10 in 2015 represents a loss of 10% of 2000 forest cover") %>%
+  + theme_minimal() %>%
+  + theme(plot.caption = element_text(hjust = 0))
+  fig_fc_i
+  ggsave(paste0(tempdir(), "/terrindigena/fig_terrindigena_fc_", i, ".png"),
+         plot = fig_fc_i,
+         device = "png",
+         height = 6, width = 9)
+  files <- list.files(paste0(tempdir(), "/terrindigena"), full.names = TRUE)
+  ##Add each file in the bucket (same foler for every file in the temp)
+  for(f in files) 
+  {
+    cat("Uploading file", paste0("'", f, "'"), "\n")
+    aws.s3::put_object(file = f, 
+                       bucket = "projet-afd-eva-ap/descriptive_stats/misc/TerrIndigena",
+                       region = "", show_progress = TRUE)
+  }
+  do.call(file.remove, list(list.files(paste0(tempdir(), "/terrindigena"), full.names = TRUE)))
+}
+
+##Evolution for each polygon
+for (i in unique(data.fc$ID_raw)) 
+{
+  # fig_fc_rel_i = ggplot(data = filter(data.fc, ID_raw == i),
+  #               aes(x = years, y = treecover_base2000*100, color = ID_raw)) %>%
+  # + geom_point(color = "#006D2C") %>%
+  # + geom_line(color = "#006D2C") %>%
+  # + labs(title = "Evolution of forest cover for the TerrIndigena project areas",
+  #        subtitle = paste("Project ID :", i),
+  #        x = "Year", 
+  #        y = "Evolution of forest cover relative to 2000 (%)",
+  #        caption = "Interpretation : a value of -0.10 in 2015 represents a loss of 10% of 2000 forest cover") %>%
+  # + theme_minimal() %>%
+  # + theme(plot.caption = element_text(hjust = 0))
+  # 
+  fig_fc_ha_i = ggplot(data = filter(data.fc, ID_raw == i),
+                aes(x = years, y = treecover, color = ID_raw)) %>%
+  + geom_point(color = "#006D2C") %>%
+  + geom_line(color = "#006D2C") %>%
+  + labs(title = "Evolution of forest cover for the TerrIndigena project areas",
+         subtitle = paste("Project ID :", i),
+         x = "Year",
+         y = "Evolution of forest cover (ha)",) %>%
+  + theme_minimal() %>%
+  + theme(plot.caption = element_text(hjust = 0))
+
+  # ggsave(paste0(tempdir(), "/terrindigena/fig_terrindigena_fc_rel_", i, ".png"),
+  #        plot = fig_fc_rel_i,
+  #        device = "png",
+  #        height = 8, width = 12)
+  ggsave(paste0(tempdir(), "/terrindigena/fig_terrindigena_fc_ha_", i, ".png"),
+         plot = fig_fc_ha_i,
+         device = "png",
+         height = 6, width = 9)
+  files <- list.files(paste0(tempdir(), "/terrindigena"), full.names = TRUE)
+  ##Add each file in the bucket (same foler for every file in the temp)
+  for(f in files) 
+  {
+    cat("Uploading file", paste0("'", f, "'"), "\n")
+    aws.s3::put_object(file = f, 
+                       bucket = "projet-afd-eva-ap/descriptive_stats/misc/TerrIndigena",
+                       region = "", show_progress = TRUE)
+  }
+  do.call(file.remove, list(list.files(paste0(tempdir(), "/terrindigena"), full.names = TRUE)))
+}
 ```
