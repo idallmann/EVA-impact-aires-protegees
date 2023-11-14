@@ -690,10 +690,12 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
                       stats_tri = c("mean"),
                       engine = "exactextract") %seed% 5
     
-    get.bio %<-% {calc_indicators(dl.bio,
-                                  indicators = "biome")} %seed% 6
+    get.bio <- calc_indicators(dl.bio,
+                                  indicators = "biome") %seed% 6
+
     
     })
+  
   
   print("----Build indicators' datasets")
   #Build indicators' datasets
@@ -725,7 +727,8 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
   # mutate(elevation_mean = case_when(is.nan(elevation_mean) ~ NA,
   #                                   TRUE ~ elevation_mean))
   
-  data.bio = unnest(get.bio, biome) 
+  data.bio = unnest(get.bio, biome) %>%
+    dplyr::select(-c(area))
   #data.bio = fn_calc_biome_temp(x = dl.bio, indicator = "biome") #A temporary function to compute biome, due to a bug in the mapme.biodiversity package (14/11/2023)
 
   

@@ -2847,9 +2847,18 @@ data.fc = dl.fc %>%
   group_by(ID_raw) %>%
   mutate(treecover_base2000 = (treecover - treecover[years == 2000])/treecover[years == 2000],
          treecover_ini = treecover[years == 2000]) %>%
-  ungroup()
+  ungroup() %>%
+  filter(years >= 2000 & years <= 2021)
 
-#Map : polygons and ID
+#Save the dataset
+aws.s3::s3write_using(
+FUN = data.table::fwrite,
+data.fc,
+object = "descriptive_stats/misc/TerrIndigena/df_fc_terrindigena.csv", 
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+
+
   
 #Figures
 ## Evolution of relative forest cover for all polygons

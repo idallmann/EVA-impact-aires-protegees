@@ -51,9 +51,9 @@ Downloading and installing the relevant packages
 ```{r eval= F, message=FALSE, warning=FALSE}
 #Install some libraries
 ## CRAN version
-install.packages(c("tictoc", "geodata", "wdpar", "exactextractr", "MatchIt", "fixest", "cobalt", "future", "progressr", "mapme.biodiversity", "future.callr", "janitor", "geomtextpath", "rstac"))
+install.packages(c("tictoc", "geodata", "wdpar", "exactextractr", "MatchIt", "fixest", "cobalt", "future", "progressr", "future.callr", "janitor", "geomtextpath", "rstac"))
 ## Github version (can be relevant if some features have not made it to CRAN version yet)
-#remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
+remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
 #remotes::install_github("prioritizr/wdpar", upgrade="always")
 
 #Install the web driver to download wdpa data directly
