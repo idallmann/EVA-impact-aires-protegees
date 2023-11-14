@@ -2861,7 +2861,7 @@ opts = list("region" = ""))
   
 #Figures
 ## Evolution of relative forest cover for all polygons
-fig_fc_all = ggplot(data = data.fc,
+fig_fc_all = ggplot(data = data.fc %>% arrange(country_en, ID_raw),
                 aes(x = years, y = treecover_base2000*100, color = ID_raw)) %>%
   + geom_point() %>%
   + geom_line() %>%
@@ -2869,7 +2869,8 @@ fig_fc_all = ggplot(data = data.fc,
          x = "Year", 
          y = "Evolution of forest cover relative to 2000 (%)",
          caption = "Interpretation : a value of -0.10 in 2015 represents a loss of 10% of 2000 forest cover") %>%
-  + scale_color_discrete(name = "Project ID") %>%
+  + scale_color_discrete(name = "Project ID",
+                         breaks = c("1_Bra", "2_Bra", "3_Bra", "4_Bra", "1_Col", "2_Col", "3_Col", "1_Ecu", "2_Ecu", "3_Ecu", "1_Per", "2_Per")) %>%
   + facet_wrap(~country_en) %>%
   + theme_minimal() %>%
   + theme(plot.caption = element_text(hjust = 0))

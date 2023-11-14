@@ -2516,7 +2516,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
                            na.translate = F) %>%
     # + scale_x_continuous(breaks=seq(min(df_plot_fc_att$att_per, na.rm = TRUE),max(df_plot_fc_att$att_per, na.rm = TRUE),by=1)) %>%
     + facet_grid(iucn_wolf~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Deforestation avoided relative to 2000 forest cover",
+    + labs(title = "Deforestation avoided relative to pre-treatment forest cover",
            x = "%",
            y = "") %>%
     + theme_minimal() %>%
@@ -2558,7 +2558,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
                            na.translate = F) %>%
     # + scale_x_continuous(breaks=seq(min(df_plot_fc_att$att_per, na.rm = TRUE),max(df_plot_fc_att$att_per, na.rm = TRUE),by=1)) %>%
     + facet_grid(iucn_wolf~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Deforestation avoided relative to 2000 forest cover",
+    + labs(title = "Deforestation avoided relative to pre-treatment forest cover",
            subtitle =  "Protected areas of interest only",
            x = "%",
            y = "") %>%
@@ -3225,7 +3225,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
   ggsave(paste(tmp, "fig_att_per_iucn.png", sep = "/"),
          plot = fig_att_per_iucn,
          device = "png",
-         height = 8, width = 12)
+         height = 17, width = 20)
   
   ggsave(paste(tmp, "fig_att_per_focus_iucn.png", sep = "/"),
          plot = fig_att_per_focus_iucn,
@@ -3255,7 +3255,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
   ggsave(paste(tmp, "fig_att_pa_iucn.png", sep = "/"),
          plot = fig_att_pa_iucn,
          device = "png",
-         height = 8, width = 12)
+         height = 17, width = 20)
   
   ggsave(paste(tmp, "fig_att_pa_focus_iucn.png", sep = "/"),
          plot = fig_att_pa_focus_iucn,
@@ -3285,7 +3285,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
   ggsave(paste(tmp, "fig_att_fl_iucn.png", sep = "/"),
          plot = fig_att_fl_iucn,
          device = "png",
-         height = 8, width = 12)
+         height = 17, width = 20)
   
   ggsave(paste(tmp, "fig_att_fl_focus_iucn.png", sep = "/"),
          plot = fig_att_fl_focus_iucn,
