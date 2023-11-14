@@ -245,7 +245,8 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
                 .cols = everything()) %>%
     #Assign it the ID 1
     mutate(group = 1,
-           group_name = "PA overlap")
+           group_name = "PA overlap") %>%
+    dplyr::select(-c(area_poly))
   
   # Separate PA in sample or not
   ##PAs in the sample
@@ -257,7 +258,7 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
     filter(WDPAID %in% wdpaID_sample_ie & rm == F) %>% #Remove PA with too much overlap
     mutate(group=3,
            group_name = "PA in sample, analyzed") %>% # Assign an ID "3" to the PA in sample, analysed
-    dplyr::select(-c(area_overlap, rm))
+    dplyr::select(-c(area_noverlap, area_poly, rm))
   ###...which cannot
   pa_sample_no_ie = data_pa %>%
     filter(iso3 == iso & (is.na(wdpaid) == TRUE | area_km2 <= 1 | is.na(area_km2) | status_yr < yr_min | marine == 2)) #PAs not in WDPA, of area less than 1km2 (Wolf et al 2020), not terrestrial/coastal or implemented after yr_min are not analyzed
@@ -265,13 +266,13 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
   wdpa_sample_no_ie = wdpa_prj_noverlap %>% filter(WDPAID %in% wdpaID_sample_no_ie) %>%
     mutate(group=4,
            group_name = "PA in sample, not analyzed") %>% # Assign an ID "4" to the PA in sample which cannot be studied in the impact evaluation
-    dplyr::select(-c(area_overlap, rm))
+    dplyr::select(-c(area_noverlap, area_poly, rm))
   ##PAs not in the sample
   wdpa_no_sample = wdpa_prj_noverlap %>% 
     filter(!(WDPAID %in% c(wdpa_sample_ie$WDPAID, wdpa_sample_no_ie$WDPAID))) %>% 
     mutate(group=5,
            group_name = "PA not in sample") %>% # Assign an ID "5" to the AP not in sample
-    dplyr::select(-c(area_overlap, rm))
+    dplyr::select(-c(area_noverlap, area_poly, rm))
   wdpaID_no_sample = wdpa_no_sample$WDPAID
   
   # Merge the dataframes of funded PAs, non-funded PAs and buffers
@@ -689,8 +690,8 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
                       stats_tri = c("mean"),
                       engine = "exactextract") %seed% 5
     
-    # get.bio %<-% {calc_indicators(dl.bio,
-    #                               indicators = "biome")} %seed% 6 
+    get.bio %<-% {calc_indicators(dl.bio,
+                                  indicators = "biome")} %seed% 6
     
     })
   
@@ -724,8 +725,8 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
   # mutate(elevation_mean = case_when(is.nan(elevation_mean) ~ NA,
   #                                   TRUE ~ elevation_mean))
   
-  #data.bio = unnest(get.bio, biome) 
-  data.bio = fn_calc_biome_temp(x = dl.bio, indicator = "biome")
+  data.bio = unnest(get.bio, biome) 
+  #data.bio = fn_calc_biome_temp(x = dl.bio, indicator = "biome") #A temporary function to compute biome, due to a bug in the mapme.biodiversity package (14/11/2023)
 
   
   ## End parallel plan : close parallel sessions, so must be done once indicators' datasets are built
@@ -755,7 +756,6 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
   df.soil = data.soil %>% mutate(x = NULL) %>% as.data.frame()
   df.elevation = data.elevation %>% mutate(x = NULL) %>% as.data.frame()
   df.tri = data.tri %>% mutate(x=NULL) %>% as.data.frame()
-  #df.bio = data.bio %>% mutate(x=NULL) %>% as.data.frame()
   df.bio = data.bio %>% mutate(x = NULL) %>% as.data.frame()
   
   # Make a dataframe containing only "assetid" and geometry
