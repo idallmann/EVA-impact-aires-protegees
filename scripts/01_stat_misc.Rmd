@@ -2831,7 +2831,7 @@ version_gfc = list_version_gfc[length(list_version_gfc)] #last version considere
 
 #Download forest cover data : initialize a portfolio, get data and compute forest cover
 dl.fc = init_portfolio(terr_tidy,
-                       years = 2000:2022,
+                       years = 2000:2021,
                        add_resources = FALSE) %>%
   get_resources(resources = c("gfw_treecover", "gfw_lossyear"),
                 vers_treecover = version_gfc,
@@ -2847,8 +2847,7 @@ data.fc = dl.fc %>%
   group_by(ID_raw) %>%
   mutate(treecover_base2000 = (treecover - treecover[years == 2000])/treecover[years == 2000],
          treecover_ini = treecover[years == 2000]) %>%
-  ungroup() %>%
-  filter(years >= 2000 & years <= 2021)
+  ungroup() 
 
 #Save the dataset
 aws.s3::s3write_using(
