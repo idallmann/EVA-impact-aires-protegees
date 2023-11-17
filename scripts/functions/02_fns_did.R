@@ -2269,7 +2269,7 @@ fn_plot_forest_loss_agg = function(df_plot_forest_loss, save_dir, alpha)
 ### save_dir : the saving directory in the remote storage
 ## DATA SAVED
 ### Tables and figures : treatment effects computed for each protected area in the sample, expressed as avoided deforestaion (hectare and percentage of 2000 forest cover) and change in deforestation rate.
-fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save_dir)
+fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, alpha, save_dir)
 {
   
   #list of PAs and two time periods
@@ -2302,23 +2302,25 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
   #Att for each WDPAID, for each period (NA if no value)
   ## For figures
   df_plot_fc_att = left_join(list_ctry_plot, temp_fc, by = c("iso3", "country_en", "wdpaid", "name_pa", "time")) %>%
-    mutate(focus = case_when(wdpaid %in% list_focus ~ "focus",
-                             !(wdpaid %in% list_focus) ~ "not focus")) %>%
+    mutate(focus = case_when(wdpaid %in% list_pa_focus ~ "focus",
+                             !(wdpaid %in% list_pa_focus) ~ "not focus")) %>%
     group_by(time, country_en) %>%
     arrange(country_en, focus) %>%
-    mutate(country_en = paste0(country_en, " (", row_number(), ")"),
+    mutate(country_en_n = paste0(country_en, " (", row_number(), ")"),
            n = row_number(),
-           name_pa_iso = paste0(name_pa, " (", iso3, ")")) %>%
+           name_pa_iso = paste0(name_pa, " (", iso3, ")"),
+           name_pa_iso_iucn = paste0(name_pa, " (", iso3, ", ", iucn_wolf, ")")) %>%
     ungroup()
   
   df_plot_fl_att = left_join(list_ctry_plot, temp_fl, by = c("iso3", "country_en", "wdpaid", "name_pa", "time"))%>%
-    mutate(focus = case_when(wdpaid %in% list_focus ~ "focus",
-                             !(wdpaid %in% list_focus) ~ "not focus")) %>%
+    mutate(focus = case_when(wdpaid %in% list_pa_focus ~ "focus",
+                             !(wdpaid %in% list_pa_focus) ~ "not focus")) %>%
     group_by(time, country_en) %>%
     arrange(country_en, focus) %>%
-    mutate(country_en = paste0(country_en, " (", row_number(), ")"),
+    mutate(country_en_n = paste0(country_en, " (", row_number(), ")"),
            n = row_number(),
-           name_pa_iso = paste0(name_pa, " (", iso3, ")")) %>%
+           name_pa_iso = paste0(name_pa, " (", iso3, ")"),
+           name_pa_iso_iucn = paste0(name_pa, " (", iso3, ", ", iucn_wolf, ")")) %>%
     ungroup()
   
   
@@ -2331,12 +2333,12 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
             `focus` = "PA of interest",
             `not focus` = "Others")
   # df_colors = df_plot_fc_att %>% group_by(n) %>% slice(1)
-  # colors = ifelse(df_colors$wdpaid %in% list_focus,"#3182BD","black")
+  # colors = ifelse(df_colors$wdpaid %in% list_pa_focus,"#3182BD","black")
   
   ## Att in share of pre-treatment forest cover
   fig_att_per = ggplot(df_plot_fc_att, 
                        aes(x = att_per, 
-                           y = factor(name_pa_iso, levels = unique(rev(sort(name_pa_iso)))),
+                           y = factor(name_pa_iso_iucn, levels = unique(rev(sort(name_pa_iso_iucn)))),
                            xmin = cband_lower_per, xmax = cband_upper_per)) %>%
     + geom_point(aes(color = sig_per)) %>%
     + geom_vline(xintercept = 0) %>%
@@ -2348,6 +2350,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
     + facet_grid(~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
     + labs(title = "Deforestation avoided relative to pre-treatment forest cover",
            #caption = "Protected areas of interest are in blue, others are in black.",
+           caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021)",
            x = "%",
            y = "") %>%
     + theme_minimal() %>%
@@ -2379,7 +2382,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
   
   fig_att_per_focus_others = ggplot(df_plot_fc_att, 
                                     aes(x = att_per, 
-                                        y = factor(name_pa_iso, levels = unique(rev(sort(name_pa_iso)))),
+                                        y = factor(name_pa_iso_iucn, levels = unique(rev(sort(name_pa_iso_iucn)))),
                                         xmin = cband_lower_per, xmax = cband_upper_per)) %>%
     + geom_point(aes(color = sig_per)) %>%
     + geom_vline(xintercept = 0) %>%
@@ -2390,6 +2393,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
     # + scale_x_continuous(breaks=seq(min(df_plot_fc_att$att_per, na.rm = TRUE),max(df_plot_fc_att$att_per, na.rm = TRUE),by=1)) %>%
     + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
     + labs(title = "Deforestation avoided relative to pre-treatment forest cover",
+           caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021)",
            x = "%",
            y = "") %>%
     + theme_minimal() %>%
@@ -2418,9 +2422,73 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
       panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
     )
   
+  #For each country where there is a PA of interest with a treatment effect eventually computed, we display all PA with computed TE. Allow for comparisons of PA within countries
+  for (i in list_iso_focus)
+  {
+    country_en = unique(filter(df_plot_fc_att, iso3 == i)$country_en)
+    fig_att_per_focus_others_i = ggplot(filter(df_plot_fc_att, iso3 == i),
+                                      aes(x = att_per, 
+                                          y = factor(name_pa_iso_iucn, levels = unique(rev(sort(name_pa_iso_iucn)))),
+                                          xmin = cband_lower_per, xmax = cband_upper_per)) %>%
+      + geom_point(aes(color = sig_per)) %>%
+      + geom_vline(xintercept = 0) %>%
+      + geom_errorbarh(aes(color = sig_per)) %>% 
+      + scale_x_continuous(limits = c(min(filter(df_plot_fc_att, iso3 == i)$cband_lower_per, na.rm = T), max(filter(df_plot_fc_att, iso3 == i)$cband_upper_per, na.rm = T))) %>%
+      + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
+                             na.translate = F) %>%
+      # + scale_x_continuous(breaks=seq(min(filter(df_plot_fc_att, iso3 == i)$att_per, na.rm = TRUE),max(filter(df_plot_fc_att, iso3 == i)$att_per, na.rm = TRUE),by=1)) %>%
+      + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
+      + labs(title = "Deforestation avoided relative to pre-treatment forest cover",
+             subtitle = paste("Country :", country_en),
+             caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021)",
+             x = "%",
+             y = "") %>%
+      + theme_minimal() %>%
+      + theme(
+        axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
+        axis.text=element_text(size=7, color = "black"),
+        axis.title=element_text(size=14, color = "black", face = "plain"),
+        
+        plot.caption = element_text(hjust = 0),
+        plot.title = element_text(size=16, color = "black", face = "plain", hjust = 0),
+        plot.subtitle = element_text(size=12, color = "black", face = "plain", hjust = 0),
+        
+        strip.text = element_text(color = "black", size = 12),
+        strip.clip = "off",
+        panel.spacing = unit(2, "lines"),
+        
+        #legend.position = "bottom",
+        legend.text=element_text(size=10),
+        #legend.spacing.x = unit(1.0, 'cm'),
+        #legend.spacing.y = unit(0.75, 'cm'),
+        legend.key.size = unit(2, 'line'),
+        
+        panel.grid.major.x = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+        panel.grid.minor.x = element_line(color = 'grey80', linewidth = 0.2, linetype = 2),
+        panel.grid.major.y = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+        panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
+      )
+    
+    tmp = paste(tempdir(), "fig", sep = "/")
+
+    ggsave(paste0(tmp, "/fig_att_per_focus_others_", i, ".png"),
+           plot = fig_att_per_focus_others_i,
+           device = "png",
+           height = 6, width =9)
+    
+    cat("Uploading file", paste0("'", f, "'"), "\n")
+    aws.s3::put_object(file = paste0(tmp, "/fig_att_per_focus_others_", i, ".png"), 
+                       bucket = paste("projet-afd-eva-ap", save_dir, "att", sep = "/"),
+                       region = "", show_progress = TRUE)
+    
+  #do.call(file.remove, list(paste0(tmp, "/fig_att_per_focus_others_", i, ".png")))
+    
+
+  }
+  
   fig_att_per_focus = ggplot(filter(df_plot_fc_att, focus == "focus"),
                              aes(x = att_per, 
-                                 y = factor(name_pa_iso, levels = unique(rev(sort(name_pa_iso)))),
+                                 y = factor(name_pa_iso_iucn, levels = unique(rev(sort(name_pa_iso_iucn)))),
                                  xmin = cband_lower_per, xmax = cband_upper_per)) %>%
     + geom_point(aes(color = sig_per)) %>%
     + geom_vline(xintercept = 0) %>%
@@ -2432,7 +2500,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
     # + scale_x_continuous(breaks=seq(min(df_plot_fc_att$att_per, na.rm = TRUE),max(df_plot_fc_att$att_per, na.rm = TRUE),by=1)) %>%
     + facet_grid(~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
     + labs(title = "Deforestation avoided relative to pre-treatment forest cover",
-           subtitle = "Protected areas of interest only",
+           subtitle = "Protected areas of interest only.\nCountry ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "%",
            y = "") %>%
     + theme_minimal() %>%
@@ -2463,7 +2531,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
   
   fig_att_per_other = ggplot(filter(df_plot_fc_att, focus == "not focus"),
                              aes(x = att_per, 
-                                 y = factor(name_pa_iso, levels = unique(rev(sort(name_pa_iso)))),
+                                 y = factor(name_pa_iso_iucn, levels = unique(rev(sort(name_pa_iso_iucn)))),
                                  xmin = cband_lower_per, xmax = cband_upper_per)) %>%
     + geom_point(aes(color = sig_per)) %>%
     + geom_vline(xintercept = 0) %>%
@@ -2474,7 +2542,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
     # + scale_x_continuous(breaks=seq(min(df_plot_fc_att$att_per, na.rm = TRUE),max(df_plot_fc_att$att_per, na.rm = TRUE),by=1)) %>%
     + facet_grid(~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
     + labs(title = "Deforestation avoided relative to pre-treatment forest cover",
-           subtitle = "Other protected areas",
+           subtitle = "Other protected areas.\nCountry ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "%",
            y = "") %>%
     + theme_minimal() %>%
@@ -2502,7 +2570,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
       panel.grid.major.y = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
       panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
     )
-  
+
   
   fig_att_per_iucn = ggplot(df_plot_fc_att, 
                             aes(x = att_per, 
@@ -2594,7 +2662,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
   ##treatment effect : total deforestation avoided
   fig_att_pa = ggplot(df_plot_fc_att, 
                       aes(x = att_pa, 
-                          y = factor(name_pa_iso, levels = unique(rev(sort(name_pa_iso)))),
+                          y = factor(name_pa_iso_iucn, levels = unique(rev(sort(name_pa_iso_iucn)))),
                           xmin = cband_lower_pa, xmax = cband_upper_pa)) %>%
     + geom_point(aes(color = sig_pa)) %>%
     + geom_vline(xintercept = 0) %>%
@@ -2604,6 +2672,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
     + scale_x_continuous(limits = c(min(df_plot_fc_att$cband_lower_pa, na.rm = T), max(df_plot_fc_att$cband_upper_pa, na.rm = T))) %>%
     + facet_grid(~time,scales="free", space="free",  labeller = as_labeller(names)) %>%
     + labs(title = "Total deforestation avoided",
+           caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "ha",
            y = "") %>%
     + theme_minimal() %>%
@@ -2634,7 +2703,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
   
   fig_att_pa_focus_others = ggplot(df_plot_fc_att, 
                                    aes(x = att_pa, 
-                                       y = factor(name_pa_iso, levels = unique(rev(sort(name_pa_iso)))),
+                                       y = factor(name_pa_iso_iucn, levels = unique(rev(sort(name_pa_iso_iucn)))),
                                        xmin = cband_lower_pa, xmax = cband_upper_pa)) %>%
     + geom_point(aes(color = sig_pa)) %>%
     + geom_vline(xintercept = 0) %>%
@@ -2644,6 +2713,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
                            na.translate = F) %>%
     + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
     + labs(title = "Total deforestation avoided",
+           caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "ha",
            y = "") %>%
     + theme_minimal() %>%
@@ -2672,9 +2742,73 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
       panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
     )
   
+  
+  #For each country where there is a PA of interest with a treatment effect eventually computed, we display all PA with computed TE. Allow for comparisons of PA within countries
+  for (i in list_iso_focus)
+  {
+    country_en = unique(filter(df_plot_fc_att, iso3 == i)$country_en)
+    fig_att_pa_focus_others_i = ggplot(filter(df_plot_fc_att, iso3 == i), 
+                                     aes(x = att_pa, 
+                                         y = factor(name_pa_iso_iucn, levels = unique(rev(sort(name_pa_iso_iucn)))),
+                                         xmin = cband_lower_pa, xmax = cband_upper_pa)) %>%
+      + geom_point(aes(color = sig_pa)) %>%
+      + geom_vline(xintercept = 0) %>%
+      + geom_errorbarh(aes(color = sig_pa)) %>% 
+      + scale_x_continuous(limits = c(min(filter(df_plot_fc_att, iso3 == i)$cband_lower_pa, na.rm = T), max(filter(df_plot_fc_att, iso3 == i)$cband_upper_pa, na.rm = T))) %>%
+      + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
+                             na.translate = F) %>%
+      + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
+      + labs(title = "Total deforestation avoided",
+             subtitle = paste("Country :", i),
+             caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
+             x = "ha",
+             y = "") %>%
+      + theme_minimal() %>%
+      + theme(
+        axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
+        axis.text=element_text(size=7, color = "black"),
+        axis.title=element_text(size=14, color = "black", face = "plain"),
+        
+        plot.caption = element_text(hjust = 0),
+        plot.title = element_text(size=16, color = "black", face = "plain", hjust = 0),
+        plot.subtitle = element_text(size=12, color = "black", face = "plain", hjust = 0),
+        
+        strip.text = element_text(color = "black", size = 12),
+        strip.clip = "off",
+        panel.spacing = unit(2, "lines"),
+        
+        #legend.position = "bottom",
+        legend.text=element_text(size=10),
+        #legend.spacing.x = unit(1.0, 'cm'),
+        #legend.spacing.y = unit(0.75, 'cm'),
+        legend.key.size = unit(2, 'line'),
+        
+        panel.grid.major.x = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+        panel.grid.minor.x = element_line(color = 'grey80', linewidth = 0.2, linetype = 2),
+        panel.grid.major.y = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
+        panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
+      )
+    
+    tmp = paste(tempdir(), "fig", sep = "/")
+    
+    ggsave(paste0(tmp, "/fig_att_pa_focus_others_", i, ".png"),
+           plot = fig_att_pa_focus_others_i,
+           device = "png",
+           height = 6, width =9)
+    
+    cat("Uploading file", paste0("'", f, "'"), "\n")
+    aws.s3::put_object(file = paste0(tmp, "/fig_att_pa_focus_others_", i, ".png"), 
+                       bucket = paste("projet-afd-eva-ap", save_dir, "att", sep = "/"),
+                       region = "", show_progress = TRUE)
+    
+    #do.call(file.remove, list(paste0(tmp, "/fig_att_per_focus_others_", i, ".png")))
+    
+    
+  }
+  
   fig_att_pa_focus = ggplot(filter(df_plot_fc_att, focus == "focus"), 
                             aes(x = att_pa, 
-                                y = factor(name_pa_iso, levels = unique(rev(sort(name_pa_iso)))),
+                                y = factor(name_pa_iso_iucn, levels = unique(rev(sort(name_pa_iso_iucn)))),
                                 xmin = cband_lower_pa, xmax = cband_upper_pa)) %>%
     + geom_point(aes(color = sig_pa)) %>%
     + geom_vline(xintercept = 0) %>%
@@ -2684,7 +2818,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
                            na.translate = F) %>%
     + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
     + labs(title = "Total deforestation avoided",
-           subtitle = "Protected areas of interest only",
+           subtitle = "Protected areas of interest only.\nCountry ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "ha",
            y = "") %>%
     + theme_minimal() %>%
@@ -2716,7 +2850,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
   
   fig_att_pa_other = ggplot(filter(df_plot_fc_att, focus == "not focus"), 
                             aes(x = att_pa, 
-                                y = factor(name_pa_iso, levels = unique(rev(sort(name_pa_iso)))),
+                                y = factor(name_pa_iso_iucn, levels = unique(rev(sort(name_pa_iso_iucn)))),
                                 xmin = cband_lower_pa, xmax = cband_upper_pa)) %>%
     + geom_point(aes(color = sig_pa)) %>%
     + geom_vline(xintercept = 0) %>%
@@ -2726,7 +2860,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
                            na.translate = F) %>%
     + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
     + labs(title = "Total deforestation avoided",
-           subtitle = "Other protected areas",
+           subtitle = "Other protected areas.\nCountry ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "ha",
            y = "") %>%
     + theme_minimal() %>%
@@ -2840,7 +2974,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
   ##treatment effect : avoided deforestation in percentage points
   fig_att_fl = ggplot(df_plot_fl_att, 
                       aes(x = att, 
-                          y = factor(name_pa_iso, levels = unique(rev(sort(name_pa_iso)))),
+                          y = factor(name_pa_iso_iucn, levels = unique(rev(sort(name_pa_iso_iucn)))),
                           xmin = cband_lower, xmax = cband_upper)) %>%
     + geom_point(aes(color = sig)) %>%
     + geom_vline(xintercept = 0) %>%
@@ -2850,6 +2984,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
                            na.translate = F) %>%
     + facet_grid(~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
     + labs(title = "Reduction of deforestation due to the conservation",
+           caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "p.p.",
            y = "") %>%
     + theme_minimal() %>%
@@ -2880,7 +3015,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
   
   fig_att_fl_focus_others = ggplot(df_plot_fl_att, 
                                    aes(x = att, 
-                                       y = factor(name_pa_iso, levels = unique(rev(sort(name_pa_iso)))),
+                                       y = factor(name_pa_iso_iucn, levels = unique(rev(sort(name_pa_iso_iucn)))),
                                        xmin = cband_lower, xmax = cband_upper)) %>%
     + geom_point(aes(color = sig)) %>%
     + geom_vline(xintercept = 0) %>%
@@ -2890,6 +3025,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
                            na.translate = F) %>%
     + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
     + labs(title = "Reduction of deforestation due to the conservation",
+           caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "p.p.",
            y = "") %>%
     + theme_minimal() %>%
@@ -2920,7 +3056,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
   
   fig_att_fl_focus = ggplot(filter(df_plot_fl_att, focus == "focus"),
                             aes(x = att, 
-                                y = factor(name_pa_iso, levels = unique(rev(sort(name_pa_iso)))),
+                                y = factor(name_pa_iso_iucn, levels = unique(rev(sort(name_pa_iso_iucn)))),
                                 xmin = cband_lower, xmax = cband_upper)) %>%
     + geom_point(aes(color = sig)) %>%
     + geom_vline(xintercept = 0) %>%
@@ -2930,7 +3066,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
                            na.translate = F) %>%
     + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
     + labs(title = "Reduction of deforestation due to the conservation",
-           subtitle = "Protected areas of interest only",
+           subtitle = "Protected areas of interest only.\nCountry ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "p.p.",
            y = "") %>%
     + theme_minimal() %>%
@@ -2962,7 +3098,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
   
   fig_att_fl_other = ggplot(filter(df_plot_fl_att, focus == "not focus"),
                             aes(x = att, 
-                                y = factor(name_pa_iso, levels = unique(rev(sort(name_pa_iso)))),
+                                y = factor(name_pa_iso_iucn, levels = unique(rev(sort(name_pa_iso_iucn)))),
                                 xmin = cband_lower, xmax = cband_upper)) %>%
     + geom_point(aes(color = sig)) %>%
     + geom_vline(xintercept = 0) %>%
@@ -2972,7 +3108,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
                            na.translate = F) %>%
     + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
     + labs(title = "Reduction of deforestation due to the conservation",
-           subtitle = "Other protected areas",
+           subtitle = "Other protected areas.\nCountry ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "p.p.",
            y = "") %>%
     + theme_minimal() %>%
@@ -3087,8 +3223,8 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
   #Tables 
   ## treatment effect : percentage of deforestation avoided
   tbl_fc_att_per = df_fc_att %>%
-    mutate(focus = case_when(wdpaid %in% list_focus ~ "Yes",
-                             !(wdpaid %in% list_focus) ~ "No"),
+    mutate(focus = case_when(wdpaid %in% list_pa_focus ~ "Yes",
+                             !(wdpaid %in% list_pa_focus) ~ "No"),
            sig_per = case_when(sign(cband_lower_per) == sign(cband_upper_per) ~ "Yes",
                                sign(cband_lower_per) != sign(cband_upper_per) ~ "No"),
            iucn_wolf = case_when(iucn_cat %in% c("I", "II", "III", "IV") ~ "Strict",
@@ -3124,8 +3260,8 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
   
   # treatment effect : total deforestation avoided 
   tbl_fc_att_pa = df_fc_att %>%
-    mutate(focus = case_when(wdpaid %in% list_focus ~ "Yes",
-                             !(wdpaid %in% list_focus) ~ "No"),
+    mutate(focus = case_when(wdpaid %in% list_pa_focus ~ "Yes",
+                             !(wdpaid %in% list_pa_focus) ~ "No"),
            sig_pa = case_when(sign(cband_lower_pa) == sign(cband_upper_pa) ~ "Yes",
                               sign(cband_lower_pa) != sign(cband_upper_pa) ~ "No"),
            iucn_wolf = case_when(iucn_cat %in% c("I", "II", "III", "IV") ~ "Strict",
@@ -3162,8 +3298,8 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
   
   # treatment effect : avoided deforestation, in terms of difference in cumultaed deforestation rate 
   tbl_fl_att = df_fl_att %>%
-    mutate(focus = case_when(wdpaid %in% list_focus ~ "Yes",
-                             !(wdpaid %in% list_focus) ~ "No"),
+    mutate(focus = case_when(wdpaid %in% list_pa_focus ~ "Yes",
+                             !(wdpaid %in% list_pa_focus) ~ "No"),
            sig = case_when(sign(cband_lower) == sign(cband_upper) ~ "Yes",
                            sign(cband_lower) != sign(cband_upper) ~ "No"),
            iucn_wolf = case_when(iucn_cat %in% c("I", "II", "III", "IV") ~ "Strict",
@@ -3323,7 +3459,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save
 ### save_dir : the saving directory in the remote storage
 ## DATA SAVED
 ### Tables and figures : treatment effects computed for each protected area in the sample, expressed as avoided deforestaion (hectare and percentage of 2000 forest cover) and change in deforestation rate.
-fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, save_dir)
+fn_plot_att_general = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, alpha, save_dir)
 {
   
   #list of PAs and two time periods
@@ -3356,8 +3492,8 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
   #Att for each WDPAID, for each period (NA if no value)
   ## For figures
   df_plot_fc_att = left_join(list_ctry_plot, temp_fc, by = c("iso3", "country_en", "wdpaid", "name_pa", "time")) %>%
-    mutate(focus = case_when(wdpaid %in% list_focus ~ "focus",
-                             !(wdpaid %in% list_focus) ~ "not focus")) %>%
+    mutate(focus = case_when(wdpaid %in% list_pa_focus ~ "focus",
+                             !(wdpaid %in% list_pa_focus) ~ "not focus")) %>%
     group_by(time, country_en) %>%
     arrange(country_en, focus) %>%
     mutate(country_en = paste0(country_en, " (", row_number(), ")"),
@@ -3365,8 +3501,8 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
     ungroup()
   
   df_plot_fl_att = left_join(list_ctry_plot, temp_fl, by = c("iso3", "country_en", "wdpaid", "name_pa", "time"))%>%
-    mutate(focus = case_when(wdpaid %in% list_focus ~ "focus",
-                             !(wdpaid %in% list_focus) ~ "not focus")) %>%
+    mutate(focus = case_when(wdpaid %in% list_pa_focus ~ "focus",
+                             !(wdpaid %in% list_pa_focus) ~ "not focus")) %>%
     group_by(time, country_en) %>%
     arrange(country_en, focus) %>%
     mutate(country_en = paste0(country_en, " (", row_number(), ")"),
@@ -3383,7 +3519,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
             `focus` = "PA of interest",
             `not focus` = "Others")
   # df_colors = df_plot_fc_att %>% group_by(n) %>% slice(1)
-  # colors = ifelse(df_colors$wdpaid %in% list_focus,"#3182BD","black")
+  # colors = ifelse(df_colors$wdpaid %in% list_pa_focus,"#3182BD","black")
   
   ## Att in share of pre-treatment forest cover
   fig_att_per = ggplot(df_plot_fc_att, 
@@ -4139,8 +4275,8 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
   #Tables 
   ## treatment effect : percentage of deforestation avoided
   tbl_fc_att_per = df_plot_fc_att  %>%
-    mutate(focus = case_when(wdpaid %in% list_focus ~ "Yes",
-                             !(wdpaid %in% list_focus) ~ "No"),
+    mutate(focus = case_when(wdpaid %in% list_pa_focus ~ "Yes",
+                             !(wdpaid %in% list_pa_focus) ~ "No"),
            sig_per = case_when(sign(cband_lower_per) == sign(cband_upper_per) ~ "Yes",
                                sign(cband_lower_per) != sign(cband_upper_per) ~ "No"),
            iucn_wolf = case_when(iucn_cat %in% c("I", "II", "III", "IV") ~ "Strict",
@@ -4169,8 +4305,8 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
   
   # treatment effect : total deforestation avoided 
   tbl_fc_att_pa = df_plot_fc_att %>%
-    mutate(focus = case_when(wdpaid %in% list_focus ~ "Yes",
-                             !(wdpaid %in% list_focus) ~ "No"),
+    mutate(focus = case_when(wdpaid %in% list_pa_focus ~ "Yes",
+                             !(wdpaid %in% list_pa_focus) ~ "No"),
            sig_pa = case_when(sign(cband_lower_pa) == sign(cband_upper_pa) ~ "Yes",
                               sign(cband_lower_pa) != sign(cband_upper_pa) ~ "No"),
            iucn_wolf = case_when(iucn_cat %in% c("I", "II", "III", "IV") ~ "Strict",
@@ -4199,8 +4335,8 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
   
   # treatment effect : avoided deforestation, in terms of difference in cumultaed deforestation rate 
   tbl_fl_att = df_plot_fl_att %>%
-    mutate(focus = case_when(wdpaid %in% list_focus ~ "Yes",
-                             !(wdpaid %in% list_focus) ~ "No"),
+    mutate(focus = case_when(wdpaid %in% list_pa_focus ~ "Yes",
+                             !(wdpaid %in% list_pa_focus) ~ "No"),
            sig = case_when(sign(cband_lower) == sign(cband_upper) ~ "Yes",
                            sign(cband_lower) != sign(cband_upper) ~ "No"),
            iucn_wolf = case_when(iucn_cat %in% c("I", "II", "III", "IV") ~ "Strict",
@@ -4353,7 +4489,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_focus, alpha = alpha, 
 ## DATA SAVED
 ### Tables and figures : treatment effects computed aggregated at country level, expressed as avoided deforestaion (hectare and percentage of 2000 forest cover) and change in deforestation rate.
 
-fn_plot_att_agg = function(df_fc_att, df_fl_att, is_focus, alpha = alpha, save_dir)
+fn_plot_att_agg = function(df_fc_att, df_fl_att, is_focus, alpha, save_dir)
 {
   
   if(is_focus == T)
@@ -4434,7 +4570,7 @@ fn_plot_att_agg = function(df_fc_att, df_fl_att, is_focus, alpha = alpha, save_d
   names = c(`5` = "5 years after treatment",
             `10` = "10 years after treatment")
   # df_colors = df_plot_fc_att %>% group_by(n) %>% slice(1)
-  # colors = ifelse(df_colors$wdpaid %in% list_focus,"#3182BD","black")
+  # colors = ifelse(df_colors$wdpaid %in% list_pa_focus,"#3182BD","black")
   
   ## Att in share of pre-treatment forest cover
   fig_att_per_agg = ggplot(df_plot_fc_att_agg, 

@@ -883,6 +883,7 @@ Note some protected areas can be removed from the display, because the matching 
 ```{r, eval = F}
 # Define a list of protected areas where a focus is needed
 list_wdpa_focus = list_pa_ie_focus
+list_iso_focus = unique(filter(df_fc_att_tidy_noaca, focus == T)$iso3)
 
 # A function to create figures and tables
 ##For AFD supported protected areas (funding info)
@@ -902,7 +903,8 @@ df_fl_att_tidy_noaca_afd = df_fl_att_tidy_noaca %>%
 
 fn_plot_att_afd(df_fc_att = df_fc_att_tidy_noaca_afd,
             df_fl_att = df_fl_att_tidy_noaca_afd,
-            list_focus = list_wdpa_focus,
+            list_pa_focus = list_wdpa_focus,
+            list_iso_focus = list_iso_focus,
             alpha = alpha,
             save_dir = save_dir)
 
