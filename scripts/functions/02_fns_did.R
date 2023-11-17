@@ -20,9 +20,10 @@
 ###
 
 
-#Load the list of PA matched during the matchign process
+#Load the list of PA matched during the matching process
 ##INPUTS :
 ### iso : the ISO code of the country considered
+### load_dir : the directory to load the list of PAs
 ##OUTPUTS :
 ### list_pa : a dataframe with the PA matched
 ### is_ok : a boolean indicating whether or not an error occured inside the function
@@ -60,7 +61,7 @@ fn_did_list_pa = function(iso, load_dir)
 ### iso : the iso3 code for the country considered
 ### wdpaid : the WDPAID of the PA considered
 ### alpha : the margin of error to define confidence interval
-### load_dir : a path to load matching frame
+### load_dir : a path to load matched frame
 ## OUTPUTS
 ### df_fl_annual_wolf : a dataframe with statistics on annual deforestation in matched treated and control units, computed à la Wolf et al. 2021
 ### is_ok : a boolean indicating whether or not an error occured inside the function 

@@ -358,10 +358,8 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
   #                            wdpaid %in% wdpaID_afd_no_ie & group == 2 ~3,
   #                            TRUE ~ group)) %>%
   
-  #/!\ For the moment, a pixel both non-funded and funded is considered funded !
-  #But if funded not analyzed AND funded analyzed, then funded not analyzed.
-  #Idea : the pixel could be treated out of the period considered, so not comparable to toher treatment pixels considered in funded, analyzed.
-  # -> Check with Léa, Ingrid and PY if that seems OK
+  #If PA not analyzed and PA analyzed overlap, then a pixel might be assigned to analyzed group though its WDPAID corresponds to not analyzed. To avoid this, we reassign this pixel.
+  # /!\ THIS IS NO LONGER NECESSARY IF WE DEAL WITH OVERLAP BEFORE
   grid.param = grid.param.ini %>%
     mutate(group = case_when(wdpaid %in% wdpa_sample_no_ie$WDPAID & group == 3 ~ 4,
                              TRUE ~ group)) %>%
@@ -1084,7 +1082,7 @@ fn_post_match_auto = function(mf,
       #Try to perform matching
       out.cem = matchit(formula,
                         data = mf,
-                        method = match_method,
+                        method = match_method,  
                         cutpoints = cutoff_method,
                         k2k = is_k2k,
                         k2k.method = k2k_method)
@@ -1145,7 +1143,7 @@ fn_post_match_auto = function(mf,
         print(e)
         cat(paste("-> Error :\n", e, "\n"), file = log, append = TRUE)
         return(list("is_ok" = FALSE))
-      },
+      }
       
       
 
@@ -2295,7 +2293,7 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
                          #bins = 30, 
                          color = "black") %>%
         + geom_density(alpha = 0.5) %>%
-        + geom_vline(aes(xintercept = avg_clay, color = is_m), linetype = 1, linewidth = 1, alpha = .6) %>%
+        + geom_vline(aes(xintercept = avg_travel, color = is_m), linetype = 1, linewidth = 1, alpha = .6) %>%
         + labs(title = "Distribution of travel time to nearest city among treated units",
                subtitle = paste0("Protected area in ", country_en, ", WDPAID ", wdpaid),
                caption = "Vertical lines represent the mean of their respective distribution",

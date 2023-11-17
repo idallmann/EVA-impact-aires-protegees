@@ -2734,7 +2734,7 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 #Loading directory
 load_dir = paste("impact_analysis/did", "2023-10-23", sep = "/")
-save_dir = paste("descriptive_stats/misc/map_att")
+save_dir = paste("descriptive_stats/misc/map_att_2023-10-23")
 
 #Import datasets
 ## The sample
@@ -2774,6 +2774,19 @@ df_fc_att_tidy_noaca_nofocus = df_fc_att_tidy_noaca %>%
   dplyr::select(c(wdpaid, time, att_per, sig)) %>%
   pivot_wider(names_from = "time",
               values_from = c("att_per", "sig"))
+### For PA of interest
+df_fc_att_tidy_noaca_focus = df_fc_att_tidy_noaca %>%
+  filter(focus == T & time %in% c(5,10)) %>%
+  dplyr::select(c(wdpaid, time, att_per, sig)) %>%
+  pivot_wider(names_from = "time",
+              values_from = c("att_per", "sig"))
+
+### For PA of interest
+df_fc_att_tidy_noaca_all = df_fc_att_tidy_noaca %>%
+  filter(time %in% c(5,10)) %>%
+  dplyr::select(c(wdpaid, time, att_per, sig)) %>%
+  pivot_wider(names_from = "time",
+              values_from = c("att_per", "sig"))
 
 ## Treatment effects computed for Geo4Impact presentation, performed 2023-08-29
 ### The more recent version of the code are not compatible with the computation of the TE on this folder. Then, I create manually a dataset with computed treatment effects
@@ -2792,6 +2805,14 @@ df_map_fc_att_tidy_noaca_nofocus = df_fc_att_tidy_noaca_nofocus %>%
   left_join(data_pa2, by = "wdpaid") %>% 
   left_join(wdpa_poly, by = c("wdpa_pid" = "WDPA_PID"))
 
+df_map_fc_att_tidy_noaca_focus = df_fc_att_tidy_noaca_focus %>%
+  left_join(data_pa2, by = "wdpaid") %>% 
+  left_join(wdpa_poly, by = c("wdpa_pid" = "WDPA_PID"))
+
+df_map_fc_att_tidy_noaca_all = df_fc_att_tidy_noaca_all %>%
+  left_join(data_pa2, by = "wdpaid") %>% 
+  left_join(wdpa_poly, by = c("wdpa_pid" = "WDPA_PID"))
+
 #Save datasets
 ## GEo4Impact
 aws.s3::s3write_using(
@@ -2805,6 +2826,20 @@ aws.s3::s3write_using(
 FUN = sf::st_write,
 df_map_fc_att_tidy_noaca_nofocus,
 object = paste(save_dir, "df_map_fc_att_tidy_noaca_nofocus.gpkg", sep = "/"), 
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+## PA of interest
+aws.s3::s3write_using(
+FUN = sf::st_write,
+df_map_fc_att_tidy_noaca_focus,
+object = paste(save_dir, "df_map_fc_att_tidy_noaca_focus.gpkg", sep = "/"), 
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+## All PA
+aws.s3::s3write_using(
+FUN = sf::st_write,
+df_map_fc_att_tidy_noaca_all,
+object = paste(save_dir, "df_map_fc_att_tidy_noaca_all.gpkg", sep = "/"), 
 bucket = "projet-afd-eva-ap",
 opts = list("region" = ""))
 

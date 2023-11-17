@@ -104,8 +104,8 @@ tmp_pre = paste(tempdir(), "matching_pre", sep = "/")
 tmp_post = paste(tempdir(), "matching_post", sep = "/")
 ## Define a directory where outputs are loaded from/stored in SSPCloud.
 #save_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/") #Today's date
-save_dir = paste("impact_analysis/matching", "2023-11-14", sep = "/") #A specific date
-load_dir = paste("impact_analysis/matching", "2023-11-14", sep = "/")
+save_dir = paste("impact_analysis/matching", "2023-10-23", sep = "/") #A specific date
+load_dir = paste("impact_analysis/matching", "2023-10-23", sep = "/")
 
 # Load datasets
 ## WDPA database   
@@ -256,7 +256,7 @@ log = fn_pre_log(list_iso,
                  yr_last = yr_last,
                  yr_min = yr_min,
                  list_cov = list_cov,
-                 name = paste0("log-", Sys.Date(), "-NAME.txt"),
+                 name = paste0("log-", Sys.Date(), "-TEST.txt"),
                  notes = "Specific notes or remarks.")
 
 # Perform pre-processing steps country-by-country
