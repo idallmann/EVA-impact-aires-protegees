@@ -2728,7 +2728,58 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
-## Maps of Geo4Impact results
+## Mapping of sample
+
+```{r, eval = F}
+
+#Loading directory
+load_dir = paste("impact_analysis/did", "2023-10-23", sep = "/")
+save_dir = paste("descriptive_stats/misc/map_att_2023-10-23")
+
+#Import datasets
+## The sample
+data_pa =
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  object = "data_tidy/BDD_PA_africa.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
+
+data_pa_ie_focus = data_pa %>%
+  filter(region == "Africa" & is.na(wdpaid) == FALSE & area_km2 >=1 & marine %in% c(0,1) & status_yr >= yr_min & focus == T)
+list_iso = unique(data_pa_ie_focus$iso3)
+
+data_pa_sample = data_pa %>%
+  filter(iso3 %in% list_iso) %>%
+  dplyr::select(c(wdpaid, wdpa_pid, iso3, name, focus, status_yr, status, iucn_cat, marine, gov_type, year_funding_first, year_funding_all)) %>%
+  rename("treatment_year" = "status_yr")
+
+## WDPA 
+wdpa_wld_raw = s3read_using(
+              sf::st_read,
+              object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
+wdpa_poly = wdpa_wld_raw %>%
+  st_as_sf() %>%
+  dplyr::select(c(WDPA_PID, geom)) %>%
+  mutate(type_geom = st_geometry_type(geom))
+
+#Create a dataset with all PA
+sf_pa_sample = data_pa_sample %>%
+  left_join(wdpa_poly, by = c("wdpa_pid" = "WDPA_PID"))
+
+#Save it
+aws.s3::s3write_using(
+FUN = sf::st_write,
+sf_pa_sample,
+object = paste(save_dir, "sf_pa_sample.gpkg", sep = "/"), 
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+```
+
+## Mapping of results
 
 ```{r, eval = F}
 
@@ -2784,7 +2835,7 @@ df_fc_att_tidy_noaca_focus = df_fc_att_tidy_noaca %>%
 ### For PA of interest
 df_fc_att_tidy_noaca_all = df_fc_att_tidy_noaca %>%
   filter(time %in% c(5,10)) %>%
-  dplyr::select(c(wdpaid, time, att_per, sig)) %>%
+  dplyr::select(c(wdpaid, time, att_per, sig, focus)) %>%
   pivot_wider(names_from = "time",
               values_from = c("att_per", "sig"))
 
