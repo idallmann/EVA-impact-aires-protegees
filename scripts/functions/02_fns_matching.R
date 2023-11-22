@@ -17,9 +17,8 @@
 ##most functions are adapted for errors handling using base::withCallingHandlers(). Basically, the computation steps are declared in a block of withCallingHandlers function, while two other blocks specify what to do in case the first block face a warning or error. In our case, errors led to return a boolean indicating an error has occured and append the log with the error message. Warnings return a boolean but do not block the iteration. They also edit the log with the warning message.
 ##PA is used for "protected area(s)".
 ##To save plots and tables : save on temporary folder in the R session then put the saved object in the storage. Indeed print() and ggplot::ggsave() cannot write directly on s3 storage
+
 ###
-
-
 #Pre-processing
 ###
 
@@ -196,7 +195,7 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
   wdpa_prj = wdpa_raw %>%
     filter(ISO3 == iso) %>%
     #st_make_valid() %>%
-    #celanign of PAs from the wdap_clean function :
+    #cleaning of PAs from the wdap_clean function :
     #Status filtering is performed manually juste after. 
     #The geometry precision is set to default. Used to be 1000 in Kemmeng code
     # Overlaps are not erased because we rasterize polygons
@@ -361,8 +360,8 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
   #If PA not analyzed and PA analyzed overlap, then a pixel might be assigned to analyzed group though its WDPAID corresponds to not analyzed. To avoid this, we reassign this pixel.
   # /!\ THIS IS NO LONGER NECESSARY IF WE DEAL WITH OVERLAP BEFORE
   grid.param = grid.param.ini %>%
-    mutate(group = case_when(wdpaid %in% wdpa_sample_no_ie$WDPAID & group == 3 ~ 4,
-                             TRUE ~ group)) %>%
+    # mutate(group = case_when(wdpaid %in% wdpa_sample_no_ie$WDPAID & group == 3 ~ 4,
+    #                          TRUE ~ group)) %>%
     #Add name for the group
     mutate(group_name = case_when(group == 0 ~ "Background",
                                   group == 1 ~ "PA overlap",
