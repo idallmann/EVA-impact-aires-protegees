@@ -2542,7 +2542,7 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 Import and clean the dataset
 
-```{r}
+```{r, eval = F}
 #Dataset of forest as a share of land for each country
 data_fc = 
   #fread("data_tidy/BDD_PA_AFD_nofund_nodupl.csv" , encoding = "UTF-8")
@@ -2623,7 +2623,7 @@ data_fc_africa =  data_fc %>%
 
 Perform plots
 
-```{r}
+```{r, eval = F}
 tbl_fc_africa = data_fc_africa %>%
   # filter(year %in% c(2000, 2010, 2020)) %>%
   dplyr::select(c(country_en, iso3, area_land_km2, n_wdpa, n_wdpa_ie, n_afd, n_afd_ie, area_wdpa_km2, area_wdpa_ie_km2, area_afd_km2, area_afd_ie_km2, fc_2010_per)) %>%
@@ -2701,7 +2701,7 @@ a = ggplot(tbl_fc_africa, aes(x = Code, y = `Total #`)) %>%
 
 Save
 
-```{r}
+```{r, eval = F}
 tmp = paste(tempdir(), "fig", sep = "/")
 
   ggsave(paste(tmp, "a.png", sep = "/"),

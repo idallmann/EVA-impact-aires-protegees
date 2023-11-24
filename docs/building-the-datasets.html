@@ -6,7 +6,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <title>Section 1 Building the datasets | Impact analysis of protected areas funded by the AFD : an open-guide for reproductibility</title>
   <meta name="description" content="This is a minimal example of using the bookdown package to write a book. The output format for this example is bookdown::gitbook." />
-  <meta name="generator" content="bookdown 0.35 and GitBook 2.6.7" />
+  <meta name="generator" content="bookdown 0.36 and GitBook 2.6.7" />
 
   <meta property="og:title" content="Section 1 Building the datasets | Impact analysis of protected areas funded by the AFD : an open-guide for reproductibility" />
   <meta property="og:type" content="book" />
@@ -26,7 +26,7 @@
 <meta name="author" content="Pierre-Yves Durand" />
 
 
-<meta name="date" content="2023-10-02" />
+<meta name="date" content="2023-11-24" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -181,9 +181,13 @@ code span.wa { color: #008000; font-weight: bold; } /* Warning */
 <li class="chapter" data-level="3.2" data-path="miscellaneous-statistics.html"><a href="miscellaneous-statistics.html#importing-datasets"><i class="fa fa-check"></i><b>3.2</b> Importing datasets</a></li>
 <li class="chapter" data-level="3.3" data-path="miscellaneous-statistics.html"><a href="miscellaneous-statistics.html#performing-descriptive-statistics-1"><i class="fa fa-check"></i><b>3.3</b> Performing descriptive statistics</a>
 <ul>
-<li class="chapter" data-level="3.3.1" data-path="miscellaneous-statistics.html"><a href="miscellaneous-statistics.html#fapbm-portfolio-and-madagascar"><i class="fa fa-check"></i><b>3.3.1</b> FAPBM portfolio and Madagascar</a></li>
+<li class="chapter" data-level="3.3.1" data-path="miscellaneous-statistics.html"><a href="miscellaneous-statistics.html#pa-of-interest-other-pa-and-all-pa-in-a-given-sample"><i class="fa fa-check"></i><b>3.3.1</b> PA of interest, other PA and all PA in a given sample</a></li>
 </ul></li>
 <li class="chapter" data-level="3.4" data-path="miscellaneous-statistics.html"><a href="miscellaneous-statistics.html#evolution-of-tree-cover-and-deforestation"><i class="fa fa-check"></i><b>3.4</b> Evolution of tree cover and deforestation</a></li>
+<li class="chapter" data-level="3.5" data-path="miscellaneous-statistics.html"><a href="miscellaneous-statistics.html#forest-cover-by-country"><i class="fa fa-check"></i><b>3.5</b> Forest cover by country</a></li>
+<li class="chapter" data-level="3.6" data-path="miscellaneous-statistics.html"><a href="miscellaneous-statistics.html#mapping-of-sample"><i class="fa fa-check"></i><b>3.6</b> Mapping of sample</a></li>
+<li class="chapter" data-level="3.7" data-path="miscellaneous-statistics.html"><a href="miscellaneous-statistics.html#mapping-of-results"><i class="fa fa-check"></i><b>3.7</b> Mapping of results</a></li>
+<li class="chapter" data-level="3.8" data-path="miscellaneous-statistics.html"><a href="miscellaneous-statistics.html#evolution-of-forest-cover-for-specific-polygons"><i class="fa fa-check"></i><b>3.8</b> Evolution of forest cover for specific polygons</a></li>
 </ul></li>
 <li class="part"><span><b>Impact analysis</b></span></li>
 <li class="chapter" data-level="4" data-path="matching.html"><a href="matching.html"><i class="fa fa-check"></i><b>4</b> Matching</a>
@@ -197,14 +201,24 @@ code span.wa { color: #008000; font-weight: bold; } /* Warning */
 <li class="chapter" data-level="5.1" data-path="difference-in-difference.html"><a href="difference-in-difference.html#initial-settings-4"><i class="fa fa-check"></i><b>5.1</b> Initial settings</a></li>
 <li class="chapter" data-level="5.2" data-path="difference-in-difference.html"><a href="difference-in-difference.html#load-datasets-and-define-critical-parameters"><i class="fa fa-check"></i><b>5.2</b> Load datasets and define critical parameters</a></li>
 <li class="chapter" data-level="5.3" data-path="difference-in-difference.html"><a href="difference-in-difference.html#computing-treatment-effects-at-protected-area-level"><i class="fa fa-check"></i><b>5.3</b> Computing treatment effects at protected area level</a></li>
-<li class="chapter" data-level="5.4" data-path="difference-in-difference.html"><a href="difference-in-difference.html#compute-aggregated-metrics-at-country-and-region-level"><i class="fa fa-check"></i><b>5.4</b> Compute aggregated metrics at country and region level</a>
+<li class="chapter" data-level="5.4" data-path="difference-in-difference.html"><a href="difference-in-difference.html#assess-the-quality-of-matching-and-pre-test"><i class="fa fa-check"></i><b>5.4</b> Assess the quality of matching and pre-test</a></li>
+<li class="chapter" data-level="5.5" data-path="difference-in-difference.html"><a href="difference-in-difference.html#tidy-datasets-with-acceptable-quality"><i class="fa fa-check"></i><b>5.5</b> Tidy datasets with acceptable quality</a></li>
+<li class="chapter" data-level="5.6" data-path="difference-in-difference.html"><a href="difference-in-difference.html#assess-the-loss-of-observations"><i class="fa fa-check"></i><b>5.6</b> Assess the loss of observations</a>
 <ul>
-<li class="chapter" data-level="5.4.1" data-path="difference-in-difference.html"><a href="difference-in-difference.html#aggregation-of-treatment-effects"><i class="fa fa-check"></i><b>5.4.1</b> Aggregation of treatment effects</a></li>
-<li class="chapter" data-level="5.4.2" data-path="difference-in-difference.html"><a href="difference-in-difference.html#aggregation-of-annual-deforestation-rates"><i class="fa fa-check"></i><b>5.4.2</b> Aggregation of annual deforestation rates</a></li>
-<li class="chapter" data-level="5.4.3" data-path="difference-in-difference.html"><a href="difference-in-difference.html#average-and-total-forest-loss-on-the-period-at-country-and-region-level"><i class="fa fa-check"></i><b>5.4.3</b> Average and total forest loss on the period, at country and region level</a></li>
+<li class="chapter" data-level="5.6.1" data-path="difference-in-difference.html"><a href="difference-in-difference.html#compute-overlap-removal"><i class="fa fa-check"></i><b>5.6.1</b> Compute overlap removal</a></li>
+<li class="chapter" data-level="5.6.2" data-path="difference-in-difference.html"><a href="difference-in-difference.html#compute-losses-for-each-steps"><i class="fa fa-check"></i><b>5.6.2</b> Compute losses for each steps</a></li>
 </ul></li>
-<li class="chapter" data-level="5.5" data-path="difference-in-difference.html"><a href="difference-in-difference.html#display-treatment-effects-in-figures-and-tables"><i class="fa fa-check"></i><b>5.5</b> Display treatment effects in figures and tables</a></li>
-<li class="chapter" data-level="5.6" data-path="difference-in-difference.html"><a href="difference-in-difference.html#section"><i class="fa fa-check"></i><b>5.6</b> </a></li>
+<li class="chapter" data-level="5.7" data-path="difference-in-difference.html"><a href="difference-in-difference.html#compute-aggregated-metrics-at-country-and-region-level"><i class="fa fa-check"></i><b>5.7</b> Compute aggregated metrics at country and region level</a>
+<ul>
+<li class="chapter" data-level="5.7.1" data-path="difference-in-difference.html"><a href="difference-in-difference.html#aggregation-of-treatment-effects"><i class="fa fa-check"></i><b>5.7.1</b> Aggregation of treatment effects</a></li>
+<li class="chapter" data-level="5.7.2" data-path="difference-in-difference.html"><a href="difference-in-difference.html#aggregation-of-annual-deforestation-rates"><i class="fa fa-check"></i><b>5.7.2</b> Aggregation of annual deforestation rates</a></li>
+<li class="chapter" data-level="5.7.3" data-path="difference-in-difference.html"><a href="difference-in-difference.html#average-and-total-forest-loss-on-the-period-at-country-and-region-level"><i class="fa fa-check"></i><b>5.7.3</b> Average and total forest loss on the period, at country and region level</a></li>
+</ul></li>
+<li class="chapter" data-level="5.8" data-path="difference-in-difference.html"><a href="difference-in-difference.html#display-treatment-effects"><i class="fa fa-check"></i><b>5.8</b> Display treatment effects</a></li>
+<li class="chapter" data-level="5.9" data-path="difference-in-difference.html"><a href="difference-in-difference.html#in-figures-and-tables"><i class="fa fa-check"></i><b>5.9</b> In figures and tables</a>
+<ul>
+<li class="chapter" data-level="5.9.1" data-path="difference-in-difference.html"><a href="difference-in-difference.html#on-a-map"><i class="fa fa-check"></i><b>5.9.1</b> On a map</a></li>
+</ul></li>
 </ul></li>
 <li class="chapter" data-level="" data-path="references.html"><a href="references.html"><i class="fa fa-check"></i>References</a></li>
 <li class="appendix"><span><b>Appendix</b></span></li>
@@ -380,7 +394,7 @@ code span.wa { color: #008000; font-weight: bold; } /* Warning */
 <span id="cb3-25"><a href="building-the-datasets.html#cb3-25" tabindex="-1"></a>  <span class="fu">clean_names</span>() <span class="sc">%&gt;%</span></span>
 <span id="cb3-26"><a href="building-the-datasets.html#cb3-26" tabindex="-1"></a>  <span class="co">#Keep only project IDs corresponding to PAs reported</span></span>
 <span id="cb3-27"><a href="building-the-datasets.html#cb3-27" tabindex="-1"></a>  <span class="fu">filter</span>(id_projet <span class="sc">%in%</span> data_pa_afd<span class="sc">$</span>id_projet) <span class="sc">%&gt;%</span></span>
-<span id="cb3-28"><a href="building-the-datasets.html#cb3-28" tabindex="-1"></a>  <span class="fu">select</span>(<span class="fu">c</span>(id_projet, id_concours,</span>
+<span id="cb3-28"><a href="building-the-datasets.html#cb3-28" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="fu">c</span>(id_projet, id_concours,</span>
 <span id="cb3-29"><a href="building-the-datasets.html#cb3-29" tabindex="-1"></a>           libelle_court_direction_regionale,</span>
 <span id="cb3-30"><a href="building-the-datasets.html#cb3-30" tabindex="-1"></a>           pays_de_realisation, autres_pays_de_realisation,</span>
 <span id="cb3-31"><a href="building-the-datasets.html#cb3-31" tabindex="-1"></a>           mt_fin_global_af_d_prevu_devise,</span>
@@ -1077,160 +1091,358 @@ code span.wa { color: #008000; font-weight: bold; } /* Warning */
 <span id="cb10-66"><a href="building-the-datasets.html#cb10-66" tabindex="-1"></a><span class="co">#               bucket = &quot;projet-afd-eva-ap&quot;,</span></span>
 <span id="cb10-67"><a href="building-the-datasets.html#cb10-67" tabindex="-1"></a><span class="co">#               opts = list(&quot;region&quot; = &quot;&quot;))</span></span></code></pre></div>
 </div>
+<div id="for-africa" class="section level5 hasAnchor" number="1.2.6.2.4">
+<h5><span class="header-section-number">1.2.6.2.4</span> For Africa<a href="building-the-datasets.html#for-africa" class="anchor-section" aria-label="Anchor link to header"></a></h5>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="building-the-datasets.html#cb11-1" tabindex="-1"></a><span class="co">#Import AFD funded PA</span></span>
+<span id="cb11-2"><a href="building-the-datasets.html#cb11-2" tabindex="-1"></a>data_pa_afd <span class="ot">=</span></span>
+<span id="cb11-3"><a href="building-the-datasets.html#cb11-3" tabindex="-1"></a>  <span class="co">#fread(&quot;data_tidy/BDD_PA_AFD_ie.csv&quot; , encoding = &quot;UTF-8&quot;)</span></span>
+<span id="cb11-4"><a href="building-the-datasets.html#cb11-4" tabindex="-1"></a>  aws.s3<span class="sc">::</span><span class="fu">s3read_using</span>(</span>
+<span id="cb11-5"><a href="building-the-datasets.html#cb11-5" tabindex="-1"></a>  <span class="at">FUN =</span> data.table<span class="sc">::</span>fread,</span>
+<span id="cb11-6"><a href="building-the-datasets.html#cb11-6" tabindex="-1"></a>  <span class="at">encoding =</span> <span class="st">&quot;UTF-8&quot;</span>,</span>
+<span id="cb11-7"><a href="building-the-datasets.html#cb11-7" tabindex="-1"></a>  <span class="at">object =</span> <span class="st">&quot;data_tidy/BDD_PA_AFD_ie.csv&quot;</span>,</span>
+<span id="cb11-8"><a href="building-the-datasets.html#cb11-8" tabindex="-1"></a>  <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb11-9"><a href="building-the-datasets.html#cb11-9" tabindex="-1"></a>  <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>))</span>
+<span id="cb11-10"><a href="building-the-datasets.html#cb11-10" tabindex="-1"></a></span>
+<span id="cb11-11"><a href="building-the-datasets.html#cb11-11" tabindex="-1"></a><span class="co">#Import WDPA</span></span>
+<span id="cb11-12"><a href="building-the-datasets.html#cb11-12" tabindex="-1"></a>data_wdpa <span class="ot">=</span></span>
+<span id="cb11-13"><a href="building-the-datasets.html#cb11-13" tabindex="-1"></a>  <span class="co">#st_read(&quot;data_raw/wdpa/wdpa_shp_global_raw.gpkg&quot;) %&gt;%</span></span>
+<span id="cb11-14"><a href="building-the-datasets.html#cb11-14" tabindex="-1"></a>  <span class="fu">s3read_using</span>(sf<span class="sc">::</span>st_read,</span>
+<span id="cb11-15"><a href="building-the-datasets.html#cb11-15" tabindex="-1"></a>              <span class="at">object =</span> <span class="st">&quot;data_raw/wdpa/wdpa_shp_global_raw.gpkg&quot;</span>,</span>
+<span id="cb11-16"><a href="building-the-datasets.html#cb11-16" tabindex="-1"></a>              <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb11-17"><a href="building-the-datasets.html#cb11-17" tabindex="-1"></a>              <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb11-18"><a href="building-the-datasets.html#cb11-18" tabindex="-1"></a>  <span class="fu">clean_names</span>()</span>
+<span id="cb11-19"><a href="building-the-datasets.html#cb11-19" tabindex="-1"></a></span>
+<span id="cb11-20"><a href="building-the-datasets.html#cb11-20" tabindex="-1"></a><span class="co">#A dataframe with region name for each iso3 code</span></span>
+<span id="cb11-21"><a href="building-the-datasets.html#cb11-21" tabindex="-1"></a>region_iso <span class="ot">=</span> data_wdpa <span class="sc">%&gt;%</span></span>
+<span id="cb11-22"><a href="building-the-datasets.html#cb11-22" tabindex="-1"></a>  <span class="fu">st_drop_geometry</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb11-23"><a href="building-the-datasets.html#cb11-23" tabindex="-1"></a>  <span class="fu">clean_names</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb11-24"><a href="building-the-datasets.html#cb11-24" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(iso3) <span class="sc">%&gt;%</span></span>
+<span id="cb11-25"><a href="building-the-datasets.html#cb11-25" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">grepl</span>(<span class="st">&quot;;&quot;</span>, iso3)) <span class="sc">%&gt;%</span></span>
+<span id="cb11-26"><a href="building-the-datasets.html#cb11-26" tabindex="-1"></a>  <span class="fu">group_by</span>(iso3) <span class="sc">%&gt;%</span></span>
+<span id="cb11-27"><a href="building-the-datasets.html#cb11-27" tabindex="-1"></a>  <span class="fu">slice</span>(<span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb11-28"><a href="building-the-datasets.html#cb11-28" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb11-29"><a href="building-the-datasets.html#cb11-29" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">region_afd =</span> <span class="st">&quot;&quot;</span>, </span>
+<span id="cb11-30"><a href="building-the-datasets.html#cb11-30" tabindex="-1"></a>       <span class="at">region =</span> countrycode<span class="sc">::</span><span class="fu">countrycode</span>(<span class="at">sourcevar =</span> iso3,</span>
+<span id="cb11-31"><a href="building-the-datasets.html#cb11-31" tabindex="-1"></a>                            <span class="at">origin =</span> <span class="st">&quot;iso3c&quot;</span>,</span>
+<span id="cb11-32"><a href="building-the-datasets.html#cb11-32" tabindex="-1"></a>                            <span class="at">destination =</span> <span class="st">&quot;un.region.name&quot;</span>),</span>
+<span id="cb11-33"><a href="building-the-datasets.html#cb11-33" tabindex="-1"></a>       <span class="at">sub_region =</span> countrycode<span class="sc">::</span><span class="fu">countrycode</span>(<span class="at">sourcevar =</span> iso3,</span>
+<span id="cb11-34"><a href="building-the-datasets.html#cb11-34" tabindex="-1"></a>                            <span class="at">origin =</span> <span class="st">&quot;iso3c&quot;</span>,</span>
+<span id="cb11-35"><a href="building-the-datasets.html#cb11-35" tabindex="-1"></a>                            <span class="at">destination =</span> <span class="st">&quot;un.regionsub.name&quot;</span>),</span>
+<span id="cb11-36"><a href="building-the-datasets.html#cb11-36" tabindex="-1"></a>       <span class="at">country_en =</span> countrycode<span class="sc">::</span><span class="fu">countrycode</span>(<span class="at">sourcevar =</span> iso3,</span>
+<span id="cb11-37"><a href="building-the-datasets.html#cb11-37" tabindex="-1"></a>                            <span class="at">origin =</span> <span class="st">&quot;iso3c&quot;</span>,</span>
+<span id="cb11-38"><a href="building-the-datasets.html#cb11-38" tabindex="-1"></a>                            <span class="at">destination =</span> <span class="st">&quot;un.name.en&quot;</span>),</span>
+<span id="cb11-39"><a href="building-the-datasets.html#cb11-39" tabindex="-1"></a>       <span class="at">country_fr =</span> countrycode<span class="sc">::</span><span class="fu">countrycode</span>(<span class="at">sourcevar =</span> iso3,</span>
+<span id="cb11-40"><a href="building-the-datasets.html#cb11-40" tabindex="-1"></a>                            <span class="at">origin =</span> <span class="st">&quot;iso3c&quot;</span>,</span>
+<span id="cb11-41"><a href="building-the-datasets.html#cb11-41" tabindex="-1"></a>                            <span class="at">destination =</span> <span class="st">&quot;un.name.fr&quot;</span>),</span>
+<span id="cb11-42"><a href="building-the-datasets.html#cb11-42" tabindex="-1"></a>       <span class="at">.after =</span> <span class="st">&quot;iso3&quot;</span>)</span>
+<span id="cb11-43"><a href="building-the-datasets.html#cb11-43" tabindex="-1"></a>  </span>
+<span id="cb11-44"><a href="building-the-datasets.html#cb11-44" tabindex="-1"></a>africa_iso <span class="ot">=</span> region_iso <span class="sc">%&gt;%</span> <span class="fu">filter</span>(region <span class="sc">==</span> <span class="st">&quot;Africa&quot;</span>)</span>
+<span id="cb11-45"><a href="building-the-datasets.html#cb11-45" tabindex="-1"></a></span>
+<span id="cb11-46"><a href="building-the-datasets.html#cb11-46" tabindex="-1"></a>data_pa_africa <span class="ot">=</span> data_wdpa <span class="sc">%&gt;%</span></span>
+<span id="cb11-47"><a href="building-the-datasets.html#cb11-47" tabindex="-1"></a>  <span class="fu">filter</span>(iso3 <span class="sc">%in%</span> africa_iso<span class="sc">$</span>iso3) <span class="sc">%&gt;%</span></span>
+<span id="cb11-48"><a href="building-the-datasets.html#cb11-48" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">st_geometry_type</span>(geom) <span class="sc">==</span> <span class="st">&quot;MULTIPOLYGON&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb11-49"><a href="building-the-datasets.html#cb11-49" tabindex="-1"></a>  <span class="fu">st_drop_geometry</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb11-50"><a href="building-the-datasets.html#cb11-50" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">name_clean =</span> <span class="fu">make_clean_names</span>(name), </span>
+<span id="cb11-51"><a href="building-the-datasets.html#cb11-51" tabindex="-1"></a>        <span class="at">region_afd =</span> <span class="st">&quot;&quot;</span>, </span>
+<span id="cb11-52"><a href="building-the-datasets.html#cb11-52" tabindex="-1"></a>       <span class="at">region =</span> countrycode<span class="sc">::</span><span class="fu">countrycode</span>(<span class="at">sourcevar =</span> iso3,</span>
+<span id="cb11-53"><a href="building-the-datasets.html#cb11-53" tabindex="-1"></a>                            <span class="at">origin =</span> <span class="st">&quot;iso3c&quot;</span>,</span>
+<span id="cb11-54"><a href="building-the-datasets.html#cb11-54" tabindex="-1"></a>                            <span class="at">destination =</span> <span class="st">&quot;un.region.name&quot;</span>),</span>
+<span id="cb11-55"><a href="building-the-datasets.html#cb11-55" tabindex="-1"></a>       <span class="at">sub_region =</span> countrycode<span class="sc">::</span><span class="fu">countrycode</span>(<span class="at">sourcevar =</span> iso3,</span>
+<span id="cb11-56"><a href="building-the-datasets.html#cb11-56" tabindex="-1"></a>                            <span class="at">origin =</span> <span class="st">&quot;iso3c&quot;</span>,</span>
+<span id="cb11-57"><a href="building-the-datasets.html#cb11-57" tabindex="-1"></a>                            <span class="at">destination =</span> <span class="st">&quot;un.regionsub.name&quot;</span>),</span>
+<span id="cb11-58"><a href="building-the-datasets.html#cb11-58" tabindex="-1"></a>       <span class="at">country_en =</span> countrycode<span class="sc">::</span><span class="fu">countrycode</span>(<span class="at">sourcevar =</span> iso3,</span>
+<span id="cb11-59"><a href="building-the-datasets.html#cb11-59" tabindex="-1"></a>                            <span class="at">origin =</span> <span class="st">&quot;iso3c&quot;</span>,</span>
+<span id="cb11-60"><a href="building-the-datasets.html#cb11-60" tabindex="-1"></a>                            <span class="at">destination =</span> <span class="st">&quot;un.name.en&quot;</span>,</span>
+<span id="cb11-61"><a href="building-the-datasets.html#cb11-61" tabindex="-1"></a>                            <span class="at">custom_match =</span> <span class="fu">c</span>(<span class="st">&quot;PYF&quot;</span> <span class="ot">=</span> <span class="st">&quot;French Polynesia&quot;</span>,</span>
+<span id="cb11-62"><a href="building-the-datasets.html#cb11-62" tabindex="-1"></a>                                             <span class="st">&quot;ATF&quot;</span> <span class="ot">=</span> <span class="st">&quot;Terres australes et antarctiques françaises&quot;</span>,</span>
+<span id="cb11-63"><a href="building-the-datasets.html#cb11-63" tabindex="-1"></a>                                             <span class="st">&quot;REU&quot;</span> <span class="ot">=</span> <span class="st">&quot;Reunion&quot;</span>,</span>
+<span id="cb11-64"><a href="building-the-datasets.html#cb11-64" tabindex="-1"></a>                                             <span class="st">&quot;SHN&quot;</span> <span class="ot">=</span> <span class="st">&quot;Saint Helena&quot;</span>,</span>
+<span id="cb11-65"><a href="building-the-datasets.html#cb11-65" tabindex="-1"></a>                                             <span class="st">&quot;IOT&quot;</span> <span class="ot">=</span> <span class="st">&quot;British Indian Ocean Territory&quot;</span>,</span>
+<span id="cb11-66"><a href="building-the-datasets.html#cb11-66" tabindex="-1"></a>                                               <span class="st">&quot;NCL&quot;</span> <span class="ot">=</span> <span class="st">&quot;New Caledonia&quot;</span>,</span>
+<span id="cb11-67"><a href="building-the-datasets.html#cb11-67" tabindex="-1"></a>                                               <span class="st">&quot;MYT&quot;</span> <span class="ot">=</span> <span class="st">&quot;Mayotte&quot;</span>,</span>
+<span id="cb11-68"><a href="building-the-datasets.html#cb11-68" tabindex="-1"></a>                                               <span class="st">&quot;COK&quot;</span> <span class="ot">=</span> <span class="st">&quot;Cook Islands&quot;</span>,</span>
+<span id="cb11-69"><a href="building-the-datasets.html#cb11-69" tabindex="-1"></a>                                               <span class="st">&quot;ZZ&quot;</span> <span class="ot">=</span> <span class="st">&quot;Multi-countries&quot;</span>,</span>
+<span id="cb11-70"><a href="building-the-datasets.html#cb11-70" tabindex="-1"></a>                                               <span class="st">&quot;COG;CMR;CAF&quot;</span> <span class="ot">=</span> <span class="st">&quot;Multi-countries&quot;</span>)),</span>
+<span id="cb11-71"><a href="building-the-datasets.html#cb11-71" tabindex="-1"></a>       <span class="at">country_fr =</span> countrycode<span class="sc">::</span><span class="fu">countrycode</span>(<span class="at">sourcevar =</span> iso3,</span>
+<span id="cb11-72"><a href="building-the-datasets.html#cb11-72" tabindex="-1"></a>                            <span class="at">origin =</span> <span class="st">&quot;iso3c&quot;</span>,</span>
+<span id="cb11-73"><a href="building-the-datasets.html#cb11-73" tabindex="-1"></a>                            <span class="at">destination =</span> <span class="st">&quot;un.name.fr&quot;</span>,</span>
+<span id="cb11-74"><a href="building-the-datasets.html#cb11-74" tabindex="-1"></a>                            <span class="at">custom_match =</span> <span class="fu">c</span>(<span class="st">&quot;PYF&quot;</span> <span class="ot">=</span> <span class="st">&quot;Polynésie Française&quot;</span>,</span>
+<span id="cb11-75"><a href="building-the-datasets.html#cb11-75" tabindex="-1"></a>                                             <span class="st">&quot;ATF&quot;</span> <span class="ot">=</span> <span class="st">&quot;Terres australes et antarctiques françaises&quot;</span>,</span>
+<span id="cb11-76"><a href="building-the-datasets.html#cb11-76" tabindex="-1"></a>                                             <span class="st">&quot;REU&quot;</span> <span class="ot">=</span> <span class="st">&quot;Réunion&quot;</span>,</span>
+<span id="cb11-77"><a href="building-the-datasets.html#cb11-77" tabindex="-1"></a>                                             <span class="st">&quot;SHN&quot;</span> <span class="ot">=</span> <span class="st">&quot;Saint Hélène&quot;</span>,</span>
+<span id="cb11-78"><a href="building-the-datasets.html#cb11-78" tabindex="-1"></a>                                             <span class="st">&quot;IOT&quot;</span> <span class="ot">=</span> <span class="st">&quot;Territoire Britannique de l&#39;Océan Indien&quot;</span>,</span>
+<span id="cb11-79"><a href="building-the-datasets.html#cb11-79" tabindex="-1"></a>                                             </span>
+<span id="cb11-80"><a href="building-the-datasets.html#cb11-80" tabindex="-1"></a>                                               <span class="st">&quot;NCL&quot;</span> <span class="ot">=</span> <span class="st">&quot;Nouvelle-Calédonie&quot;</span>,</span>
+<span id="cb11-81"><a href="building-the-datasets.html#cb11-81" tabindex="-1"></a>                                               <span class="st">&quot;MYT&quot;</span> <span class="ot">=</span> <span class="st">&quot;Mayotte&quot;</span>,</span>
+<span id="cb11-82"><a href="building-the-datasets.html#cb11-82" tabindex="-1"></a>                                               <span class="st">&quot;COK&quot;</span> <span class="ot">=</span> <span class="st">&quot;Iles Cook&quot;</span>,</span>
+<span id="cb11-83"><a href="building-the-datasets.html#cb11-83" tabindex="-1"></a>                                               <span class="st">&quot;ZZ&quot;</span> <span class="ot">=</span> <span class="st">&quot;Multi-pays&quot;</span>,</span>
+<span id="cb11-84"><a href="building-the-datasets.html#cb11-84" tabindex="-1"></a>                                               <span class="st">&quot;COG;CMR;CAF&quot;</span> <span class="ot">=</span> <span class="st">&quot;Multi-pays&quot;</span>)),</span>
+<span id="cb11-85"><a href="building-the-datasets.html#cb11-85" tabindex="-1"></a>       <span class="at">.after =</span> <span class="st">&quot;iso3&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb11-86"><a href="building-the-datasets.html#cb11-86" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">area_km2 =</span> rep_area, <span class="at">.after =</span> <span class="st">&quot;rep_area&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb11-87"><a href="building-the-datasets.html#cb11-87" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">name_pa =</span> name,</span>
+<span id="cb11-88"><a href="building-the-datasets.html#cb11-88" tabindex="-1"></a>         <span class="at">.after =</span> <span class="st">&quot;iso3&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb11-89"><a href="building-the-datasets.html#cb11-89" tabindex="-1"></a>  <span class="fu">filter</span>(region <span class="sc">==</span> <span class="st">&quot;Africa&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb11-90"><a href="building-the-datasets.html#cb11-90" tabindex="-1"></a>  <span class="co">#Add the description of IUCN from its category</span></span>
+<span id="cb11-91"><a href="building-the-datasets.html#cb11-91" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">iucn_des_fr =</span> <span class="fu">case_when</span>(</span>
+<span id="cb11-92"><a href="building-the-datasets.html#cb11-92" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;Ia&quot;</span> <span class="sc">~</span> <span class="st">&quot;Réserve naturelle intégrale&quot;</span>,</span>
+<span id="cb11-93"><a href="building-the-datasets.html#cb11-93" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;Ib&quot;</span> <span class="sc">~</span> <span class="st">&quot;Zone de nature sauvage&quot;</span>,</span>
+<span id="cb11-94"><a href="building-the-datasets.html#cb11-94" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;II&quot;</span> <span class="sc">~</span> <span class="st">&quot;Parc national&quot;</span>, </span>
+<span id="cb11-95"><a href="building-the-datasets.html#cb11-95" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;III&quot;</span> <span class="sc">~</span> <span class="st">&quot;Monument naturel&quot;</span>,</span>
+<span id="cb11-96"><a href="building-the-datasets.html#cb11-96" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;IV&quot;</span> <span class="sc">~</span> <span class="st">&quot;Gest. des habitats/espèces&quot;</span>,</span>
+<span id="cb11-97"><a href="building-the-datasets.html#cb11-97" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;V&quot;</span> <span class="sc">~</span> <span class="st">&quot;Paysage protégé&quot;</span>,</span>
+<span id="cb11-98"><a href="building-the-datasets.html#cb11-98" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;VI&quot;</span> <span class="sc">~</span> <span class="st">&quot;Gest. de ress. protégées&quot;</span>,</span>
+<span id="cb11-99"><a href="building-the-datasets.html#cb11-99" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;Not Applicable&quot;</span> <span class="sc">~</span> <span class="st">&quot;Non catégorisée&quot;</span>,</span>
+<span id="cb11-100"><a href="building-the-datasets.html#cb11-100" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;Not Reported&quot;</span> <span class="sc">~</span> <span class="st">&quot;Non catégorisée&quot;</span>,</span>
+<span id="cb11-101"><a href="building-the-datasets.html#cb11-101" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;Not Assigned&quot;</span> <span class="sc">~</span> <span class="st">&quot;Non catégorisée&quot;</span>,</span>
+<span id="cb11-102"><a href="building-the-datasets.html#cb11-102" tabindex="-1"></a>  <span class="cn">TRUE</span> <span class="sc">~</span> <span class="st">&quot;Non référencée&quot;</span>), <span class="at">.after =</span> iucn_cat) <span class="sc">%&gt;%</span></span>
+<span id="cb11-103"><a href="building-the-datasets.html#cb11-103" tabindex="-1"></a>      <span class="fu">mutate</span>(<span class="at">iucn_des_en =</span> <span class="fu">case_when</span>(</span>
+<span id="cb11-104"><a href="building-the-datasets.html#cb11-104" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;Ia&quot;</span> <span class="sc">~</span> <span class="st">&quot;Strict nature reserve&quot;</span>,</span>
+<span id="cb11-105"><a href="building-the-datasets.html#cb11-105" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;Ib&quot;</span> <span class="sc">~</span> <span class="st">&quot;Wilderness area&quot;</span>,</span>
+<span id="cb11-106"><a href="building-the-datasets.html#cb11-106" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;II&quot;</span> <span class="sc">~</span> <span class="st">&quot;National park&quot;</span>,</span>
+<span id="cb11-107"><a href="building-the-datasets.html#cb11-107" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;III&quot;</span> <span class="sc">~</span> <span class="st">&quot;Natural monument or feature&quot;</span>,</span>
+<span id="cb11-108"><a href="building-the-datasets.html#cb11-108" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;IV&quot;</span> <span class="sc">~</span> <span class="st">&quot; Habitat or species management area&quot;</span>,</span>
+<span id="cb11-109"><a href="building-the-datasets.html#cb11-109" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;V&quot;</span> <span class="sc">~</span> <span class="st">&quot;Protected landscape or seascape&quot;</span>,</span>
+<span id="cb11-110"><a href="building-the-datasets.html#cb11-110" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;VI&quot;</span> <span class="sc">~</span> <span class="st">&quot;Protected area with sust. use of nat. res.&quot;</span>,</span>
+<span id="cb11-111"><a href="building-the-datasets.html#cb11-111" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;Not Applicable&quot;</span> <span class="sc">~</span> <span class="st">&quot;Not categorized&quot;</span>,</span>
+<span id="cb11-112"><a href="building-the-datasets.html#cb11-112" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;Not Reported&quot;</span> <span class="sc">~</span> <span class="st">&quot;Not categorized&quot;</span>,</span>
+<span id="cb11-113"><a href="building-the-datasets.html#cb11-113" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">is.na</span>(wdpaid) <span class="sc">&amp;</span> iucn_cat <span class="sc">==</span> <span class="st">&quot;Not Assigned&quot;</span> <span class="sc">~</span> <span class="st">&quot;Not categorized&quot;</span>,</span>
+<span id="cb11-114"><a href="building-the-datasets.html#cb11-114" tabindex="-1"></a>  <span class="cn">TRUE</span> <span class="sc">~</span> <span class="st">&quot;Not referenced&quot;</span>), <span class="at">.after =</span> iucn_cat) <span class="sc">%&gt;%</span></span>
+<span id="cb11-115"><a href="building-the-datasets.html#cb11-115" tabindex="-1"></a>  <span class="fu">left_join</span>(dplyr<span class="sc">::</span><span class="fu">select</span>(data_pa_afd, <span class="fu">c</span>(wdpaid, year_funding_first, year_funding_all)), <span class="at">by =</span> <span class="st">&quot;wdpaid&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb11-116"><a href="building-the-datasets.html#cb11-116" tabindex="-1"></a>  <span class="co">#Finally compute centroid coordindates (to create maps) and dummy for FAPBM funded</span></span>
+<span id="cb11-117"><a href="building-the-datasets.html#cb11-117" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="co">#coord = st_centroid(geom),</span></span>
+<span id="cb11-118"><a href="building-the-datasets.html#cb11-118" tabindex="-1"></a>        <span class="co">#lon = unlist(map(coord,1)),</span></span>
+<span id="cb11-119"><a href="building-the-datasets.html#cb11-119" tabindex="-1"></a>        <span class="co">#lat = unlist(map(coord,2)),</span></span>
+<span id="cb11-120"><a href="building-the-datasets.html#cb11-120" tabindex="-1"></a>        <span class="at">focus =</span> wdpaid <span class="sc">%in%</span> data_pa_afd<span class="sc">$</span>wdpaid) <span class="sc">%&gt;%</span></span>
+<span id="cb11-121"><a href="building-the-datasets.html#cb11-121" tabindex="-1"></a>  <span class="co">#Finally, we need to manually remove lines with more than one WDPA_PID</span></span>
+<span id="cb11-122"><a href="building-the-datasets.html#cb11-122" tabindex="-1"></a>  <span class="do">## Remove the marine area of WDPAID 9035 with null area</span></span>
+<span id="cb11-123"><a href="building-the-datasets.html#cb11-123" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span>(wdpa_pid <span class="sc">==</span> <span class="st">&quot;9035_A&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb11-124"><a href="building-the-datasets.html#cb11-124" tabindex="-1"></a>  <span class="do">## 555547861 has 3 marine PAs. The C one is chosen as the size reported by AFD (superficie_km2) matches the area reported by WDPA (https://www.protectedplanet.net/555547861)</span></span>
+<span id="cb11-125"><a href="building-the-datasets.html#cb11-125" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span>(wdpa_pid <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;555547861_A&quot;</span>, <span class="st">&quot;555547861_B&quot;</span>))) <span class="sc">%&gt;%</span></span>
+<span id="cb11-126"><a href="building-the-datasets.html#cb11-126" tabindex="-1"></a>  <span class="co"># 555705345 : buffer area is also reported. Remove the buffer</span></span>
+<span id="cb11-127"><a href="building-the-datasets.html#cb11-127" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span>(wdpa_pid <span class="sc">==</span> <span class="st">&quot;555705345_B&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb11-128"><a href="building-the-datasets.html#cb11-128" tabindex="-1"></a>  <span class="co">#555547863 : keep the WDPA_PID whose area matches the one reported by AFD employees and WDPA website (https://www.protectedplanet.net/555547863)</span></span>
+<span id="cb11-129"><a href="building-the-datasets.html#cb11-129" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span>(wdpa_pid <span class="sc">==</span> <span class="st">&quot;555547863_A&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb11-130"><a href="building-the-datasets.html#cb11-130" tabindex="-1"></a>  <span class="do">###761 : remove B, the buffer</span></span>
+<span id="cb11-131"><a href="building-the-datasets.html#cb11-131" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span>(wdpa_pid <span class="sc">==</span> <span class="st">&quot;761_B&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb11-132"><a href="building-the-datasets.html#cb11-132" tabindex="-1"></a>  <span class="do">###801 : remove the ones with null area reported</span></span>
+<span id="cb11-133"><a href="building-the-datasets.html#cb11-133" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span>(wdpa_pid <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;801_B&quot;</span>, <span class="st">&quot;801_C&quot;</span>))) <span class="sc">%&gt;%</span></span>
+<span id="cb11-134"><a href="building-the-datasets.html#cb11-134" tabindex="-1"></a>  <span class="do">###555705202 : remove B, the buffer</span></span>
+<span id="cb11-135"><a href="building-the-datasets.html#cb11-135" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span>(wdpa_pid <span class="sc">==</span> <span class="st">&quot;555705202_B&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb11-136"><a href="building-the-datasets.html#cb11-136" tabindex="-1"></a>  <span class="do">###555705344 : remove B, the buffer</span></span>
+<span id="cb11-137"><a href="building-the-datasets.html#cb11-137" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span>(wdpa_pid <span class="sc">==</span> <span class="st">&quot;555705344_B&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb11-138"><a href="building-the-datasets.html#cb11-138" tabindex="-1"></a>  <span class="do">### 555744966 : remove completely, mix of marine and non-marine</span></span>
+<span id="cb11-139"><a href="building-the-datasets.html#cb11-139" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span>(wdpaid <span class="sc">==</span> <span class="dv">555744966</span>))</span>
+<span id="cb11-140"><a href="building-the-datasets.html#cb11-140" tabindex="-1"></a>  </span>
+<span id="cb11-141"><a href="building-the-datasets.html#cb11-141" tabindex="-1"></a></span>
+<span id="cb11-142"><a href="building-the-datasets.html#cb11-142" tabindex="-1"></a><span class="co">#Save the dataset</span></span>
+<span id="cb11-143"><a href="building-the-datasets.html#cb11-143" tabindex="-1"></a><span class="fu">s3write_using</span>(<span class="at">x =</span> data_pa_africa,</span>
+<span id="cb11-144"><a href="building-the-datasets.html#cb11-144" tabindex="-1"></a>              <span class="at">FUN =</span> readr<span class="sc">::</span>write_delim,</span>
+<span id="cb11-145"><a href="building-the-datasets.html#cb11-145" tabindex="-1"></a>              <span class="at">delim =</span> <span class="st">&quot;;&quot;</span>,</span>
+<span id="cb11-146"><a href="building-the-datasets.html#cb11-146" tabindex="-1"></a>              <span class="at">object =</span> <span class="st">&quot;data_tidy/BDD_PA_africa.csv&quot;</span>,</span>
+<span id="cb11-147"><a href="building-the-datasets.html#cb11-147" tabindex="-1"></a>              <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb11-148"><a href="building-the-datasets.html#cb11-148" tabindex="-1"></a>              <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>))</span></code></pre></div>
+</div>
+<div id="for-terrindigena" class="section level5 hasAnchor" number="1.2.6.2.5">
+<h5><span class="header-section-number">1.2.6.2.5</span> For TerrIndigena<a href="building-the-datasets.html#for-terrindigena" class="anchor-section" aria-label="Anchor link to header"></a></h5>
+<p>Build a dataset for TerrIndigena project supported by AFD Agriculture, Rural development and Biodiversity technical division.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="building-the-datasets.html#cb12-1" tabindex="-1"></a><span class="co">#Import datasets</span></span>
+<span id="cb12-2"><a href="building-the-datasets.html#cb12-2" tabindex="-1"></a><span class="do">##SIOP information</span></span>
+<span id="cb12-3"><a href="building-the-datasets.html#cb12-3" tabindex="-1"></a>terr_siop <span class="ot">=</span></span>
+<span id="cb12-4"><a href="building-the-datasets.html#cb12-4" tabindex="-1"></a>  <span class="co">#st_read(&quot;data_raw/wdpa/wdpa_shp_global_raw.gpkg&quot;) %&gt;%</span></span>
+<span id="cb12-5"><a href="building-the-datasets.html#cb12-5" tabindex="-1"></a>  <span class="fu">s3read_using</span>(data.table<span class="sc">::</span>fread,</span>
+<span id="cb12-6"><a href="building-the-datasets.html#cb12-6" tabindex="-1"></a>              <span class="at">object =</span> <span class="st">&quot;data_raw/TerrIndigena/TerrIndigena_siop.csv&quot;</span>,</span>
+<span id="cb12-7"><a href="building-the-datasets.html#cb12-7" tabindex="-1"></a>              <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb12-8"><a href="building-the-datasets.html#cb12-8" tabindex="-1"></a>              <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb12-9"><a href="building-the-datasets.html#cb12-9" tabindex="-1"></a>  <span class="fu">clean_names</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb12-10"><a href="building-the-datasets.html#cb12-10" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="fu">c</span>(id_projet, nom_du_projet, annee_doctroi_projet)) <span class="sc">%&gt;%</span></span>
+<span id="cb12-11"><a href="building-the-datasets.html#cb12-11" tabindex="-1"></a>  <span class="fu">group_by</span>(id_projet) <span class="sc">%&gt;%</span></span>
+<span id="cb12-12"><a href="building-the-datasets.html#cb12-12" tabindex="-1"></a>  <span class="fu">slice</span>(<span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb12-13"><a href="building-the-datasets.html#cb12-13" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb12-14"><a href="building-the-datasets.html#cb12-14" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="st">&quot;name_pa&quot;</span> <span class="ot">=</span> <span class="st">&quot;nom_du_projet&quot;</span>,</span>
+<span id="cb12-15"><a href="building-the-datasets.html#cb12-15" tabindex="-1"></a>         <span class="st">&quot;status_yr&quot;</span> <span class="ot">=</span> <span class="st">&quot;annee_doctroi_projet&quot;</span>)</span>
+<span id="cb12-16"><a href="building-the-datasets.html#cb12-16" tabindex="-1"></a></span>
+<span id="cb12-17"><a href="building-the-datasets.html#cb12-17" tabindex="-1"></a><span class="co">#Polygons</span></span>
+<span id="cb12-18"><a href="building-the-datasets.html#cb12-18" tabindex="-1"></a><span class="do">##Raw</span></span>
+<span id="cb12-19"><a href="building-the-datasets.html#cb12-19" tabindex="-1"></a>terr_poly_raw <span class="ot">=</span> </span>
+<span id="cb12-20"><a href="building-the-datasets.html#cb12-20" tabindex="-1"></a>    <span class="co">#st_read(&quot;data_raw/wdpa/wdpa_shp_global_raw.gpkg&quot;) %&gt;%</span></span>
+<span id="cb12-21"><a href="building-the-datasets.html#cb12-21" tabindex="-1"></a>  <span class="fu">s3read_using</span>(sf<span class="sc">::</span>st_read,</span>
+<span id="cb12-22"><a href="building-the-datasets.html#cb12-22" tabindex="-1"></a>              <span class="at">object =</span> <span class="st">&quot;data_raw/TerrIndigena/TE_TerrIndigena1y2_20230208_Pg.gpkg&quot;</span>,</span>
+<span id="cb12-23"><a href="building-the-datasets.html#cb12-23" tabindex="-1"></a>              <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb12-24"><a href="building-the-datasets.html#cb12-24" tabindex="-1"></a>              <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb12-25"><a href="building-the-datasets.html#cb12-25" tabindex="-1"></a>  <span class="co">#Make polygon valid to avoid errors</span></span>
+<span id="cb12-26"><a href="building-the-datasets.html#cb12-26" tabindex="-1"></a>  <span class="fu">st_make_valid</span>()</span>
+<span id="cb12-27"><a href="building-the-datasets.html#cb12-27" tabindex="-1"></a></span>
+<span id="cb12-28"><a href="building-the-datasets.html#cb12-28" tabindex="-1"></a><span class="do">##Tidy</span></span>
+<span id="cb12-29"><a href="building-the-datasets.html#cb12-29" tabindex="-1"></a>terr_poly_tidy <span class="ot">=</span> terr_poly_raw <span class="sc">%&gt;%</span></span>
+<span id="cb12-30"><a href="building-the-datasets.html#cb12-30" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="fu">c</span>(IDentif, Pais, geom)) <span class="sc">%&gt;%</span></span>
+<span id="cb12-31"><a href="building-the-datasets.html#cb12-31" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">IDentif =</span> <span class="fu">gsub</span>(<span class="st">&quot; &quot;</span>, <span class="st">&quot;_&quot;</span>, IDentif)) <span class="sc">%&gt;%</span></span>
+<span id="cb12-32"><a href="building-the-datasets.html#cb12-32" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="st">&quot;ID_raw&quot;</span> <span class="ot">=</span> <span class="st">&quot;IDentif&quot;</span>,</span>
+<span id="cb12-33"><a href="building-the-datasets.html#cb12-33" tabindex="-1"></a>         <span class="st">&quot;country_en&quot;</span> <span class="ot">=</span> <span class="st">&quot;Pais&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb12-34"><a href="building-the-datasets.html#cb12-34" tabindex="-1"></a>  <span class="co">#Cast multipoygons to polygon to avoid </span></span>
+<span id="cb12-35"><a href="building-the-datasets.html#cb12-35" tabindex="-1"></a>  <span class="fu">st_cast</span>(<span class="st">&quot;POLYGON&quot;</span>, <span class="at">do_split =</span> F) </span>
+<span id="cb12-36"><a href="building-the-datasets.html#cb12-36" tabindex="-1"></a>  </span>
+<span id="cb12-37"><a href="building-the-datasets.html#cb12-37" tabindex="-1"></a><span class="co">#Save the dataset</span></span>
+<span id="cb12-38"><a href="building-the-datasets.html#cb12-38" tabindex="-1"></a><span class="fu">s3write_using</span>(<span class="at">x =</span> terr_poly_tidy,</span>
+<span id="cb12-39"><a href="building-the-datasets.html#cb12-39" tabindex="-1"></a>              <span class="at">FUN =</span> sf<span class="sc">::</span>st_write,</span>
+<span id="cb12-40"><a href="building-the-datasets.html#cb12-40" tabindex="-1"></a>              <span class="at">delim =</span> <span class="st">&quot;;&quot;</span>,</span>
+<span id="cb12-41"><a href="building-the-datasets.html#cb12-41" tabindex="-1"></a>              <span class="at">object =</span> <span class="st">&quot;data_tidy/TerrIndigena/TE_TerrIndigena1y2_20230208_Pg_tidy.gpkg&quot;</span>,</span>
+<span id="cb12-42"><a href="building-the-datasets.html#cb12-42" tabindex="-1"></a>              <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb12-43"><a href="building-the-datasets.html#cb12-43" tabindex="-1"></a>              <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>))</span></code></pre></div>
+</div>
 </div>
 </div>
 <div id="datasets-for-confidential-analysis" class="section level3 hasAnchor" number="1.2.7">
 <h3><span class="header-section-number">1.2.7</span> Datasets for confidential analysis<a href="building-the-datasets.html#datasets-for-confidential-analysis" class="anchor-section" aria-label="Anchor link to header"></a></h3>
 <p>The first funding dataset is there to perform descriptive statistics on project funding. Thus we do not need to have one line per PA, as it is not possible to isolate the funding a given WDPAID has received. We simply save the SIOP dataset for project reported as PAs related.</p>
-<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="building-the-datasets.html#cb11-1" tabindex="-1"></a><span class="co">#Listing relevant variables for descriptive statistics</span></span>
-<span id="cb11-2"><a href="building-the-datasets.html#cb11-2" tabindex="-1"></a>list_var_fund <span class="ot">=</span> <span class="fu">c</span>(<span class="st">&quot;id_projet&quot;</span>, <span class="st">&quot;name_pa&quot;</span>, <span class="st">&quot;id_concours&quot;</span>,</span>
-<span id="cb11-3"><a href="building-the-datasets.html#cb11-3" tabindex="-1"></a>                <span class="st">&quot;wdpaid&quot;</span>, <span class="st">&quot;country_en&quot;</span>, <span class="st">&quot;country_fr&quot;</span>, <span class="st">&quot;iso3&quot;</span>,</span>
-<span id="cb11-4"><a href="building-the-datasets.html#cb11-4" tabindex="-1"></a>                <span class="st">&quot;region_afd&quot;</span>, <span class="st">&quot;region&quot;</span>, <span class="st">&quot;sub_region&quot;</span>,</span>
-<span id="cb11-5"><a href="building-the-datasets.html#cb11-5" tabindex="-1"></a>                <span class="st">&quot;area_km2&quot;</span>, <span class="st">&quot;rep_area&quot;</span>, <span class="st">&quot;area_afd_km2&quot;</span>,</span>
-<span id="cb11-6"><a href="building-the-datasets.html#cb11-6" tabindex="-1"></a>                <span class="st">&quot;cofinanciers&quot;</span>, <span class="st">&quot;cofinanciers_siop&quot;</span>,</span>
-<span id="cb11-7"><a href="building-the-datasets.html#cb11-7" tabindex="-1"></a>                  <span class="st">&quot;mt_fin_global_af_d_prevu_devise&quot;</span>,</span>
-<span id="cb11-8"><a href="building-the-datasets.html#cb11-8" tabindex="-1"></a>                  <span class="st">&quot;montant_prevu_concours_euro_octroi&quot;</span>,</span>
-<span id="cb11-9"><a href="building-the-datasets.html#cb11-9" tabindex="-1"></a>                  <span class="st">&quot;mt_global_projet_prevu_devise&quot;</span>,</span>
-<span id="cb11-10"><a href="building-the-datasets.html#cb11-10" tabindex="-1"></a>                  <span class="st">&quot;mt_part_cofinancier_prevu_euro&quot;</span>,</span>
-<span id="cb11-11"><a href="building-the-datasets.html#cb11-11" tabindex="-1"></a>                  <span class="st">&quot;libelle_produit&quot;</span>,</span>
-<span id="cb11-12"><a href="building-the-datasets.html#cb11-12" tabindex="-1"></a>                  <span class="st">&quot;date_funding&quot;</span>,</span>
-<span id="cb11-13"><a href="building-the-datasets.html#cb11-13" tabindex="-1"></a>                  <span class="st">&quot;year_funding&quot;</span>)</span>
-<span id="cb11-14"><a href="building-the-datasets.html#cb11-14" tabindex="-1"></a></span>
-<span id="cb11-15"><a href="building-the-datasets.html#cb11-15" tabindex="-1"></a></span>
-<span id="cb11-16"><a href="building-the-datasets.html#cb11-16" tabindex="-1"></a><span class="co">#Defining dataset for descriptive statistics on PAs funding. Keep one row for each id_projet/id_concours/cofinanciers of SIOP</span></span>
-<span id="cb11-17"><a href="building-the-datasets.html#cb11-17" tabindex="-1"></a>data_fund <span class="ot">=</span> data_tidy <span class="sc">%&gt;%</span></span>
-<span id="cb11-18"><a href="building-the-datasets.html#cb11-18" tabindex="-1"></a>  <span class="fu">select</span>(<span class="fu">all_of</span>(list_var_fund)) <span class="sc">%&gt;%</span></span>
-<span id="cb11-19"><a href="building-the-datasets.html#cb11-19" tabindex="-1"></a>  <span class="fu">group_by</span>(id_projet, id_concours, cofinanciers_siop) <span class="sc">%&gt;%</span></span>
-<span id="cb11-20"><a href="building-the-datasets.html#cb11-20" tabindex="-1"></a>  <span class="fu">slice</span>(<span class="dv">1</span>)</span>
-<span id="cb11-21"><a href="building-the-datasets.html#cb11-21" tabindex="-1"></a></span>
-<span id="cb11-22"><a href="building-the-datasets.html#cb11-22" tabindex="-1"></a></span>
-<span id="cb11-23"><a href="building-the-datasets.html#cb11-23" tabindex="-1"></a><span class="co">#fwrite(data_fund, &quot;data_tidy/BDD_AFD_fund.csv&quot;)</span></span>
-<span id="cb11-24"><a href="building-the-datasets.html#cb11-24" tabindex="-1"></a><span class="co"># s3write_using(x = data_fund,</span></span>
-<span id="cb11-25"><a href="building-the-datasets.html#cb11-25" tabindex="-1"></a><span class="co">#               FUN = readr::write_delim,</span></span>
-<span id="cb11-26"><a href="building-the-datasets.html#cb11-26" tabindex="-1"></a><span class="co">#               delim = &quot;;&quot;,</span></span>
-<span id="cb11-27"><a href="building-the-datasets.html#cb11-27" tabindex="-1"></a><span class="co">#               object = &quot;data_tidy/BDD_PA_AFD_fund.csv&quot;,</span></span>
-<span id="cb11-28"><a href="building-the-datasets.html#cb11-28" tabindex="-1"></a><span class="co">#               bucket = &quot;projet-afd-eva-ap&quot;,</span></span>
-<span id="cb11-29"><a href="building-the-datasets.html#cb11-29" tabindex="-1"></a><span class="co">#               opts = list(&quot;region&quot; = &quot;&quot;))</span></span></code></pre></div>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="building-the-datasets.html#cb13-1" tabindex="-1"></a><span class="co">#Listing relevant variables for descriptive statistics</span></span>
+<span id="cb13-2"><a href="building-the-datasets.html#cb13-2" tabindex="-1"></a>list_var_fund <span class="ot">=</span> <span class="fu">c</span>(<span class="st">&quot;id_projet&quot;</span>, <span class="st">&quot;name_pa&quot;</span>, <span class="st">&quot;id_concours&quot;</span>,</span>
+<span id="cb13-3"><a href="building-the-datasets.html#cb13-3" tabindex="-1"></a>                <span class="st">&quot;wdpaid&quot;</span>, <span class="st">&quot;country_en&quot;</span>, <span class="st">&quot;country_fr&quot;</span>, <span class="st">&quot;iso3&quot;</span>,</span>
+<span id="cb13-4"><a href="building-the-datasets.html#cb13-4" tabindex="-1"></a>                <span class="st">&quot;region_afd&quot;</span>, <span class="st">&quot;region&quot;</span>, <span class="st">&quot;sub_region&quot;</span>,</span>
+<span id="cb13-5"><a href="building-the-datasets.html#cb13-5" tabindex="-1"></a>                <span class="st">&quot;area_km2&quot;</span>, <span class="st">&quot;rep_area&quot;</span>, <span class="st">&quot;area_afd_km2&quot;</span>,</span>
+<span id="cb13-6"><a href="building-the-datasets.html#cb13-6" tabindex="-1"></a>                <span class="st">&quot;cofinanciers&quot;</span>, <span class="st">&quot;cofinanciers_siop&quot;</span>,</span>
+<span id="cb13-7"><a href="building-the-datasets.html#cb13-7" tabindex="-1"></a>                  <span class="st">&quot;mt_fin_global_af_d_prevu_devise&quot;</span>,</span>
+<span id="cb13-8"><a href="building-the-datasets.html#cb13-8" tabindex="-1"></a>                  <span class="st">&quot;montant_prevu_concours_euro_octroi&quot;</span>,</span>
+<span id="cb13-9"><a href="building-the-datasets.html#cb13-9" tabindex="-1"></a>                  <span class="st">&quot;mt_global_projet_prevu_devise&quot;</span>,</span>
+<span id="cb13-10"><a href="building-the-datasets.html#cb13-10" tabindex="-1"></a>                  <span class="st">&quot;mt_part_cofinancier_prevu_euro&quot;</span>,</span>
+<span id="cb13-11"><a href="building-the-datasets.html#cb13-11" tabindex="-1"></a>                  <span class="st">&quot;libelle_produit&quot;</span>,</span>
+<span id="cb13-12"><a href="building-the-datasets.html#cb13-12" tabindex="-1"></a>                  <span class="st">&quot;date_funding&quot;</span>,</span>
+<span id="cb13-13"><a href="building-the-datasets.html#cb13-13" tabindex="-1"></a>                  <span class="st">&quot;year_funding&quot;</span>)</span>
+<span id="cb13-14"><a href="building-the-datasets.html#cb13-14" tabindex="-1"></a></span>
+<span id="cb13-15"><a href="building-the-datasets.html#cb13-15" tabindex="-1"></a></span>
+<span id="cb13-16"><a href="building-the-datasets.html#cb13-16" tabindex="-1"></a><span class="co">#Defining dataset for descriptive statistics on PAs funding. Keep one row for each id_projet/id_concours/cofinanciers of SIOP</span></span>
+<span id="cb13-17"><a href="building-the-datasets.html#cb13-17" tabindex="-1"></a>data_fund <span class="ot">=</span> data_tidy <span class="sc">%&gt;%</span></span>
+<span id="cb13-18"><a href="building-the-datasets.html#cb13-18" tabindex="-1"></a>  <span class="fu">select</span>(<span class="fu">all_of</span>(list_var_fund)) <span class="sc">%&gt;%</span></span>
+<span id="cb13-19"><a href="building-the-datasets.html#cb13-19" tabindex="-1"></a>  <span class="fu">group_by</span>(id_projet, id_concours, cofinanciers_siop) <span class="sc">%&gt;%</span></span>
+<span id="cb13-20"><a href="building-the-datasets.html#cb13-20" tabindex="-1"></a>  <span class="fu">slice</span>(<span class="dv">1</span>)</span>
+<span id="cb13-21"><a href="building-the-datasets.html#cb13-21" tabindex="-1"></a></span>
+<span id="cb13-22"><a href="building-the-datasets.html#cb13-22" tabindex="-1"></a></span>
+<span id="cb13-23"><a href="building-the-datasets.html#cb13-23" tabindex="-1"></a><span class="co">#fwrite(data_fund, &quot;data_tidy/BDD_AFD_fund.csv&quot;)</span></span>
+<span id="cb13-24"><a href="building-the-datasets.html#cb13-24" tabindex="-1"></a><span class="co"># s3write_using(x = data_fund,</span></span>
+<span id="cb13-25"><a href="building-the-datasets.html#cb13-25" tabindex="-1"></a><span class="co">#               FUN = readr::write_delim,</span></span>
+<span id="cb13-26"><a href="building-the-datasets.html#cb13-26" tabindex="-1"></a><span class="co">#               delim = &quot;;&quot;,</span></span>
+<span id="cb13-27"><a href="building-the-datasets.html#cb13-27" tabindex="-1"></a><span class="co">#               object = &quot;data_tidy/BDD_PA_AFD_fund.csv&quot;,</span></span>
+<span id="cb13-28"><a href="building-the-datasets.html#cb13-28" tabindex="-1"></a><span class="co">#               bucket = &quot;projet-afd-eva-ap&quot;,</span></span>
+<span id="cb13-29"><a href="building-the-datasets.html#cb13-29" tabindex="-1"></a><span class="co">#               opts = list(&quot;region&quot; = &quot;&quot;))</span></span></code></pre></div>
 <p>Then a dataset is built with funding associated to each WDPAID. Note a project can fund several WDPAID, and that AFD funding data do not make it possible to isolate the funding of each PA defined by a WDPAID.</p>
-<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="building-the-datasets.html#cb12-1" tabindex="-1"></a>data_fund_pa <span class="ot">=</span> data_tidy</span>
-<span id="cb12-2"><a href="building-the-datasets.html#cb12-2" tabindex="-1"></a></span>
-<span id="cb12-3"><a href="building-the-datasets.html#cb12-3" tabindex="-1"></a><span class="co">#For PAs with WDPAIDs</span></span>
-<span id="cb12-4"><a href="building-the-datasets.html#cb12-4" tabindex="-1"></a>data_fund_wdpa <span class="ot">=</span> data_fund_pa <span class="sc">%&gt;%</span></span>
-<span id="cb12-5"><a href="building-the-datasets.html#cb12-5" tabindex="-1"></a>    <span class="fu">subset</span>(<span class="fu">is.na</span>(wdpaid) <span class="sc">==</span> <span class="cn">FALSE</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb12-6"><a href="building-the-datasets.html#cb12-6" tabindex="-1"></a>  <span class="co">#We need to manually remove some WDPA_PID not relevant</span></span>
-<span id="cb12-7"><a href="building-the-datasets.html#cb12-7" tabindex="-1"></a>  <span class="do">## Remove the marine area with null area of WDPAID 9035</span></span>
-<span id="cb12-8"><a href="building-the-datasets.html#cb12-8" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span>(wdpa_pid <span class="sc">==</span> <span class="st">&quot;9035_A&quot;</span>)) <span class="sc">%&gt;%</span></span>
-<span id="cb12-9"><a href="building-the-datasets.html#cb12-9" tabindex="-1"></a>  <span class="do">## 555547861 has 3 marine PAs. The C one is chosen as the size reported by AFD (superficie_km2) matches the area reported by WDPA (https://www.protectedplanet.net/555547861)</span></span>
-<span id="cb12-10"><a href="building-the-datasets.html#cb12-10" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span>(wdpa_pid <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;555547861_A&quot;</span>, <span class="st">&quot;555547861_B&quot;</span>))) <span class="sc">%&gt;%</span></span>
-<span id="cb12-11"><a href="building-the-datasets.html#cb12-11" tabindex="-1"></a>  <span class="co"># 555705345 : buffer area is also reported. Remove the buffer</span></span>
-<span id="cb12-12"><a href="building-the-datasets.html#cb12-12" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span>(wdpa_pid <span class="sc">==</span> <span class="st">&quot;555705345_B&quot;</span>)) <span class="sc">%&gt;%</span></span>
-<span id="cb12-13"><a href="building-the-datasets.html#cb12-13" tabindex="-1"></a>  <span class="co">#555547863 : keep the WDPA_PID whose area matches the one reported by AFD employees and WDPA website (https://www.protectedplanet.net/555547863)</span></span>
-<span id="cb12-14"><a href="building-the-datasets.html#cb12-14" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span>(wdpa_pid <span class="sc">==</span> <span class="st">&quot;555547863_A&quot;</span>)) <span class="sc">%&gt;%</span></span>
-<span id="cb12-15"><a href="building-the-datasets.html#cb12-15" tabindex="-1"></a>  <span class="co">#Finally, keep for each WDPAID the different funding it get</span></span>
-<span id="cb12-16"><a href="building-the-datasets.html#cb12-16" tabindex="-1"></a>  <span class="fu">group_by</span>(id_projet, id_concours, wdpaid, cofinanciers) <span class="sc">%&gt;%</span></span>
-<span id="cb12-17"><a href="building-the-datasets.html#cb12-17" tabindex="-1"></a>  <span class="fu">slice</span>(<span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb12-18"><a href="building-the-datasets.html#cb12-18" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
-<span id="cb12-19"><a href="building-the-datasets.html#cb12-19" tabindex="-1"></a></span>
-<span id="cb12-20"><a href="building-the-datasets.html#cb12-20" tabindex="-1"></a><span class="co">#For PAs without WDPAIDs but a name_pa : for the PA identified by name_pa, keep id_projet/id_concours/confinanciers</span></span>
-<span id="cb12-21"><a href="building-the-datasets.html#cb12-21" tabindex="-1"></a>data_fund_name <span class="ot">=</span> data_fund_pa <span class="sc">%&gt;%</span></span>
-<span id="cb12-22"><a href="building-the-datasets.html#cb12-22" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">is.na</span>(wdpaid) <span class="sc">==</span> <span class="cn">TRUE</span> <span class="sc">&amp;</span> <span class="fu">is.na</span>(name_pa) <span class="sc">==</span> <span class="cn">FALSE</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb12-23"><a href="building-the-datasets.html#cb12-23" tabindex="-1"></a>  <span class="fu">group_by</span>(id_projet, id_concours, name_pa, cofinanciers) <span class="sc">%&gt;%</span></span>
-<span id="cb12-24"><a href="building-the-datasets.html#cb12-24" tabindex="-1"></a>  <span class="fu">slice</span>(<span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb12-25"><a href="building-the-datasets.html#cb12-25" tabindex="-1"></a>  <span class="fu">ungroup</span>() </span>
-<span id="cb12-26"><a href="building-the-datasets.html#cb12-26" tabindex="-1"></a></span>
-<span id="cb12-27"><a href="building-the-datasets.html#cb12-27" tabindex="-1"></a>  <span class="co">#For PAs without WDPAIDs nor name_pa : for the PA identified by id_projet/iso3, keep id_concours/confinanciers</span></span>
-<span id="cb12-28"><a href="building-the-datasets.html#cb12-28" tabindex="-1"></a>data_fund_na <span class="ot">=</span> data_fund_pa <span class="sc">%&gt;%</span></span>
-<span id="cb12-29"><a href="building-the-datasets.html#cb12-29" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">is.na</span>(wdpaid) <span class="sc">==</span> <span class="cn">TRUE</span> <span class="sc">&amp;</span> <span class="fu">is.na</span>(name_pa) <span class="sc">==</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb12-30"><a href="building-the-datasets.html#cb12-30" tabindex="-1"></a>  <span class="fu">group_by</span>(id_projet, iso3, id_concours, cofinanciers) <span class="sc">%&gt;%</span></span>
-<span id="cb12-31"><a href="building-the-datasets.html#cb12-31" tabindex="-1"></a>  <span class="fu">slice</span>(<span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb12-32"><a href="building-the-datasets.html#cb12-32" tabindex="-1"></a>  <span class="fu">ungroup</span>() </span>
-<span id="cb12-33"><a href="building-the-datasets.html#cb12-33" tabindex="-1"></a></span>
-<span id="cb12-34"><a href="building-the-datasets.html#cb12-34" tabindex="-1"></a></span>
-<span id="cb12-35"><a href="building-the-datasets.html#cb12-35" tabindex="-1"></a>data_fund_pa_nodupl <span class="ot">=</span> <span class="fu">rbind</span>(data_fund_wdpa, data_fund_name, data_fund_na)</span>
-<span id="cb12-36"><a href="building-the-datasets.html#cb12-36" tabindex="-1"></a></span>
-<span id="cb12-37"><a href="building-the-datasets.html#cb12-37" tabindex="-1"></a><span class="co">#fwrite(data_fund, &quot;data_tidy/BDD_PA_AFD_fund.csv&quot;)</span></span>
-<span id="cb12-38"><a href="building-the-datasets.html#cb12-38" tabindex="-1"></a><span class="co"># s3write_using(x = data_fund_pa_nodupl,</span></span>
-<span id="cb12-39"><a href="building-the-datasets.html#cb12-39" tabindex="-1"></a><span class="co">#               FUN = readr::write_delim,</span></span>
-<span id="cb12-40"><a href="building-the-datasets.html#cb12-40" tabindex="-1"></a><span class="co">#               delim = &quot;;&quot;,</span></span>
-<span id="cb12-41"><a href="building-the-datasets.html#cb12-41" tabindex="-1"></a><span class="co">#               object = &quot;data_tidy/BDD_AFD_fund_PA.csv&quot;,</span></span>
-<span id="cb12-42"><a href="building-the-datasets.html#cb12-42" tabindex="-1"></a><span class="co">#               bucket = &quot;projet-afd-eva-ap&quot;,</span></span>
-<span id="cb12-43"><a href="building-the-datasets.html#cb12-43" tabindex="-1"></a><span class="co">#               opts = list(&quot;region&quot; = &quot;&quot;))</span></span></code></pre></div>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="building-the-datasets.html#cb14-1" tabindex="-1"></a>data_fund_pa <span class="ot">=</span> data_tidy</span>
+<span id="cb14-2"><a href="building-the-datasets.html#cb14-2" tabindex="-1"></a></span>
+<span id="cb14-3"><a href="building-the-datasets.html#cb14-3" tabindex="-1"></a><span class="co">#For PAs with WDPAIDs</span></span>
+<span id="cb14-4"><a href="building-the-datasets.html#cb14-4" tabindex="-1"></a>data_fund_wdpa <span class="ot">=</span> data_fund_pa <span class="sc">%&gt;%</span></span>
+<span id="cb14-5"><a href="building-the-datasets.html#cb14-5" tabindex="-1"></a>    <span class="fu">subset</span>(<span class="fu">is.na</span>(wdpaid) <span class="sc">==</span> <span class="cn">FALSE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb14-6"><a href="building-the-datasets.html#cb14-6" tabindex="-1"></a>  <span class="co">#We need to manually remove some WDPA_PID not relevant</span></span>
+<span id="cb14-7"><a href="building-the-datasets.html#cb14-7" tabindex="-1"></a>  <span class="do">## Remove the marine area with null area of WDPAID 9035</span></span>
+<span id="cb14-8"><a href="building-the-datasets.html#cb14-8" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span>(wdpa_pid <span class="sc">==</span> <span class="st">&quot;9035_A&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb14-9"><a href="building-the-datasets.html#cb14-9" tabindex="-1"></a>  <span class="do">## 555547861 has 3 marine PAs. The C one is chosen as the size reported by AFD (superficie_km2) matches the area reported by WDPA (https://www.protectedplanet.net/555547861)</span></span>
+<span id="cb14-10"><a href="building-the-datasets.html#cb14-10" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span>(wdpa_pid <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;555547861_A&quot;</span>, <span class="st">&quot;555547861_B&quot;</span>))) <span class="sc">%&gt;%</span></span>
+<span id="cb14-11"><a href="building-the-datasets.html#cb14-11" tabindex="-1"></a>  <span class="co"># 555705345 : buffer area is also reported. Remove the buffer</span></span>
+<span id="cb14-12"><a href="building-the-datasets.html#cb14-12" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span>(wdpa_pid <span class="sc">==</span> <span class="st">&quot;555705345_B&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb14-13"><a href="building-the-datasets.html#cb14-13" tabindex="-1"></a>  <span class="co">#555547863 : keep the WDPA_PID whose area matches the one reported by AFD employees and WDPA website (https://www.protectedplanet.net/555547863)</span></span>
+<span id="cb14-14"><a href="building-the-datasets.html#cb14-14" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span>(wdpa_pid <span class="sc">==</span> <span class="st">&quot;555547863_A&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb14-15"><a href="building-the-datasets.html#cb14-15" tabindex="-1"></a>  <span class="co">#Finally, keep for each WDPAID the different funding it get</span></span>
+<span id="cb14-16"><a href="building-the-datasets.html#cb14-16" tabindex="-1"></a>  <span class="fu">group_by</span>(id_projet, id_concours, wdpaid, cofinanciers) <span class="sc">%&gt;%</span></span>
+<span id="cb14-17"><a href="building-the-datasets.html#cb14-17" tabindex="-1"></a>  <span class="fu">slice</span>(<span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb14-18"><a href="building-the-datasets.html#cb14-18" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
+<span id="cb14-19"><a href="building-the-datasets.html#cb14-19" tabindex="-1"></a></span>
+<span id="cb14-20"><a href="building-the-datasets.html#cb14-20" tabindex="-1"></a><span class="co">#For PAs without WDPAIDs but a name_pa : for the PA identified by name_pa, keep id_projet/id_concours/confinanciers</span></span>
+<span id="cb14-21"><a href="building-the-datasets.html#cb14-21" tabindex="-1"></a>data_fund_name <span class="ot">=</span> data_fund_pa <span class="sc">%&gt;%</span></span>
+<span id="cb14-22"><a href="building-the-datasets.html#cb14-22" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">is.na</span>(wdpaid) <span class="sc">==</span> <span class="cn">TRUE</span> <span class="sc">&amp;</span> <span class="fu">is.na</span>(name_pa) <span class="sc">==</span> <span class="cn">FALSE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb14-23"><a href="building-the-datasets.html#cb14-23" tabindex="-1"></a>  <span class="fu">group_by</span>(id_projet, id_concours, name_pa, cofinanciers) <span class="sc">%&gt;%</span></span>
+<span id="cb14-24"><a href="building-the-datasets.html#cb14-24" tabindex="-1"></a>  <span class="fu">slice</span>(<span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb14-25"><a href="building-the-datasets.html#cb14-25" tabindex="-1"></a>  <span class="fu">ungroup</span>() </span>
+<span id="cb14-26"><a href="building-the-datasets.html#cb14-26" tabindex="-1"></a></span>
+<span id="cb14-27"><a href="building-the-datasets.html#cb14-27" tabindex="-1"></a>  <span class="co">#For PAs without WDPAIDs nor name_pa : for the PA identified by id_projet/iso3, keep id_concours/confinanciers</span></span>
+<span id="cb14-28"><a href="building-the-datasets.html#cb14-28" tabindex="-1"></a>data_fund_na <span class="ot">=</span> data_fund_pa <span class="sc">%&gt;%</span></span>
+<span id="cb14-29"><a href="building-the-datasets.html#cb14-29" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">is.na</span>(wdpaid) <span class="sc">==</span> <span class="cn">TRUE</span> <span class="sc">&amp;</span> <span class="fu">is.na</span>(name_pa) <span class="sc">==</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb14-30"><a href="building-the-datasets.html#cb14-30" tabindex="-1"></a>  <span class="fu">group_by</span>(id_projet, iso3, id_concours, cofinanciers) <span class="sc">%&gt;%</span></span>
+<span id="cb14-31"><a href="building-the-datasets.html#cb14-31" tabindex="-1"></a>  <span class="fu">slice</span>(<span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb14-32"><a href="building-the-datasets.html#cb14-32" tabindex="-1"></a>  <span class="fu">ungroup</span>() </span>
+<span id="cb14-33"><a href="building-the-datasets.html#cb14-33" tabindex="-1"></a></span>
+<span id="cb14-34"><a href="building-the-datasets.html#cb14-34" tabindex="-1"></a></span>
+<span id="cb14-35"><a href="building-the-datasets.html#cb14-35" tabindex="-1"></a>data_fund_pa_nodupl <span class="ot">=</span> <span class="fu">rbind</span>(data_fund_wdpa, data_fund_name, data_fund_na)</span>
+<span id="cb14-36"><a href="building-the-datasets.html#cb14-36" tabindex="-1"></a></span>
+<span id="cb14-37"><a href="building-the-datasets.html#cb14-37" tabindex="-1"></a><span class="co">#fwrite(data_fund, &quot;data_tidy/BDD_PA_AFD_fund.csv&quot;)</span></span>
+<span id="cb14-38"><a href="building-the-datasets.html#cb14-38" tabindex="-1"></a><span class="co"># s3write_using(x = data_fund_pa_nodupl,</span></span>
+<span id="cb14-39"><a href="building-the-datasets.html#cb14-39" tabindex="-1"></a><span class="co">#               FUN = readr::write_delim,</span></span>
+<span id="cb14-40"><a href="building-the-datasets.html#cb14-40" tabindex="-1"></a><span class="co">#               delim = &quot;;&quot;,</span></span>
+<span id="cb14-41"><a href="building-the-datasets.html#cb14-41" tabindex="-1"></a><span class="co">#               object = &quot;data_tidy/BDD_AFD_fund_PA.csv&quot;,</span></span>
+<span id="cb14-42"><a href="building-the-datasets.html#cb14-42" tabindex="-1"></a><span class="co">#               bucket = &quot;projet-afd-eva-ap&quot;,</span></span>
+<span id="cb14-43"><a href="building-the-datasets.html#cb14-43" tabindex="-1"></a><span class="co">#               opts = list(&quot;region&quot; = &quot;&quot;))</span></span></code></pre></div>
 </div>
 <div id="a-polygon-dataset-for-specific-use" class="section level3 hasAnchor" number="1.2.8">
 <h3><span class="header-section-number">1.2.8</span> A polygon dataset for specific use<a href="building-the-datasets.html#a-polygon-dataset-for-specific-use" class="anchor-section" aria-label="Anchor link to header"></a></h3>
 <p>The funding and non-funding datasets with polygon, for maps creation.</p>
-<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="building-the-datasets.html#cb13-1" tabindex="-1"></a><span class="co">#Loading the datasets</span></span>
-<span id="cb13-2"><a href="building-the-datasets.html#cb13-2" tabindex="-1"></a><span class="do">##WDPA data (polygons)</span></span>
-<span id="cb13-3"><a href="building-the-datasets.html#cb13-3" tabindex="-1"></a>data_wdpa <span class="ot">=</span></span>
-<span id="cb13-4"><a href="building-the-datasets.html#cb13-4" tabindex="-1"></a>  <span class="co">#st_read(&quot;data_raw/wdpa/wdpa_shp_global_raw.gpkg&quot;) %&gt;%</span></span>
-<span id="cb13-5"><a href="building-the-datasets.html#cb13-5" tabindex="-1"></a>  <span class="fu">s3read_using</span>(sf<span class="sc">::</span>st_read,</span>
-<span id="cb13-6"><a href="building-the-datasets.html#cb13-6" tabindex="-1"></a>              <span class="at">object =</span> <span class="st">&quot;data_raw/wdpa/wdpa_shp_global_raw.gpkg&quot;</span>,</span>
-<span id="cb13-7"><a href="building-the-datasets.html#cb13-7" tabindex="-1"></a>              <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
-<span id="cb13-8"><a href="building-the-datasets.html#cb13-8" tabindex="-1"></a>              <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>)) <span class="sc">%&gt;%</span></span>
-<span id="cb13-9"><a href="building-the-datasets.html#cb13-9" tabindex="-1"></a>  <span class="fu">clean_names</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb13-10"><a href="building-the-datasets.html#cb13-10" tabindex="-1"></a>  <span class="fu">select</span>(<span class="fu">c</span>(wdpaid, wdpa_pid, geom)) <span class="sc">%&gt;%</span></span>
-<span id="cb13-11"><a href="building-the-datasets.html#cb13-11" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">geom_type =</span> sf<span class="sc">::</span><span class="fu">st_geometry_type</span>(geom))</span>
-<span id="cb13-12"><a href="building-the-datasets.html#cb13-12" tabindex="-1"></a></span>
-<span id="cb13-13"><a href="building-the-datasets.html#cb13-13" tabindex="-1"></a><span class="do">## Non-confidential dataset</span></span>
-<span id="cb13-14"><a href="building-the-datasets.html#cb13-14" tabindex="-1"></a>data_pa_nofund_nodupl <span class="ot">=</span> </span>
-<span id="cb13-15"><a href="building-the-datasets.html#cb13-15" tabindex="-1"></a>  <span class="co">#fread(&quot;data_raw/BDD_PA_AFD_nofund_nodupl.csv&quot;)</span></span>
-<span id="cb13-16"><a href="building-the-datasets.html#cb13-16" tabindex="-1"></a>  <span class="fu">s3read_using</span>(readr<span class="sc">::</span>read_delim,</span>
-<span id="cb13-17"><a href="building-the-datasets.html#cb13-17" tabindex="-1"></a>               <span class="at">delim =</span> <span class="st">&quot;;&quot;</span>,</span>
-<span id="cb13-18"><a href="building-the-datasets.html#cb13-18" tabindex="-1"></a>               <span class="at">show_col_types =</span> <span class="cn">FALSE</span>,</span>
-<span id="cb13-19"><a href="building-the-datasets.html#cb13-19" tabindex="-1"></a>               <span class="at">object =</span> <span class="st">&quot;data_tidy/BDD_PA_AFD_nofund_nodupl.csv&quot;</span>,</span>
-<span id="cb13-20"><a href="building-the-datasets.html#cb13-20" tabindex="-1"></a>              <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
-<span id="cb13-21"><a href="building-the-datasets.html#cb13-21" tabindex="-1"></a>              <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>))</span>
-<span id="cb13-22"><a href="building-the-datasets.html#cb13-22" tabindex="-1"></a></span>
-<span id="cb13-23"><a href="building-the-datasets.html#cb13-23" tabindex="-1"></a><span class="do">## Confidential dataset</span></span>
-<span id="cb13-24"><a href="building-the-datasets.html#cb13-24" tabindex="-1"></a>data_pa_fund_nodupl <span class="ot">=</span> </span>
-<span id="cb13-25"><a href="building-the-datasets.html#cb13-25" tabindex="-1"></a>  <span class="co">#fread(&quot;data_tidy/BDD_AFD_fund_PA.csv&quot;)</span></span>
-<span id="cb13-26"><a href="building-the-datasets.html#cb13-26" tabindex="-1"></a>  <span class="fu">s3read_using</span>(readr<span class="sc">::</span>read_delim,</span>
-<span id="cb13-27"><a href="building-the-datasets.html#cb13-27" tabindex="-1"></a>               <span class="at">delim =</span> <span class="st">&quot;;&quot;</span>,</span>
-<span id="cb13-28"><a href="building-the-datasets.html#cb13-28" tabindex="-1"></a>               <span class="at">show_col_types =</span> <span class="cn">FALSE</span>,</span>
-<span id="cb13-29"><a href="building-the-datasets.html#cb13-29" tabindex="-1"></a>               <span class="at">object =</span> <span class="st">&quot;data_tidy/BDD_AFD_fund_PA.csv&quot;</span>,</span>
-<span id="cb13-30"><a href="building-the-datasets.html#cb13-30" tabindex="-1"></a>              <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
-<span id="cb13-31"><a href="building-the-datasets.html#cb13-31" tabindex="-1"></a>              <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>))</span>
-<span id="cb13-32"><a href="building-the-datasets.html#cb13-32" tabindex="-1"></a></span>
-<span id="cb13-33"><a href="building-the-datasets.html#cb13-33" tabindex="-1"></a><span class="co">#Creating the dataset of with geospatial information (polygons)</span></span>
-<span id="cb13-34"><a href="building-the-datasets.html#cb13-34" tabindex="-1"></a>data_pa_nofund_shp <span class="ot">=</span> data_pa_nofund_nodupl <span class="sc">%&gt;%</span></span>
-<span id="cb13-35"><a href="building-the-datasets.html#cb13-35" tabindex="-1"></a>  <span class="fu">left_join</span>(data_wdpa, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">&quot;wdpaid&quot;</span>, <span class="st">&quot;wdpa_pid&quot;</span>))</span>
-<span id="cb13-36"><a href="building-the-datasets.html#cb13-36" tabindex="-1"></a>data_pa_fund_shp <span class="ot">=</span> data_pa_fund_nodupl <span class="sc">%&gt;%</span></span>
-<span id="cb13-37"><a href="building-the-datasets.html#cb13-37" tabindex="-1"></a>  <span class="fu">left_join</span>(data_wdpa, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">&quot;wdpaid&quot;</span>, <span class="st">&quot;wdpa_pid&quot;</span>))</span>
-<span id="cb13-38"><a href="building-the-datasets.html#cb13-38" tabindex="-1"></a>data_pa_nofund_polygon_shp <span class="ot">=</span> data_pa_nofund_shp <span class="sc">%&gt;%</span></span>
-<span id="cb13-39"><a href="building-the-datasets.html#cb13-39" tabindex="-1"></a>  <span class="fu">filter</span>(geom_type <span class="sc">==</span> <span class="st">&quot;MULTIPOLYGON&quot;</span>)</span>
-<span id="cb13-40"><a href="building-the-datasets.html#cb13-40" tabindex="-1"></a></span>
-<span id="cb13-41"><a href="building-the-datasets.html#cb13-41" tabindex="-1"></a></span>
-<span id="cb13-42"><a href="building-the-datasets.html#cb13-42" tabindex="-1"></a><span class="co">#Saving the datasets </span></span>
-<span id="cb13-43"><a href="building-the-datasets.html#cb13-43" tabindex="-1"></a></span>
-<span id="cb13-44"><a href="building-the-datasets.html#cb13-44" tabindex="-1"></a><span class="co"># st_write(pa_shp,</span></span>
-<span id="cb13-45"><a href="building-the-datasets.html#cb13-45" tabindex="-1"></a><span class="co">#          dsn = &quot;data_tidy/BDD_pa_afd_shp_pub.gpkg&quot;,</span></span>
-<span id="cb13-46"><a href="building-the-datasets.html#cb13-46" tabindex="-1"></a><span class="co">#          delete_dsn = TRUE)</span></span>
-<span id="cb13-47"><a href="building-the-datasets.html#cb13-47" tabindex="-1"></a><span class="co"># s3write_using(x = data_pa_nofund_shp,</span></span>
-<span id="cb13-48"><a href="building-the-datasets.html#cb13-48" tabindex="-1"></a><span class="co">#               FUN = sf::st_write,</span></span>
-<span id="cb13-49"><a href="building-the-datasets.html#cb13-49" tabindex="-1"></a><span class="co">#               delim = &quot;;&quot;,</span></span>
-<span id="cb13-50"><a href="building-the-datasets.html#cb13-50" tabindex="-1"></a><span class="co">#               object = &quot;data_tidy/BDD_PA_AFD_nofund_shp.geojson&quot;,</span></span>
-<span id="cb13-51"><a href="building-the-datasets.html#cb13-51" tabindex="-1"></a><span class="co">#               bucket = &quot;projet-afd-eva-ap&quot;,</span></span>
-<span id="cb13-52"><a href="building-the-datasets.html#cb13-52" tabindex="-1"></a><span class="co">#               opts = list(&quot;region&quot; = &quot;&quot;))</span></span>
-<span id="cb13-53"><a href="building-the-datasets.html#cb13-53" tabindex="-1"></a></span>
-<span id="cb13-54"><a href="building-the-datasets.html#cb13-54" tabindex="-1"></a><span class="co"># st_write(pa_shp,</span></span>
-<span id="cb13-55"><a href="building-the-datasets.html#cb13-55" tabindex="-1"></a><span class="co">#          dsn = &quot;data_tidy/BDD_pa_afd_shp_pub.gpkg&quot;,</span></span>
-<span id="cb13-56"><a href="building-the-datasets.html#cb13-56" tabindex="-1"></a><span class="co">#          delete_dsn = TRUE)</span></span>
-<span id="cb13-57"><a href="building-the-datasets.html#cb13-57" tabindex="-1"></a><span class="co"># s3write_using(x = data_pa_nofund_polygon_shp,</span></span>
-<span id="cb13-58"><a href="building-the-datasets.html#cb13-58" tabindex="-1"></a><span class="co">#               FUN = sf::st_write,</span></span>
-<span id="cb13-59"><a href="building-the-datasets.html#cb13-59" tabindex="-1"></a><span class="co">#               delim = &quot;;&quot;,</span></span>
-<span id="cb13-60"><a href="building-the-datasets.html#cb13-60" tabindex="-1"></a><span class="co">#               object = &quot;data_tidy/BDD_PA_AFD_nofund_polygon_shp.geojson&quot;,</span></span>
-<span id="cb13-61"><a href="building-the-datasets.html#cb13-61" tabindex="-1"></a><span class="co">#               bucket = &quot;projet-afd-eva-ap&quot;,</span></span>
-<span id="cb13-62"><a href="building-the-datasets.html#cb13-62" tabindex="-1"></a><span class="co">#               opts = list(&quot;region&quot; = &quot;&quot;))</span></span>
-<span id="cb13-63"><a href="building-the-datasets.html#cb13-63" tabindex="-1"></a>    </span>
-<span id="cb13-64"><a href="building-the-datasets.html#cb13-64" tabindex="-1"></a><span class="co"># st_write(pa_shp,</span></span>
-<span id="cb13-65"><a href="building-the-datasets.html#cb13-65" tabindex="-1"></a><span class="co">#          dsn = &quot;data_tidy/BDD_pa_afd_shp_pub.gpkg&quot;,</span></span>
-<span id="cb13-66"><a href="building-the-datasets.html#cb13-66" tabindex="-1"></a><span class="co">#          delete_dsn = TRUE)</span></span>
-<span id="cb13-67"><a href="building-the-datasets.html#cb13-67" tabindex="-1"></a><span class="co"># s3write_using(x = data_pa_fund_shp,</span></span>
-<span id="cb13-68"><a href="building-the-datasets.html#cb13-68" tabindex="-1"></a><span class="co">#               FUN = sf::st_write,</span></span>
-<span id="cb13-69"><a href="building-the-datasets.html#cb13-69" tabindex="-1"></a><span class="co">#               delim = &quot;;&quot;,</span></span>
-<span id="cb13-70"><a href="building-the-datasets.html#cb13-70" tabindex="-1"></a><span class="co">#               object = &quot;data_tidy/BDD_PA_AFD_fund_shp.geojson&quot;,</span></span>
-<span id="cb13-71"><a href="building-the-datasets.html#cb13-71" tabindex="-1"></a><span class="co">#               bucket = &quot;projet-afd-eva-ap&quot;,</span></span>
-<span id="cb13-72"><a href="building-the-datasets.html#cb13-72" tabindex="-1"></a><span class="co">#               opts = list(&quot;region&quot; = &quot;&quot;))</span></span></code></pre></div>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="building-the-datasets.html#cb15-1" tabindex="-1"></a><span class="co">#Loading the datasets</span></span>
+<span id="cb15-2"><a href="building-the-datasets.html#cb15-2" tabindex="-1"></a><span class="do">##WDPA data (polygons)</span></span>
+<span id="cb15-3"><a href="building-the-datasets.html#cb15-3" tabindex="-1"></a>data_wdpa <span class="ot">=</span></span>
+<span id="cb15-4"><a href="building-the-datasets.html#cb15-4" tabindex="-1"></a>  <span class="co">#st_read(&quot;data_raw/wdpa/wdpa_shp_global_raw.gpkg&quot;) %&gt;%</span></span>
+<span id="cb15-5"><a href="building-the-datasets.html#cb15-5" tabindex="-1"></a>  <span class="fu">s3read_using</span>(sf<span class="sc">::</span>st_read,</span>
+<span id="cb15-6"><a href="building-the-datasets.html#cb15-6" tabindex="-1"></a>              <span class="at">object =</span> <span class="st">&quot;data_raw/wdpa/wdpa_shp_global_raw.gpkg&quot;</span>,</span>
+<span id="cb15-7"><a href="building-the-datasets.html#cb15-7" tabindex="-1"></a>              <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb15-8"><a href="building-the-datasets.html#cb15-8" tabindex="-1"></a>              <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb15-9"><a href="building-the-datasets.html#cb15-9" tabindex="-1"></a>  <span class="fu">clean_names</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb15-10"><a href="building-the-datasets.html#cb15-10" tabindex="-1"></a>  <span class="fu">select</span>(<span class="fu">c</span>(wdpaid, wdpa_pid, geom)) <span class="sc">%&gt;%</span></span>
+<span id="cb15-11"><a href="building-the-datasets.html#cb15-11" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">geom_type =</span> sf<span class="sc">::</span><span class="fu">st_geometry_type</span>(geom))</span>
+<span id="cb15-12"><a href="building-the-datasets.html#cb15-12" tabindex="-1"></a></span>
+<span id="cb15-13"><a href="building-the-datasets.html#cb15-13" tabindex="-1"></a><span class="do">## Non-confidential dataset</span></span>
+<span id="cb15-14"><a href="building-the-datasets.html#cb15-14" tabindex="-1"></a>data_pa_nofund_nodupl <span class="ot">=</span> </span>
+<span id="cb15-15"><a href="building-the-datasets.html#cb15-15" tabindex="-1"></a>  <span class="co">#fread(&quot;data_raw/BDD_PA_AFD_nofund_nodupl.csv&quot;)</span></span>
+<span id="cb15-16"><a href="building-the-datasets.html#cb15-16" tabindex="-1"></a>  <span class="fu">s3read_using</span>(readr<span class="sc">::</span>read_delim,</span>
+<span id="cb15-17"><a href="building-the-datasets.html#cb15-17" tabindex="-1"></a>               <span class="at">delim =</span> <span class="st">&quot;;&quot;</span>,</span>
+<span id="cb15-18"><a href="building-the-datasets.html#cb15-18" tabindex="-1"></a>               <span class="at">show_col_types =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb15-19"><a href="building-the-datasets.html#cb15-19" tabindex="-1"></a>               <span class="at">object =</span> <span class="st">&quot;data_tidy/BDD_PA_AFD_nofund_nodupl.csv&quot;</span>,</span>
+<span id="cb15-20"><a href="building-the-datasets.html#cb15-20" tabindex="-1"></a>              <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb15-21"><a href="building-the-datasets.html#cb15-21" tabindex="-1"></a>              <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>))</span>
+<span id="cb15-22"><a href="building-the-datasets.html#cb15-22" tabindex="-1"></a></span>
+<span id="cb15-23"><a href="building-the-datasets.html#cb15-23" tabindex="-1"></a><span class="do">## Confidential dataset</span></span>
+<span id="cb15-24"><a href="building-the-datasets.html#cb15-24" tabindex="-1"></a>data_pa_fund_nodupl <span class="ot">=</span> </span>
+<span id="cb15-25"><a href="building-the-datasets.html#cb15-25" tabindex="-1"></a>  <span class="co">#fread(&quot;data_tidy/BDD_AFD_fund_PA.csv&quot;)</span></span>
+<span id="cb15-26"><a href="building-the-datasets.html#cb15-26" tabindex="-1"></a>  <span class="fu">s3read_using</span>(readr<span class="sc">::</span>read_delim,</span>
+<span id="cb15-27"><a href="building-the-datasets.html#cb15-27" tabindex="-1"></a>               <span class="at">delim =</span> <span class="st">&quot;;&quot;</span>,</span>
+<span id="cb15-28"><a href="building-the-datasets.html#cb15-28" tabindex="-1"></a>               <span class="at">show_col_types =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb15-29"><a href="building-the-datasets.html#cb15-29" tabindex="-1"></a>               <span class="at">object =</span> <span class="st">&quot;data_tidy/BDD_AFD_fund_PA.csv&quot;</span>,</span>
+<span id="cb15-30"><a href="building-the-datasets.html#cb15-30" tabindex="-1"></a>              <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb15-31"><a href="building-the-datasets.html#cb15-31" tabindex="-1"></a>              <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>))</span>
+<span id="cb15-32"><a href="building-the-datasets.html#cb15-32" tabindex="-1"></a></span>
+<span id="cb15-33"><a href="building-the-datasets.html#cb15-33" tabindex="-1"></a><span class="co">#Creating the dataset of with geospatial information (polygons)</span></span>
+<span id="cb15-34"><a href="building-the-datasets.html#cb15-34" tabindex="-1"></a>data_pa_nofund_shp <span class="ot">=</span> data_pa_nofund_nodupl <span class="sc">%&gt;%</span></span>
+<span id="cb15-35"><a href="building-the-datasets.html#cb15-35" tabindex="-1"></a>  <span class="fu">left_join</span>(data_wdpa, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">&quot;wdpaid&quot;</span>, <span class="st">&quot;wdpa_pid&quot;</span>))</span>
+<span id="cb15-36"><a href="building-the-datasets.html#cb15-36" tabindex="-1"></a>data_pa_fund_shp <span class="ot">=</span> data_pa_fund_nodupl <span class="sc">%&gt;%</span></span>
+<span id="cb15-37"><a href="building-the-datasets.html#cb15-37" tabindex="-1"></a>  <span class="fu">left_join</span>(data_wdpa, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">&quot;wdpaid&quot;</span>, <span class="st">&quot;wdpa_pid&quot;</span>))</span>
+<span id="cb15-38"><a href="building-the-datasets.html#cb15-38" tabindex="-1"></a>data_pa_nofund_polygon_shp <span class="ot">=</span> data_pa_nofund_shp <span class="sc">%&gt;%</span></span>
+<span id="cb15-39"><a href="building-the-datasets.html#cb15-39" tabindex="-1"></a>  <span class="fu">filter</span>(geom_type <span class="sc">==</span> <span class="st">&quot;MULTIPOLYGON&quot;</span>)</span>
+<span id="cb15-40"><a href="building-the-datasets.html#cb15-40" tabindex="-1"></a></span>
+<span id="cb15-41"><a href="building-the-datasets.html#cb15-41" tabindex="-1"></a></span>
+<span id="cb15-42"><a href="building-the-datasets.html#cb15-42" tabindex="-1"></a><span class="co">#Saving the datasets </span></span>
+<span id="cb15-43"><a href="building-the-datasets.html#cb15-43" tabindex="-1"></a></span>
+<span id="cb15-44"><a href="building-the-datasets.html#cb15-44" tabindex="-1"></a><span class="co"># st_write(pa_shp,</span></span>
+<span id="cb15-45"><a href="building-the-datasets.html#cb15-45" tabindex="-1"></a><span class="co">#          dsn = &quot;data_tidy/BDD_pa_afd_shp_pub.gpkg&quot;,</span></span>
+<span id="cb15-46"><a href="building-the-datasets.html#cb15-46" tabindex="-1"></a><span class="co">#          delete_dsn = TRUE)</span></span>
+<span id="cb15-47"><a href="building-the-datasets.html#cb15-47" tabindex="-1"></a><span class="co"># s3write_using(x = data_pa_nofund_shp,</span></span>
+<span id="cb15-48"><a href="building-the-datasets.html#cb15-48" tabindex="-1"></a><span class="co">#               FUN = sf::st_write,</span></span>
+<span id="cb15-49"><a href="building-the-datasets.html#cb15-49" tabindex="-1"></a><span class="co">#               delim = &quot;;&quot;,</span></span>
+<span id="cb15-50"><a href="building-the-datasets.html#cb15-50" tabindex="-1"></a><span class="co">#               object = &quot;data_tidy/BDD_PA_AFD_nofund_shp.geojson&quot;,</span></span>
+<span id="cb15-51"><a href="building-the-datasets.html#cb15-51" tabindex="-1"></a><span class="co">#               bucket = &quot;projet-afd-eva-ap&quot;,</span></span>
+<span id="cb15-52"><a href="building-the-datasets.html#cb15-52" tabindex="-1"></a><span class="co">#               opts = list(&quot;region&quot; = &quot;&quot;))</span></span>
+<span id="cb15-53"><a href="building-the-datasets.html#cb15-53" tabindex="-1"></a></span>
+<span id="cb15-54"><a href="building-the-datasets.html#cb15-54" tabindex="-1"></a><span class="co"># st_write(pa_shp,</span></span>
+<span id="cb15-55"><a href="building-the-datasets.html#cb15-55" tabindex="-1"></a><span class="co">#          dsn = &quot;data_tidy/BDD_pa_afd_shp_pub.gpkg&quot;,</span></span>
+<span id="cb15-56"><a href="building-the-datasets.html#cb15-56" tabindex="-1"></a><span class="co">#          delete_dsn = TRUE)</span></span>
+<span id="cb15-57"><a href="building-the-datasets.html#cb15-57" tabindex="-1"></a><span class="co"># s3write_using(x = data_pa_nofund_polygon_shp,</span></span>
+<span id="cb15-58"><a href="building-the-datasets.html#cb15-58" tabindex="-1"></a><span class="co">#               FUN = sf::st_write,</span></span>
+<span id="cb15-59"><a href="building-the-datasets.html#cb15-59" tabindex="-1"></a><span class="co">#               delim = &quot;;&quot;,</span></span>
+<span id="cb15-60"><a href="building-the-datasets.html#cb15-60" tabindex="-1"></a><span class="co">#               object = &quot;data_tidy/BDD_PA_AFD_nofund_polygon_shp.geojson&quot;,</span></span>
+<span id="cb15-61"><a href="building-the-datasets.html#cb15-61" tabindex="-1"></a><span class="co">#               bucket = &quot;projet-afd-eva-ap&quot;,</span></span>
+<span id="cb15-62"><a href="building-the-datasets.html#cb15-62" tabindex="-1"></a><span class="co">#               opts = list(&quot;region&quot; = &quot;&quot;))</span></span>
+<span id="cb15-63"><a href="building-the-datasets.html#cb15-63" tabindex="-1"></a>    </span>
+<span id="cb15-64"><a href="building-the-datasets.html#cb15-64" tabindex="-1"></a><span class="co"># st_write(pa_shp,</span></span>
+<span id="cb15-65"><a href="building-the-datasets.html#cb15-65" tabindex="-1"></a><span class="co">#          dsn = &quot;data_tidy/BDD_pa_afd_shp_pub.gpkg&quot;,</span></span>
+<span id="cb15-66"><a href="building-the-datasets.html#cb15-66" tabindex="-1"></a><span class="co">#          delete_dsn = TRUE)</span></span>
+<span id="cb15-67"><a href="building-the-datasets.html#cb15-67" tabindex="-1"></a><span class="co"># s3write_using(x = data_pa_fund_shp,</span></span>
+<span id="cb15-68"><a href="building-the-datasets.html#cb15-68" tabindex="-1"></a><span class="co">#               FUN = sf::st_write,</span></span>
+<span id="cb15-69"><a href="building-the-datasets.html#cb15-69" tabindex="-1"></a><span class="co">#               delim = &quot;;&quot;,</span></span>
+<span id="cb15-70"><a href="building-the-datasets.html#cb15-70" tabindex="-1"></a><span class="co">#               object = &quot;data_tidy/BDD_PA_AFD_fund_shp.geojson&quot;,</span></span>
+<span id="cb15-71"><a href="building-the-datasets.html#cb15-71" tabindex="-1"></a><span class="co">#               bucket = &quot;projet-afd-eva-ap&quot;,</span></span>
+<span id="cb15-72"><a href="building-the-datasets.html#cb15-72" tabindex="-1"></a><span class="co">#               opts = list(&quot;region&quot; = &quot;&quot;))</span></span></code></pre></div>
 </div>
 </div>
 <div id="computing-total-areas-covered-by-pas-in-the-sample" class="section level2 hasAnchor" number="1.3">
@@ -1244,221 +1456,221 @@ code span.wa { color: #008000; font-weight: bold; } /* Warning */
 <p>Note that the following codes are about computing total area at country/region/world level, taking potential intersections into account. It is not about generating a new shape files for the impact analysis. Indeed the overlap should be taken into account in the impact evaluation analysis codes.</p>
 <div id="computations-of-polygons-area" class="section level3 hasAnchor" number="1.3.1">
 <h3><span class="header-section-number">1.3.1</span> Computations of polygons’ area<a href="building-the-datasets.html#computations-of-polygons-area" class="anchor-section" aria-label="Anchor link to header"></a></h3>
-<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="building-the-datasets.html#cb14-1" tabindex="-1"></a><span class="co">#Importing shapefiles</span></span>
-<span id="cb14-2"><a href="building-the-datasets.html#cb14-2" tabindex="-1"></a><span class="fu">sf_use_s2</span>(<span class="cn">FALSE</span>)</span>
-<span id="cb14-3"><a href="building-the-datasets.html#cb14-3" tabindex="-1"></a>pa_shp <span class="ot">=</span> </span>
-<span id="cb14-4"><a href="building-the-datasets.html#cb14-4" tabindex="-1"></a>  <span class="co">#read_sf(&quot;data_tidy/BDD_PA_AFD_shp.gpkg&quot;) %&gt;%</span></span>
-<span id="cb14-5"><a href="building-the-datasets.html#cb14-5" tabindex="-1"></a>  aws.s3<span class="sc">::</span><span class="fu">s3read_using</span>(</span>
-<span id="cb14-6"><a href="building-the-datasets.html#cb14-6" tabindex="-1"></a>  <span class="at">FUN =</span> sf<span class="sc">::</span>read_sf,</span>
-<span id="cb14-7"><a href="building-the-datasets.html#cb14-7" tabindex="-1"></a>  <span class="co"># Mettre les options de FUN ici</span></span>
-<span id="cb14-8"><a href="building-the-datasets.html#cb14-8" tabindex="-1"></a>  <span class="at">object =</span> <span class="st">&quot;data_tidy/BDD_PA_AFD_nofund_shp.gpkg&quot;</span>,</span>
-<span id="cb14-9"><a href="building-the-datasets.html#cb14-9" tabindex="-1"></a>  <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
-<span id="cb14-10"><a href="building-the-datasets.html#cb14-10" tabindex="-1"></a>  <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>)) <span class="sc">%&gt;%</span></span>
-<span id="cb14-11"><a href="building-the-datasets.html#cb14-11" tabindex="-1"></a>  <span class="co">#Take polygons only</span></span>
-<span id="cb14-12"><a href="building-the-datasets.html#cb14-12" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">geom_type =</span> <span class="fu">as.character</span>(<span class="fu">st_geometry_type</span>(geom))) <span class="sc">%&gt;%</span></span>
-<span id="cb14-13"><a href="building-the-datasets.html#cb14-13" tabindex="-1"></a>  <span class="fu">filter</span>(geom_type <span class="sc">==</span> <span class="st">&quot;MULTIPOLYGON&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb14-14"><a href="building-the-datasets.html#cb14-14" tabindex="-1"></a>  <span class="co">#Ensure all geometries are valid</span></span>
-<span id="cb14-15"><a href="building-the-datasets.html#cb14-15" tabindex="-1"></a>  <span class="fu">st_make_valid</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb14-16"><a href="building-the-datasets.html#cb14-16" tabindex="-1"></a>  <span class="co">#From multipolygon to polygon</span></span>
-<span id="cb14-17"><a href="building-the-datasets.html#cb14-17" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_cast</span>(<span class="at">to=</span><span class="st">&quot;POLYGON&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb14-18"><a href="building-the-datasets.html#cb14-18" tabindex="-1"></a>  <span class="co">#Select relevant variables</span></span>
-<span id="cb14-19"><a href="building-the-datasets.html#cb14-19" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="fu">c</span>(wdpaid, area_afd_km2, rep_area, geom, iso3, region_afd, region, sub_region, year_funding_first, year_funding_all)) </span>
-<span id="cb14-20"><a href="building-the-datasets.html#cb14-20" tabindex="-1"></a></span>
-<span id="cb14-21"><a href="building-the-datasets.html#cb14-21" tabindex="-1"></a><span class="co">#Spatial definition of wdpaid 555547988 overlaps CMR and CAF. Wdpaid 1245 corresponds to the CMR part. The overlap is removed and iso3 redefined so that 555547988 is CAF only. </span></span>
-<span id="cb14-22"><a href="building-the-datasets.html#cb14-22" tabindex="-1"></a>geom_555547988_1245 <span class="ot">=</span> <span class="fu">st_difference</span>(pa_shp[pa_shp<span class="sc">$</span>wdpaid <span class="sc">==</span> <span class="dv">555547988</span>,]<span class="sc">$</span>geom, pa_shp[pa_shp<span class="sc">$</span>wdpaid <span class="sc">==</span> <span class="dv">1245</span>,]<span class="sc">$</span>geom)</span>
-<span id="cb14-23"><a href="building-the-datasets.html#cb14-23" tabindex="-1"></a>pa_shp[pa_shp<span class="sc">$</span>wdpaid <span class="sc">==</span> <span class="dv">555547988</span>,]<span class="sc">$</span>geom <span class="ot">=</span> geom_555547988_1245</span>
-<span id="cb14-24"><a href="building-the-datasets.html#cb14-24" tabindex="-1"></a>pa_shp[pa_shp<span class="sc">$</span>wdpaid <span class="sc">==</span> <span class="dv">555547988</span>,]<span class="sc">$</span>iso3 <span class="ot">=</span> <span class="st">&quot;CAF&quot;</span></span>
-<span id="cb14-25"><a href="building-the-datasets.html#cb14-25" tabindex="-1"></a></span>
-<span id="cb14-26"><a href="building-the-datasets.html#cb14-26" tabindex="-1"></a><span class="co">#Define a tidy version of the former dataset, with modifications on wdpaid 555547988</span></span>
-<span id="cb14-27"><a href="building-the-datasets.html#cb14-27" tabindex="-1"></a>pa_shp_tidy <span class="ot">=</span> pa_shp <span class="sc">%&gt;%</span></span>
-<span id="cb14-28"><a href="building-the-datasets.html#cb14-28" tabindex="-1"></a>  <span class="co">#Project to Mollweide to compute relevant areas in km2</span></span>
-<span id="cb14-29"><a href="building-the-datasets.html#cb14-29" tabindex="-1"></a>  <span class="fu">st_transform</span>(<span class="at">crs =</span> <span class="st">&quot;+proj=moll +datum=WGS84&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb14-30"><a href="building-the-datasets.html#cb14-30" tabindex="-1"></a>  <span class="co">#Compute areas in km2 from the geometry, in km2. It must be equal to gis_a by definition </span></span>
-<span id="cb14-31"><a href="building-the-datasets.html#cb14-31" tabindex="-1"></a>  <span class="co">#Then to take into account potential refinements of the geometries (as for wdpaid 55547988), a variable for relevant area is defined. It takes rep_a value except for modified geometries where area_sf_moll is taken</span></span>
-<span id="cb14-32"><a href="building-the-datasets.html#cb14-32" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">area_sf_moll =</span> <span class="fu">as.numeric</span>(<span class="fu">st_area</span>(geom)<span class="sc">/</span><span class="fl">1e6</span>),</span>
-<span id="cb14-33"><a href="building-the-datasets.html#cb14-33" tabindex="-1"></a>         <span class="at">area_afd_km2 =</span> <span class="fu">ifelse</span>(wdpaid <span class="sc">==</span> <span class="dv">555547988</span>, <span class="at">yes =</span> area_sf_moll, <span class="at">no =</span> rep_area))</span></code></pre></div>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="building-the-datasets.html#cb16-1" tabindex="-1"></a><span class="co">#Importing shapefiles</span></span>
+<span id="cb16-2"><a href="building-the-datasets.html#cb16-2" tabindex="-1"></a><span class="fu">sf_use_s2</span>(<span class="cn">FALSE</span>)</span>
+<span id="cb16-3"><a href="building-the-datasets.html#cb16-3" tabindex="-1"></a>pa_shp <span class="ot">=</span> </span>
+<span id="cb16-4"><a href="building-the-datasets.html#cb16-4" tabindex="-1"></a>  <span class="co">#read_sf(&quot;data_tidy/BDD_PA_AFD_shp.gpkg&quot;) %&gt;%</span></span>
+<span id="cb16-5"><a href="building-the-datasets.html#cb16-5" tabindex="-1"></a>  aws.s3<span class="sc">::</span><span class="fu">s3read_using</span>(</span>
+<span id="cb16-6"><a href="building-the-datasets.html#cb16-6" tabindex="-1"></a>  <span class="at">FUN =</span> sf<span class="sc">::</span>read_sf,</span>
+<span id="cb16-7"><a href="building-the-datasets.html#cb16-7" tabindex="-1"></a>  <span class="co"># Mettre les options de FUN ici</span></span>
+<span id="cb16-8"><a href="building-the-datasets.html#cb16-8" tabindex="-1"></a>  <span class="at">object =</span> <span class="st">&quot;data_tidy/BDD_PA_AFD_nofund_shp.gpkg&quot;</span>,</span>
+<span id="cb16-9"><a href="building-the-datasets.html#cb16-9" tabindex="-1"></a>  <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb16-10"><a href="building-the-datasets.html#cb16-10" tabindex="-1"></a>  <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb16-11"><a href="building-the-datasets.html#cb16-11" tabindex="-1"></a>  <span class="co">#Take polygons only</span></span>
+<span id="cb16-12"><a href="building-the-datasets.html#cb16-12" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">geom_type =</span> <span class="fu">as.character</span>(<span class="fu">st_geometry_type</span>(geom))) <span class="sc">%&gt;%</span></span>
+<span id="cb16-13"><a href="building-the-datasets.html#cb16-13" tabindex="-1"></a>  <span class="fu">filter</span>(geom_type <span class="sc">==</span> <span class="st">&quot;MULTIPOLYGON&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb16-14"><a href="building-the-datasets.html#cb16-14" tabindex="-1"></a>  <span class="co">#Ensure all geometries are valid</span></span>
+<span id="cb16-15"><a href="building-the-datasets.html#cb16-15" tabindex="-1"></a>  <span class="fu">st_make_valid</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb16-16"><a href="building-the-datasets.html#cb16-16" tabindex="-1"></a>  <span class="co">#From multipolygon to polygon</span></span>
+<span id="cb16-17"><a href="building-the-datasets.html#cb16-17" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_cast</span>(<span class="at">to=</span><span class="st">&quot;POLYGON&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb16-18"><a href="building-the-datasets.html#cb16-18" tabindex="-1"></a>  <span class="co">#Select relevant variables</span></span>
+<span id="cb16-19"><a href="building-the-datasets.html#cb16-19" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="fu">c</span>(wdpaid, area_afd_km2, rep_area, geom, iso3, region_afd, region, sub_region, year_funding_first, year_funding_all)) </span>
+<span id="cb16-20"><a href="building-the-datasets.html#cb16-20" tabindex="-1"></a></span>
+<span id="cb16-21"><a href="building-the-datasets.html#cb16-21" tabindex="-1"></a><span class="co">#Spatial definition of wdpaid 555547988 overlaps CMR and CAF. Wdpaid 1245 corresponds to the CMR part. The overlap is removed and iso3 redefined so that 555547988 is CAF only. </span></span>
+<span id="cb16-22"><a href="building-the-datasets.html#cb16-22" tabindex="-1"></a>geom_555547988_1245 <span class="ot">=</span> <span class="fu">st_difference</span>(pa_shp[pa_shp<span class="sc">$</span>wdpaid <span class="sc">==</span> <span class="dv">555547988</span>,]<span class="sc">$</span>geom, pa_shp[pa_shp<span class="sc">$</span>wdpaid <span class="sc">==</span> <span class="dv">1245</span>,]<span class="sc">$</span>geom)</span>
+<span id="cb16-23"><a href="building-the-datasets.html#cb16-23" tabindex="-1"></a>pa_shp[pa_shp<span class="sc">$</span>wdpaid <span class="sc">==</span> <span class="dv">555547988</span>,]<span class="sc">$</span>geom <span class="ot">=</span> geom_555547988_1245</span>
+<span id="cb16-24"><a href="building-the-datasets.html#cb16-24" tabindex="-1"></a>pa_shp[pa_shp<span class="sc">$</span>wdpaid <span class="sc">==</span> <span class="dv">555547988</span>,]<span class="sc">$</span>iso3 <span class="ot">=</span> <span class="st">&quot;CAF&quot;</span></span>
+<span id="cb16-25"><a href="building-the-datasets.html#cb16-25" tabindex="-1"></a></span>
+<span id="cb16-26"><a href="building-the-datasets.html#cb16-26" tabindex="-1"></a><span class="co">#Define a tidy version of the former dataset, with modifications on wdpaid 555547988</span></span>
+<span id="cb16-27"><a href="building-the-datasets.html#cb16-27" tabindex="-1"></a>pa_shp_tidy <span class="ot">=</span> pa_shp <span class="sc">%&gt;%</span></span>
+<span id="cb16-28"><a href="building-the-datasets.html#cb16-28" tabindex="-1"></a>  <span class="co">#Project to Mollweide to compute relevant areas in km2</span></span>
+<span id="cb16-29"><a href="building-the-datasets.html#cb16-29" tabindex="-1"></a>  <span class="fu">st_transform</span>(<span class="at">crs =</span> <span class="st">&quot;+proj=moll +datum=WGS84&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb16-30"><a href="building-the-datasets.html#cb16-30" tabindex="-1"></a>  <span class="co">#Compute areas in km2 from the geometry, in km2. It must be equal to gis_a by definition </span></span>
+<span id="cb16-31"><a href="building-the-datasets.html#cb16-31" tabindex="-1"></a>  <span class="co">#Then to take into account potential refinements of the geometries (as for wdpaid 55547988), a variable for relevant area is defined. It takes rep_a value except for modified geometries where area_sf_moll is taken</span></span>
+<span id="cb16-32"><a href="building-the-datasets.html#cb16-32" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">area_sf_moll =</span> <span class="fu">as.numeric</span>(<span class="fu">st_area</span>(geom)<span class="sc">/</span><span class="fl">1e6</span>),</span>
+<span id="cb16-33"><a href="building-the-datasets.html#cb16-33" tabindex="-1"></a>         <span class="at">area_afd_km2 =</span> <span class="fu">ifelse</span>(wdpaid <span class="sc">==</span> <span class="dv">555547988</span>, <span class="at">yes =</span> area_sf_moll, <span class="at">no =</span> rep_area))</span></code></pre></div>
 </div>
 <div id="computing-the-intersection-at-country-region-world-level" class="section level3 hasAnchor" number="1.3.2">
 <h3><span class="header-section-number">1.3.2</span> Computing the intersection at country, region, world level<a href="building-the-datasets.html#computing-the-intersection-at-country-region-world-level" class="anchor-section" aria-label="Anchor link to header"></a></h3>
-<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="building-the-datasets.html#cb15-1" tabindex="-1"></a><span class="co">#Compute intersecting areas of polygons</span></span>
-<span id="cb15-2"><a href="building-the-datasets.html#cb15-2" tabindex="-1"></a>pa_int <span class="ot">=</span> <span class="fu">st_intersection</span>(pa_shp_tidy, pa_shp_tidy) <span class="sc">%&gt;%</span></span>
-<span id="cb15-3"><a href="building-the-datasets.html#cb15-3" tabindex="-1"></a>  <span class="co">#Remove intersection of polygons with themselves</span></span>
-<span id="cb15-4"><a href="building-the-datasets.html#cb15-4" tabindex="-1"></a>  <span class="fu">subset</span>(wdpaid <span class="sc">!=</span> wdpaid<span class="fl">.1</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb15-5"><a href="building-the-datasets.html#cb15-5" tabindex="-1"></a>  <span class="co">#If one of the two intersectin polygon have unknwon area, then it is not necessary to subtract the interesction area. Indeed there is no double-counting of the intersection in this case, when both polygon areas are summed.</span></span>
-<span id="cb15-6"><a href="building-the-datasets.html#cb15-6" tabindex="-1"></a>  <span class="fu">subset</span>(<span class="fu">is.na</span>(area_afd_km2) <span class="sc">==</span> <span class="cn">FALSE</span> <span class="sc">&amp;</span> <span class="fu">is.na</span>(area_afd_km2<span class="fl">.1</span>) <span class="sc">==</span> <span class="cn">FALSE</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb15-7"><a href="building-the-datasets.html#cb15-7" tabindex="-1"></a>  <span class="co">#Compute the intersecting areas (pa_shp already in Mollweide projection) in km2</span></span>
-<span id="cb15-8"><a href="building-the-datasets.html#cb15-8" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">area_int =</span> <span class="fu">as.numeric</span>(<span class="fu">st_area</span>(geom)<span class="sc">/</span><span class="fl">1e6</span>)) <span class="sc">%&gt;%</span></span>
-<span id="cb15-9"><a href="building-the-datasets.html#cb15-9" tabindex="-1"></a>  <span class="co">#Now duplicates need to be removed : intersection of X with Y AND intersection of Y with X are reported. We need only one.</span></span>
-<span id="cb15-10"><a href="building-the-datasets.html#cb15-10" tabindex="-1"></a>  <span class="co">#An id_int to identify the intersection of a given pair</span></span>
-<span id="cb15-11"><a href="building-the-datasets.html#cb15-11" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">id_int =</span> <span class="fu">paste0</span>(wdpaid, <span class="st">&quot;_&quot;</span>, wdpaid<span class="fl">.1</span>), <span class="at">.before =</span> wdpaid) <span class="sc">%&gt;%</span></span>
-<span id="cb15-12"><a href="building-the-datasets.html#cb15-12" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">id_int_temp =</span> <span class="fu">paste0</span>(wdpaid, <span class="st">&quot;_&quot;</span>, wdpaid<span class="fl">.1</span>), <span class="at">.before =</span> wdpaid) <span class="sc">%&gt;%</span></span>
-<span id="cb15-13"><a href="building-the-datasets.html#cb15-13" tabindex="-1"></a>  <span class="co">#create a mirror idX_idY --&gt; idY_idX so that we identify the both member of a pair with the same id</span></span>
-<span id="cb15-14"><a href="building-the-datasets.html#cb15-14" tabindex="-1"></a>  <span class="fu">separate</span>(id_int_temp, <span class="at">into =</span> <span class="fu">c</span>(<span class="st">&quot;id_temp1&quot;</span>, <span class="st">&quot;id_temp2&quot;</span>), <span class="at">sep =</span> <span class="st">&quot;_&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb15-15"><a href="building-the-datasets.html#cb15-15" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">id_int_rev =</span> <span class="fu">case_when</span>(</span>
-<span id="cb15-16"><a href="building-the-datasets.html#cb15-16" tabindex="-1"></a>    id_temp1 <span class="sc">&lt;</span> id_temp2 <span class="sc">~</span> <span class="fu">paste</span>(id_temp1, id_temp2, <span class="at">sep =</span> <span class="st">&quot;_&quot;</span>),</span>
-<span id="cb15-17"><a href="building-the-datasets.html#cb15-17" tabindex="-1"></a>    id_temp1 <span class="sc">&gt;</span> id_temp2 <span class="sc">~</span> <span class="fu">paste</span>(id_temp2, id_temp1, <span class="at">sep =</span> <span class="st">&quot;_&quot;</span>),</span>
-<span id="cb15-18"><a href="building-the-datasets.html#cb15-18" tabindex="-1"></a>    <span class="cn">TRUE</span> <span class="sc">~</span> <span class="fu">paste</span>(id_temp1, id_temp2, <span class="at">sep =</span> <span class="st">&quot;_&quot;</span>)),</span>
-<span id="cb15-19"><a href="building-the-datasets.html#cb15-19" tabindex="-1"></a>    <span class="at">.after =</span> id_int) <span class="sc">%&gt;%</span></span>
-<span id="cb15-20"><a href="building-the-datasets.html#cb15-20" tabindex="-1"></a>  <span class="co">#finally, get rid of the duplicates (have the same id_int_rev)</span></span>
-<span id="cb15-21"><a href="building-the-datasets.html#cb15-21" tabindex="-1"></a>  <span class="fu">group_by</span>(id_int_rev) <span class="sc">%&gt;%</span></span>
-<span id="cb15-22"><a href="building-the-datasets.html#cb15-22" tabindex="-1"></a>  <span class="fu">slice</span>(<span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb15-23"><a href="building-the-datasets.html#cb15-23" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb15-24"><a href="building-the-datasets.html#cb15-24" tabindex="-1"></a>  <span class="co">#select relevant variables only</span></span>
-<span id="cb15-25"><a href="building-the-datasets.html#cb15-25" tabindex="-1"></a>  <span class="fu">select</span>(wdpaid, iso3, region_afd, region, sub_region, year_funding_first, wdpaid<span class="fl">.1</span>, iso3<span class="fl">.1</span>, region_afd<span class="fl">.1</span>, region<span class="fl">.1</span>, sub_region<span class="fl">.1</span>, year_funding_first<span class="fl">.1</span>, geom, area_int)</span>
-<span id="cb15-26"><a href="building-the-datasets.html#cb15-26" tabindex="-1"></a></span>
-<span id="cb15-27"><a href="building-the-datasets.html#cb15-27" tabindex="-1"></a><span class="co">#Computing the total area of intersections</span></span>
-<span id="cb15-28"><a href="building-the-datasets.html#cb15-28" tabindex="-1"></a><span class="co">#At country level ...</span></span>
-<span id="cb15-29"><a href="building-the-datasets.html#cb15-29" tabindex="-1"></a>pa_int_ctry <span class="ot">=</span> pa_int <span class="sc">%&gt;%</span></span>
-<span id="cb15-30"><a href="building-the-datasets.html#cb15-30" tabindex="-1"></a>  <span class="co">#Only overlapping PAs in the same country are considered</span></span>
-<span id="cb15-31"><a href="building-the-datasets.html#cb15-31" tabindex="-1"></a>  <span class="fu">subset</span>(iso3 <span class="sc">==</span>  iso3<span class="fl">.1</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb15-32"><a href="building-the-datasets.html#cb15-32" tabindex="-1"></a>  <span class="fu">group_by</span>(iso3) <span class="sc">%&gt;%</span></span>
-<span id="cb15-33"><a href="building-the-datasets.html#cb15-33" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">tot_area_int =</span> <span class="fu">sum</span>(area_int)) <span class="sc">%&gt;%</span></span>
-<span id="cb15-34"><a href="building-the-datasets.html#cb15-34" tabindex="-1"></a>  <span class="fu">st_drop_geometry</span>()</span>
-<span id="cb15-35"><a href="building-the-datasets.html#cb15-35" tabindex="-1"></a></span>
-<span id="cb15-36"><a href="building-the-datasets.html#cb15-36" tabindex="-1"></a><span class="co">#At region level</span></span>
-<span id="cb15-37"><a href="building-the-datasets.html#cb15-37" tabindex="-1"></a><span class="co">#AFD regions : not performed as some PAs have multiple DR and only one kept</span></span>
-<span id="cb15-38"><a href="building-the-datasets.html#cb15-38" tabindex="-1"></a><span class="co"># pa_int_dr = pa_int %&gt;%</span></span>
-<span id="cb15-39"><a href="building-the-datasets.html#cb15-39" tabindex="-1"></a><span class="co">#   #Only overlapping PAs in the same DR are considered</span></span>
-<span id="cb15-40"><a href="building-the-datasets.html#cb15-40" tabindex="-1"></a><span class="co">#   subset(region_afd == region_afd.1) %&gt;%</span></span>
-<span id="cb15-41"><a href="building-the-datasets.html#cb15-41" tabindex="-1"></a><span class="co">#   group_by(region_afd) %&gt;%</span></span>
-<span id="cb15-42"><a href="building-the-datasets.html#cb15-42" tabindex="-1"></a><span class="co">#   summarize(tot_area_int = sum(area_int)) %&gt;%</span></span>
-<span id="cb15-43"><a href="building-the-datasets.html#cb15-43" tabindex="-1"></a><span class="co">#   st_drop_geometry()</span></span>
-<span id="cb15-44"><a href="building-the-datasets.html#cb15-44" tabindex="-1"></a></span>
-<span id="cb15-45"><a href="building-the-datasets.html#cb15-45" tabindex="-1"></a><span class="co">#UN regions</span></span>
-<span id="cb15-46"><a href="building-the-datasets.html#cb15-46" tabindex="-1"></a>pa_int_region <span class="ot">=</span> pa_int <span class="sc">%&gt;%</span></span>
-<span id="cb15-47"><a href="building-the-datasets.html#cb15-47" tabindex="-1"></a>  <span class="co">#Only overlapping PAs in the same DR are considered</span></span>
-<span id="cb15-48"><a href="building-the-datasets.html#cb15-48" tabindex="-1"></a>  <span class="fu">subset</span>(region <span class="sc">==</span> region<span class="fl">.1</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb15-49"><a href="building-the-datasets.html#cb15-49" tabindex="-1"></a>  <span class="fu">group_by</span>(region) <span class="sc">%&gt;%</span></span>
-<span id="cb15-50"><a href="building-the-datasets.html#cb15-50" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">tot_area_int =</span> <span class="fu">sum</span>(area_int)) <span class="sc">%&gt;%</span></span>
-<span id="cb15-51"><a href="building-the-datasets.html#cb15-51" tabindex="-1"></a>  <span class="fu">st_drop_geometry</span>()</span>
-<span id="cb15-52"><a href="building-the-datasets.html#cb15-52" tabindex="-1"></a><span class="co">#UN sub-regions</span></span>
-<span id="cb15-53"><a href="building-the-datasets.html#cb15-53" tabindex="-1"></a>pa_int_subregion <span class="ot">=</span> pa_int <span class="sc">%&gt;%</span></span>
-<span id="cb15-54"><a href="building-the-datasets.html#cb15-54" tabindex="-1"></a>  <span class="co">#Only overlapping PAs in the same DR are considered</span></span>
-<span id="cb15-55"><a href="building-the-datasets.html#cb15-55" tabindex="-1"></a>  <span class="fu">subset</span>(sub_region <span class="sc">==</span> sub_region<span class="fl">.1</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb15-56"><a href="building-the-datasets.html#cb15-56" tabindex="-1"></a>  <span class="fu">group_by</span>(sub_region) <span class="sc">%&gt;%</span></span>
-<span id="cb15-57"><a href="building-the-datasets.html#cb15-57" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">tot_area_int =</span> <span class="fu">sum</span>(area_int)) <span class="sc">%&gt;%</span></span>
-<span id="cb15-58"><a href="building-the-datasets.html#cb15-58" tabindex="-1"></a>  <span class="fu">st_drop_geometry</span>()</span>
-<span id="cb15-59"><a href="building-the-datasets.html#cb15-59" tabindex="-1"></a></span>
-<span id="cb15-60"><a href="building-the-datasets.html#cb15-60" tabindex="-1"></a><span class="do">##At world level : all overlap are considered</span></span>
-<span id="cb15-61"><a href="building-the-datasets.html#cb15-61" tabindex="-1"></a>pa_int_wld <span class="ot">=</span> <span class="fu">sum</span>(pa_int<span class="sc">$</span>area_int) </span>
-<span id="cb15-62"><a href="building-the-datasets.html#cb15-62" tabindex="-1"></a></span>
-<span id="cb15-63"><a href="building-the-datasets.html#cb15-63" tabindex="-1"></a><span class="co">#Compute the total intersection for each year</span></span>
-<span id="cb15-64"><a href="building-the-datasets.html#cb15-64" tabindex="-1"></a>pa_int_yr <span class="ot">=</span> pa_int <span class="sc">%&gt;%</span></span>
-<span id="cb15-65"><a href="building-the-datasets.html#cb15-65" tabindex="-1"></a>  <span class="co">#Define intersection year : the date ann_c of the later PA in the pair</span></span>
-<span id="cb15-66"><a href="building-the-datasets.html#cb15-66" tabindex="-1"></a>  <span class="fu">rowwise</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb15-67"><a href="building-the-datasets.html#cb15-67" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">annee_int =</span> <span class="fu">max</span>(year_funding_first, year_funding_first<span class="fl">.1</span>)) <span class="sc">%&gt;%</span> </span>
-<span id="cb15-68"><a href="building-the-datasets.html#cb15-68" tabindex="-1"></a>  <span class="fu">group_by</span>(annee_int) <span class="sc">%&gt;%</span></span>
-<span id="cb15-69"><a href="building-the-datasets.html#cb15-69" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">tot_int_km2 =</span> <span class="fu">sum</span>(area_int)) <span class="sc">%&gt;%</span></span>
-<span id="cb15-70"><a href="building-the-datasets.html#cb15-70" tabindex="-1"></a>  <span class="fu">st_drop_geometry</span>()</span>
-<span id="cb15-71"><a href="building-the-datasets.html#cb15-71" tabindex="-1"></a></span>
-<span id="cb15-72"><a href="building-the-datasets.html#cb15-72" tabindex="-1"></a><span class="co"># fwrite(pa_int_yr,</span></span>
-<span id="cb15-73"><a href="building-the-datasets.html#cb15-73" tabindex="-1"></a><span class="co">#        &quot;data_tidy/area/pa_int_yr.csv&quot;)</span></span>
-<span id="cb15-74"><a href="building-the-datasets.html#cb15-74" tabindex="-1"></a><span class="fu">s3write_using</span>(<span class="at">x =</span> pa_int_yr,</span>
-<span id="cb15-75"><a href="building-the-datasets.html#cb15-75" tabindex="-1"></a>              <span class="at">FUN =</span> data.table<span class="sc">::</span>fwrite,</span>
-<span id="cb15-76"><a href="building-the-datasets.html#cb15-76" tabindex="-1"></a>              <span class="at">object =</span> <span class="st">&quot;data_tidy/area/pa_int_yr.csv&quot;</span>,</span>
-<span id="cb15-77"><a href="building-the-datasets.html#cb15-77" tabindex="-1"></a>              <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
-<span id="cb15-78"><a href="building-the-datasets.html#cb15-78" tabindex="-1"></a>              <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>))</span></code></pre></div>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="building-the-datasets.html#cb17-1" tabindex="-1"></a><span class="co">#Compute intersecting areas of polygons</span></span>
+<span id="cb17-2"><a href="building-the-datasets.html#cb17-2" tabindex="-1"></a>pa_int <span class="ot">=</span> <span class="fu">st_intersection</span>(pa_shp_tidy, pa_shp_tidy) <span class="sc">%&gt;%</span></span>
+<span id="cb17-3"><a href="building-the-datasets.html#cb17-3" tabindex="-1"></a>  <span class="co">#Remove intersection of polygons with themselves</span></span>
+<span id="cb17-4"><a href="building-the-datasets.html#cb17-4" tabindex="-1"></a>  <span class="fu">subset</span>(wdpaid <span class="sc">!=</span> wdpaid<span class="fl">.1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb17-5"><a href="building-the-datasets.html#cb17-5" tabindex="-1"></a>  <span class="co">#If one of the two intersectin polygon have unknwon area, then it is not necessary to subtract the interesction area. Indeed there is no double-counting of the intersection in this case, when both polygon areas are summed.</span></span>
+<span id="cb17-6"><a href="building-the-datasets.html#cb17-6" tabindex="-1"></a>  <span class="fu">subset</span>(<span class="fu">is.na</span>(area_afd_km2) <span class="sc">==</span> <span class="cn">FALSE</span> <span class="sc">&amp;</span> <span class="fu">is.na</span>(area_afd_km2<span class="fl">.1</span>) <span class="sc">==</span> <span class="cn">FALSE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb17-7"><a href="building-the-datasets.html#cb17-7" tabindex="-1"></a>  <span class="co">#Compute the intersecting areas (pa_shp already in Mollweide projection) in km2</span></span>
+<span id="cb17-8"><a href="building-the-datasets.html#cb17-8" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">area_int =</span> <span class="fu">as.numeric</span>(<span class="fu">st_area</span>(geom)<span class="sc">/</span><span class="fl">1e6</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb17-9"><a href="building-the-datasets.html#cb17-9" tabindex="-1"></a>  <span class="co">#Now duplicates need to be removed : intersection of X with Y AND intersection of Y with X are reported. We need only one.</span></span>
+<span id="cb17-10"><a href="building-the-datasets.html#cb17-10" tabindex="-1"></a>  <span class="co">#An id_int to identify the intersection of a given pair</span></span>
+<span id="cb17-11"><a href="building-the-datasets.html#cb17-11" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">id_int =</span> <span class="fu">paste0</span>(wdpaid, <span class="st">&quot;_&quot;</span>, wdpaid<span class="fl">.1</span>), <span class="at">.before =</span> wdpaid) <span class="sc">%&gt;%</span></span>
+<span id="cb17-12"><a href="building-the-datasets.html#cb17-12" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">id_int_temp =</span> <span class="fu">paste0</span>(wdpaid, <span class="st">&quot;_&quot;</span>, wdpaid<span class="fl">.1</span>), <span class="at">.before =</span> wdpaid) <span class="sc">%&gt;%</span></span>
+<span id="cb17-13"><a href="building-the-datasets.html#cb17-13" tabindex="-1"></a>  <span class="co">#create a mirror idX_idY --&gt; idY_idX so that we identify the both member of a pair with the same id</span></span>
+<span id="cb17-14"><a href="building-the-datasets.html#cb17-14" tabindex="-1"></a>  <span class="fu">separate</span>(id_int_temp, <span class="at">into =</span> <span class="fu">c</span>(<span class="st">&quot;id_temp1&quot;</span>, <span class="st">&quot;id_temp2&quot;</span>), <span class="at">sep =</span> <span class="st">&quot;_&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb17-15"><a href="building-the-datasets.html#cb17-15" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">id_int_rev =</span> <span class="fu">case_when</span>(</span>
+<span id="cb17-16"><a href="building-the-datasets.html#cb17-16" tabindex="-1"></a>    id_temp1 <span class="sc">&lt;</span> id_temp2 <span class="sc">~</span> <span class="fu">paste</span>(id_temp1, id_temp2, <span class="at">sep =</span> <span class="st">&quot;_&quot;</span>),</span>
+<span id="cb17-17"><a href="building-the-datasets.html#cb17-17" tabindex="-1"></a>    id_temp1 <span class="sc">&gt;</span> id_temp2 <span class="sc">~</span> <span class="fu">paste</span>(id_temp2, id_temp1, <span class="at">sep =</span> <span class="st">&quot;_&quot;</span>),</span>
+<span id="cb17-18"><a href="building-the-datasets.html#cb17-18" tabindex="-1"></a>    <span class="cn">TRUE</span> <span class="sc">~</span> <span class="fu">paste</span>(id_temp1, id_temp2, <span class="at">sep =</span> <span class="st">&quot;_&quot;</span>)),</span>
+<span id="cb17-19"><a href="building-the-datasets.html#cb17-19" tabindex="-1"></a>    <span class="at">.after =</span> id_int) <span class="sc">%&gt;%</span></span>
+<span id="cb17-20"><a href="building-the-datasets.html#cb17-20" tabindex="-1"></a>  <span class="co">#finally, get rid of the duplicates (have the same id_int_rev)</span></span>
+<span id="cb17-21"><a href="building-the-datasets.html#cb17-21" tabindex="-1"></a>  <span class="fu">group_by</span>(id_int_rev) <span class="sc">%&gt;%</span></span>
+<span id="cb17-22"><a href="building-the-datasets.html#cb17-22" tabindex="-1"></a>  <span class="fu">slice</span>(<span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb17-23"><a href="building-the-datasets.html#cb17-23" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb17-24"><a href="building-the-datasets.html#cb17-24" tabindex="-1"></a>  <span class="co">#select relevant variables only</span></span>
+<span id="cb17-25"><a href="building-the-datasets.html#cb17-25" tabindex="-1"></a>  <span class="fu">select</span>(wdpaid, iso3, region_afd, region, sub_region, year_funding_first, wdpaid<span class="fl">.1</span>, iso3<span class="fl">.1</span>, region_afd<span class="fl">.1</span>, region<span class="fl">.1</span>, sub_region<span class="fl">.1</span>, year_funding_first<span class="fl">.1</span>, geom, area_int)</span>
+<span id="cb17-26"><a href="building-the-datasets.html#cb17-26" tabindex="-1"></a></span>
+<span id="cb17-27"><a href="building-the-datasets.html#cb17-27" tabindex="-1"></a><span class="co">#Computing the total area of intersections</span></span>
+<span id="cb17-28"><a href="building-the-datasets.html#cb17-28" tabindex="-1"></a><span class="co">#At country level ...</span></span>
+<span id="cb17-29"><a href="building-the-datasets.html#cb17-29" tabindex="-1"></a>pa_int_ctry <span class="ot">=</span> pa_int <span class="sc">%&gt;%</span></span>
+<span id="cb17-30"><a href="building-the-datasets.html#cb17-30" tabindex="-1"></a>  <span class="co">#Only overlapping PAs in the same country are considered</span></span>
+<span id="cb17-31"><a href="building-the-datasets.html#cb17-31" tabindex="-1"></a>  <span class="fu">subset</span>(iso3 <span class="sc">==</span>  iso3<span class="fl">.1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb17-32"><a href="building-the-datasets.html#cb17-32" tabindex="-1"></a>  <span class="fu">group_by</span>(iso3) <span class="sc">%&gt;%</span></span>
+<span id="cb17-33"><a href="building-the-datasets.html#cb17-33" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">tot_area_int =</span> <span class="fu">sum</span>(area_int)) <span class="sc">%&gt;%</span></span>
+<span id="cb17-34"><a href="building-the-datasets.html#cb17-34" tabindex="-1"></a>  <span class="fu">st_drop_geometry</span>()</span>
+<span id="cb17-35"><a href="building-the-datasets.html#cb17-35" tabindex="-1"></a></span>
+<span id="cb17-36"><a href="building-the-datasets.html#cb17-36" tabindex="-1"></a><span class="co">#At region level</span></span>
+<span id="cb17-37"><a href="building-the-datasets.html#cb17-37" tabindex="-1"></a><span class="co">#AFD regions : not performed as some PAs have multiple DR and only one kept</span></span>
+<span id="cb17-38"><a href="building-the-datasets.html#cb17-38" tabindex="-1"></a><span class="co"># pa_int_dr = pa_int %&gt;%</span></span>
+<span id="cb17-39"><a href="building-the-datasets.html#cb17-39" tabindex="-1"></a><span class="co">#   #Only overlapping PAs in the same DR are considered</span></span>
+<span id="cb17-40"><a href="building-the-datasets.html#cb17-40" tabindex="-1"></a><span class="co">#   subset(region_afd == region_afd.1) %&gt;%</span></span>
+<span id="cb17-41"><a href="building-the-datasets.html#cb17-41" tabindex="-1"></a><span class="co">#   group_by(region_afd) %&gt;%</span></span>
+<span id="cb17-42"><a href="building-the-datasets.html#cb17-42" tabindex="-1"></a><span class="co">#   summarize(tot_area_int = sum(area_int)) %&gt;%</span></span>
+<span id="cb17-43"><a href="building-the-datasets.html#cb17-43" tabindex="-1"></a><span class="co">#   st_drop_geometry()</span></span>
+<span id="cb17-44"><a href="building-the-datasets.html#cb17-44" tabindex="-1"></a></span>
+<span id="cb17-45"><a href="building-the-datasets.html#cb17-45" tabindex="-1"></a><span class="co">#UN regions</span></span>
+<span id="cb17-46"><a href="building-the-datasets.html#cb17-46" tabindex="-1"></a>pa_int_region <span class="ot">=</span> pa_int <span class="sc">%&gt;%</span></span>
+<span id="cb17-47"><a href="building-the-datasets.html#cb17-47" tabindex="-1"></a>  <span class="co">#Only overlapping PAs in the same DR are considered</span></span>
+<span id="cb17-48"><a href="building-the-datasets.html#cb17-48" tabindex="-1"></a>  <span class="fu">subset</span>(region <span class="sc">==</span> region<span class="fl">.1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb17-49"><a href="building-the-datasets.html#cb17-49" tabindex="-1"></a>  <span class="fu">group_by</span>(region) <span class="sc">%&gt;%</span></span>
+<span id="cb17-50"><a href="building-the-datasets.html#cb17-50" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">tot_area_int =</span> <span class="fu">sum</span>(area_int)) <span class="sc">%&gt;%</span></span>
+<span id="cb17-51"><a href="building-the-datasets.html#cb17-51" tabindex="-1"></a>  <span class="fu">st_drop_geometry</span>()</span>
+<span id="cb17-52"><a href="building-the-datasets.html#cb17-52" tabindex="-1"></a><span class="co">#UN sub-regions</span></span>
+<span id="cb17-53"><a href="building-the-datasets.html#cb17-53" tabindex="-1"></a>pa_int_subregion <span class="ot">=</span> pa_int <span class="sc">%&gt;%</span></span>
+<span id="cb17-54"><a href="building-the-datasets.html#cb17-54" tabindex="-1"></a>  <span class="co">#Only overlapping PAs in the same DR are considered</span></span>
+<span id="cb17-55"><a href="building-the-datasets.html#cb17-55" tabindex="-1"></a>  <span class="fu">subset</span>(sub_region <span class="sc">==</span> sub_region<span class="fl">.1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb17-56"><a href="building-the-datasets.html#cb17-56" tabindex="-1"></a>  <span class="fu">group_by</span>(sub_region) <span class="sc">%&gt;%</span></span>
+<span id="cb17-57"><a href="building-the-datasets.html#cb17-57" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">tot_area_int =</span> <span class="fu">sum</span>(area_int)) <span class="sc">%&gt;%</span></span>
+<span id="cb17-58"><a href="building-the-datasets.html#cb17-58" tabindex="-1"></a>  <span class="fu">st_drop_geometry</span>()</span>
+<span id="cb17-59"><a href="building-the-datasets.html#cb17-59" tabindex="-1"></a></span>
+<span id="cb17-60"><a href="building-the-datasets.html#cb17-60" tabindex="-1"></a><span class="do">##At world level : all overlap are considered</span></span>
+<span id="cb17-61"><a href="building-the-datasets.html#cb17-61" tabindex="-1"></a>pa_int_wld <span class="ot">=</span> <span class="fu">sum</span>(pa_int<span class="sc">$</span>area_int) </span>
+<span id="cb17-62"><a href="building-the-datasets.html#cb17-62" tabindex="-1"></a></span>
+<span id="cb17-63"><a href="building-the-datasets.html#cb17-63" tabindex="-1"></a><span class="co">#Compute the total intersection for each year</span></span>
+<span id="cb17-64"><a href="building-the-datasets.html#cb17-64" tabindex="-1"></a>pa_int_yr <span class="ot">=</span> pa_int <span class="sc">%&gt;%</span></span>
+<span id="cb17-65"><a href="building-the-datasets.html#cb17-65" tabindex="-1"></a>  <span class="co">#Define intersection year : the date ann_c of the later PA in the pair</span></span>
+<span id="cb17-66"><a href="building-the-datasets.html#cb17-66" tabindex="-1"></a>  <span class="fu">rowwise</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb17-67"><a href="building-the-datasets.html#cb17-67" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">annee_int =</span> <span class="fu">max</span>(year_funding_first, year_funding_first<span class="fl">.1</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb17-68"><a href="building-the-datasets.html#cb17-68" tabindex="-1"></a>  <span class="fu">group_by</span>(annee_int) <span class="sc">%&gt;%</span></span>
+<span id="cb17-69"><a href="building-the-datasets.html#cb17-69" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">tot_int_km2 =</span> <span class="fu">sum</span>(area_int)) <span class="sc">%&gt;%</span></span>
+<span id="cb17-70"><a href="building-the-datasets.html#cb17-70" tabindex="-1"></a>  <span class="fu">st_drop_geometry</span>()</span>
+<span id="cb17-71"><a href="building-the-datasets.html#cb17-71" tabindex="-1"></a></span>
+<span id="cb17-72"><a href="building-the-datasets.html#cb17-72" tabindex="-1"></a><span class="co"># fwrite(pa_int_yr,</span></span>
+<span id="cb17-73"><a href="building-the-datasets.html#cb17-73" tabindex="-1"></a><span class="co">#        &quot;data_tidy/area/pa_int_yr.csv&quot;)</span></span>
+<span id="cb17-74"><a href="building-the-datasets.html#cb17-74" tabindex="-1"></a><span class="fu">s3write_using</span>(<span class="at">x =</span> pa_int_yr,</span>
+<span id="cb17-75"><a href="building-the-datasets.html#cb17-75" tabindex="-1"></a>              <span class="at">FUN =</span> data.table<span class="sc">::</span>fwrite,</span>
+<span id="cb17-76"><a href="building-the-datasets.html#cb17-76" tabindex="-1"></a>              <span class="at">object =</span> <span class="st">&quot;data_tidy/area/pa_int_yr.csv&quot;</span>,</span>
+<span id="cb17-77"><a href="building-the-datasets.html#cb17-77" tabindex="-1"></a>              <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb17-78"><a href="building-the-datasets.html#cb17-78" tabindex="-1"></a>              <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>))</span></code></pre></div>
 </div>
 <div id="computing-total-areas-without-intersection" class="section level3 hasAnchor" number="1.3.3">
 <h3><span class="header-section-number">1.3.3</span> Computing total areas without intersection<a href="building-the-datasets.html#computing-total-areas-without-intersection" class="anchor-section" aria-label="Anchor link to header"></a></h3>
-<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="building-the-datasets.html#cb16-1" tabindex="-1"></a>data_pa_afd <span class="ot">=</span> </span>
-<span id="cb16-2"><a href="building-the-datasets.html#cb16-2" tabindex="-1"></a>  <span class="co">#fread(&quot;data_raw/BDD_PA_AFD_nofund_nodupl.csv&quot;)</span></span>
-<span id="cb16-3"><a href="building-the-datasets.html#cb16-3" tabindex="-1"></a>  <span class="fu">s3read_using</span>(readr<span class="sc">::</span>read_delim,</span>
-<span id="cb16-4"><a href="building-the-datasets.html#cb16-4" tabindex="-1"></a>               <span class="at">delim =</span> <span class="st">&quot;;&quot;</span>,</span>
-<span id="cb16-5"><a href="building-the-datasets.html#cb16-5" tabindex="-1"></a>               <span class="at">show_col_types =</span> <span class="cn">FALSE</span>,</span>
-<span id="cb16-6"><a href="building-the-datasets.html#cb16-6" tabindex="-1"></a>               <span class="at">object =</span> <span class="st">&quot;data_tidy/BDD_PA_AFD_nofund_nodupl.csv&quot;</span>,</span>
-<span id="cb16-7"><a href="building-the-datasets.html#cb16-7" tabindex="-1"></a>              <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
-<span id="cb16-8"><a href="building-the-datasets.html#cb16-8" tabindex="-1"></a>              <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>))</span>
-<span id="cb16-9"><a href="building-the-datasets.html#cb16-9" tabindex="-1"></a></span>
-<span id="cb16-10"><a href="building-the-datasets.html#cb16-10" tabindex="-1"></a><span class="co">#At country level ...</span></span>
-<span id="cb16-11"><a href="building-the-datasets.html#cb16-11" tabindex="-1"></a>pa_area_ctry <span class="ot">=</span> data_pa_afd <span class="sc">%&gt;%</span></span>
-<span id="cb16-12"><a href="building-the-datasets.html#cb16-12" tabindex="-1"></a>  <span class="co">#Compute total area at country level</span></span>
-<span id="cb16-13"><a href="building-the-datasets.html#cb16-13" tabindex="-1"></a>  <span class="fu">group_by</span>(iso3) <span class="sc">%&gt;%</span></span>
-<span id="cb16-14"><a href="building-the-datasets.html#cb16-14" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">area_tot_km2 =</span> <span class="fu">sum</span>(area_afd_km2, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) <span class="sc">%&gt;%</span></span>
-<span id="cb16-15"><a href="building-the-datasets.html#cb16-15" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb16-16"><a href="building-the-datasets.html#cb16-16" tabindex="-1"></a>  <span class="co">#Add information on intersection area in each country. Modify the variable so that NA value -&gt; 0</span></span>
-<span id="cb16-17"><a href="building-the-datasets.html#cb16-17" tabindex="-1"></a>  <span class="fu">left_join</span>(pa_int_ctry, <span class="at">by =</span> <span class="st">&quot;iso3&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb16-18"><a href="building-the-datasets.html#cb16-18" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">tot_area_int =</span> <span class="fu">case_when</span>(<span class="fu">is.na</span>(tot_area_int) <span class="sc">==</span> <span class="cn">TRUE</span> <span class="sc">~</span> <span class="dv">0</span>, <span class="cn">TRUE</span> <span class="sc">~</span> tot_area_int)) <span class="sc">%&gt;%</span></span>
-<span id="cb16-19"><a href="building-the-datasets.html#cb16-19" tabindex="-1"></a>  <span class="co">#Compute the total area at country level without intersection</span></span>
-<span id="cb16-20"><a href="building-the-datasets.html#cb16-20" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">area_tot_noint_km2 =</span> area_tot_km2 <span class="sc">-</span> tot_area_int) </span>
-<span id="cb16-21"><a href="building-the-datasets.html#cb16-21" tabindex="-1"></a></span>
-<span id="cb16-22"><a href="building-the-datasets.html#cb16-22" tabindex="-1"></a><span class="co">#fwrite(pa_area_ctry, &quot;data_tidy/area/pa_area_ctry.csv&quot;)</span></span>
-<span id="cb16-23"><a href="building-the-datasets.html#cb16-23" tabindex="-1"></a><span class="co"># s3write_using(x = pa_area_ctry,</span></span>
-<span id="cb16-24"><a href="building-the-datasets.html#cb16-24" tabindex="-1"></a><span class="co">#               FUN = data.table::fwrite,</span></span>
-<span id="cb16-25"><a href="building-the-datasets.html#cb16-25" tabindex="-1"></a><span class="co">#               object = &quot;data_tidy/area/pa_area_ctry.csv&quot;,</span></span>
-<span id="cb16-26"><a href="building-the-datasets.html#cb16-26" tabindex="-1"></a><span class="co">#               bucket = &quot;projet-afd-eva-ap&quot;,</span></span>
-<span id="cb16-27"><a href="building-the-datasets.html#cb16-27" tabindex="-1"></a><span class="co">#               opts = list(&quot;region&quot; = &quot;&quot;))</span></span>
-<span id="cb16-28"><a href="building-the-datasets.html#cb16-28" tabindex="-1"></a></span>
-<span id="cb16-29"><a href="building-the-datasets.html#cb16-29" tabindex="-1"></a><span class="co">#At AFD region level ...</span></span>
-<span id="cb16-30"><a href="building-the-datasets.html#cb16-30" tabindex="-1"></a><span class="co"># pa_area_dr = data_pa_afd %&gt;%</span></span>
-<span id="cb16-31"><a href="building-the-datasets.html#cb16-31" tabindex="-1"></a><span class="co">#   #Compute total area at dr level</span></span>
-<span id="cb16-32"><a href="building-the-datasets.html#cb16-32" tabindex="-1"></a><span class="co">#   group_by(region_afd) %&gt;%</span></span>
-<span id="cb16-33"><a href="building-the-datasets.html#cb16-33" tabindex="-1"></a><span class="co">#   summarize(area_tot_km2 = sum(area_afd_km2, na.rm = TRUE)) %&gt;% </span></span>
-<span id="cb16-34"><a href="building-the-datasets.html#cb16-34" tabindex="-1"></a><span class="co">#   ungroup() %&gt;%</span></span>
-<span id="cb16-35"><a href="building-the-datasets.html#cb16-35" tabindex="-1"></a><span class="co">#   #Add information on intersection area in each DR. Modify the variable so that NA value -&gt; 0</span></span>
-<span id="cb16-36"><a href="building-the-datasets.html#cb16-36" tabindex="-1"></a><span class="co">#   left_join(pa_int_dr, by = &quot;region_afd&quot;) %&gt;%</span></span>
-<span id="cb16-37"><a href="building-the-datasets.html#cb16-37" tabindex="-1"></a><span class="co">#   mutate(tot_area_int = case_when(is.na(tot_area_int) == TRUE ~0, TRUE ~tot_area_int)) %&gt;%</span></span>
-<span id="cb16-38"><a href="building-the-datasets.html#cb16-38" tabindex="-1"></a><span class="co">#   #Compute the total area at country level without intersection</span></span>
-<span id="cb16-39"><a href="building-the-datasets.html#cb16-39" tabindex="-1"></a><span class="co">#     mutate(area_tot_noint_km2 = area_tot_km2 - tot_area_int) %&gt;%</span></span>
-<span id="cb16-40"><a href="building-the-datasets.html#cb16-40" tabindex="-1"></a><span class="co">#   st_drop_geometry()</span></span>
-<span id="cb16-41"><a href="building-the-datasets.html#cb16-41" tabindex="-1"></a><span class="co"># </span></span>
-<span id="cb16-42"><a href="building-the-datasets.html#cb16-42" tabindex="-1"></a><span class="co"># #fwrite(pa_area_dr, &quot;data_tidy/area/pa_area_dr.csv&quot;)</span></span>
-<span id="cb16-43"><a href="building-the-datasets.html#cb16-43" tabindex="-1"></a><span class="co"># s3write_using(x = pa_area_dr,</span></span>
-<span id="cb16-44"><a href="building-the-datasets.html#cb16-44" tabindex="-1"></a><span class="co">#               FUN = data.table::fwrite,</span></span>
-<span id="cb16-45"><a href="building-the-datasets.html#cb16-45" tabindex="-1"></a><span class="co">#               object = &quot;data_tidy/area/pa_area_dr.csv&quot;,</span></span>
-<span id="cb16-46"><a href="building-the-datasets.html#cb16-46" tabindex="-1"></a><span class="co">#               bucket = &quot;projet-afd-eva-ap&quot;,</span></span>
-<span id="cb16-47"><a href="building-the-datasets.html#cb16-47" tabindex="-1"></a><span class="co">#               opts = list(&quot;region&quot; = &quot;&quot;))</span></span>
-<span id="cb16-48"><a href="building-the-datasets.html#cb16-48" tabindex="-1"></a></span>
-<span id="cb16-49"><a href="building-the-datasets.html#cb16-49" tabindex="-1"></a><span class="co">#At UN region level</span></span>
-<span id="cb16-50"><a href="building-the-datasets.html#cb16-50" tabindex="-1"></a>pa_area_region <span class="ot">=</span> data_pa_afd <span class="sc">%&gt;%</span></span>
-<span id="cb16-51"><a href="building-the-datasets.html#cb16-51" tabindex="-1"></a>  <span class="co">#Compute total area at dr level</span></span>
-<span id="cb16-52"><a href="building-the-datasets.html#cb16-52" tabindex="-1"></a>  <span class="fu">group_by</span>(region) <span class="sc">%&gt;%</span></span>
-<span id="cb16-53"><a href="building-the-datasets.html#cb16-53" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">area_tot_km2 =</span> <span class="fu">sum</span>(area_afd_km2, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) <span class="sc">%&gt;%</span> </span>
-<span id="cb16-54"><a href="building-the-datasets.html#cb16-54" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb16-55"><a href="building-the-datasets.html#cb16-55" tabindex="-1"></a>  <span class="co">#Add information on intersection area in each DR. Modify the variable so that NA value -&gt; 0</span></span>
-<span id="cb16-56"><a href="building-the-datasets.html#cb16-56" tabindex="-1"></a>  <span class="fu">left_join</span>(pa_int_region, <span class="at">by =</span> <span class="st">&quot;region&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb16-57"><a href="building-the-datasets.html#cb16-57" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">tot_area_int =</span> <span class="fu">case_when</span>(<span class="fu">is.na</span>(tot_area_int) <span class="sc">==</span> <span class="cn">TRUE</span> <span class="sc">~</span><span class="dv">0</span>, <span class="cn">TRUE</span> <span class="sc">~</span>tot_area_int)) <span class="sc">%&gt;%</span></span>
-<span id="cb16-58"><a href="building-the-datasets.html#cb16-58" tabindex="-1"></a>  <span class="co">#Compute the total area at country level without intersection</span></span>
-<span id="cb16-59"><a href="building-the-datasets.html#cb16-59" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">area_tot_noint_km2 =</span> area_tot_km2 <span class="sc">-</span> tot_area_int) <span class="sc">%&gt;%</span></span>
-<span id="cb16-60"><a href="building-the-datasets.html#cb16-60" tabindex="-1"></a>  <span class="fu">st_drop_geometry</span>()</span>
-<span id="cb16-61"><a href="building-the-datasets.html#cb16-61" tabindex="-1"></a></span>
-<span id="cb16-62"><a href="building-the-datasets.html#cb16-62" tabindex="-1"></a><span class="co">#fwrite(pa_area_dr, &quot;data_tidy/area/pa_area_dr.csv&quot;)</span></span>
-<span id="cb16-63"><a href="building-the-datasets.html#cb16-63" tabindex="-1"></a><span class="co"># s3write_using(x = pa_area_region,</span></span>
-<span id="cb16-64"><a href="building-the-datasets.html#cb16-64" tabindex="-1"></a><span class="co">#               FUN = data.table::fwrite,</span></span>
-<span id="cb16-65"><a href="building-the-datasets.html#cb16-65" tabindex="-1"></a><span class="co">#               object = &quot;data_tidy/area/pa_area_region.csv&quot;,</span></span>
-<span id="cb16-66"><a href="building-the-datasets.html#cb16-66" tabindex="-1"></a><span class="co">#               bucket = &quot;projet-afd-eva-ap&quot;,</span></span>
-<span id="cb16-67"><a href="building-the-datasets.html#cb16-67" tabindex="-1"></a><span class="co">#               opts = list(&quot;region&quot; = &quot;&quot;))</span></span>
-<span id="cb16-68"><a href="building-the-datasets.html#cb16-68" tabindex="-1"></a></span>
-<span id="cb16-69"><a href="building-the-datasets.html#cb16-69" tabindex="-1"></a><span class="co">#At UN sub-region level</span></span>
-<span id="cb16-70"><a href="building-the-datasets.html#cb16-70" tabindex="-1"></a>pa_area_subregion <span class="ot">=</span> data_pa_afd <span class="sc">%&gt;%</span></span>
-<span id="cb16-71"><a href="building-the-datasets.html#cb16-71" tabindex="-1"></a>  <span class="co">#Compute total area at dr level</span></span>
-<span id="cb16-72"><a href="building-the-datasets.html#cb16-72" tabindex="-1"></a>  <span class="fu">group_by</span>(sub_region) <span class="sc">%&gt;%</span></span>
-<span id="cb16-73"><a href="building-the-datasets.html#cb16-73" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">area_tot_km2 =</span> <span class="fu">sum</span>(area_afd_km2, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) <span class="sc">%&gt;%</span> </span>
-<span id="cb16-74"><a href="building-the-datasets.html#cb16-74" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb16-75"><a href="building-the-datasets.html#cb16-75" tabindex="-1"></a>  <span class="co">#Add information on intersection area in each DR. Modify the variable so that NA value -&gt; 0</span></span>
-<span id="cb16-76"><a href="building-the-datasets.html#cb16-76" tabindex="-1"></a>  <span class="fu">left_join</span>(pa_int_subregion, <span class="at">by =</span> <span class="st">&quot;sub_region&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb16-77"><a href="building-the-datasets.html#cb16-77" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">tot_area_int =</span> <span class="fu">case_when</span>(<span class="fu">is.na</span>(tot_area_int) <span class="sc">==</span> <span class="cn">TRUE</span> <span class="sc">~</span><span class="dv">0</span>, <span class="cn">TRUE</span> <span class="sc">~</span>tot_area_int)) <span class="sc">%&gt;%</span></span>
-<span id="cb16-78"><a href="building-the-datasets.html#cb16-78" tabindex="-1"></a>  <span class="co">#Compute the total area at country level without intersection</span></span>
-<span id="cb16-79"><a href="building-the-datasets.html#cb16-79" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">area_tot_noint_km2 =</span> area_tot_km2 <span class="sc">-</span> tot_area_int) <span class="sc">%&gt;%</span></span>
-<span id="cb16-80"><a href="building-the-datasets.html#cb16-80" tabindex="-1"></a>  <span class="fu">st_drop_geometry</span>()</span>
-<span id="cb16-81"><a href="building-the-datasets.html#cb16-81" tabindex="-1"></a></span>
-<span id="cb16-82"><a href="building-the-datasets.html#cb16-82" tabindex="-1"></a><span class="co">#fwrite(pa_area_dr, &quot;data_tidy/area/pa_area_dr.csv&quot;)</span></span>
-<span id="cb16-83"><a href="building-the-datasets.html#cb16-83" tabindex="-1"></a><span class="co"># s3write_using(x = pa_area_subregion,</span></span>
-<span id="cb16-84"><a href="building-the-datasets.html#cb16-84" tabindex="-1"></a><span class="co">#               FUN = data.table::fwrite,</span></span>
-<span id="cb16-85"><a href="building-the-datasets.html#cb16-85" tabindex="-1"></a><span class="co">#               object = &quot;data_tidy/area/pa_area_subregion.csv&quot;,</span></span>
-<span id="cb16-86"><a href="building-the-datasets.html#cb16-86" tabindex="-1"></a><span class="co">#               bucket = &quot;projet-afd-eva-ap&quot;,</span></span>
-<span id="cb16-87"><a href="building-the-datasets.html#cb16-87" tabindex="-1"></a><span class="co">#               opts = list(&quot;region&quot; = &quot;&quot;))</span></span>
-<span id="cb16-88"><a href="building-the-datasets.html#cb16-88" tabindex="-1"></a></span>
-<span id="cb16-89"><a href="building-the-datasets.html#cb16-89" tabindex="-1"></a><span class="co">#At world level</span></span>
-<span id="cb16-90"><a href="building-the-datasets.html#cb16-90" tabindex="-1"></a>pa_area_wld <span class="ot">=</span> <span class="fu">sum</span>(data_pa_afd<span class="sc">$</span>area_afd_km2, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">-</span> pa_int_wld <span class="sc">%&gt;%</span></span>
-<span id="cb16-91"><a href="building-the-datasets.html#cb16-91" tabindex="-1"></a>  <span class="fu">as.data.frame</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb16-92"><a href="building-the-datasets.html#cb16-92" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="st">&quot;area_tot_noint_km2&quot;</span> <span class="ot">=</span> <span class="st">&quot;.&quot;</span>)</span>
-<span id="cb16-93"><a href="building-the-datasets.html#cb16-93" tabindex="-1"></a><span class="co">#fwrite(pa_area_wld, &quot;data_tidy/area/pa_area_wld.csv&quot;)</span></span>
-<span id="cb16-94"><a href="building-the-datasets.html#cb16-94" tabindex="-1"></a><span class="co"># s3write_using(x = pa_area_wld,</span></span>
-<span id="cb16-95"><a href="building-the-datasets.html#cb16-95" tabindex="-1"></a><span class="co">#               FUN = data.table::fwrite,</span></span>
-<span id="cb16-96"><a href="building-the-datasets.html#cb16-96" tabindex="-1"></a><span class="co">#               object = &quot;data_tidy/area/pa_area_wld.csv&quot;,</span></span>
-<span id="cb16-97"><a href="building-the-datasets.html#cb16-97" tabindex="-1"></a><span class="co">#               bucket = &quot;projet-afd-eva-ap&quot;,</span></span>
-<span id="cb16-98"><a href="building-the-datasets.html#cb16-98" tabindex="-1"></a><span class="co">#               opts = list(&quot;region&quot; = &quot;&quot;))</span></span></code></pre></div>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="building-the-datasets.html#cb18-1" tabindex="-1"></a>data_pa_afd <span class="ot">=</span> </span>
+<span id="cb18-2"><a href="building-the-datasets.html#cb18-2" tabindex="-1"></a>  <span class="co">#fread(&quot;data_raw/BDD_PA_AFD_nofund_nodupl.csv&quot;)</span></span>
+<span id="cb18-3"><a href="building-the-datasets.html#cb18-3" tabindex="-1"></a>  <span class="fu">s3read_using</span>(readr<span class="sc">::</span>read_delim,</span>
+<span id="cb18-4"><a href="building-the-datasets.html#cb18-4" tabindex="-1"></a>               <span class="at">delim =</span> <span class="st">&quot;;&quot;</span>,</span>
+<span id="cb18-5"><a href="building-the-datasets.html#cb18-5" tabindex="-1"></a>               <span class="at">show_col_types =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb18-6"><a href="building-the-datasets.html#cb18-6" tabindex="-1"></a>               <span class="at">object =</span> <span class="st">&quot;data_tidy/BDD_PA_AFD_nofund_nodupl.csv&quot;</span>,</span>
+<span id="cb18-7"><a href="building-the-datasets.html#cb18-7" tabindex="-1"></a>              <span class="at">bucket =</span> <span class="st">&quot;projet-afd-eva-ap&quot;</span>,</span>
+<span id="cb18-8"><a href="building-the-datasets.html#cb18-8" tabindex="-1"></a>              <span class="at">opts =</span> <span class="fu">list</span>(<span class="st">&quot;region&quot;</span> <span class="ot">=</span> <span class="st">&quot;&quot;</span>))</span>
+<span id="cb18-9"><a href="building-the-datasets.html#cb18-9" tabindex="-1"></a></span>
+<span id="cb18-10"><a href="building-the-datasets.html#cb18-10" tabindex="-1"></a><span class="co">#At country level ...</span></span>
+<span id="cb18-11"><a href="building-the-datasets.html#cb18-11" tabindex="-1"></a>pa_area_ctry <span class="ot">=</span> data_pa_afd <span class="sc">%&gt;%</span></span>
+<span id="cb18-12"><a href="building-the-datasets.html#cb18-12" tabindex="-1"></a>  <span class="co">#Compute total area at country level</span></span>
+<span id="cb18-13"><a href="building-the-datasets.html#cb18-13" tabindex="-1"></a>  <span class="fu">group_by</span>(iso3) <span class="sc">%&gt;%</span></span>
+<span id="cb18-14"><a href="building-the-datasets.html#cb18-14" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">area_tot_km2 =</span> <span class="fu">sum</span>(area_afd_km2, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb18-15"><a href="building-the-datasets.html#cb18-15" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb18-16"><a href="building-the-datasets.html#cb18-16" tabindex="-1"></a>  <span class="co">#Add information on intersection area in each country. Modify the variable so that NA value -&gt; 0</span></span>
+<span id="cb18-17"><a href="building-the-datasets.html#cb18-17" tabindex="-1"></a>  <span class="fu">left_join</span>(pa_int_ctry, <span class="at">by =</span> <span class="st">&quot;iso3&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb18-18"><a href="building-the-datasets.html#cb18-18" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">tot_area_int =</span> <span class="fu">case_when</span>(<span class="fu">is.na</span>(tot_area_int) <span class="sc">==</span> <span class="cn">TRUE</span> <span class="sc">~</span> <span class="dv">0</span>, <span class="cn">TRUE</span> <span class="sc">~</span> tot_area_int)) <span class="sc">%&gt;%</span></span>
+<span id="cb18-19"><a href="building-the-datasets.html#cb18-19" tabindex="-1"></a>  <span class="co">#Compute the total area at country level without intersection</span></span>
+<span id="cb18-20"><a href="building-the-datasets.html#cb18-20" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">area_tot_noint_km2 =</span> area_tot_km2 <span class="sc">-</span> tot_area_int) </span>
+<span id="cb18-21"><a href="building-the-datasets.html#cb18-21" tabindex="-1"></a></span>
+<span id="cb18-22"><a href="building-the-datasets.html#cb18-22" tabindex="-1"></a><span class="co">#fwrite(pa_area_ctry, &quot;data_tidy/area/pa_area_ctry.csv&quot;)</span></span>
+<span id="cb18-23"><a href="building-the-datasets.html#cb18-23" tabindex="-1"></a><span class="co"># s3write_using(x = pa_area_ctry,</span></span>
+<span id="cb18-24"><a href="building-the-datasets.html#cb18-24" tabindex="-1"></a><span class="co">#               FUN = data.table::fwrite,</span></span>
+<span id="cb18-25"><a href="building-the-datasets.html#cb18-25" tabindex="-1"></a><span class="co">#               object = &quot;data_tidy/area/pa_area_ctry.csv&quot;,</span></span>
+<span id="cb18-26"><a href="building-the-datasets.html#cb18-26" tabindex="-1"></a><span class="co">#               bucket = &quot;projet-afd-eva-ap&quot;,</span></span>
+<span id="cb18-27"><a href="building-the-datasets.html#cb18-27" tabindex="-1"></a><span class="co">#               opts = list(&quot;region&quot; = &quot;&quot;))</span></span>
+<span id="cb18-28"><a href="building-the-datasets.html#cb18-28" tabindex="-1"></a></span>
+<span id="cb18-29"><a href="building-the-datasets.html#cb18-29" tabindex="-1"></a><span class="co">#At AFD region level ...</span></span>
+<span id="cb18-30"><a href="building-the-datasets.html#cb18-30" tabindex="-1"></a><span class="co"># pa_area_dr = data_pa_afd %&gt;%</span></span>
+<span id="cb18-31"><a href="building-the-datasets.html#cb18-31" tabindex="-1"></a><span class="co">#   #Compute total area at dr level</span></span>
+<span id="cb18-32"><a href="building-the-datasets.html#cb18-32" tabindex="-1"></a><span class="co">#   group_by(region_afd) %&gt;%</span></span>
+<span id="cb18-33"><a href="building-the-datasets.html#cb18-33" tabindex="-1"></a><span class="co">#   summarize(area_tot_km2 = sum(area_afd_km2, na.rm = TRUE)) %&gt;% </span></span>
+<span id="cb18-34"><a href="building-the-datasets.html#cb18-34" tabindex="-1"></a><span class="co">#   ungroup() %&gt;%</span></span>
+<span id="cb18-35"><a href="building-the-datasets.html#cb18-35" tabindex="-1"></a><span class="co">#   #Add information on intersection area in each DR. Modify the variable so that NA value -&gt; 0</span></span>
+<span id="cb18-36"><a href="building-the-datasets.html#cb18-36" tabindex="-1"></a><span class="co">#   left_join(pa_int_dr, by = &quot;region_afd&quot;) %&gt;%</span></span>
+<span id="cb18-37"><a href="building-the-datasets.html#cb18-37" tabindex="-1"></a><span class="co">#   mutate(tot_area_int = case_when(is.na(tot_area_int) == TRUE ~0, TRUE ~tot_area_int)) %&gt;%</span></span>
+<span id="cb18-38"><a href="building-the-datasets.html#cb18-38" tabindex="-1"></a><span class="co">#   #Compute the total area at country level without intersection</span></span>
+<span id="cb18-39"><a href="building-the-datasets.html#cb18-39" tabindex="-1"></a><span class="co">#     mutate(area_tot_noint_km2 = area_tot_km2 - tot_area_int) %&gt;%</span></span>
+<span id="cb18-40"><a href="building-the-datasets.html#cb18-40" tabindex="-1"></a><span class="co">#   st_drop_geometry()</span></span>
+<span id="cb18-41"><a href="building-the-datasets.html#cb18-41" tabindex="-1"></a><span class="co"># </span></span>
+<span id="cb18-42"><a href="building-the-datasets.html#cb18-42" tabindex="-1"></a><span class="co"># #fwrite(pa_area_dr, &quot;data_tidy/area/pa_area_dr.csv&quot;)</span></span>
+<span id="cb18-43"><a href="building-the-datasets.html#cb18-43" tabindex="-1"></a><span class="co"># s3write_using(x = pa_area_dr,</span></span>
+<span id="cb18-44"><a href="building-the-datasets.html#cb18-44" tabindex="-1"></a><span class="co">#               FUN = data.table::fwrite,</span></span>
+<span id="cb18-45"><a href="building-the-datasets.html#cb18-45" tabindex="-1"></a><span class="co">#               object = &quot;data_tidy/area/pa_area_dr.csv&quot;,</span></span>
+<span id="cb18-46"><a href="building-the-datasets.html#cb18-46" tabindex="-1"></a><span class="co">#               bucket = &quot;projet-afd-eva-ap&quot;,</span></span>
+<span id="cb18-47"><a href="building-the-datasets.html#cb18-47" tabindex="-1"></a><span class="co">#               opts = list(&quot;region&quot; = &quot;&quot;))</span></span>
+<span id="cb18-48"><a href="building-the-datasets.html#cb18-48" tabindex="-1"></a></span>
+<span id="cb18-49"><a href="building-the-datasets.html#cb18-49" tabindex="-1"></a><span class="co">#At UN region level</span></span>
+<span id="cb18-50"><a href="building-the-datasets.html#cb18-50" tabindex="-1"></a>pa_area_region <span class="ot">=</span> data_pa_afd <span class="sc">%&gt;%</span></span>
+<span id="cb18-51"><a href="building-the-datasets.html#cb18-51" tabindex="-1"></a>  <span class="co">#Compute total area at dr level</span></span>
+<span id="cb18-52"><a href="building-the-datasets.html#cb18-52" tabindex="-1"></a>  <span class="fu">group_by</span>(region) <span class="sc">%&gt;%</span></span>
+<span id="cb18-53"><a href="building-the-datasets.html#cb18-53" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">area_tot_km2 =</span> <span class="fu">sum</span>(area_afd_km2, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb18-54"><a href="building-the-datasets.html#cb18-54" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb18-55"><a href="building-the-datasets.html#cb18-55" tabindex="-1"></a>  <span class="co">#Add information on intersection area in each DR. Modify the variable so that NA value -&gt; 0</span></span>
+<span id="cb18-56"><a href="building-the-datasets.html#cb18-56" tabindex="-1"></a>  <span class="fu">left_join</span>(pa_int_region, <span class="at">by =</span> <span class="st">&quot;region&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb18-57"><a href="building-the-datasets.html#cb18-57" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">tot_area_int =</span> <span class="fu">case_when</span>(<span class="fu">is.na</span>(tot_area_int) <span class="sc">==</span> <span class="cn">TRUE</span> <span class="sc">~</span><span class="dv">0</span>, <span class="cn">TRUE</span> <span class="sc">~</span>tot_area_int)) <span class="sc">%&gt;%</span></span>
+<span id="cb18-58"><a href="building-the-datasets.html#cb18-58" tabindex="-1"></a>  <span class="co">#Compute the total area at country level without intersection</span></span>
+<span id="cb18-59"><a href="building-the-datasets.html#cb18-59" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">area_tot_noint_km2 =</span> area_tot_km2 <span class="sc">-</span> tot_area_int) <span class="sc">%&gt;%</span></span>
+<span id="cb18-60"><a href="building-the-datasets.html#cb18-60" tabindex="-1"></a>  <span class="fu">st_drop_geometry</span>()</span>
+<span id="cb18-61"><a href="building-the-datasets.html#cb18-61" tabindex="-1"></a></span>
+<span id="cb18-62"><a href="building-the-datasets.html#cb18-62" tabindex="-1"></a><span class="co">#fwrite(pa_area_dr, &quot;data_tidy/area/pa_area_dr.csv&quot;)</span></span>
+<span id="cb18-63"><a href="building-the-datasets.html#cb18-63" tabindex="-1"></a><span class="co"># s3write_using(x = pa_area_region,</span></span>
+<span id="cb18-64"><a href="building-the-datasets.html#cb18-64" tabindex="-1"></a><span class="co">#               FUN = data.table::fwrite,</span></span>
+<span id="cb18-65"><a href="building-the-datasets.html#cb18-65" tabindex="-1"></a><span class="co">#               object = &quot;data_tidy/area/pa_area_region.csv&quot;,</span></span>
+<span id="cb18-66"><a href="building-the-datasets.html#cb18-66" tabindex="-1"></a><span class="co">#               bucket = &quot;projet-afd-eva-ap&quot;,</span></span>
+<span id="cb18-67"><a href="building-the-datasets.html#cb18-67" tabindex="-1"></a><span class="co">#               opts = list(&quot;region&quot; = &quot;&quot;))</span></span>
+<span id="cb18-68"><a href="building-the-datasets.html#cb18-68" tabindex="-1"></a></span>
+<span id="cb18-69"><a href="building-the-datasets.html#cb18-69" tabindex="-1"></a><span class="co">#At UN sub-region level</span></span>
+<span id="cb18-70"><a href="building-the-datasets.html#cb18-70" tabindex="-1"></a>pa_area_subregion <span class="ot">=</span> data_pa_afd <span class="sc">%&gt;%</span></span>
+<span id="cb18-71"><a href="building-the-datasets.html#cb18-71" tabindex="-1"></a>  <span class="co">#Compute total area at dr level</span></span>
+<span id="cb18-72"><a href="building-the-datasets.html#cb18-72" tabindex="-1"></a>  <span class="fu">group_by</span>(sub_region) <span class="sc">%&gt;%</span></span>
+<span id="cb18-73"><a href="building-the-datasets.html#cb18-73" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">area_tot_km2 =</span> <span class="fu">sum</span>(area_afd_km2, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb18-74"><a href="building-the-datasets.html#cb18-74" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb18-75"><a href="building-the-datasets.html#cb18-75" tabindex="-1"></a>  <span class="co">#Add information on intersection area in each DR. Modify the variable so that NA value -&gt; 0</span></span>
+<span id="cb18-76"><a href="building-the-datasets.html#cb18-76" tabindex="-1"></a>  <span class="fu">left_join</span>(pa_int_subregion, <span class="at">by =</span> <span class="st">&quot;sub_region&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb18-77"><a href="building-the-datasets.html#cb18-77" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">tot_area_int =</span> <span class="fu">case_when</span>(<span class="fu">is.na</span>(tot_area_int) <span class="sc">==</span> <span class="cn">TRUE</span> <span class="sc">~</span><span class="dv">0</span>, <span class="cn">TRUE</span> <span class="sc">~</span>tot_area_int)) <span class="sc">%&gt;%</span></span>
+<span id="cb18-78"><a href="building-the-datasets.html#cb18-78" tabindex="-1"></a>  <span class="co">#Compute the total area at country level without intersection</span></span>
+<span id="cb18-79"><a href="building-the-datasets.html#cb18-79" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">area_tot_noint_km2 =</span> area_tot_km2 <span class="sc">-</span> tot_area_int) <span class="sc">%&gt;%</span></span>
+<span id="cb18-80"><a href="building-the-datasets.html#cb18-80" tabindex="-1"></a>  <span class="fu">st_drop_geometry</span>()</span>
+<span id="cb18-81"><a href="building-the-datasets.html#cb18-81" tabindex="-1"></a></span>
+<span id="cb18-82"><a href="building-the-datasets.html#cb18-82" tabindex="-1"></a><span class="co">#fwrite(pa_area_dr, &quot;data_tidy/area/pa_area_dr.csv&quot;)</span></span>
+<span id="cb18-83"><a href="building-the-datasets.html#cb18-83" tabindex="-1"></a><span class="co"># s3write_using(x = pa_area_subregion,</span></span>
+<span id="cb18-84"><a href="building-the-datasets.html#cb18-84" tabindex="-1"></a><span class="co">#               FUN = data.table::fwrite,</span></span>
+<span id="cb18-85"><a href="building-the-datasets.html#cb18-85" tabindex="-1"></a><span class="co">#               object = &quot;data_tidy/area/pa_area_subregion.csv&quot;,</span></span>
+<span id="cb18-86"><a href="building-the-datasets.html#cb18-86" tabindex="-1"></a><span class="co">#               bucket = &quot;projet-afd-eva-ap&quot;,</span></span>
+<span id="cb18-87"><a href="building-the-datasets.html#cb18-87" tabindex="-1"></a><span class="co">#               opts = list(&quot;region&quot; = &quot;&quot;))</span></span>
+<span id="cb18-88"><a href="building-the-datasets.html#cb18-88" tabindex="-1"></a></span>
+<span id="cb18-89"><a href="building-the-datasets.html#cb18-89" tabindex="-1"></a><span class="co">#At world level</span></span>
+<span id="cb18-90"><a href="building-the-datasets.html#cb18-90" tabindex="-1"></a>pa_area_wld <span class="ot">=</span> <span class="fu">sum</span>(data_pa_afd<span class="sc">$</span>area_afd_km2, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">-</span> pa_int_wld <span class="sc">%&gt;%</span></span>
+<span id="cb18-91"><a href="building-the-datasets.html#cb18-91" tabindex="-1"></a>  <span class="fu">as.data.frame</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb18-92"><a href="building-the-datasets.html#cb18-92" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="st">&quot;area_tot_noint_km2&quot;</span> <span class="ot">=</span> <span class="st">&quot;.&quot;</span>)</span>
+<span id="cb18-93"><a href="building-the-datasets.html#cb18-93" tabindex="-1"></a><span class="co">#fwrite(pa_area_wld, &quot;data_tidy/area/pa_area_wld.csv&quot;)</span></span>
+<span id="cb18-94"><a href="building-the-datasets.html#cb18-94" tabindex="-1"></a><span class="co"># s3write_using(x = pa_area_wld,</span></span>
+<span id="cb18-95"><a href="building-the-datasets.html#cb18-95" tabindex="-1"></a><span class="co">#               FUN = data.table::fwrite,</span></span>
+<span id="cb18-96"><a href="building-the-datasets.html#cb18-96" tabindex="-1"></a><span class="co">#               object = &quot;data_tidy/area/pa_area_wld.csv&quot;,</span></span>
+<span id="cb18-97"><a href="building-the-datasets.html#cb18-97" tabindex="-1"></a><span class="co">#               bucket = &quot;projet-afd-eva-ap&quot;,</span></span>
+<span id="cb18-98"><a href="building-the-datasets.html#cb18-98" tabindex="-1"></a><span class="co">#               opts = list(&quot;region&quot; = &quot;&quot;))</span></span></code></pre></div>
 
 </div>
 </div>

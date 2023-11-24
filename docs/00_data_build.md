@@ -167,7 +167,7 @@ data_siop_pa =
   clean_names() %>%
   #Keep only project IDs corresponding to PAs reported
   filter(id_projet %in% data_pa_afd$id_projet) %>%
-  select(c(id_projet, id_concours,
+  dplyr::select(c(id_projet, id_concours,
            libelle_court_direction_regionale,
            pays_de_realisation, autres_pays_de_realisation,
            mt_fin_global_af_d_prevu_devise,
@@ -893,6 +893,211 @@ data_pa_mdg = data_wdpa %>%
 #               object = "data_tidy/BDD_PA_MDG.csv",
 #               bucket = "projet-afd-eva-ap",
 #               opts = list("region" = ""))
+```
+
+##### For Africa
+
+
+```r
+#Import AFD funded PA
+data_pa_afd =
+  #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  object = "data_tidy/BDD_PA_AFD_ie.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
+
+#Import WDPA
+data_wdpa =
+  #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
+  s3read_using(sf::st_read,
+              object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = "")) %>%
+  clean_names()
+
+#A dataframe with region name for each iso3 code
+region_iso = data_wdpa %>%
+  st_drop_geometry() %>%
+  clean_names() %>%
+  dplyr::select(iso3) %>%
+  filter(!grepl(";", iso3)) %>%
+  group_by(iso3) %>%
+  slice(1) %>%
+  ungroup() %>%
+  mutate(region_afd = "", 
+       region = countrycode::countrycode(sourcevar = iso3,
+                            origin = "iso3c",
+                            destination = "un.region.name"),
+       sub_region = countrycode::countrycode(sourcevar = iso3,
+                            origin = "iso3c",
+                            destination = "un.regionsub.name"),
+       country_en = countrycode::countrycode(sourcevar = iso3,
+                            origin = "iso3c",
+                            destination = "un.name.en"),
+       country_fr = countrycode::countrycode(sourcevar = iso3,
+                            origin = "iso3c",
+                            destination = "un.name.fr"),
+       .after = "iso3")
+  
+africa_iso = region_iso %>% filter(region == "Africa")
+
+data_pa_africa = data_wdpa %>%
+  filter(iso3 %in% africa_iso$iso3) %>%
+  filter(st_geometry_type(geom) == "MULTIPOLYGON") %>%
+  st_drop_geometry() %>%
+  mutate(name_clean = make_clean_names(name), 
+        region_afd = "", 
+       region = countrycode::countrycode(sourcevar = iso3,
+                            origin = "iso3c",
+                            destination = "un.region.name"),
+       sub_region = countrycode::countrycode(sourcevar = iso3,
+                            origin = "iso3c",
+                            destination = "un.regionsub.name"),
+       country_en = countrycode::countrycode(sourcevar = iso3,
+                            origin = "iso3c",
+                            destination = "un.name.en",
+                            custom_match = c("PYF" = "French Polynesia",
+                                             "ATF" = "Terres australes et antarctiques françaises",
+                                             "REU" = "Reunion",
+                                             "SHN" = "Saint Helena",
+                                             "IOT" = "British Indian Ocean Territory",
+                                               "NCL" = "New Caledonia",
+                                               "MYT" = "Mayotte",
+                                               "COK" = "Cook Islands",
+                                               "ZZ" = "Multi-countries",
+                                               "COG;CMR;CAF" = "Multi-countries")),
+       country_fr = countrycode::countrycode(sourcevar = iso3,
+                            origin = "iso3c",
+                            destination = "un.name.fr",
+                            custom_match = c("PYF" = "Polynésie Française",
+                                             "ATF" = "Terres australes et antarctiques françaises",
+                                             "REU" = "Réunion",
+                                             "SHN" = "Saint Hélène",
+                                             "IOT" = "Territoire Britannique de l'Océan Indien",
+                                             
+                                               "NCL" = "Nouvelle-Calédonie",
+                                               "MYT" = "Mayotte",
+                                               "COK" = "Iles Cook",
+                                               "ZZ" = "Multi-pays",
+                                               "COG;CMR;CAF" = "Multi-pays")),
+       .after = "iso3") %>%
+  mutate(area_km2 = rep_area, .after = "rep_area") %>%
+  mutate(name_pa = name,
+         .after = "iso3") %>%
+  filter(region == "Africa") %>%
+  #Add the description of IUCN from its category
+    mutate(iucn_des_fr = case_when(
+  !is.na(wdpaid) & iucn_cat == "Ia" ~ "Réserve naturelle intégrale",
+  !is.na(wdpaid) & iucn_cat == "Ib" ~ "Zone de nature sauvage",
+  !is.na(wdpaid) & iucn_cat == "II" ~ "Parc national", 
+  !is.na(wdpaid) & iucn_cat == "III" ~ "Monument naturel",
+  !is.na(wdpaid) & iucn_cat == "IV" ~ "Gest. des habitats/espèces",
+  !is.na(wdpaid) & iucn_cat == "V" ~ "Paysage protégé",
+  !is.na(wdpaid) & iucn_cat == "VI" ~ "Gest. de ress. protégées",
+  !is.na(wdpaid) & iucn_cat == "Not Applicable" ~ "Non catégorisée",
+  !is.na(wdpaid) & iucn_cat == "Not Reported" ~ "Non catégorisée",
+  !is.na(wdpaid) & iucn_cat == "Not Assigned" ~ "Non catégorisée",
+  TRUE ~ "Non référencée"), .after = iucn_cat) %>%
+      mutate(iucn_des_en = case_when(
+  !is.na(wdpaid) & iucn_cat == "Ia" ~ "Strict nature reserve",
+  !is.na(wdpaid) & iucn_cat == "Ib" ~ "Wilderness area",
+  !is.na(wdpaid) & iucn_cat == "II" ~ "National park",
+  !is.na(wdpaid) & iucn_cat == "III" ~ "Natural monument or feature",
+  !is.na(wdpaid) & iucn_cat == "IV" ~ " Habitat or species management area",
+  !is.na(wdpaid) & iucn_cat == "V" ~ "Protected landscape or seascape",
+  !is.na(wdpaid) & iucn_cat == "VI" ~ "Protected area with sust. use of nat. res.",
+  !is.na(wdpaid) & iucn_cat == "Not Applicable" ~ "Not categorized",
+  !is.na(wdpaid) & iucn_cat == "Not Reported" ~ "Not categorized",
+  !is.na(wdpaid) & iucn_cat == "Not Assigned" ~ "Not categorized",
+  TRUE ~ "Not referenced"), .after = iucn_cat) %>%
+  left_join(dplyr::select(data_pa_afd, c(wdpaid, year_funding_first, year_funding_all)), by = "wdpaid") %>%
+  #Finally compute centroid coordindates (to create maps) and dummy for FAPBM funded
+  mutate(#coord = st_centroid(geom),
+        #lon = unlist(map(coord,1)),
+        #lat = unlist(map(coord,2)),
+        focus = wdpaid %in% data_pa_afd$wdpaid) %>%
+  #Finally, we need to manually remove lines with more than one WDPA_PID
+  ## Remove the marine area of WDPAID 9035 with null area
+  filter(!(wdpa_pid == "9035_A")) %>%
+  ## 555547861 has 3 marine PAs. The C one is chosen as the size reported by AFD (superficie_km2) matches the area reported by WDPA (https://www.protectedplanet.net/555547861)
+  filter(!(wdpa_pid %in% c("555547861_A", "555547861_B"))) %>%
+  # 555705345 : buffer area is also reported. Remove the buffer
+  filter(!(wdpa_pid == "555705345_B")) %>%
+  #555547863 : keep the WDPA_PID whose area matches the one reported by AFD employees and WDPA website (https://www.protectedplanet.net/555547863)
+  filter(!(wdpa_pid == "555547863_A")) %>%
+  ###761 : remove B, the buffer
+  filter(!(wdpa_pid == "761_B")) %>%
+  ###801 : remove the ones with null area reported
+  filter(!(wdpa_pid %in% c("801_B", "801_C"))) %>%
+  ###555705202 : remove B, the buffer
+  filter(!(wdpa_pid == "555705202_B")) %>%
+  ###555705344 : remove B, the buffer
+  filter(!(wdpa_pid == "555705344_B")) %>%
+  ### 555744966 : remove completely, mix of marine and non-marine
+  filter(!(wdpaid == 555744966))
+  
+
+#Save the dataset
+s3write_using(x = data_pa_africa,
+              FUN = readr::write_delim,
+              delim = ";",
+              object = "data_tidy/BDD_PA_africa.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
+```
+
+##### For TerrIndigena
+
+Build a dataset for TerrIndigena project supported by AFD Agriculture, Rural development and Biodiversity technical division.
+
+
+```r
+#Import datasets
+##SIOP information
+terr_siop =
+  #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
+  s3read_using(data.table::fread,
+              object = "data_raw/TerrIndigena/TerrIndigena_siop.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = "")) %>%
+  clean_names() %>%
+  dplyr::select(c(id_projet, nom_du_projet, annee_doctroi_projet)) %>%
+  group_by(id_projet) %>%
+  slice(1) %>%
+  ungroup() %>%
+  rename("name_pa" = "nom_du_projet",
+         "status_yr" = "annee_doctroi_projet")
+
+#Polygons
+##Raw
+terr_poly_raw = 
+    #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
+  s3read_using(sf::st_read,
+              object = "data_raw/TerrIndigena/TE_TerrIndigena1y2_20230208_Pg.gpkg",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = "")) %>%
+  #Make polygon valid to avoid errors
+  st_make_valid()
+
+##Tidy
+terr_poly_tidy = terr_poly_raw %>%
+  dplyr::select(c(IDentif, Pais, geom)) %>%
+  mutate(IDentif = gsub(" ", "_", IDentif)) %>%
+  rename("ID_raw" = "IDentif",
+         "country_en" = "Pais") %>%
+  #Cast multipoygons to polygon to avoid 
+  st_cast("POLYGON", do_split = F) 
+  
+#Save the dataset
+s3write_using(x = terr_poly_tidy,
+              FUN = sf::st_write,
+              delim = ";",
+              object = "data_tidy/TerrIndigena/TE_TerrIndigena1y2_20230208_Pg_tidy.gpkg",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
 ```
 
 ### Datasets for confidential analysis

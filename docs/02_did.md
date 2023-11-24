@@ -16,19 +16,23 @@ The process consists of the following steps.
 
     4.  Plot the total area deforested on the period considered, in the protected area and its counterfactual, before and after matching. This is useful to illustrate the bias described above. Note that ideally the deforestation estimated in the protected area before and after matching should be the same. If note, the matched treated units are not representative of the overall protected area and the a local treatment effect will be estimated.
 
-3.  The treatment effects, annual deforestation rates and estimations of total deforested area computed for each protected areas are gathered in specific datasets. This makes it possible to compute metrics aggregated at country and region level. These datastes are saved to the storage.
+    5.  The treatment effects, pre-tests, annual deforestation rates and estimations of total deforested area computed for each protected areas are gathered in specific datasets. This makes it possible to compute metrics aggregated at country and region level. These datastes are saved to the storage, for each country and for all countries.
 
-4.  If relevant, results of the analysis at protected area level are aggregated at country and region level.
+3.  Assess the quality of matching (for matched control and treated pixels, for matched and unmatched treated pixels) pre-test for all PA. Define non-academic and academic filtering to remove results of some PA potentially.
 
-5.  Finally, figures and tables are created to display the results.
+4.  Assess the loss of observations on the whole data-processing : during pre-processing (due to filtering of PA we cannot analyse, overlap removal): post-processing (typically matching step) and DiD steps.
+
+5.  Results of the analysis at protected area level are aggregated at country and region level.
+
+6.  Finally, figures and tables are created to display the results.
+
+The methodology is not extensively described here to keep the documentation concise. The interested reader can refer to the working paper for more details.
 
 ## Initial settings
 
 Configuring the Rmarkdown.
 
-#```{r setup, include=FALSE, eval = FALSE}
-#knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
-#```
+
 
 Downloading and importing relevant packages.
 
@@ -54,7 +58,7 @@ library(latex2exp)
 library(janitor)
 ```
 
-To keep this document concise, each step calls a function defined in a R script. Interested reader can delve deeper into the data processing by looking at this script. The following chunck load the functions in the workspace.
+To keep this document concise, each step calls a function defined in a R script. Interested reader can delve deeper into the data processing by looking at this script. The following chunk load the functions in the workspace.
 
 
 ```r
@@ -69,11 +73,11 @@ source("scripts/functions/02_fns_did.R")
 #Define working directories
 ##Temporary directory
 tmp_did = paste(tempdir(), "did", sep = "/")
-##Loading and saving directories on the storage. This is either define on today's date, or by a user-defined date.
+##Loading and saving directories on the storage. This is either define on today's date, or by a user-defined date. Loadin directory corresponds to the output of 02_matching.Rmd.
 #load_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/")
-load_dir = paste("impact_analysis/matching", "2023-09-21", sep = "/")
+load_dir = paste("impact_analysis/matching", "2023-11-22_PYD", sep = "/")
 #save_dir = paste("impact_analysis/did", Sys.Date(), sep = "/")
-save_dir = paste("impact_analysis/did", "2023-09-21", sep = "/")
+save_dir = paste("impact_analysis/did", "2023-11-22_PYD", sep = "/")
 
 ## Dataset specific to the PAs portfolio to analyze. Only one is selected depending on the analysis one wants to perform. 
 
@@ -93,33 +97,66 @@ save_dir = paste("impact_analysis/did", "2023-09-21", sep = "/")
 #   filter(is.na(wdpaid) == TRUE | wdpaid != 555547988)
 
 ##FAPBM
-data_fapbm =
-  #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
-  aws.s3::s3read_using(
-  FUN = data.table::fread,
-  encoding = "UTF-8",
-  object = "data_tidy/BDD_PA_FAPBM.csv",
-  bucket = "projet-afd-eva-ap",
-  opts = list("region" = ""))
+# data_fapbm =
+#   #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
+#   aws.s3::s3read_using(
+#   FUN = data.table::fread,
+#   encoding = "UTF-8",
+#   object = "data_tidy/BDD_PA_FAPBM.csv",
+#   bucket = "projet-afd-eva-ap",
+#   opts = list("region" = ""))
 
 ##Madagascar (all PAs)
+# data_pa =
+#   #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
+#   aws.s3::s3read_using(
+#   FUN = data.table::fread,
+#   encoding = "UTF-8",
+#   object = "data_tidy/BDD_PA_MDG.csv",
+#   bucket = "projet-afd-eva-ap",
+#   opts = list("region" = ""))
+
+# All PAs in Africa
 data_pa =
-  #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
   aws.s3::s3read_using(
   FUN = data.table::fread,
   encoding = "UTF-8",
-  object = "data_tidy/BDD_PA_MDG.csv",
+  object = "data_tidy/BDD_PA_africa.csv",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
 
+
+#Specify the period of study to create the mapme.bidiversity portfolio
+## Start year
+yr_first = 2000
+## End year
+yr_last = 2021
+## Year to start analysis
+yr_min = yr_first + 2
+
+#Specify the margin of error to define confidence interval (0.05 corresponds 95% confidence interval).
+alpha = 0.1 #09/11/2023 : changed to 90% confidence intervals
+
+# Criteria to assess matching quality
+## Standardized absolte mean difference : threshold
+th_mean = 0.25 #Used in conservation science, see Desbureaux 2021 for instance
+## Variance ratio : thresholds
+th_var_min = 0.5
+th_var_max = 2
+
 # The list of countries (ISO3 codes) to analyze. This can be define manually or from the the dataset loaded.
+##List of African countries in the sample that have at least one PA supported by the AFD we can analyse
+# data_pa_ie = data_pa %>%
+#   filter(region == "Africa" & is.na(wdpaid) == FALSE & area_km2 >=1 & marine %in% c(0,1) & status_yr >= yr_min)
+# data_pa_ie_focus = data_pa %>%
+#   filter(region == "Africa" & is.na(wdpaid) == FALSE & area_km2 >=1 & marine %in% c(0,1) & status_yr >= yr_min & focus == T)
+# list_iso_ie_focus = unique(data_pa_ie_focus$iso3)
+# list_pa_ie_focus = unique(data_pa_ie_focus$wdpaid)
+#list_iso = list_iso_ie_focus
+##Manual definition
+list_iso = c("COM",  "GNB")
+list_iso_ie_focus = list_iso
 
-# list_iso = data_pa %>%
-#   filter(region == "Africa") %>%
-#   filter(!(iso3 %in% c("ZZ")))
-# list_iso = unique(list_iso$iso3)
-
-list_iso = "MDG"
 
 ## Information on funding from AFD internal datasets, on AFD funded projects related to protected areas.
 data_fund = 
@@ -151,34 +188,33 @@ data_pa_report =
   mutate(key = paste(id_projet, nom_ap, wdpaid, sep = "_")) %>%
   group_by(key) %>%
   slice(1)
-
-#Specify the period of study to create the mapme.bidiversity portfolio
-## Start year
-yr_first = 2000
-## End year
-yr_last = 2021
-
-#Specify the margin of error to define confidence interval (0.05 corresponds 95% confidence interval).
-alpha = 0.05
 ```
 
 ## Computing treatment effects at protected area level
 
 
 ```r
+# The analysis is designed to analyze a portfolio of PA in different countries, using loop over countries and over PA. To better understand a function, or identify and debug an error, a good practice is to enter the loops using a single country or PA. Thus, it is possible to run the analysis step by step, and even enter into the functions to understand what is done « behind the doors ». For instance in « 02_matching.Rmd), set value i = « COM » in the first loop and j = 313046 to peform the analysis step by step for PA with WDPA ID 313046 in Comoros.
+
+
 #For each country in the list, the different steps of the processing are performed
 count_i = 0 #Initialize counter
 max_i = length(list_iso) #Max value of the counter
 tic = tic() #Start timer
+#Initialize a dataframe to store the PA in inputs and outputs of the DiD. Useful to assess the potential loss during post-processing and DiD
+df_list_did_in = data.frame()
+df_list_did_out = data.frame()
 #Create empty dataframes that will store the treatment effects computed for each protected area in the portfolio. 
 ##Initialize a dataframe to store annual deforestation rate for each PA, à la Wolf et al. 2021
-df_fl_annual_wolf = data.frame()
+#df_fl_annual_wolf = data.frame()
 ##Initialize a dataframe to store treatment effects of all PA analyzed
 df_fc_att = data.frame() #Effect on forest cover for matched units
 ##df_fc_att_unm = data.frame() #Effect on forest cover for unmacthed units
 df_fl_att = data.frame() #Effect on deforestation relative to 2000
 ##Initialize a dataframe to store forest loss for visual evidence before/after matching
 df_plot_forest_loss = data.frame()
+#Initialize a dataframe to store pre-test of parallel trend assumption
+df_pre_test = data.frame()
 
 for (i in list_iso)
 {
@@ -186,33 +222,39 @@ for (i in list_iso)
   count_i = count_i+1
   print(paste0(i, " : country ", count_i, "/", max_i))
   
+  #Initialize a dataframe to store treatment effects and pre-did dataframe of each PA in the country. Used later to aggregate results at country level
+  df_fc_att_i = data.frame()
+  df_fl_att_i = data.frame()
+  df_pre_test_i = data.frame()
+  
   #Load the matching frame
   print("--Loading the list of PAs in the country considered")
+  
   output_pa_i = fn_did_list_pa(iso = i, load_dir = load_dir)
-  if(output_pa_i$is_ok == FALSE) {next} else list_pa_i = output_pa_i$list_pa
+  if(output_pa_i$is_ok == FALSE) {next} else list_pa_in = output_pa_i$list_pa
+  
+  df_list_did_in = rbind(df_list_did_in, data.frame("iso3" = rep(i, length(list_pa_in)),
+                                                   "wdpaid" = list_pa_in))
   
   count_j = 0
-  max_j = length(list_pa_i)
+  max_j = length(list_pa_in)
   
-  for(j in list_pa_i)
+  for(j in list_pa_in)
   {
     
     count_j = count_j+1
     print(paste0("WDPA ID ", j, " : ", count_j, "/", max_j))
     
     #Compute annual deforestation rates in treated and control matched areas, à la Wolf et al. 2021.
-    print("--Compute average deforestation rates à la Wolf et al. 2021")
-    output_wolf_m_j = fn_fl_wolf(iso = i, 
-                                wdpaid = j, 
-                                alpha = alpha, 
-                                load_dir = load_dir,
-                                ext_input = ".csv")
-    
-    if(output_wolf_m_j$is_ok == FALSE) 
-      {
-      next
-      } else df_fl_wolf_m_j = output_wolf_m_j$df_fl_wolf_m_j
-    df_fl_annual_wolf = rbind(df_fl_annual_wolf, df_fl_wolf_m_j)
+    # print("--Compute average deforestation rates à la Wolf et al. 2021")
+    # output_wolf_m_j = fn_fl_wolf(iso = i, 
+    #                             wdpaid = j, 
+    #                             alpha = alpha, 
+    #                             load_dir = load_dir)
+    # 
+    # if(output_wolf_m_j$is_ok == FALSE) 
+    #   {next} else df_fl_wolf_m_j = output_wolf_m_j$df_fl_annual_wolf
+    # df_fl_annual_wolf = rbind(df_fl_annual_wolf, df_fl_wolf_m_j)
     
     #Compute treatment effects
     print("--Compute treatment effects")
@@ -226,24 +268,23 @@ for (i in list_iso)
     #                   data_report = data_pa_report,
     #                   alpha = alpha,
     #                   load_dir = load_dir,
-    #                   ext_input = ".csv",
     #                   save_dir = save_dir)
     
     #For PAs in general (no funding info)
-      output_att_m_j = fn_did_att_general(iso = i, wdpaid = j, 
+    output_att_m_j = fn_did_att_general(iso = i, wdpaid = j, 
                         is_m = TRUE,
                     data_pa = data_pa,
                     alpha = alpha,
                     load_dir = load_dir,
-                    ext_input = ".csv",
                     save_dir = save_dir)
     
-    if(output_att_m_j$is_ok == FALSE) {next} else df_att_m_j = output_att_m_j
+    if(output_att_m_j$is_ok == FALSE) {next} 
     
-    df_fc_att = rbind(df_fc_att, df_att_m_j$df_fc_att)
-    df_fl_att = rbind(df_fl_att, df_att_m_j$df_fl_att)
+    df_fc_att_i = rbind(df_fc_att_i, output_att_m_j$df_fc_att)
+    df_fl_att_i = rbind(df_fl_att_i, output_att_m_j$df_fl_att)
+    df_pre_test_i = rbind(df_pre_test_i, output_att_m_j$df_pre_test)
         
-    print("----For unmatched units")
+    #print("----For unmatched units")
     
     #For AFD PAs (funding info known)
     # df_att_unm_j = fn_did_att_afd(iso = i, wdpaid = j, 
@@ -253,9 +294,7 @@ for (i in list_iso)
     #                   load_dir = load_dir,
     #                   ext_input = ".csv",
     #                   save_dir = save_dir)
-    # df_fc_att_unm = rbind(df_fc_att_unm, df_att_unm_j$df_fc_att)
-    # df_fl_att_unm = rbind(df_fl_att, df_att_unm_j$df_fl_att)
-    
+    #
     #For general PAs (funding info unknown)
     # df_att_unm_j = fn_did_att_general(iso = i, wdpaid = j, 
     #                       is_m = FALSE,
@@ -263,46 +302,494 @@ for (i in list_iso)
     #                   alpha = 0.05,
     #                   load_dir = load_dir,
     #                   ext_input = ".csv",
-    #                   save_dir = save_dir)    
-    # df_fc_att_unm = rbind(df_fc_att_unm, df_att_unm_j$df_fc_att)
-    # df_fl_att_unm = rbind(df_fl_att, df_att_unm_j$df_fl_att)
+    #                   save_dir = save_dir)
+    #
+    #if(output_att_m_j$is_ok == FALSE) {next} else df_att_m_j = output_att_m_j
+    #df_pre_test_i = rbind(df_pre_test, df_att_m_j$df_pre_test)
+    # df_fc_att_unm_i = rbind(df_fc_att_i, df_att_unm_j$df_fc_att)
+    # df_fl_att_unm_i = rbind(df_fl_att_i, df_att_unm_j$df_fl_att)
     
     #Plot visual evidence before-after matching
     print("--Plot visual evidence before-after matching")
-    df_plot_forest_loss_j = fn_plot_forest_loss(iso = i, 
-                                                wdpaid = j, 
+    df_plot_forest_loss_j = fn_plot_forest_loss(iso = i,
+                                                wdpaid = j,
                                                 alpha = alpha,
-                                                data_pa = data_pa, 
-                                                load_dir = load_dir, 
-                                                ext_input = ".csv", 
+                                                data_pa = data_pa,
+                                                load_dir = load_dir,
                                                 save_dir = save_dir)
     df_plot_forest_loss = rbind(df_plot_forest_loss, df_plot_forest_loss_j)
+    
+    #The PA has gone through all DiD steps : report it in the output dataframe
+    df_list_did_out = rbind(df_list_did_out, data.frame("iso3" = i, "wdpaid" = j))
 
   }  
-
+  #Store the treatment effects dataframes of the country
+  ##Report country results in the dataframe
+  ###Forest cover
+  df_fc_att = rbind(df_fc_att, df_fc_att_i)
+  ###Forest loss
+  df_fl_att = rbind(df_fl_att, df_fl_att_i)
+  ##Save country results in the storage
+  ###Forest cover
+  aws.s3::s3write_using(
+  FUN = data.table::fwrite,
+  df_fc_att_i,
+  object = paste(save_dir, i, paste0("df_fc_att_", i, ".csv"), sep = "/"),
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
+  ###Forest loss
+  aws.s3::s3write_using(
+  FUN = data.table::fwrite,
+  df_fl_att_i,
+  object = paste(save_dir, i, paste0("df_fl_att_", i, ".csv"), sep = "/"),
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
   
+  ##Store the pre-did dataframe of the country 
+  ##Report country results in the dataframe
+  df_pre_test = rbind(df_pre_test, df_pre_test_i)
+  ##Save country results in the storage
+  aws.s3::s3write_using(
+  FUN = data.table::fwrite,
+  df_pre_test_i,
+  object = paste(save_dir, i, paste0("df_pre_test_", i, ".csv"), sep = "/"),
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = ""))
   
 }
 
-#Finally save the treatment effects computed for every protected areas analyzed
+#Save list of PA in input and output of DiD process
+##Input
+aws.s3::s3write_using(
+FUN = data.table::fwrite,
+df_list_did_in,
+object = paste(save_dir, "df_list_did_in.csv", sep = "/"),
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+##Output
+aws.s3::s3write_using(
+FUN = data.table::fwrite,
+df_list_did_out,
+object = paste(save_dir, "df_list_did_out.csv", sep = "/"),
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+
+#Save the pre-treatment tests 
+aws.s3::s3write_using(
+FUN = data.table::fwrite,
+df_pre_test,
+object = paste(save_dir, "df_pre_test.csv", sep = "/"),
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+
+#Save the treatment effects computed for every protected areas analyzed
 ## Treatment effect expressed in forest cover loss avoided (ha)
 aws.s3::s3write_using(
 FUN = data.table::fwrite,
 df_fc_att,
-# Mettre les options de FUN ici
-object = paste(save_dir, "data_fc_att.csv", sep = "/"),
+object = paste(save_dir, "df_fc_att.csv", sep = "/"),
 bucket = "projet-afd-eva-ap",
 opts = list("region" = ""))
 ## Treatment effect expressed in change of deforestation rate (percentage points)
 aws.s3::s3write_using(
 FUN = data.table::fwrite,
 df_fl_att,
-# Mettre les options de FUN ici bucket = , iso, wdpaid, sep = "/")
-object = paste(save_dir, "data_fl_att.csv", sep = "/"), 
+object = paste(save_dir, "df_fl_att.csv", sep = "/"), 
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+
+#Save forest loss on the 2000-2021 period computed for each PA
+aws.s3::s3write_using(
+FUN = data.table::fwrite,
+df_plot_forest_loss,
+object = paste(save_dir, "df_fl_2000_2021.csv", sep = "/"), 
 bucket = "projet-afd-eva-ap",
 opts = list("region" = ""))
 
 toc = toc()
+```
+
+## Assess the quality of matching and pre-test
+
+The treatment effects are computed using a difference-in-difference framework where control are built from a matching procedure. The treatment effects computed can be biased if (1) matched control and treated units are too different on average; (2) matched and unmatched treated units are too different on average (Schleicher et al., 2020). Also, the estimation from difference-in-difference is biased if parallel trend assumption does not hold, which is likely if control and treated matched unit do no follow the same trend before treatment.
+
+In matching and DiD procedures, we have computed for each PA some statistics to assess the quality of the matching process and the pre-treatment parallel trend assumption. Before plotting and aggregating treatment effects, we first remove a PA if these statistics suggest poor matching of pre-treatment parallel trend.
+
+
+```r
+#Import the quality assessment datasets
+## Pre-treatment parallel trend assumption test
+df_pre_test = aws.s3::s3read_using(
+  FUN = data.table::fread,
+  object = paste(save_dir, "df_pre_test.csv", sep = "/"),
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = "")) %>%
+  mutate(is_ok_fc = pval_fc <= alpha,
+         is_ok_fl = pval_fl <= alpha)
+##Matching quality
+##Matched control and treated units
+df_quality_ct = aws.s3::s3read_using(
+FUN = data.table::fread,
+object = paste(load_dir, "df_quality_ct.csv", sep = "/"),
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+##Treated units, before and after matching
+df_quality_tt = aws.s3::s3read_using(
+FUN = data.table::fread,
+object = paste(load_dir, "df_quality_tt.csv", sep = "/"), 
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+
+##Total forest cover in 2000 
+df_fc_2000 = aws.s3::s3read_using(
+FUN = data.table::fread,
+object = paste(save_dir, "df_fl_2000_2021.csv", sep = "/"), 
+bucket = "projet-afd-eva-ap",
+opts = list("region" = "")) %>%
+  filter(group == "Treated" & matched == F & year == 2000) %>%
+  dplyr::select(c(region, iso3, country_en, wdpaid, focus, fc_tot_ha))
+
+#For pre-test, closer look to ...
+## PA of interest
+df_pre_test_focus = df_pre_test %>%
+  filter(wdpaid %in% list_pa_ie_focus)
+## Other PA
+df_pre_test_nofocus = df_pre_test %>%
+  filter(!(wdpaid %in% list_pa_ie_focus))
+
+#For matching quality, compute aggregated quality metrics
+##For all PA
+df_quality_ct_agg = df_quality_ct %>%
+  group_by(region, country_en, iso3,wdpaid) %>%
+  summarise(std_mean_diff_agg = mean(std_mean_diff, na.rm = TRUE),
+            var_ratio_agg = mean(var_ratio, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(is_mean_ok = std_mean_diff_agg <= th_mean,
+         is_var_ok = var_ratio_agg >= th_var_min & var_ratio_agg <= th_var_max,
+         is_ok = case_when(is.na(is_mean_ok*is_var_ok) == T ~ FALSE,
+                           is.na(is_mean_ok*is_var_ok) == F ~ as.logical(is_mean_ok*is_var_ok)))
+df_quality_tt_agg = df_quality_tt %>%
+  group_by(region, country_en, iso3,wdpaid) %>%
+  summarise(std_mean_diff_agg = mean(std_mean_diff, na.rm = TRUE),
+            var_ratio_agg = mean(var_ratio, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(is_mean_ok = std_mean_diff_agg <= th_mean,
+         is_var_ok = var_ratio_agg >= th_var_min & var_ratio_agg <= th_var_max,
+         is_ok = case_when(is.na(is_mean_ok*is_var_ok) == T ~ FALSE,
+                           is.na(is_mean_ok*is_var_ok) == F ~ as.logical(is_mean_ok*is_var_ok)))
+
+##For PA of interest
+df_quality_ct_agg_focus = df_quality_ct_agg %>%
+  filter(wdpaid %in% list_pa_ie_focus)
+df_quality_tt_agg_focus = df_quality_tt_agg %>%
+  filter(wdpaid %in% list_pa_ie_focus)
+
+##For other PA
+df_quality_ct_agg_nofocus = df_quality_ct_agg %>%
+  filter(!(wdpaid %in% list_pa_ie_focus))
+df_quality_tt_agg_nofocus = df_quality_tt_agg %>%
+  filter(!(wdpaid %in% list_pa_ie_focus))
+
+#List of PA with acceptable initial forest cover, matching and pre-test (strict criterion)
+list_pa_fc_2000 = unique(filter(df_fc_2000, fc_tot_ha >= 0.5)$wdpaid)
+list_pa_good_ct = df_quality_ct_agg[df_quality_ct_agg$is_ok == TRUE,]$wdpaid
+list_pa_good_tt = df_quality_tt_agg[df_quality_tt_agg$is_ok == TRUE,]$wdpaid
+list_pa_good_pre_fc = df_pre_test[df_pre_test$is_ok_fc == TRUE,]$wdpaid
+list_pa_good_pre_fl = df_pre_test[df_pre_test$is_ok_fl == TRUE,]$wdpaid
+list_pa_keep_fc = data_pa[data_pa$wdpaid %in% list_pa_fc_2000
+                          & data_pa$wdpaid %in% list_pa_good_ct
+                       & data_pa$wdpaid %in% list_pa_good_tt
+                       & data_pa$wdpaid %in% list_pa_good_pre_fc,]$wdpaid
+```
+
+## Tidy datasets with acceptable quality
+
+The previous section makes it possible to filter PA with acceptable initial forest cover, matching quality and pre-test. Then, it is possible to build a dataset of a subset of PA. For presentations to non-academic, we choose to maximize the number of operations, so we only remove PA with non-acceptable initial forest cover. For academic publications and comunications, we also remove PA with bad matching quality and pre-test.
+
+
+```r
+#Import datasets
+## Treatment effect expressed in forest cover loss avoided (ha)
+df_fc_att = aws.s3::s3read_using(
+FUN = data.table::fread,
+object = paste(save_dir, "df_fc_att.csv", sep = "/"),
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+## Treatment effect expressed in change of deforestation rate (percentage points)
+df_fl_att = aws.s3::s3read_using(
+FUN = data.table::fread,
+object = paste(save_dir, "df_fl_att.csv", sep = "/"),
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+
+#Tidy datasets for non-academic
+##The following are selected :
+### Acceptable forest cover in 2000
+df_fc_att_tidy_noaca = df_fc_att %>%
+  filter(wdpaid %in% list_pa_fc_2000)
+df_fl_att_tidy_noaca = df_fl_att %>%
+  filter(wdpaid %in% list_pa_fc_2000)
+
+#Tidy datasets for academic
+##The following are selected :
+### Acceptable forest cover in 2000
+## Acceptable matching quality (matched control and treated, treated)
+## Acceptable pre-test
+df_fc_att_tidy_aca = df_fc_att %>%
+  filter(wdpaid %in% list_pa_keep_fc)
+df_fl_att_tidy_aca = df_fl_att %>%
+  filter(wdpaid %in% list_pa_keep_fc)
+
+#Save the tidy datasets
+## Non-academic filtering
+### FC
+aws.s3::s3write_using(
+FUN = data.table::fwrite,
+df_fc_att_tidy_noaca,
+object = paste(save_dir, "df_fc_att_tidy_noaca.csv", sep = "/"), 
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+### FL
+aws.s3::s3write_using(
+FUN = data.table::fwrite,
+df_fl_att_tidy_noaca,
+object = paste(save_dir, "df_fl_att_tidy_noaca.csv", sep = "/"), 
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+## Academic filtering
+### FC
+aws.s3::s3write_using(
+FUN = data.table::fwrite,
+df_fc_att_tidy_aca,
+object = paste(save_dir, "df_fc_att_tidy_aca.csv", sep = "/"), 
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+### FL
+aws.s3::s3write_using(
+FUN = data.table::fwrite,
+df_fl_att_tidy_aca,
+object = paste(save_dir, "df_fl_att_tidy_aca.csv", sep = "/"), 
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+```
+
+## Assess the loss of observations
+
+Some PA can be dropped during the matching and DiD process for several reasons : the PA without overlap can be too small compared to the initial area, no observation unit in a given PA is matched, matching quality is poor, pre-test does not hold. In any communication, it is necessary to be explicit about such losses. In both matching and DiD processes, dataframe are built to report the PAs in the different steps : before and after pre-processing, post-processing and DiD.
+
+### Compute overlap removal
+
+In the matching pre-processing, the PA analysed are removed any overlap with other PA polygon reported in the WDPA. If the overlap is greater than 10% of the initial area of the polygon reported in the WDPA, then the PA is removed from the sample. This operation is necessary to isolate the treatment effect of the PA of interest, not from a mix of different PA. The overlaps are also not considered for control. It is important to quantify the loss of area implied by this operation, and count how many PA are removed from our sample.
+
+
+```r
+#Initialize a dataset where the area of each PA is reported : area reported in the WDPA, area without any overlap, 
+df_pa_overlap = data.frame()
+count_i = 0
+#For each country in the list of interest
+## Import country polygon, find its UTM code
+## Import the polygons from the WDPA, except points, and project it following the country UTM code
+## Compute the area of polygons reported in the WDAP
+## Compute a layer of polygons without overlap, compute the corresponding area, assess whether the PA should be kept or not
+## Store the overlaps
+for (i in list_iso) 
+{
+  
+    count_i = count_i+1
+    print(paste0(i, " : country ", count_i, "/", length(list_iso)))
+    gadm = gadm(country = i, resolution = 1, level = 0, path = tempdir()) %>% 
+    st_as_sf() %>%
+    st_make_valid() #Necessary for some polygons : e.g BEN
+  
+  # Find UTM zone of the country centroid
+  centroid = st_coordinates(st_centroid(gadm))
+  utm_code = fn_lonlat2UTM(centroid)
+  
+    # The polygons of PAs are taken from WDPA, cleaned
+  wdpa_prj = wdpa_wld_raw %>%
+    filter(ISO3 == i) %>%
+    #st_make_valid() %>%
+    #celanign of PAs from the wdap_clean function :
+    #Status filtering is performed manually juste after. 
+    #The geometry precision is set to default. Used to be 1000 in Kemmeng code
+    # Overlaps are not erased because we rasterize polygons
+    #UNESCO Biosphere Reserves are not excluded so that our analysis of AFD portfolio is the most extensive
+    wdpa_clean(retain_status = NULL,
+               erase_overlaps = FALSE,
+               exclude_unesco = FALSE,
+               verbose = TRUE) %>% 
+    # Remove the PAs that are only proposed, or have geometry type "point"
+    #filter(STATUS != "Proposed") %>%  #24/08/2023 : "Proposed" status concerns only 6 PAs in the sample, including one implemented after 2000.
+    filter(GEOMETRY_TYPE != "POINT") %>%
+    # Project PA polygons to the previously determined UTM zone
+    st_transform(crs = utm_code) 
+  
+  # Numerous polygons reported in the WDPA overlap. This can lead be an issue : a pixel can be treated more than once, and the treatment effect of the PA of interest cannot be isolated a priori 
+  # Compute a layer of polygons without overlaps, and with overlaps only. The analysis will be performed on polygons with no overlap and whose non-overlapped area is not too small (10% at least of initial area). Also, the overlapped areas are assigned to a specific group so that they are not used as control.
+  ## Layer without overlap
+  wdpa_prj_vect = wdpa_prj %>% 
+    mutate(area_poly = expanse(terra::vect(geometry), unit = "km")) %>%
+    terra::vect()
+  
+  wdpa_prj_noverlap = sapply(1:dim(wdpa_prj_vect)[1], 
+                         function(X) {erase(wdpa_prj_vect[X,], wdpa_prj_vect[-X,])}) %>% 
+    terra::vect() %>%
+    st_as_sf() %>%
+    clean_names() %>%
+    #Compute
+    ## The area of the PA without overlap (erase (X, -X), with X the polygon of interest, -X other polygons)
+    ## dummy for removal : if the area without overlap is smaller than 10% of the initial area reported in the WDPA, then it is not considered
+    ## This is computed relative to the initial reported area in the WDPA, and the initial area of the polygon reported in the WDAP
+    mutate(area_noverlap = expanse(terra::vect(geometry), unit = "km"),
+           rm_poly = area_noverlap < 0.1*area_poly,)
+  
+  ## Layer of overlaps
+  # wdpa_prj_overlap = sapply(1:dim(wdpa_prj_vect)[1],
+  #                       function(X) {intersect(wdpa_prj_vect[X,], wdpa_prj_vect[-X,])}) %>%
+  #   terra::vect() %>%
+  #   st_as_sf() %>%
+  #   clean_names()
+  
+  #Report areas without overlap for all PA in the country i
+  #PA whose area without overlap is null are removed from wdpa_prj_noverlap : we create the dataframe of interest from the comprehensive wdpa_prj_vect, and assign to NA values for rm and area_noverlap a 0 or TRUE
+  df_pa_overlap_i = wdpa_prj_vect %>%
+    st_as_sf() %>%
+    st_drop_geometry() %>%
+    clean_names() %>%
+    dplyr::select(c(iso3, wdpaid, wdpa_pid, name, rep_area, area_km2, area_poly)) %>%
+    left_join(dplyr::select(wdpa_prj_noverlap, c(wdpa_pid, area_noverlap, rm_poly)), by = "wdpa_pid") %>%
+    mutate(area_noverlap = case_when(is.na(area_noverlap) == T ~ 0,
+                                     TRUE ~ area_noverlap),
+            rm_poly = case_when(is.na(rm_poly) == T ~ TRUE,
+                           TRUE ~ rm_poly))
+  # df_pa_overlap_i = wdpa_prj_noverlap %>%
+  #   clean_names() %>% 
+  #   st_drop_geometry() %>%
+  #   dplyr::select(c(iso3, wdpaid, wdpa_pid, name, area_km2, area_poly, area_noverlap, rm))
+  
+  df_pa_overlap = rbind(df_pa_overlap, df_pa_overlap_i)
+}
+
+#Then we asees losses in the sample
+## For each PA of the sample, is the overlap too important or not
+df_pa_overlap_focus = data_pa %>%
+  filter(iso3 %in% list_iso) %>%
+  dplyr::select(c(wdpa_pid, focus, marine, status_yr, status)) %>%
+  left_join(df_pa_overlap, by = "wdpa_pid")
+## The PA we can analyse 
+df_pa_overlap_ie = df_pa_overlap_focus %>%
+  filter(marine %in% c(0,1) & status_yr >= yr_min & area_km2 >= 1 & status %in% c("Proposed", "Designated", "Inscribed", "Established"))
+df_pa_overlap_ie_focus = df_pa_overlap_focus %>%
+  filter(marine %in% c(0,1) & status_yr >= yr_min & area_km2 >= 1 & status %in% c("Proposed", "Designated", "Inscribed", "Established") & focus == T)
+#The PA we can analyse and with acceptable overlap extent
+df_pa_overlap_ie_rm = df_pa_overlap_focus %>%
+  filter(marine %in% c(0,1) & status_yr >= yr_min & area_km2 >= 1 & rm_poly == F & status %in% c("Proposed", "Designated", "Inscribed", "Established"))
+df_pa_overlap_ie_rm_focus = df_pa_overlap_focus %>%
+  filter(marine %in% c(0,1) & status_yr >= yr_min & area_km2 >= 1 & rm_poly == F & status %in% c("Proposed", "Designated", "Inscribed", "Established") & focus == T)
+```
+
+### Compute losses for each steps
+
+
+```r
+#Import the datasets
+## Input to post-processing (=output of pre-processing) -> losses due to remove of PA overlap
+df_list_post_in = aws.s3::s3read_using(
+FUN = data.table::fread,
+object = paste(load_dir, "df_list_post_in.csv", sep = "/"),
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+## Output of post-processing -> losses due to absence of matching
+df_list_post_out = aws.s3::s3read_using(
+FUN = data.table::fread,
+object = paste(load_dir, "df_list_post_out.csv", sep = "/"),
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+## Input of DiD : equivalent to output of post-processing a priori
+df_list_did_in = aws.s3::s3read_using(
+FUN = data.table::fread,
+object = paste(save_dir, "df_list_did_in.csv", sep = "/"),
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+## Output of DiD : losses due to a too small never treated group to compute DiD
+df_list_did_out = aws.s3::s3read_using(
+FUN = data.table::fread,
+object = paste(save_dir, "df_list_did_out.csv", sep = "/"),
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+
+#Compute losses (PA and countries)
+## Initial sample
+### All PA
+n_pa_ini = nrow(data_pa) 
+n_ctry_ini = length(unique(data_pa$iso3)) 
+### PA of interest
+n_pa_ini_focus = nrow(filter(data_pa, focus == T)) 
+n_ctry_ini_focus = length(unique(filter(data_pa, focus == T)$iso3))
+## Sub-sample (if so)
+### All PA
+n_pa = nrow(filter(data_pa, iso3 %in% list_iso_ie_focus)) 
+n_ctry = length(unique(filter(data_pa, iso3 %in% list_iso_ie_focus)$iso3))
+### PA of interest
+n_pa_focus = nrow(filter(data_pa, iso3 %in% list_iso_ie_focus & focus == T))
+n_ctry_focus = length(unique(filter(data_pa, iso3 %in% list_iso_ie_focus & focus == T)$iso3))
+## After matching pre-processing
+### All PA
+n_pa_pre = nrow(df_list_post_in) 
+n_ctry_pre = length(unique(df_list_post_in$iso3))
+#### Part due to filtering
+n_pa_pre_filt = n_pa - length(unique(df_pa_overlap_ie$wdpaid))
+n_ctry_pre_filt = n_ctry - length(unique(df_pa_overlap_ie$iso3))
+#### Part due to filtering AND overlap removal
+n_pa_pre_filt_over = n_pa - length(unique(df_pa_overlap_ie_rm$wdpaid))
+n_ctry_pre_filt_over = n_ctry - length(unique(df_pa_overlap_ie_rm$iso3))
+### PA of interest
+n_pa_pre_focus = nrow(filter(df_list_post_in, wdpaid %in% list_pa_ie_focus)) 
+n_ctry_pre_focus  = length(unique(filter(df_list_post_in, wdpaid %in% list_pa_ie_focus)$iso3))
+#### Part due to filtering
+n_pa_pre_filt_focus = n_pa_focus - length(unique(df_pa_overlap_ie_focus$wdpaid))
+n_ctry_pre_filt_focus = n_ctry_focus - length(unique(df_pa_overlap_ie_focus$iso3))
+#### Part due to filtering AND overlap removal
+n_pa_pre_filt_over_focus = n_pa_focus - length(unique(df_pa_overlap_ie_rm_focus$wdpaid))
+n_ctry_pre_filt_over_focus = n_ctry_focus - length(unique(df_pa_overlap_ie_rm_focus$iso3))
+
+###
+#/!\ Some PA in the WDPA have a polygon that is badly reported : it can be located in a different country. This can explain a mismatch between the PA in input of the post-processing, and the PA in input of pre-processing minus losses related to filtering and overlap.
+#The following code makes it possible to visualize them on a map
+# df_poly_bad_report = df_pa_overlap_ie_rm %>%
+#    filter(!(wdpaid %in% df_list_post_in$wdpaid))
+# mapview::mapview(df_poly_bad_report)
+###
+
+## After matching post-processing (= before DiD)
+### All PA
+n_pa_post = nrow(df_list_post_out) 
+n_ctry_post = length(unique(df_list_post_out$iso3))
+### PA of interest
+n_pa_post_focus = nrow(filter(df_list_post_out, wdpaid %in% list_pa_ie_focus)) 
+n_ctry_post_focus = length(unique(filter(df_list_post_out, wdpaid %in% list_pa_ie_focus)$iso3))
+## After DiD
+### All PA
+n_pa_did = nrow(df_list_did_out) 
+n_ctry_did = length(unique(df_list_did_out$iso3))
+### PA of interest
+n_pa_did_focus = nrow(filter(df_list_did_out, wdpaid %in% list_pa_ie_focus))
+n_ctry_did_focus = length(unique(filter(df_list_did_out, wdpaid %in% list_pa_ie_focus)$iso3))
+## After final filtering : matching quality, pre-test, non-null forest cover before treatment
+### With non-academic filtering (only non-null forest cover)
+#### All PA
+n_pa_final_noaca = length(unique(df_fc_att_tidy_noaca$wdpaid))
+n_ctry_final_noaca = length(unique(df_fc_att_tidy_noaca$iso3))
+#### PA of interest
+n_pa_final_noaca_focus = length(unique(filter(df_fc_att_tidy_noaca, focus == T)$wdpaid))
+n_ctry_final_noaca_focus = length(unique(filter(df_fc_att_tidy_noaca, focus == T)$iso3))
+### With academic filtering (all)
+### All PA
+n_pa_final_aca = length(unique(df_fc_att_tidy_aca$wdpaid))
+n_ctry_final_aca = length(unique(df_fc_att_tidy_aca$iso3))
+### PA of interest
+n_pa_final_aca_focus = length(unique(filter(df_fc_att_tidy_aca, focus == T)$wdpaid))
+n_ctry_final_aca_focus = length(unique(filter(df_fc_att_tidy_aca, focus == T)$iso3))
 ```
 
 ## Compute aggregated metrics at country and region level
@@ -313,44 +800,20 @@ The aggregation of results at country and regional level is not necessarily rele
 
 
 ```r
-#Treatment effects are aggregated by region and country
-#For total avoided deforestation in ha, treatment effects are summed and so are the confidence intervals (CI).
-## If the CI of a treatment effect is NA, then the CI for total treatment effects is NA also. Otherwise CI will be downward biased.
-#For avoided deforestation in % of 2000 forest cover, treatment effects are averaged and so are CI. CI being NA is less a problem here as we use a mean, not a sum
-
-avg_att_fc_ctry = df_fc_att %>%
-  group_by(region, iso3, time) %>%
-  summarize(n_obs = n(),
-            att_per_mean = mean(att_per, na.rm = TRUE),
-            cband_lower_per = mean(cband_lower_per, na.rm = TRUE),
-            cband_upper_per = mean(cband_upper_per, na.rm = TRUE),
-            att_pa_tot = sum(att_pa, na.rm = TRUE),
-            cband_lower_pa = sum(cband_lower_pa, na.rm = FALSE),
-            cband_upper_pa = sum(cband_upper_pa, na.rm = FALSE))
-
-avg_att_fc_region = df_fc_att %>%
-  group_by(region, time) %>%
-  summarize(n_obs = n(),
-            att_per_mean = mean(att_per, na.rm = TRUE),
-            cband_lower_per = mean(cband_lower_per, na.rm = TRUE),
-            cband_upper_per = mean(cband_upper_per, na.rm = TRUE),
-            att_pa_tot = sum(att_pa, na.rm = TRUE),
-            cband_lower_pa = sum(cband_lower_pa, na.rm = FALSE),
-            cband_upper_pa = sum(cband_upper_pa, na.rm = FALSE))
-
-avg_att_fl_ctry = df_fl_att %>%
-  group_by(region, iso3, time) %>%
-  summarize(n_obs = n(),
-            att_mean = mean(att, na.rm = TRUE),
-            cband_lower = mean(cband_lower, na.rm = TRUE),
-            cband_upper = mean(cband_upper, na.rm = TRUE))
-
-avg_att_fl_region = df_fl_att %>%
-  group_by(region, time) %>%
-  summarize(n_obs = n(),
-            att_mean = mean(att, na.rm = TRUE),
-            cband_lower = mean(cband_lower, na.rm = TRUE),
-            cband_upper = mean(cband_upper, na.rm = TRUE))
+#Call the function to aggregate results at country level and save plots
+##After non-academic filtering
+### For PA of interest
+fn_plot_att_agg(df_fc_att = df_fc_att_tidy_noaca,
+                df_fl_att = df_fl_att_tidy_noaca,
+                is_focus = T,
+                alpha = alpha,
+                save_dir = save_dir)
+### For other PA
+fn_plot_att_agg(df_fc_att = df_fc_att_tidy_noaca,
+                df_fl_att = df_fl_att_tidy_noaca,
+                is_focus = F,
+                alpha = alpha,
+                save_dir = save_dir)
 ```
 
 ### Aggregation of annual deforestation rates
@@ -359,32 +822,32 @@ avg_att_fl_region = df_fl_att %>%
 ```r
 #Aggregate at region level
 ## Compute for each region, for treated units, average annual deforestation rate before treatment, after treatment and on the full period. Confidence intervals are also computed.
-avg_fl_annual_wolf_region = df_fl_annual_wolf %>%
-  filter(group == "Treated") %>%
-  group_by(region) %>%
-  summarize(avg_FL_annual_wolf_pre = mean(avgFL_annual_wolf_pre, na.rm = TRUE),
-            avg_FL_annual_wolf_pre_ci_up = mean(avgFL_annual_wolf_pre, na.rm = TRUE) +  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_pre, na.rm = TRUE)/sqrt(21),
-            avg_FL_annual_wolf_pre_ci_lower = mean(avgFL_annual_wolf_pre, na.rm = TRUE) -  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_pre, na.rm = TRUE)/sqrt(21),
-            med_FL_annual_wolf_pre_ci_up = median(avgFL_annual_wolf_pre, na.rm = TRUE),
-            avg_FL_annual_wolf_tot = mean(avgFL_annual_wolf_tot, na.rm = TRUE),
-            avg_FL_annual_wolf_tot_ci_up = mean(avgFL_annual_wolf_tot, na.rm = TRUE) +  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_tot, na.rm = TRUE)/sqrt(21),
-            avg_FL_annual_wolf_tot_ci_lower = mean(avgFL_annual_wolf_tot, na.rm = TRUE) -  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_tot, na.rm = TRUE)/sqrt(21),
-            med_FL_annual_wolf_tot_ci_up = median(avgFL_annual_wolf_tot, na.rm = TRUE)) 
+# avg_fl_annual_wolf_region = df_fl_annual_wolf %>%
+#   filter(group == "Treated") %>%
+#   group_by(region) %>%
+#   summarize(avg_FL_annual_wolf_pre = mean(avgFL_annual_wolf_pre, na.rm = TRUE),
+#             avg_FL_annual_wolf_pre_ci_up = mean(avgFL_annual_wolf_pre, na.rm = TRUE) +  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_pre, na.rm = TRUE)/sqrt(21),
+#             avg_FL_annual_wolf_pre_ci_lower = mean(avgFL_annual_wolf_pre, na.rm = TRUE) -  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_pre, na.rm = TRUE)/sqrt(21),
+#             med_FL_annual_wolf_pre_ci_up = median(avgFL_annual_wolf_pre, na.rm = TRUE),
+#             avg_FL_annual_wolf_tot = mean(avgFL_annual_wolf_tot, na.rm = TRUE),
+#             avg_FL_annual_wolf_tot_ci_up = mean(avgFL_annual_wolf_tot, na.rm = TRUE) +  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_tot, na.rm = TRUE)/sqrt(21),
+#             avg_FL_annual_wolf_tot_ci_lower = mean(avgFL_annual_wolf_tot, na.rm = TRUE) -  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_tot, na.rm = TRUE)/sqrt(21),
+#             med_FL_annual_wolf_tot_ci_up = median(avgFL_annual_wolf_tot, na.rm = TRUE)) 
 
 #Aggregate at country level
 ## Same that at region level.
-avg_fl_annual_wolf_country = df_fl_annual_wolf %>%
-  filter(group == "Treated") %>%
-  group_by(iso3) %>%
-  summarize(avg_FL_annual_wolf_pre = mean(avgFL_annual_wolf_pre, na.rm = TRUE),
-            avg_FL_annual_wolf_pre_ci_up = mean(avgFL_annual_wolf_pre, na.rm = TRUE) +  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_pre, na.rm = TRUE)/sqrt(21),
-            avg_FL_annual_wolf_pre_ci_lower = mean(avgFL_annual_wolf_pre, na.rm = TRUE) -  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_pre, na.rm = TRUE)/sqrt(21),
-            med_FL_annual_wolf_pre_ci_up = median(avgFL_annual_wolf_pre, na.rm = TRUE),
-            avg_FL_annual_wolf_tot = mean(avgFL_annual_wolf_tot, na.rm = TRUE),
-            avg_FL_annual_wolf_tot_ci_up = mean(avgFL_annual_wolf_tot, na.rm = TRUE) +  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_tot, na.rm = TRUE)/sqrt(21),
-            avg_FL_annual_wolf_tot_ci_lower = mean(avgFL_annual_wolf_tot, na.rm = TRUE) -  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_tot, na.rm = TRUE)/sqrt(21),
-            med_FL_annual_wolf_tot_ci_up = median(avgFL_annual_wolf_tot, na.rm = TRUE)) %>%
-  ungroup() 
+# avg_fl_annual_wolf_country = df_fl_annual_wolf %>%
+#   filter(group == "Treated") %>%
+#   group_by(iso3) %>%
+#   summarize(avg_FL_annual_wolf_pre = mean(avgFL_annual_wolf_pre, na.rm = TRUE),
+#             avg_FL_annual_wolf_pre_ci_up = mean(avgFL_annual_wolf_pre, na.rm = TRUE) +  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_pre, na.rm = TRUE)/sqrt(21),
+#             avg_FL_annual_wolf_pre_ci_lower = mean(avgFL_annual_wolf_pre, na.rm = TRUE) -  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_pre, na.rm = TRUE)/sqrt(21),
+#             med_FL_annual_wolf_pre_ci_up = median(avgFL_annual_wolf_pre, na.rm = TRUE),
+#             avg_FL_annual_wolf_tot = mean(avgFL_annual_wolf_tot, na.rm = TRUE),
+#             avg_FL_annual_wolf_tot_ci_up = mean(avgFL_annual_wolf_tot, na.rm = TRUE) +  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_tot, na.rm = TRUE)/sqrt(21),
+#             avg_FL_annual_wolf_tot_ci_lower = mean(avgFL_annual_wolf_tot, na.rm = TRUE) -  qt((1-alpha)/2,df=21-1)*sd(avgFL_annual_wolf_tot, na.rm = TRUE)/sqrt(21),
+#             med_FL_annual_wolf_tot_ci_up = median(avgFL_annual_wolf_tot, na.rm = TRUE)) %>%
+#   ungroup() 
 ```
 
 ### Average and total forest loss on the period, at country and region level
@@ -393,198 +856,27 @@ For each protected area, the total deforestation is estimated on the period in t
 
 
 ```r
-#Compute average and total deforestation ... 
-## across all protected areas in the sample
-df_plot_forest_loss_agg_all = df_plot_forest_loss %>%
-  group_by(matched, group, year) %>%
-  summarize(tot_fc_rel00_ha = sum(fc_tot_rel00_ha, na.rm = TRUE),
-            tot_fc_rel00_ha_ci_lower = sum(fc_tot_rel00_ha_ci_lower, na.rm = FALSE),
-            tot_fc_rel00_ha_ci_upper = sum(fc_tot_rel00_ha_ci_upper, na.rm = FALSE),
-              avg_fc_rel00_ha = mean(fc_tot_rel00_ha, na.rm = TRUE),
-              avg_fc_rel00_ha_ci_lower = mean(fc_tot_rel00_ha_ci_lower, na.rm = TRUE),
-              avg_fc_rel00_ha_ci_upper = mean(fc_tot_rel00_ha_ci_upper, na.rm = TRUE)) %>%
-  ungroup() 
-## for each country
-df_plot_forest_loss_agg_ctry = df_plot_forest_loss %>%
-  group_by(region, iso3, country_en, matched, group, year) %>%
-  summarize(tot_fc_rel00_ha = sum(fc_tot_rel00_ha, na.rm = TRUE),
-            tot_fc_rel00_ha_ci_lower = sum(fc_tot_rel00_ha_ci_lower, na.rm = FALSE),
-            tot_fc_rel00_ha_ci_upper = sum(fc_tot_rel00_ha_ci_upper, na.rm = FALSE),
-              avg_fc_rel00_ha = mean(fc_tot_rel00_ha, na.rm = TRUE),
-              avg_fc_rel00_ha_ci_lower = mean(fc_tot_rel00_ha_ci_lower, na.rm = TRUE),
-              avg_fc_rel00_ha_ci_upper = mean(fc_tot_rel00_ha_ci_upper, na.rm = TRUE)) %>%
-  ungroup() 
-## for each region
-df_plot_forest_loss_agg_all = df_plot_forest_loss %>%
-  group_by(region, matched, group, year) %>%
-  summarize(tot_fc_rel00_ha = sum(fc_tot_rel00_ha, na.rm = TRUE),
-            tot_fc_rel00_ha_ci_lower = sum(fc_tot_rel00_ha_ci_lower, na.rm = FALSE),
-            tot_fc_rel00_ha_ci_upper = sum(fc_tot_rel00_ha_ci_upper, na.rm = FALSE),
-              avg_fc_rel00_ha = mean(fc_tot_rel00_ha, na.rm = TRUE),
-              avg_fc_rel00_ha_ci_lower = mean(fc_tot_rel00_ha_ci_lower, na.rm = TRUE),
-              avg_fc_rel00_ha_ci_upper = mean(fc_tot_rel00_ha_ci_upper, na.rm = TRUE)) %>%
-  ungroup() 
-
-## For a specific subset of protected areas (here, protected areas funded by the FAPBM for instance)
-df_plot_forest_loss_agg_fapbm = df_plot_forest_loss %>%
-  filter(wdpaid %in% unique(data_fapbm$wdpaid)) %>%
-  group_by(matched, group, year) %>%
-  summarize(tot_fc_rel00_ha = sum(fc_tot_rel00_ha, na.rm = TRUE),
-            tot_fc_rel00_ha_ci_lower = sum(fc_tot_rel00_ha_ci_lower, na.rm = TRUE),
-            tot_fc_rel00_ha_ci_upper = sum(fc_tot_rel00_ha_ci_upper, na.rm = TRUE),
-              avg_fc_rel00_ha = mean(fc_tot_rel00_ha, na.rm = TRUE),
-              avg_fc_rel00_ha_ci_lower = mean(fc_tot_rel00_ha_ci_lower, na.rm = TRUE),
-              avg_fc_rel00_ha_ci_upper = mean(fc_tot_rel00_ha_ci_upper, na.rm = TRUE)) %>%
-  ungroup()
-
-df_plot_forest_loss_agg_nofapbm = df_plot_forest_loss %>%
-  filter(!(wdpaid %in% unique(data_fapbm$wdpaid))) %>%
-  group_by(matched, group, year) %>%
-  summarize(tot_fc_rel00_ha = sum(fc_tot_rel00_ha, na.rm = TRUE),
-            tot_fc_rel00_ha_ci_lower = sum(fc_tot_rel00_ha_ci_lower, na.rm = TRUE),
-            tot_fc_rel00_ha_ci_upper = sum(fc_tot_rel00_ha_ci_upper, na.rm = TRUE),
-              avg_fc_rel00_ha = mean(fc_tot_rel00_ha, na.rm = TRUE),
-              avg_fc_rel00_ha_ci_lower = mean(fc_tot_rel00_ha_ci_lower, na.rm = TRUE),
-              avg_fc_rel00_ha_ci_upper = mean(fc_tot_rel00_ha_ci_upper, na.rm = TRUE)) %>%
-  ungroup()
+#Import datasets
+df_plot_forest_loss = aws.s3::s3read_using(
+FUN = data.table::fread,
+object = paste(save_dir, "df_fl_2000_2021.csv", sep = "/"),
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
 
 
-# Plot the results : total and average deforestation
-## The maximum year to consider. The period where total deforestation is computed is then 2000-year.max.
-year.max = 2021
-## Titles to display
-fct.labs <- c("Before Matching", "After Matching")
-names(fct.labs) <- c(FALSE, TRUE)
-## The number of protected areas (all and in a given subsample, for instance)
-n_pa  = length(unique(df_plot_forest_loss$wdpaid))
-  fct.labs <- c("Before Matching", "After Matching")
-  names(fct.labs) <- c(FALSE, TRUE)
-#n_fapbm  = length(unique(data_pa_fapbm[data_pa_fapbm$wdpaid %in% unique(df_plot_forest_loss$wdpaid),]$wdpaid))
-  n_nofapbm  = length(unique(data_pa[data_pa$wdpaid %in% unique(df_plot_forest_loss$wdpaid) & !(data_pa$wdpaid %in% unique(data_fapbm$wdpaid)),]$wdpaid))
-## The total surface of protected areas (all and in a given subsample, for instance)
-area_tot_ha = sum(data_pa[data_pa$wdpaid %in% unique(df_plot_forest_loss$wdpaid),]$area_km2, na.rm = TRUE) *100
-#area_fapbm_ha = sum(data_pa_fapbm[data_pa_fapbm$wdpaid %in% unique(df_plot_forest_loss$wdpaid),]$area_km2, na.rm = TRUE) *100
-area_nofapbm_ha = sum(data_pa[data_pa$wdpaid %in% unique(df_plot_forest_loss$wdpaid) & !(data_pa$wdpaid %in% unique(data_fapbm$wdpaid)),]$area_km2, na.rm = TRUE) *100
+#After non-academic filtering
+df_plot_forest_loss_noaca = df_plot_forest_loss %>%
+  filter(wdpaid %in% list_pa_fc_2000)
 
-## Define the figures
-### For a given subsample
-#### Total deforestation
-fig_forest_loss_agg_tot_fapbm = ggplot(data = filter(df_plot_forest_loss_agg_fapbm, year == year.max),
-               aes(y = abs(tot_fc_rel00_ha), fill = as.factor(group), x = group)) %>%
-    + geom_bar(position =  position_dodge(width = 0.8), stat = "identity", show.legend = FALSE) %>%
-    + geom_errorbar(aes(ymax=abs(tot_fc_rel00_ha_ci_upper), ymin=abs(tot_fc_rel00_ha_ci_lower)), width=0.3, colour="grey70", alpha=0.9, size=1) %>%
-    + geom_label(aes(label = format(round(abs(tot_fc_rel00_ha), 0), big.mark = ","), y = 0),
-                 vjust = -0.5,
-                 color = "black",
-                 show.legend = FALSE) %>%
-    + scale_fill_brewer(name = "Group", palette = "Blues") %>%
-    + labs(x = "",
-           y = "Forest cover loss (ha)",
-           title = paste("Total area deforested between 2000 and", year.max),
-           subtitle = paste0("Sample : FAPBM protected areas in the analysis (" , n_fapbm, " areas covering ", format(area_fapbm_ha, big.mark = ","), "ha)"),
-           caption = paste(((1-alpha)*100), "% confidence intervals")) %>%
-    + facet_wrap(~matched,
-                 labeller = labeller(matched = fct.labs))  %>%
-    + theme_minimal() %>%
-    + theme(
-      axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
-      axis.text=element_text(size=11, color = "black"),
-      axis.title=element_text(size=14, color = "black", face = "plain"),
-
-      plot.caption = element_text(hjust = 0),
-      plot.title = element_text(size=16, color = "black", face = "plain", hjust = 0),
-      plot.subtitle = element_text(size=12, color = "black", face = "plain", hjust = 0),
-
-      strip.text = element_text(color = "black", size = 12),
-
-      #legend.position = "bottom",
-      #legend.title = element_blank(),
-      legend.text=element_text(size=10),
-      #legend.spacing.x = unit(1.0, 'cm'),
-      legend.spacing.y = unit(0.75, 'cm'),
-      legend.key.size = unit(2, 'line'),
-
-      panel.grid.major.x = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
-      panel.grid.minor.x = element_line(color = 'grey80', linewidth = 0.2, linetype = 2),
-      panel.grid.major.y = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
-      panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
-    )
-fig_forest_loss_agg_tot_fapbm
-
-#### Average deforestation
-fig_forest_loss_agg_avg_nofapbm = ggplot(data = filter(df_plot_forest_loss_agg_nofapbm, year == year.max),
-               aes(y = abs(avg_fc_rel00_ha), fill = as.factor(group), x = group)) %>%
-    + geom_bar(position =  position_dodge(width = 0.8), stat = "identity", show.legend = FALSE) %>%
-    + geom_errorbar(aes(ymax=abs(avg_fc_rel00_ha_ci_upper), ymin=abs(avg_fc_rel00_ha_ci_lower)), width=0.3, colour="grey70", alpha=0.9, size=1) %>%
-    + geom_label(aes(label = format(round(abs(avg_fc_rel00_ha), 0), big.mark = ","), y = 0),
-                 vjust = -0.5,
-                 color = "black",
-                 show.legend = FALSE) %>%
-    + scale_fill_brewer(name = "Group", palette = "Blues") %>%
-    + labs(x = "",
-           y = "Forest cover loss (ha)",
-           title = paste("Area deforested in protected areas on average, between 2000 and", year.max),
-           subtitle = paste0("Sample : non FAPBM protected areas in the analysis (" , n_nofapbm, " areas covering ", format(area_nofapbm_ha, big.mark = ","), " ha)"),
-           caption = paste(((1-alpha)*100), "% confidence intervals")) %>%
-    + facet_wrap(~matched,
-                 labeller = labeller(matched = fct.labs))  %>%
-    + theme_minimal() %>%
-    + theme(
-      axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
-      axis.text=element_text(size=11, color = "black"),
-      axis.title=element_text(size=14, color = "black", face = "plain"),
-
-      plot.caption = element_text(hjust = 0),
-      plot.title = element_text(size=16, color = "black", face = "plain", hjust = 0),
-      plot.subtitle = element_text(size=12, color = "black", face = "plain", hjust = 0),
-
-      strip.text = element_text(color = "black", size = 12),
-
-      #legend.position = "bottom",
-      #legend.title = element_blank(),
-      legend.text=element_text(size=10),
-      #legend.spacing.x = unit(1.0, 'cm'),
-      legend.spacing.y = unit(0.75, 'cm'),
-      legend.key.size = unit(2, 'line'),
-
-      panel.grid.major.x = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
-      panel.grid.minor.x = element_line(color = 'grey80', linewidth = 0.2, linetype = 2),
-      panel.grid.major.y = element_line(color = 'grey80', linewidth = 0.3, linetype = 1),
-      panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
-    )
-fig_forest_loss_agg_avg_nofapbm
+#Call a fcuntion to plot total and average forest loss on the 2000-2021 period, for PA of interest and others
+fn_plot_forest_loss_agg(df_plot_forest_loss = df_plot_forest_loss_noaca,
+                        alpha = alpha,
+                        save_dir = save_dir)
 ```
 
-Eventually the plots are saved in the remote storage.
+## Display treatment effects
 
-
-```r
-##Saving plots
-tmp = paste(tempdir(), "fig", sep = "/")
-
-ggsave(paste(tmp, "fig_forest_loss_agg_tot_fapbm.png", sep = "/"),
-       plot = fig_forest_loss_agg_tot_fapbm,
-       device = "png",
-       height = 6, width = 9)
-
-ggsave(paste(tmp, "fig_forest_loss_agg_avg_nofapbm.png", sep = "/"),
-       plot = fig_forest_loss_agg_avg_nofapbm,
-       device = "png",
-       height = 6, width = 9)
-
-  files <- list.files(tmp, full.names = TRUE)
-##Add each file in the bucket (same foler for every file in the temp)
-for(f in files) 
-{
-  cat("Uploading file", paste0("'", f, "'"), "\n")
-  aws.s3::put_object(file = f, 
-                     bucket = paste("projet-afd-eva-ap", save_dir, sep = "/"),
-                     region = "", show_progress = TRUE)
-}
-do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
-```
-
-## Display treatment effects in figures and tables
+## In figures and tables
 
 The treatment effects computed for each protected areas can be displayed in figures or tables. Again, a function is used for protected areas supported by the AFD to include information on funding (funding year for instance), and an other for non-supported ones.
 
@@ -592,33 +884,50 @@ Note some protected areas can be removed from the display, because the matching 
 
 
 ```r
-# Define a list of protected areas that will not be displayed
-list_wdpa_bad = c(352240, #matching
-                  352240, #matching
-                  555542728, #pre-treatment parallel trend
-                  555548846 #no confidence intervals
-                  )
 # Define a list of protected areas where a focus is needed
-list_wdpa_focus = unique(data_fapbm$wdpaid)
-
-# Get rid of some protected areas in the dataset used to plotting figures and tables
-df_fc_att_tidy = df_fc_att %>%
-  filter(!wdpaid %in% list_wdpa_bad)
-df_fl_att_tidy = df_fl_att %>%
-  filter(!wdpaid %in% list_wdpa_bad)
+list_wdpa_focus = list_pa_ie_focus
+list_iso_focus = unique(filter(df_fc_att_tidy_noaca, focus == T)$iso3)
 
 # A function to create figures and tables
 ##For AFD supported protected areas (funding info)
-# fn_plot_att_afd(df_fc_att = df_fc_att_tidy,
-#             df_fl_att = df_fl_att_tidy, 
-#             alpha = alpha,
-#             save_dir = save_dir)
-##For other protected areas (no funding info)
-fn_plot_att_general(df_fc_att = df_fc_att_tidy,
-            df_fl_att = df_fl_att_tidy, 
-            list_focus = list_wdpa_focus,
+### For each WDPAID supported by AFD, is it at least once supported by KfW or FFEM ?
+df_fund_cof = data_fund_nodupl %>%
+  filter(is.na(wdpaid) == F) %>%
+  group_by(wdpaid) %>%
+  summarize(id_projet = paste(id_projet, collapse = ","),
+            ffem = sum(ffem, na.rm = TRUE),
+            kfw = sum(kfw, na.rm = T)) %>%
+  ungroup()
+
+df_fc_att_tidy_noaca_afd = df_fc_att_tidy_noaca %>%
+  left_join(df_fund_cof, by = "wdpaid") 
+df_fl_att_tidy_noaca_afd = df_fl_att_tidy_noaca %>%
+  left_join(df_fund_cof, by = "wdpaid")
+
+fn_plot_att_afd(df_fc_att = df_fc_att_tidy_noaca_afd,
+            df_fl_att = df_fl_att_tidy_noaca_afd,
+            list_pa_focus = list_wdpa_focus,
+            list_iso_focus = list_iso_focus,
             alpha = alpha,
             save_dir = save_dir)
+
+##For other protected areas (no funding info in plots)
+# fn_plot_att_general(df_fc_att = df_fc_att_tidy_noaca,
+#             df_fl_att = df_fl_att_tidy_noaca, 
+#             list_focus = list_wdpa_focus,
+#             alpha = alpha,
+#             save_dir = save_dir)
 ```
 
-## 
+### On a map
+
+On a map, we want to plot for each country the polygon of all PA (of interest and others), their estimated treatment effect (5 and 10 years) , their significance. *This step is still under development.*
+
+
+```r
+#For forest cover, non-academic filtering
+df_att_map = df_fc_att_tidy_noaca %>%
+  dplyr::select(-c(att_pa, att_pix,  cband_lower_pix, cband_upper_pix, cband_lower_pa, cband_upper_pa, cband_lower_per, cband_upper_per, sig, sig_end, alpha, c, se, n)) %>%
+  filter(time %in% c(5, 10))
+##Reste à pivoter et ajouter polygone depuis la WDPA avec WDPA_PID. 
+```
