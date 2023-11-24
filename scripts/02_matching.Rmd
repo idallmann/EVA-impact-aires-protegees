@@ -104,11 +104,11 @@ tmp_pre = paste(tempdir(), "matching_pre", sep = "/")
 tmp_post = paste(tempdir(), "matching_post", sep = "/")
 ## Define a directory where outputs are loaded from/stored in SSPCloud.
 #save_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/") #Today's date
-save_dir = paste("impact_analysis/matching", "2023-11-21_AV", sep = "/") #A specific date
-load_dir = paste("impact_analysis/matching", "2023-11-21_AV", sep = "/")
+save_dir = paste("impact_analysis/matching", "2023-11-22_PYD", sep = "/") #A specific date
+load_dir = paste("impact_analysis/matching", "2023-11-22_PYD", sep = "/")
 
 # Load datasets
-## WDPA database   
+## WDPA database : just has to be done once to download last version of the WDPA database  
 ## Download and save
 # wdpa_wld_raw = wdpa_fetch(x = "global", wait = TRUE, download_dir = tmp_pre, page_wait = 2, verbose = TRUE)
 # s3write_using(wdpa_wld_raw,
@@ -119,6 +119,7 @@ load_dir = paste("impact_analysis/matching", "2023-11-21_AV", sep = "/")
 #               opts = list("region" = ""))
 
 ##Load
+## /!\ Do not forget to specify SSP CLoud credentials (_00_acess_minio_credentials.Rmd)
 wdpa_wld_raw = s3read_using(
               sf::st_read,
               object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
@@ -126,7 +127,6 @@ wdpa_wld_raw = s3read_using(
               opts = list("region" = ""))
 
 ## Dataset specific to the PAs portfolio to analyze. Only one is selected depending on the analysis one wants to perform. 
-
 ### PAs supported by the AFD
 # data_pa =
 #   #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
@@ -190,9 +190,9 @@ yr_min = yr_first+2
 colname.travelTime = "minutes_mean_5k_110mio"
 colname.clayContent = "clay_0_5cm_mean"
 colname.elevation = "elevation_mean"
-colname.tri = "tri_mean"
-colname.fcAvg = "avgCover_pre_treat"
-colname.flAvg = "avgLoss_pre_treat"
+colname.tri = "tri_mean" #Terrain Ruggedness Index
+colname.fcAvg = "avgCover_pre_treat"  #Forest cover pre-treatment
+colname.flAvg = "avgLoss_pre_treat" #Forest loss pre-treatment
 colname.biome = "biomes"
 list_cov = paste(colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcAvg, colname.flAvg, colname.biome, sep = ";")
 
@@ -213,7 +213,7 @@ th_var_max = 2
 # The list of countries (ISO3 codes) to analyze. This can be define manually or from the the dataset loaded.
 ##List of African countries in the sample that have at least one PA supported by the AFD we can analyse
 data_pa_ie_africa_focus = data_pa %>%
-  filter(region == "Africa" & is.na(wdpaid) == FALSE & area_km2 >=1 & marine %in% c(0,1) & status_yr >= yr_min & focus == T)
+  dplyr::filter(region == "Africa" & is.na(wdpaid) == FALSE & area_km2 >=1 & marine %in% c(0,1) & status_yr >= yr_min & focus == T)
 #list_iso = unique(data_pa_ie_africa_focus$iso3)
 ## Manual definition
 list_iso = c("COM", "GNB")

@@ -66,11 +66,11 @@ source("scripts/functions/02_fns_did.R")
 #Define working directories
 ##Temporary directory
 tmp_did = paste(tempdir(), "did", sep = "/")
-##Loading and saving directories on the storage. This is either define on today's date, or by a user-defined date.
+##Loading and saving directories on the storage. This is either define on today's date, or by a user-defined date. Loadin directory corresponds to the output of 02_matching.Rmd.
 #load_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/")
-load_dir = paste("impact_analysis/matching", "2023-10-23", sep = "/")
+load_dir = paste("impact_analysis/matching", "2023-11-22_PYD", sep = "/")
 #save_dir = paste("impact_analysis/did", Sys.Date(), sep = "/")
-save_dir = paste("impact_analysis/did", "2023-10-23", sep = "/")
+save_dir = paste("impact_analysis/did", "2023-11-22_PYD", sep = "/")
 
 ## Dataset specific to the PAs portfolio to analyze. Only one is selected depending on the analysis one wants to perform. 
 
@@ -139,15 +139,19 @@ th_var_max = 2
 
 # The list of countries (ISO3 codes) to analyze. This can be define manually or from the the dataset loaded.
 ##List of African countries in the sample that have at least one PA supported by the AFD we can analyse
-data_pa_ie_= data_pa %>%
-  filter(region == "Africa" & is.na(wdpaid) == FALSE & area_km2 >=1 & marine %in% c(0,1) & status_yr >= yr_min)
+# data_pa_ie = data_pa %>%
+#   filter(region == "Africa" & is.na(wdpaid) == FALSE & area_km2 >=1 & marine %in% c(0,1) & status_yr >= yr_min)
+# data_pa_ie_focus = data_pa %>%
+#   filter(region == "Africa" & is.na(wdpaid) == FALSE & area_km2 >=1 & marine %in% c(0,1) & status_yr >= yr_min & focus == T)
+# list_iso_ie_focus = unique(data_pa_ie_focus$iso3)
+# list_pa_ie_focus = unique(data_pa_ie_focus$wdpaid)
+#list_iso = list_iso_ie_focus
+##Manual definition
+list_iso = c("COM",  "GNB")
+list_iso_ie_focus = list_iso
 data_pa_ie_focus = data_pa %>%
-  filter(region == "Africa" & is.na(wdpaid) == FALSE & area_km2 >=1 & marine %in% c(0,1) & status_yr >= yr_min & focus == T)
-
-list_iso_ie_focus = unique(data_pa_ie_focus$iso3)
+  filter(region == "Africa" & is.na(wdpaid) == FALSE & area_km2 >=1 & marine %in% c(0,1) & status_yr >= yr_min & focus == T & iso3 %in% list_iso)
 list_pa_ie_focus = unique(data_pa_ie_focus$wdpaid)
-list_iso = list_iso_ie_focus
-list_iso = c("COM", "STP", "GNB", "GMB", "SEN", "MAR", "GAB", "KEN", "CMR", "COG", "MDG", "MOZ", "NER", "TCD")
 
 ## Information on funding from AFD internal datasets, on AFD funded projects related to protected areas.
 data_fund = 
@@ -677,9 +681,9 @@ df_pa_overlap_ie_focus = df_pa_overlap_focus %>%
   filter(marine %in% c(0,1) & status_yr >= yr_min & area_km2 >= 1 & status %in% c("Proposed", "Designated", "Inscribed", "Established") & focus == T)
 #The PA we can analyse and with acceptable overlap extent
 df_pa_overlap_ie_rm = df_pa_overlap_focus %>%
-  filter(marine %in% c(0,1) & status_yr >= yr_min & area_km2 >= 1 & rm_rep == F & status %in% c("Proposed", "Designated", "Inscribed", "Established"))
+  filter(marine %in% c(0,1) & status_yr >= yr_min & area_km2 >= 1 & rm_poly == F & status %in% c("Proposed", "Designated", "Inscribed", "Established"))
 df_pa_overlap_ie_rm_focus = df_pa_overlap_focus %>%
-  filter(marine %in% c(0,1) & status_yr >= yr_min & area_km2 >= 1 & rm_rep == F & status %in% c("Proposed", "Designated", "Inscribed", "Established") & focus == T)
+  filter(marine %in% c(0,1) & status_yr >= yr_min & area_km2 >= 1 & rm_poly == F & status %in% c("Proposed", "Designated", "Inscribed", "Established") & focus == T)
 
 ```
 
@@ -908,7 +912,7 @@ fn_plot_att_afd(df_fc_att = df_fc_att_tidy_noaca_afd,
             alpha = alpha,
             save_dir = save_dir)
 
-##For other protected areas (no funding info)
+##For other protected areas (no funding info in plots)
 # fn_plot_att_general(df_fc_att = df_fc_att_tidy_noaca,
 #             df_fl_att = df_fl_att_tidy_noaca, 
 #             list_focus = list_wdpa_focus,
@@ -918,7 +922,7 @@ fn_plot_att_afd(df_fc_att = df_fc_att_tidy_noaca_afd,
 
 ### On a map
 
-On a map, we want to plot for each country the polygon of all PA (of interest and others), their estimated treatment effect (5 and 10 years) , their significance.
+On a map, we want to plot for each country the polygon of all PA (of interest and others), their estimated treatment effect (5 and 10 years) , their significance. *This step is still under development.*
 
 ```{r, eval = F}
 

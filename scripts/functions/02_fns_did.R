@@ -3241,7 +3241,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
            kfw = case_when(kfw == 1 ~ "Yes", kfw == 0 ~ "No"),
            ffem = case_when(ffem == 1 ~ "Yes", ffem == 0 ~ "No"),
            funding_year_list = case_when(is.na(funding_year_list) == TRUE ~ "Unknown",
-                                         TRUE ~ funding_year_list),
+                                         TRUE ~ as.character(funding_year_list)),
            name_pa = case_when(nchar(name_pa) <= 25 ~ stri_trans_general(name_pa, id = "Latin-ASCII"),
                                nchar(name_pa) > 25 ~ stri_trans_general(paste0(substr(name_pa, 1, 25), "..."),  id = "Latin-ASCII"))
     ) %>%
@@ -3278,7 +3278,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
            kfw = case_when(kfw == 1 ~ "Yes", kfw == 0 ~ "No"),
            ffem = case_when(ffem == 1 ~ "Yes", ffem == 0 ~ "No"),
            funding_year_list = case_when(is.na(funding_year_list) == TRUE ~ "Unknown",
-                                         TRUE ~ funding_year_list),
+                                         TRUE ~ as.character(funding_year_list)),
            name_pa = case_when(nchar(name_pa) <= 25 ~ stri_trans_general(name_pa, id = "Latin-ASCII"),
                                nchar(name_pa) > 25 ~ stri_trans_general(paste0(substr(name_pa, 1, 25), "..."),  id = "Latin-ASCII"))
     ) %>%
@@ -3316,7 +3316,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
            kfw = case_when(kfw == 1 ~ "Yes", kfw == 0 ~ "No"),
            ffem = case_when(ffem == 1 ~ "Yes", ffem == 0 ~ "No"),
            funding_year_list = case_when(is.na(funding_year_list) == TRUE ~ "Unknown",
-                                         TRUE ~ funding_year_list),
+                                         TRUE ~ as.character(funding_year_list)),
            name_pa = case_when(nchar(name_pa) <= 25 ~ stri_trans_general(name_pa, id = "Latin-ASCII"),
                                nchar(name_pa) > 25 ~ stri_trans_general(paste0(substr(name_pa, 1, 25), "..."),  id = "Latin-ASCII"))
     ) %>%
