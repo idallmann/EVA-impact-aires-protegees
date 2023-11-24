@@ -383,7 +383,7 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
                 opts = list("region" = ""))
   
   # Visualize and save grouped grid cells
-  
+  #/!\ Figures potentially outdated if we focus on sample reported systematically in the WDPA. Too check and potentially remove.
   ## Extract country name
   country.name = grid.param %>% 
     filter(group == 3) %>% 
