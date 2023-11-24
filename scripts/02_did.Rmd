@@ -149,9 +149,7 @@ th_var_max = 2
 ##Manual definition
 list_iso = c("COM",  "GNB")
 list_iso_ie_focus = list_iso
-data_pa_ie_focus = data_pa %>%
-  filter(region == "Africa" & is.na(wdpaid) == FALSE & area_km2 >=1 & marine %in% c(0,1) & status_yr >= yr_min & focus == T & iso3 %in% list_iso)
-list_pa_ie_focus = unique(data_pa_ie_focus$wdpaid)
+
 
 ## Information on funding from AFD internal datasets, on AFD funded projects related to protected areas.
 data_fund = 
