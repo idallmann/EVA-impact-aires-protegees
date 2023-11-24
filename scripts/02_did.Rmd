@@ -191,6 +191,10 @@ data_pa_report =
 ## Computing treatment effects at protected area level
 
 ```{r, eval = F}
+
+# The analysis is designed to analyze a portfolio of PA in different countries, using loop over countries and over PA. To better understand a function, or identify and debug an error, a good practice is to enter the loops using a single country or PA. Thus, it is possible to run the analysis step by step, and even enter into the functions to understand what is done « behind the doors ». For instance in « 02_matching.Rmd), set value i = « COM » in the first loop and j = 313046 to peform the analysis step by step for PA with WDPA ID 313046 in Comoros.
+
+
 #For each country in the list, the different steps of the processing are performed
 count_i = 0 #Initialize counter
 max_i = length(list_iso) #Max value of the counter
