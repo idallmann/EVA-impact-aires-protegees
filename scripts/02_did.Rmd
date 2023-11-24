@@ -16,11 +16,17 @@ The process consists of the following steps.
 
     4.  Plot the total area deforested on the period considered, in the protected area and its counterfactual, before and after matching. This is useful to illustrate the bias described above. Note that ideally the deforestation estimated in the protected area before and after matching should be the same. If note, the matched treated units are not representative of the overall protected area and the a local treatment effect will be estimated.
 
-3.  The treatment effects, annual deforestation rates and estimations of total deforested area computed for each protected areas are gathered in specific datasets. This makes it possible to compute metrics aggregated at country and region level. These datastes are saved to the storage.
+    5.  The treatment effects, pre-tests, annual deforestation rates and estimations of total deforested area computed for each protected areas are gathered in specific datasets. This makes it possible to compute metrics aggregated at country and region level. These datastes are saved to the storage, for each country and for all countries.
 
-4.  If relevant, results of the analysis at protected area level are aggregated at country and region level.
+3.  Assess the quality of matching (for matched control and treated pixels, for matched and unmatched treated pixels) pre-test for all PA. Define non-academic and academic filtering to remove results of some PA potentially.
 
-5.  Finally, figures and tables are created to display the results.
+4.  Assess the loss of observations on the whole data-processing : during pre-processing (due to filtering of PA we cannot analyse, overlap removal): post-processing (typically matching step) and DiD steps.
+
+5.  Results of the analysis at protected area level are aggregated at country and region level.
+
+6.  Finally, figures and tables are created to display the results.
+
+The methodology is not extensively described here to keep the documentation concise. The interested reader can refer to the working paper for more details.
 
 ## Initial settings
 
