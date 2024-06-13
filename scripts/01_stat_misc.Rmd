@@ -2113,7 +2113,7 @@ library(jsonlite)
 
 req_token = request('https://data-api.globalforestwatch.org/auth/token') %>%
   req_headers("Content-Type" = "application/x-www-form-urlencoded") %>%
-  req_body_form(list("username = duboisl@afd.fr", "password = LaD75018"))
+  req_body_form(list("username = duboisl@afd.fr", "password = "))
 resp_token = req_perform(req_token)
 
 ##With httr
