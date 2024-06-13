@@ -15,7 +15,7 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 Installing and importing relevant packages.
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
-install.packages(c("stargazer", "janitor", "questionr", "countrycode", "WDI", "mapme.biodiversity"))
+install.packages(c("stargazer", "janitor", "questionr", "countrycode", "WDI", "mapme.biodiversity","ggrepel"))
 library(tidyverse)
 library(stargazer)
 library(dplyr)
@@ -86,6 +86,7 @@ data_pa_africa_ie = data_pa_africa %>%
 # st_write(wdpa,
 #          dsn = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
 #          delete_dsn = TRUE)
+
 ## Load data
 data_wdpa = 
   #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
@@ -108,11 +109,7 @@ data_wdpa =
          country_fr = countrycode(sourcevar = iso3,
                               origin = "iso3c",
                               destination = "un.name.fr"),
-         .after = "iso3") 
-
-#Subset of WDPA data for Madagascar, with IUCN category description (English and French)
-data_wdpa_mdg = data_wdpa %>%
-  filter(iso3 == "MDG") %>%
+         .after = "iso3")  %>%
   #Add the description of IUCN from its category
     mutate(iucn_des_fr = case_when(
   !is.na(wdpaid) & iucn_cat == "Ia" ~ "Réserve naturelle intégrale",
@@ -140,6 +137,36 @@ data_wdpa_mdg = data_wdpa %>%
   TRUE ~ "Not referenced"), .after = iucn_cat) %>%
   st_drop_geometry()
 
+#Subset of WDPA data for Madagascar, with IUCN category description (English and French)
+# data_wdpa_mdg = data_wdpa %>%
+#   filter(iso3 == "MDG") %>%
+#   #Add the description of IUCN from its category
+#     mutate(iucn_des_fr = case_when(
+#   !is.na(wdpaid) & iucn_cat == "Ia" ~ "Réserve naturelle intégrale",
+#   !is.na(wdpaid) & iucn_cat == "Ib" ~ "Zone de nature sauvage",
+#   !is.na(wdpaid) & iucn_cat == "II" ~ "Parc national", 
+#   !is.na(wdpaid) & iucn_cat == "III" ~ "Monument naturel",
+#   !is.na(wdpaid) & iucn_cat == "IV" ~ "Gest. des habitats/espèces",
+#   !is.na(wdpaid) & iucn_cat == "V" ~ "Paysage protégé",
+#   !is.na(wdpaid) & iucn_cat == "VI" ~ "Gest. de ress. protégées",
+#   !is.na(wdpaid) & iucn_cat == "Not Applicable" ~ "Non catégorisée",
+#   !is.na(wdpaid) & iucn_cat == "Not Reported" ~ "Non catégorisée",
+#   !is.na(wdpaid) & iucn_cat == "Not Assigned" ~ "Non catégorisée",
+#   TRUE ~ "Non référencée"), .after = iucn_cat) %>%
+#       mutate(iucn_des_en = case_when(
+#   !is.na(wdpaid) & iucn_cat == "Ia" ~ "Strict nature reserve",
+#   !is.na(wdpaid) & iucn_cat == "Ib" ~ "Wilderness area",
+#   !is.na(wdpaid) & iucn_cat == "II" ~ "National park",
+#   !is.na(wdpaid) & iucn_cat == "III" ~ "Natural monument or feature",
+#   !is.na(wdpaid) & iucn_cat == "IV" ~ "Habitat or species management area",
+#   !is.na(wdpaid) & iucn_cat == "V" ~ "Protected landscape or seascape",
+#   !is.na(wdpaid) & iucn_cat == "VI" ~ "Protected area with sust. use of nat. res.",
+#   !is.na(wdpaid) & iucn_cat == "Not Applicable" ~ "Not categorized",
+#   !is.na(wdpaid) & iucn_cat == "Not Reported" ~ "Not categorized",
+#   !is.na(wdpaid) & iucn_cat == "Not Assigned" ~ "Not categorized",
+#   TRUE ~ "Not referenced"), .after = iucn_cat) %>%
+#   st_drop_geometry()
+
 #To perform statistics on the distribution of PAs reported by the WDPA across countries/regions, we focus on not high-income countries.
 #Precisely, we restrict to countries defined as low-income, lower middle-income, upper-middle income, minus Russia, and including Chile, Uruguay New Caledonia and Panama
 df_ctry_stat_wdpa = WDI(country = "all", start = "1960", end = "2022", extra = TRUE, language = "en") %>%
@@ -163,7 +190,7 @@ lst_ctry_stat_wdpa = df_ctry_stat_wdpa$iso3
 ```{r, eval = F}
 
 #Define the saving directory
-save_dir = "AFD_africa_ie"
+save_dir = "AFD_africa_ie_"
 
 #Define the datasets : with PA of interest (focus), other PA (no focus) and all PA (all)
 ## For PA in Africa
@@ -171,9 +198,21 @@ data_pa_focus = data_pa_africa_ie %>% filter(focus == T)
 data_pa_nofocus = data_pa_africa_ie %>% filter(focus == F)
 data_pa_all = data_pa_africa_ie
 ## For FAPBM and Madagascar
-data_pa_focus = data_pa_fapbm
-data_pa_nofocus = data_wdpa_mdg %>% filter(!(wdpaid %in% data_pa_fapbm$wdpaid))
-data_pa_all = data_wdpa_mdg
+# data_pa_focus = data_pa_fapbm
+# data_pa_nofocus = data_wdpa_mdg %>% filter(!(wdpaid %in% data_pa_fapbm$wdpaid))
+# data_pa_all = data_wdpa_mdg
+
+#Define colors
+iucn_cat_colors = c(
+  "Not categorized" = "#B0B0B0",                  # Gris
+  "Habitat or species management area" = "#AE642D", # Marron
+  "Protected landscape or seascape" = "#80D0D0",   # Bleu
+  "Protected area with sust. use of nat. res." = "#94812B", # Orange
+  "Natural monument or feature"="#842E1B",
+  "National park" = "#228B22", # Vert
+  "Wilderness area"="#DFAF2C",
+  "Strict nature reserve" = "#18391E"              
+)
 
 
 ```
@@ -231,12 +270,7 @@ pie_cat_iucn_en = ggplot(data_cat_iucn,
          subtitle = paste("Sample :", sum(data_cat_iucn$n_iucn), "non-marine protected areas of interest")) %>%
   #+ scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
   + scale_fill_manual(name = "Categories",
-                      values = c("Not categorized" = "#7570B3",
-                                 "Habitat or species management area" = "#E7298A",
-                                 "Protected landscape or seascape" = "#66A61E",
-                                 "Protected area with sust. use of nat. res." = "#D95F02",
-                                 "National park" = "#1B9E77",
-                                 "Strict nature reserve" = "#E6AB02")) %>%
+                      values = iucn_cat_colors ) %>%
   + theme_void()
 pie_cat_iucn_en
 
@@ -354,12 +388,7 @@ pie_cat_iucn_en = ggplot(data_cat_iucn,
          subtitle = paste("Sample :", sum(data_cat_iucn$n_iucn), "non-marine protected areas")) %>%
   # + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
       + scale_fill_manual(name = "Categories",
-                      values = c("Not categorized" = "#7570B3",
-                                 "Habitat or species management area" = "#E7298A",
-                                 "Protected landscape or seascape" = "#66A61E",
-                                 "Protected area with sust. use of nat. res." = "#D95F02",
-                                 "National park" = "#1B9E77",
-                                 "Strict nature reserve" = "#E6AB02")) %>%
+                      values = iucn_cat_colors) %>%
   + theme_void()
 pie_cat_iucn_en
 
@@ -380,12 +409,7 @@ pie_cat_iucn_ref_en = ggplot(data_cat_iucn_ref,
          subtitle = paste("Sample :", sum(data_cat_iucn_ref$n_iucn), "out of", sum(data_cat_iucn$n_iucn),  "non-marine protected areas")) %>%
   # + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
     + scale_fill_manual(name = "Categories",
-                      values = c("Not categorized" = "#7570B3",
-                                 "Habitat or species management area" = "#E7298A",
-                                 "Protected landscape or seascape" = "#66A61E",
-                                 "Protected area with sust. use of nat. res." = "#D95F02",
-                                 "National park" = "#1B9E77",
-                                 "Strict nature reserve" = "#E6AB02")) %>%
+                      values = iucn_cat_colors) %>%
   + theme_void()
 pie_cat_iucn_ref_en
 
@@ -475,12 +499,7 @@ pie_cat_iucn_en = ggplot(data_cat_iucn,
          subtitle = paste("Sample :", sum(data_cat_iucn$n_iucn), "other non-marine protected areas")) %>%
   # + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
       + scale_fill_manual(name = "Categories",
-                      values = c("Not categorized" = "#7570B3",
-                                 "Habitat or species management area" = "#E7298A",
-                                 "Protected landscape or seascape" = "#66A61E",
-                                 "Protected area with sust. use of nat. res." = "#D95F02",
-                                 "National park" = "#1B9E77",
-                                 "Strict nature reserve" = "#E6AB02")) %>%
+                      values = iucn_cat_colors) %>%
   + theme_void()
 pie_cat_iucn_en
 
@@ -501,12 +520,7 @@ pie_cat_iucn_ref_en = ggplot(data_cat_iucn_ref,
          subtitle = paste("Sample :", sum(data_cat_iucn_ref$n_iucn), "out of", sum(data_cat_iucn$n_iucn),  "other non-marine protected areas")) %>%
   # + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
     + scale_fill_manual(name = "Categories",
-                      values = c("Not categorized" = "#7570B3",
-                                 "Habitat or species management area" = "#E7298A",
-                                 "Protected landscape or seascape" = "#66A61E",
-                                 "Protected area with sust. use of nat. res." = "#D95F02",
-                                 "National park" = "#1B9E77",
-                                 "Strict nature reserve" = "#E6AB02")) %>%
+                      values = iucn_cat_colors) %>%
   + theme_void()
 pie_cat_iucn_ref_en
 ```
@@ -597,12 +611,7 @@ pie_cat_iucn_en = ggplot(data_cat_iucn,
          subtitle = paste("Sample :", sum(data_cat_iucn$n_iucn), "marine protected areas of interest")) %>%
   #+ scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
   + scale_fill_manual(name = "Categories",
-                      values = c("Not categorized" = "#7570B3",
-                                 "Habitat or species management area" = "#E7298A",
-                                 "Protected landscape or seascape" = "#66A61E",
-                                 "Protected area with sust. use of nat. res." = "#D95F02",
-                                 "National park" = "#1B9E77",
-                                 "Strict nature reserve" = "#E6AB02")) %>%
+                      values = iucn_cat_colors ) %>%
   + theme_void()
 pie_cat_iucn_en
 
@@ -623,12 +632,7 @@ pie_cat_iucn_ref_en = ggplot(data_cat_iucn_ref,
          subtitle = paste("Sample :", sum(data_cat_iucn_ref$n_iucn), "out of", sum(data_cat_iucn$n_iucn),  "marine protected areas of interest")) %>%
   #+ scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
     + scale_fill_manual(name = "Categories",
-                      values = c("Not categorized" = "#7570B3",
-                                 "Habitat or species management area" = "#E7298A",
-                                 "Protected landscape or seascape" = "#66A61E",
-                                 "Protected area with sust. use of nat. res." = "#D95F02",
-                                 "National park" = "#1B9E77",
-                                 "Strict nature reserve" = "#E6AB02")) %>%
+                      values = iucn_cat_colors) %>%
   + theme_void()
 pie_cat_iucn_ref_en
 
@@ -720,12 +724,7 @@ pie_cat_iucn_en = ggplot(data_cat_iucn,
          subtitle = paste("Sample :", sum(data_cat_iucn$n_iucn), "marine protected areas ")) %>%
   # + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
       + scale_fill_manual(name = "Categories",
-                      values = c("Not categorized" = "#7570B3",
-                                 "Habitat or species management area" = "#E7298A",
-                                 "Protected landscape or seascape" = "#66A61E",
-                                 "Protected area with sust. use of nat. res." = "#D95F02",
-                                 "National park" = "#1B9E77",
-                                 "Strict nature reserve" = "#E6AB02")) %>%
+                      values = iucn_cat_colors) %>%
   + theme_void()
 pie_cat_iucn_en
 
@@ -746,12 +745,7 @@ pie_cat_iucn_ref_en = ggplot(data_cat_iucn_ref,
          subtitle = paste("Sample :", sum(data_cat_iucn_ref$n_iucn), "out of", sum(data_cat_iucn$n_iucn),  "marine protected areas")) %>%
   # + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
     + scale_fill_manual(name = "Categories",
-                      values = c("Not categorized" = "#7570B3",
-                                 "Habitat or species management area" = "#E7298A",
-                                 "Protected landscape or seascape" = "#66A61E",
-                                 "Protected area with sust. use of nat. res." = "#D95F02",
-                                 "National park" = "#1B9E77",
-                                 "Strict nature reserve" = "#E6AB02")) %>%
+                      values = iucn_cat_colors) %>%
   + theme_void()
 pie_cat_iucn_ref_en
 
@@ -841,12 +835,7 @@ pie_cat_iucn_en = ggplot(data_cat_iucn,
          subtitle = paste("Sample :", sum(data_cat_iucn$n_iucn), "marine, not FAPBM funded protected areas")) %>%
   # + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
       + scale_fill_manual(name = "Categories",
-                      values = c("Not categorized" = "#7570B3",
-                                 "Habitat or species management area" = "#E7298A",
-                                 "Protected landscape or seascape" = "#66A61E",
-                                 "Protected area with sust. use of nat. res." = "#D95F02",
-                                 "National park" = "#1B9E77",
-                                 "Strict nature reserve" = "#E6AB02")) %>%
+                      values = iucn_cat_colors) %>%
   + theme_void()
 pie_cat_iucn_en
 
@@ -867,12 +856,7 @@ pie_cat_iucn_ref_en = ggplot(data_cat_iucn_ref,
          subtitle = paste("Sample :", sum(data_cat_iucn_ref$n_iucn), "out of", sum(data_cat_iucn$n_iucn),  "other marine protected areas")) %>%
   # + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
     + scale_fill_manual(name = "Categories",
-                      values = c("Not categorized" = "#7570B3",
-                                 "Habitat or species management area" = "#E7298A",
-                                 "Protected landscape or seascape" = "#66A61E",
-                                 "Protected area with sust. use of nat. res." = "#D95F02",
-                                 "National park" = "#1B9E77",
-                                 "Strict nature reserve" = "#E6AB02")) %>%
+                      values = iucn_cat_colors) %>%
   + theme_void()
 pie_cat_iucn_ref_en
 ```
@@ -1801,6 +1785,19 @@ n_focus_nomarine = data_pa_focus %>%
   filter(marine %in% c(0,1)) %>%
   nrow()
 
+donnees_sum <- data_pa_all %>%
+  group_by(focus) %>%
+  summarise(
+    n = n(),
+    part_marine = sum(marine == 2) 
+  )
+
+# Créer le graphique en barres
+ggplot(data_pa_all, aes(x = focus, fill = as.factor(marine)) )+
+  geom_bar() +
+  labs()
+
+
 ## PA we can analyze with our methodology
 yr_min = 2002
 n_all_ie = data_pa_all %>%
@@ -2106,24 +2103,24 @@ library(jsonlite)
 #Obtain a token
 
 ##The request to perform
-# curl --location --request POST 'https://data-api.globalforestwatch.org/auth/token' \ --header 'Content-Type: application/x-www-form-urlencoded' \ --data-urlencode 'username=antoine.vuillot@outlook.fr' \ --data-urlencode 'password=Av!!86451998'
+# curl --location --request POST 'https://data-api.globalforestwatch.org/auth/token' \ --header 'Content-Type: application/x-www-form-urlencoded' \ --data-urlencode'username=duboisl@afd.fr' \ --data-urlencode 'password='
 
 ##With httr2
 # req_sign = request('https://data-api.globalforestwatch.org/auth/sign-up') %>%
-#   req_headers("Content-Type" = "application/json") %>% 
-#   req_body_json(list(name = "Antoine Vuillot", email = "antoine.vuillot@outlook.fr")) 
+# req_headers("Content-Type" = "application/json") %>% 
+# req_body_json(list(name = "Louise Dubois", email = "duboisl@afd.fr"))
 # resp_sign = req_perform(req_sign)
-# 
-# req_token = request('https://data-api.globalforestwatch.org/auth/token') %>%
-#   req_headers("Content-Type" = "application/x-www-form-urlencoded") %>%
-#   req_body_form(list("username = antoine.vuillot@outlook.fr", "password = Av!!86451998"))
-# resp_token = req_perform(req_token)
+
+req_token = request('https://data-api.globalforestwatch.org/auth/token') %>%
+  req_headers("Content-Type" = "application/x-www-form-urlencoded") %>%
+  req_body_form(list("username = duboisl@afd.fr", "password = LaD75018"))
+resp_token = req_perform(req_token)
 
 ##With httr
 url_token = "https://data-api.globalforestwatch.org/auth/token"
 #custom_headers = c("Content-Type" =  "application/x-www-form-urlencoded")
-body_token = list(username = "vuillota@afd.fr", 
-                  password = "Av!!86451998")
+body_token = list(username = "duboisl@afd.fr", 
+                  password = "")
 
 resp_token = httr::POST(url_token, 
                   body = body_token,
@@ -2145,7 +2142,7 @@ resp_token_valid = httr::GET(url_token_valid,
 ##With httr
 url_api = "https://data-api.globalforestwatch.org/auth/apikey"
 body_api = list(alias = "api-key-ie-ap",
-                email = "vuillota@afd.fr",
+                email = "dduboisl@afd.fr",
                 organization = "Agence Française de Développement")
 resp_api = httr::POST(url_api,
                      add_headers("Authorization" = paste("Bearer", token, sep = " ")),
@@ -2158,7 +2155,7 @@ req_api = request('https://data-api.globalforestwatch.org/auth/apikey') %>%
   req_headers("Content-Type" = "application/json") %>%
   req_auth_bearer_token(token) %>%
   req_body_json(list("alias = api-key-ie-ap",
-                     "email = vuillota@afd.fr", 
+                     "email = duboisl@afd.fr", 
                      "organization = AFD",
                      "domains = []"))
 resp_api = req_perform(req_api)
@@ -2900,6 +2897,169 @@ opts = list("region" = ""))
 ## Evolution of forest cover for specific polygons
 
 Using the mapme.biodiversity R package, one can plot the evolution of forest cover for any polygon using Global Forest Watch data (Hansen et al. 2013).
+
+```{r, eval = F}
+
+#Import the polygon(s) of interest
+terr_tidy =
+  #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
+  s3read_using(sf::st_read,
+              object = "data_tidy/TerrIndigena/TE_TerrIndigena1y2_20230208_Pg_tidy.gpkg",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
+
+# Version of Global Forest Cover data to consider
+list_version_gfc = mapme.biodiversity:::.available_gfw_versions() #all versions available
+version_gfc = list_version_gfc[length(list_version_gfc)] #last version considered
+
+#Download forest cover data : initialize a portfolio, get data and compute forest cover
+dl.fc = terr_tidy %>%
+  get_resources(get_gfw_treecover(version =  version_gfc),
+    get_gfw_lossyear(version = version_gfc),
+    get_gfw_emissions()
+  ) %>% calc_indicators(calc_treecover_area(years=2000:2021,
+                  min_size=0.5, # FAO definition of forest :  Minimum treecover = 10%, minimum size =0.5 hectare (FAO 2020 Global Forest Resources Assessment, https://www.fao.org/3/I8661EN/i8661en.pdf)
+                  min_cover=10))
+
+    
+  
+
+
+#Create a dataset with evolution of forest cover
+data.fc = dl.fc %>%
+  st_drop_geometry() %>%
+  unnest(treecover_area) %>%
+  group_by(ID_raw) %>%
+  mutate(treecover_base2000 = (treecover - treecover[years == 2000])/treecover[years == 2000],
+         treecover_ini = treecover[years == 2000]) %>%
+  ungroup() 
+
+#Save the dataset
+aws.s3::s3write_using(
+FUN = data.table::fwrite,
+data.fc,
+object = "descriptive_stats/misc/TerrIndigena/df_fc_terrindigena.csv", 
+bucket = "projet-afd-eva-ap",
+opts = list("region" = ""))
+
+
+  
+#Figures
+## Evolution of relative forest cover for all polygons
+fig_fc_all = ggplot(data = data.fc %>% arrange(country_en, ID_raw),
+                aes(x = years, y = treecover_base2000*100, color = ID_raw)) %>%
+  + geom_point() %>%
+  + geom_line() %>%
+  + labs(title = "Country-wise evolution of forest cover for the TerrIndigena project areas",
+         x = "Year", 
+         y = "Evolution of forest cover relative to 2000 (%)",
+         caption = "Interpretation : a value of -0.10 in 2015 represents a loss of 10% of 2000 forest cover") %>%
+  + scale_color_discrete(name = "Project ID",
+                         breaks = c("1_Bra", "2_Bra", "3_Bra", "4_Bra", "1_Col", "2_Col", "3_Col", "1_Ecu", "2_Ecu", "3_Ecu", "1_Per", "2_Per")) %>%
+  + facet_wrap(~country_en) %>%
+  + theme_minimal() %>%
+  + theme(plot.caption = element_text(hjust = 0))
+
+  ggsave(paste0(tempdir(), "/terrindigena/fig_terrindigena_fc_all.png"),
+         plot = fig_fc_all,
+         device = "png",
+         height = 8, width = 12)
+  files <- list.files(paste0(tempdir(), "/terrindigena"), full.names = TRUE)
+  ##Add each file in the bucket (same foler for every file in the temp)
+  for (f in files) 
+  {
+    cat("Uploading file", paste0("'", f, "'"), "\n")
+    aws.s3::put_object(file = f, 
+                       bucket = "projet-afd-eva-ap/descriptive_stats/misc/TerrIndigena",
+                       region = "", show_progress = TRUE)
+  }
+  do.call(file.remove, list(list.files(paste0(tempdir(), "/terrindigena"), full.names = TRUE)))
+
+##Evolution by country
+for (i in unique(data.fc$country_en)) 
+{
+  fig_fc_i = ggplot(data = filter(data.fc, country_en == i),
+                aes(x = years, y = treecover_base2000*100, color = ID_raw)) %>%
+  + geom_point() %>%
+  + geom_line() %>%
+  + scale_color_brewer(name = "Project ID", palette = "Blues") %>%
+  + labs(title = "Evolution of forest cover for the TerrIndigena project areas",
+         subtitle = paste("Country :", i),
+         x = "Year", 
+         y = "Evolution of forest cover relative to 2000 (%)",
+         caption = "Interpretation : a value of -0.10 in 2015 represents a loss of 10% of 2000 forest cover") %>%
+  + theme_minimal() %>%
+  + theme(plot.caption = element_text(hjust = 0))
+  fig_fc_i
+  ggsave(paste0(tempdir(), "/terrindigena/fig_terrindigena_fc_", i, ".png"),
+         plot = fig_fc_i,
+         device = "png",
+         height = 6, width = 9)
+  files <- list.files(paste0(tempdir(), "/terrindigena"), full.names = TRUE)
+  ##Add each file in the bucket (same foler for every file in the temp)
+  for(f in files) 
+  {
+    cat("Uploading file", paste0("'", f, "'"), "\n")
+    aws.s3::put_object(file = f, 
+                       bucket = "projet-afd-eva-ap/descriptive_stats/misc/TerrIndigena",
+                       region = "", show_progress = TRUE)
+  }
+  do.call(file.remove, list(list.files(paste0(tempdir(), "/terrindigena"), full.names = TRUE)))
+}
+
+##Evolution for each polygon
+for (i in unique(data.fc$ID_raw)) 
+{
+  # fig_fc_rel_i = ggplot(data = filter(data.fc, ID_raw == i),
+  #               aes(x = years, y = treecover_base2000*100, color = ID_raw)) %>%
+  # + geom_point(color = "#006D2C") %>%
+  # + geom_line(color = "#006D2C") %>%
+  # + labs(title = "Evolution of forest cover for the TerrIndigena project areas",
+  #        subtitle = paste("Project ID :", i),
+  #        x = "Year", 
+  #        y = "Evolution of forest cover relative to 2000 (%)",
+  #        caption = "Interpretation : a value of -0.10 in 2015 represents a loss of 10% of 2000 forest cover") %>%
+  # + theme_minimal() %>%
+  # + theme(plot.caption = element_text(hjust = 0))
+  # 
+  fig_fc_ha_i = ggplot(data = filter(data.fc, ID_raw == i),
+                aes(x = years, y = treecover, color = ID_raw)) %>%
+  + geom_point(color = "#006D2C") %>%
+  + geom_line(color = "#006D2C") %>%
+  + labs(title = "Evolution of forest cover for the TerrIndigena project areas",
+         subtitle = paste("Project ID :", i),
+         x = "Year",
+         y = "Evolution of forest cover (ha)",) %>%
+  + theme_minimal() %>%
+  + theme(plot.caption = element_text(hjust = 0))
+
+  # ggsave(paste0(tempdir(), "/terrindigena/fig_terrindigena_fc_rel_", i, ".png"),
+  #        plot = fig_fc_rel_i,
+  #        device = "png",
+  #        height = 8, width = 12)
+  ggsave(paste0(tempdir(), "/terrindigena/fig_terrindigena_fc_ha_", i, ".png"),
+         plot = fig_fc_ha_i,
+         device = "png",
+         height = 6, width = 9)
+  files <- list.files(paste0(tempdir(), "/terrindigena"), full.names = TRUE)
+  ##Add each file in the bucket (same foler for every file in the temp)
+  for(f in files) 
+  {
+    cat("Uploading file", paste0("'", f, "'"), "\n")
+    aws.s3::put_object(file = f, 
+                       bucket = "projet-afd-eva-ap/descriptive_stats/misc/TerrIndigena",
+                       region = "", show_progress = TRUE)
+  }
+  do.call(file.remove, list(list.files(paste0(tempdir(), "/terrindigena"), full.names = TRUE)))
+}
+```
+
+
+
+
+
+
+
 
 ```{r, eval = F}
 
