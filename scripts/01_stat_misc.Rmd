@@ -1,3 +1,4 @@
+
 # Miscellaneous statistics
 
 In this document are performed and plotted statistics for particular needs (analysis of a particular portfolio, some specific group of PAs, etc.)
@@ -39,6 +40,40 @@ library(mapme.biodiversity)
 ## Importing datasets
 
 A dataset with information for each protected area funded by the AFD, and datasets on aggregated size at country/region/world level and by year. The latter takes into account potential overlap between PAs reported in the World Database on Protected Areas (WDPA).
+
+```{r Download latest wdpa data  }
+# Function to dowload data
+download_wdpa_data <- function(url, dest_dir) {
+  # Vérifiez si le répertoire de destination existe, sinon le créer
+  if (!dir.exists(dest_dir)) {
+    dir.create(dest_dir, recursive = TRUE)
+  }
+  
+  # Déterminer le nom du fichier à partir de l'URL
+  file_name <- basename(url)
+  dest_file <- file.path(dest_dir, file_name)
+  
+  # Télécharger le fichier
+  download.file(url, dest_file, mode = "wb")
+  
+  # Retourner le chemin du fichier téléchargé
+  return(dest_file)
+}
+
+# using the function 
+url <- "http://wcmc.io/wdpa_current_release"
+dest_dir <- "/home/onyxia/work/EVA-impact-aires-protegees/data" 
+
+downloaded_file <- download_wdpa_data(url, dest_dir)
+cat("Fichier téléchargé à :", downloaded_file, "\n")
+
+unzip(downloaded_file, exdir = "/home/onyxia/work/EVA-impact-aires-protegees/data/")
+data_wdpa <- st_read(dsn = "/home/onyxia/work/EVA-impact-aires-protegees/data/WDPA_WDOECM_Jun2024_Public.gdb")
+
+```
+
+
+
 
 ```{r, eval = FALSE}
 #Dataset of AFD supported protected area, with one line per protected area
@@ -88,13 +123,15 @@ data_pa_africa_ie = data_pa_africa %>%
 #          delete_dsn = TRUE)
 
 ## Load data
-data_wdpa = 
-  #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
-  s3read_using(sf::st_read,
-              object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
-              bucket = "projet-afd-eva-ap",
-              opts = list("region" = "")) %>%
-  #st_drop_geometry() %>%
+# data_wdpa = 
+#   #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
+#   s3read_using(sf::st_read,
+#               object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
+#               bucket = "projet-afd-eva-ap",
+#               opts = list("region" = "")) %>%
+
+  data_wdpa <- st_read(dsn = "/home/onyxia/work/EVA-impact-aires-protegees/data/WDPA_WDOECM_Jun2024_Public.gdb")%>%
+  st_drop_geometry() %>%
   clean_names() %>%
   #Add region, sub-region and country names 
   mutate(region = countrycode(sourcevar = iso3,
@@ -205,6 +242,7 @@ data_pa_all = data_pa_africa_ie
 #Define colors
 iucn_cat_colors = c(
   "Not categorized" = "#B0B0B0",                  # Gris
+  "Not referenced"="#C1BFB1",
   "Habitat or species management area" = "#AE642D", # Marron
   "Protected landscape or seascape" = "#80D0D0",   # Bleu
   "Protected area with sust. use of nat. res." = "#94812B", # Orange
@@ -3214,3 +3252,4 @@ for (i in unique(data.fc$ID_raw))
   do.call(file.remove, list(list.files(paste0(tempdir(), "/terrindigena"), full.names = TRUE)))
 }
 ```
+

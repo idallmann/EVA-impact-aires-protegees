@@ -33,7 +33,7 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 Importing the relevant packages
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
-install.packages(c("stargazer", "janitor", "questionr", "countrycode", "WDI"))
+install.packages(c("stargazer", "janitor", "questionr", "countrycode", "WDI","ggrepel"))
 library(tidyverse)
 library(stargazer)
 library(dplyr)
@@ -56,6 +56,37 @@ library(WDI)
 
 A dataset with information for each PA funded by the AFD, a dataset of all PAs reported by the World Database on Protected Areas (WDPA), and datasets on aggregated size at country/region/world level and by year. The latter takes into account potential overlap between PAs reported in the WDPA.
 
+```{r Download latest wdpa data  }
+# Function to dowload data
+download_wdpa_data <- function(url, dest_dir) {
+  # Vérifiez si le répertoire de destination existe, sinon le créer
+  if (!dir.exists(dest_dir)) {
+    dir.create(dest_dir, recursive = TRUE)
+  }
+  
+  # Déterminer le nom du fichier à partir de l'URL
+  file_name <- basename(url)
+  dest_file <- file.path(dest_dir, file_name)
+  
+  # Télécharger le fichier
+  download.file(url, dest_file, mode = "wb")
+  
+  # Retourner le chemin du fichier téléchargé
+  return(dest_file)
+}
+
+# using the function 
+url <- "http://wcmc.io/wdpa_current_release"
+dest_dir <- "/home/onyxia/work/EVA-impact-aires-protegees/data" 
+
+downloaded_file <- download_wdpa_data(url, dest_dir)
+cat("Fichier téléchargé à :", downloaded_file, "\n")
+
+unzip(downloaded_file, exdir = "/home/onyxia/work/EVA-impact-aires-protegees/data/")
+data_wdpa <- st_read(dsn = "/home/onyxia/work/EVA-impact-aires-protegees/data/WDPA_WDOECM_Jun2024_Public.gdb")
+
+```
+
 ```{r, eval = FALSE}
 ##Dataset with one line per PA
 data_stat_nodupl = 
@@ -68,6 +99,22 @@ data_stat_nodupl =
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
 
+# order for iucn categories
+order_iucn <- c("Not categorized",               
+  "Not referenced",
+  "Habitat or species management area", 
+  "Protected landscape or seascape",   
+  "Protected area with sust. use of nat. res." , 
+  "Natural monument or feature",
+  "National park" , 
+  "Wilderness area",
+  "Strict nature reserve"              
+)
+
+
+# Convert iucn cat with this order
+data_stat_nodupl$iucn_des_en<- factor(data_stat_nodupl$iucn_des_en, levels = order_iucn)
+
 #Import WDPA data
 ## Downoad and save data directly using the WDPA R package
 # data_wdpa = wdpa_fetch(x = "global", wait = TRUE, download_dir = "data_raw",
@@ -76,12 +123,13 @@ data_stat_nodupl =
 #          dsn = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
 #          delete_dsn = TRUE)
 ##Loading from the storage
-data_wdpa = 
+#data_wdpa = 
   #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
-  s3read_using(sf::st_read,
-              object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
-              bucket = "projet-afd-eva-ap",
-              opts = list("region" = "")) %>%
+  # s3read_using(sf::st_read,
+  #             object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
+  #             bucket = "projet-afd-eva-ap",
+  #             opts = list("region" = "")) %>%
+  data_wdpa <- st_read(dsn = "/home/onyxia/work/EVA-impact-aires-protegees/data/WDPA_WDOECM_Jun2024_Public.gdb")%>%
   st_drop_geometry() %>%
   clean_names() %>%
   #Add region, sub-region and country names 
@@ -325,12 +373,12 @@ pie_cat_iucn_fr = ggplot(data_cat_iucn,
   + labs(x = "", y = "",
          title = "Proportion d'aires protégées par catégorie IUCN (%)",
          subtitle = paste("Echantillon :", sum(data_cat_iucn$n_iucn), "aires protégées")) %>%
-  + scale_fill_brewer(name = "Catégories", palette = "Dark2") %>%
+ + scale_fill_manual(name = "Categories", values = iucn_cat_colors) %>%
   + theme_void()
 pie_cat_iucn_fr
 ##English
 pie_cat_iucn_en = ggplot(data_cat_iucn, 
-                      aes(x="", y= freq_iucn, fill = iucn_des_en)) %>%
+                      aes(x="", y= freq_iucn, fill =iucn_des_en)) %>%
   + geom_bar(width = 1, stat = "identity", color="white") %>%
   + coord_polar("y", start=0) %>%
   + geom_label_repel(aes(x=1.2, label = paste0(round(freq_iucn, 1), "%")), 
@@ -344,7 +392,7 @@ pie_cat_iucn_en = ggplot(data_cat_iucn,
   + labs(x = "", y = "",
          title = "Distribution of protected areas by IUCN categories (%)",
          subtitle = paste("Sample :", sum(data_cat_iucn$n_iucn), "protected areas")) %>%
-  + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
+  + scale_fill_manual(name = "Categories", values = iucn_cat_colors) %>%
   + theme_void()
 pie_cat_iucn_en
 
@@ -367,7 +415,7 @@ pie_cat_iucn_ref_fr = ggplot(data_cat_iucn_ref,
   + labs(x = "", y = "",
          title = "Proportion d'aires protégées par catégorie IUCN \nhors aires non répertoriées (%)",
          subtitle = paste("Echantillon :", sum(data_cat_iucn_ref$n_iucn), "sur", sum(data_cat_iucn$n_iucn), "aires protégées")) %>%
-  + scale_fill_brewer(name = "Catégories", palette = "Dark2") %>%
+ + scale_fill_manual(name = "Categories", values = iucn_cat_colors) %>%
   + theme_void()
 pie_cat_iucn_ref_fr
 ##English
@@ -386,7 +434,7 @@ pie_cat_iucn_ref_en = ggplot(data_cat_iucn_ref,
   + labs(x = "", y = "",
          title = "Distribution of protected areas by IUCN categories \nexcluding not reported/categorized (%)",
          subtitle = paste("Sample :", sum(data_cat_iucn_ref$n_iucn), "out of", sum(data_cat_iucn$n_iucn),  "protected areas")) %>%
-  + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
+  + scale_fill_manual(name = "Categories", values = iucn_cat_colors) %>%
   + theme_void()
 pie_cat_iucn_ref_en
 ```
@@ -3697,6 +3745,7 @@ fig_area_pa_fr = ggplot(subset(data_time_area, is.na(year_funding_first) == FALS
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
 fig_area_pa_fr
+
 ##English
 fig_area_pa_en = ggplot(subset(data_time_area, is.na(year_funding_first) == FALSE),
                   aes(x = factor(year_funding_first), y = tot_area_noint_km2)) %>%
@@ -3764,6 +3813,7 @@ fig_area_cum_pa_fr = ggplot(subset(data_time_area, is.na(year_funding_first) == 
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
 fig_area_cum_pa_fr
+
 #English
 fig_area_cum_pa_en = ggplot(subset(data_time_area, is.na(year_funding_first) == FALSE),
                   aes(x = factor(year_funding_first),

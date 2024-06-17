@@ -45,6 +45,39 @@ library(geodata)
 
 ```
 
+
+
+```{r Download latest wdpa data  }
+# Function to dowload data
+download_wdpa_data <- function(url, dest_dir) {
+  # Vérifiez si le répertoire de destination existe, sinon le créer
+  if (!dir.exists(dest_dir)) {
+    dir.create(dest_dir, recursive = TRUE)
+  }
+  
+  # Déterminer le nom du fichier à partir de l'URL
+  file_name <- basename(url)
+  dest_file <- file.path(dest_dir, file_name)
+  
+  # Télécharger le fichier
+  download.file(url, dest_file, mode = "wb")
+  
+  # Retourner le chemin du fichier téléchargé
+  return(dest_file)
+}
+
+# using the function 
+url <- "http://wcmc.io/wdpa_current_release"
+dest_dir <- "/home/onyxia/work/EVA-impact-aires-protegees/data" 
+
+downloaded_file <- download_wdpa_data(url, dest_dir)
+cat("Fichier téléchargé à :", downloaded_file, "\n")
+
+unzip(downloaded_file, exdir = "/home/onyxia/work/EVA-impact-aires-protegees/data/")
+data_wdpa <- st_read(dsn = "/home/onyxia/work/EVA-impact-aires-protegees/data/WDPA_WDOECM_Jun2024_Public.gdb")
+
+```
+
 ## Datasets for analysis
 
 ### Merge PAs reporting by AFD technical departments
@@ -194,6 +227,7 @@ data_siop_pa =
          .after = "pays")
   
 #Import WDPA data
+
 ##Download the latest version of the WDPA and write to the storage, if necessary
 # data_wdpa = wdpa_fetch(x = "global", wait = TRUE, download_dir = "data_raw",
 #                        page_wait = 2, verbose = TRUE)
@@ -202,16 +236,20 @@ data_siop_pa =
 #          delete_dsn = TRUE)
 
 ##Load the WDPA from the storage
-data_wdpa = 
+#data_wdpa = 
   #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
-  s3read_using(sf::st_read,
-              object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
-              bucket = "projet-afd-eva-ap",
-              opts = list("region" = "")) %>%
+  #<!-- s3read_using(sf::st_read, -->
+  #<!--             object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg", -->
+  #<!--             bucket = "projet-afd-eva-ap", -->
+  #<!--             opts = list("region" = "")) %>% -->
+  data_wdpa <- st_read(dsn = "/home/onyxia/work/EVA-impact-aires-protegees/data/WDPA_WDOECM_Jun2024_Public.gdb")%>%
   st_drop_geometry() %>%
   clean_names() %>%
   filter(wdpaid %in% list_wdpa_afd) %>%
   rename("iso3_wdpa" = "iso3")
+
+
+data_wdpa$wdpaid=as.double(data_wdpa$wdpaid)
 
 #Merge the datasets
 ##A first raw dataset that will be edited to complete ISO3 code of countries.
@@ -1188,17 +1226,19 @@ The funding and non-funding datasets with polygon, for maps creation.
 ```{r, eval = FALSE}
 #Loading the datasets
 ##WDPA data (polygons)
-data_wdpa =
+#data_wdpa =
   #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
-  s3read_using(sf::st_read,
-              object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
-              bucket = "projet-afd-eva-ap",
-              opts = list("region" = "")) %>%
-  clean_names() %>%
-  select(c(wdpaid, wdpa_pid, geom)) %>%
-  mutate(geom_type = sf::st_geometry_type(geom))
+  # s3read_using(sf::st_read,
+   #           object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
+    #          bucket = "projet-afd-eva-ap",
+     #        opts = list("region" = "")) %>%
 
-## Non-confidential dataset
+data_wdpa <- st_read(dsn = "/home/onyxia/work/EVA-impact-aires-protegees/data/WDPA_WDOECM_Jun2024_Public.gdb")%>%
+  clean_names() %>%
+  select(c(wdpaid, wdpa_pid, SHAPE)) %>%
+  mutate(geom_type = sf::st_geometry_type(SHAPE))
+
+## Non-confidential datasetdata_wdpa <- st_read(dsn = "/home/onyxia/work/EVA-impact-aires-protegees/data/WDPA_WDOECM_Jun2024_Public.gdb")
 data_pa_nofund_nodupl = 
   #fread("data_raw/BDD_PA_AFD_nofund_nodupl.csv")
   s3read_using(readr::read_delim,
