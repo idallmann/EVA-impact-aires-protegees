@@ -123,14 +123,13 @@ data_pa_africa_ie = data_pa_africa %>%
 #          delete_dsn = TRUE)
 
 ## Load data
-# data_wdpa = 
+data_wdpa = 
 #   #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
-#   s3read_using(sf::st_read,
-#               object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
-#               bucket = "projet-afd-eva-ap",
-#               opts = list("region" = "")) %>%
-
-  data_wdpa <- st_read(dsn = "/home/onyxia/work/EVA-impact-aires-protegees/data/WDPA_WDOECM_Jun2024_Public.gdb")%>%
+  s3read_using(sf::st_read,
+              object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = "")) %>%
+# st_read(dsn = "/home/onyxia/work/EVA-impact-aires-protegees/data/WDPA_WDOECM_Jun2024_Public.gdb")%>%
   st_drop_geometry() %>%
   clean_names() %>%
   #Add region, sub-region and country names 
@@ -2936,6 +2935,8 @@ opts = list("region" = ""))
 
 Using the mapme.biodiversity R package, one can plot the evolution of forest cover for any polygon using Global Forest Watch data (Hansen et al. 2013).
 
+Duplicate to correct init_portfolio issue 
+
 ```{r, eval = F}
 
 #Import the polygon(s) of interest
@@ -3093,10 +3094,7 @@ for (i in unique(data.fc$ID_raw))
 ```
 
 
-
-
-
-
+Original vesion
 
 
 ```{r, eval = F}
