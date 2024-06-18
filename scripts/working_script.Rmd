@@ -1,0 +1,9 @@
+```{r}
+webdriver::install_phantomjs()
+library("chromote")
+if (!require(remotes)) install.packages("remotes")
+remotes::install_github("prioritizr/wdpar@extra-wait")
+library(wdpar)
+x <- wdpa_fetch("LIE")
+```
+

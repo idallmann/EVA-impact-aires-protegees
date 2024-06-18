@@ -30,7 +30,7 @@ library(tidyverse)
 library(dplyr)
 library(data.table)
 library(readxl)
-library(janitor)
+library("janitor")
 library(stringi)
 library(sf)
 library(terra)
@@ -236,12 +236,12 @@ data_siop_pa =
 #          delete_dsn = TRUE)
 
 ##Load the WDPA from the storage
-#data_wdpa = 
-  #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
-  #<!-- s3read_using(sf::st_read, -->
-  #<!--             object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg", -->
-  #<!--             bucket = "projet-afd-eva-ap", -->
-  #<!--             opts = list("region" = "")) %>% -->
+data_wdpa = 
+#  st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
+  s3read_using(sf::st_read, 
+               object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
+              bucket = "projet-afd-eva-ap",
+               opts = list("region" = "")) %>% 
   data_wdpa <- st_read(dsn = "/home/onyxia/work/EVA-impact-aires-protegees/data/WDPA_WDOECM_Jun2024_Public.gdb")%>%
   st_drop_geometry() %>%
   clean_names() %>%
