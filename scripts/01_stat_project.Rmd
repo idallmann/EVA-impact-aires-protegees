@@ -56,36 +56,7 @@ library(WDI)
 
 A dataset with information for each PA funded by the AFD, a dataset of all PAs reported by the World Database on Protected Areas (WDPA), and datasets on aggregated size at country/region/world level and by year. The latter takes into account potential overlap between PAs reported in the WDPA.
 
-```{r Download latest wdpa data  }
-# Function to dowload data
-download_wdpa_data <- function(url, dest_dir) {
-  # Vérifiez si le répertoire de destination existe, sinon le créer
-  if (!dir.exists(dest_dir)) {
-    dir.create(dest_dir, recursive = TRUE)
-  }
-  
-  # Déterminer le nom du fichier à partir de l'URL
-  file_name <- basename(url)
-  dest_file <- file.path(dest_dir, file_name)
-  
-  # Télécharger le fichier
-  download.file(url, dest_file, mode = "wb")
-  
-  # Retourner le chemin du fichier téléchargé
-  return(dest_file)
-}
 
-# using the function 
-url <- "http://wcmc.io/wdpa_current_release"
-dest_dir <- "/home/onyxia/work/EVA-impact-aires-protegees/data" 
-
-downloaded_file <- download_wdpa_data(url, dest_dir)
-cat("Fichier téléchargé à :", downloaded_file, "\n")
-
-unzip(downloaded_file, exdir = "/home/onyxia/work/EVA-impact-aires-protegees/data/")
-data_wdpa <- st_read(dsn = "/home/onyxia/work/EVA-impact-aires-protegees/data/WDPA_WDOECM_Jun2024_Public.gdb")
-
-```
 
 ```{r, eval = FALSE}
 ##Dataset with one line per PA
@@ -100,7 +71,7 @@ data_stat_nodupl =
   opts = list("region" = ""))
 
 # order for iucn categories
-order_iucn <- c("Not categorized",               
+order_iucn_en <- c("Not categorized",               
   "Not referenced",
   "Habitat or species management area", 
   "Protected landscape or seascape",   
@@ -113,7 +84,7 @@ order_iucn <- c("Not categorized",
 
 
 # Convert iucn cat with this order
-data_stat_nodupl$iucn_des_en<- factor(data_stat_nodupl$iucn_des_en, levels = order_iucn)
+data_stat_nodupl$iucn_des_en<- factor(data_stat_nodupl$iucn_des_en, levels = order_iucn_en)
 
 #Import WDPA data
 ## Downoad and save data directly using the WDPA R package
@@ -123,13 +94,12 @@ data_stat_nodupl$iucn_des_en<- factor(data_stat_nodupl$iucn_des_en, levels = ord
 #          dsn = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
 #          delete_dsn = TRUE)
 ##Loading from the storage
-#data_wdpa = 
+data_wdpa = 
   #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
-  # s3read_using(sf::st_read,
-  #             object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
-  #             bucket = "projet-afd-eva-ap",
-  #             opts = list("region" = "")) %>%
-  data_wdpa <- st_read(dsn = "/home/onyxia/work/EVA-impact-aires-protegees/data/WDPA_WDOECM_Jun2024_Public.gdb")%>%
+  s3read_using(sf::st_read,
+              object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = "")) %>%
   st_drop_geometry() %>%
   clean_names() %>%
   #Add region, sub-region and country names 
@@ -202,6 +172,33 @@ df_ctry_stat_wdpa = WDI(country = "all", start = "1960", end = "2022", extra = T
 
 lst_ctry_stat_wdpa = df_ctry_stat_wdpa$iso3
 ```
+```{r}
+#Define colors
+iucn_cat_colors_en = c(
+  "Not categorized" = "#B0B0B0",                  # Gris
+  "Not referenced"="#C1BFB1",
+  "Habitat or species management area" = "#AE642D", # Marron
+  "Protected landscape or seascape" = "#80D0D0",   # Bleu
+  "Protected area with sust. use of nat. res." = "#94812B", # Orange
+  "Natural monument or feature"="#842E1B",
+  "National park" = "#228B22", # Vert
+  "Wilderness area"="#DFAF2C",
+  "Strict nature reserve" = "#18391E"              
+)
+eco_colors_en=c("Terrestrial"="#228B22",
+                "Coastal"="#8B6C42",
+                "Marine"="#22427C")
+
+eco_colors_fr=c("Terrestre"="#228B22",
+                "Côtier"="#8B6C42",
+                "Marine"="#22427C")
+
+
+
+
+
+```
+
 
 ## Performing descriptive statistics
 
@@ -392,7 +389,7 @@ pie_cat_iucn_en = ggplot(data_cat_iucn,
   + labs(x = "", y = "",
          title = "Distribution of protected areas by IUCN categories (%)",
          subtitle = paste("Sample :", sum(data_cat_iucn$n_iucn), "protected areas")) %>%
-  + scale_fill_manual(name = "Categories", values = iucn_cat_colors) %>%
+  + scale_fill_manual(name = "Categories", values = iucn_cat_colors_en) %>%
   + theme_void()
 pie_cat_iucn_en
 
@@ -434,7 +431,7 @@ pie_cat_iucn_ref_en = ggplot(data_cat_iucn_ref,
   + labs(x = "", y = "",
          title = "Distribution of protected areas by IUCN categories \nexcluding not reported/categorized (%)",
          subtitle = paste("Sample :", sum(data_cat_iucn_ref$n_iucn), "out of", sum(data_cat_iucn$n_iucn),  "protected areas")) %>%
-  + scale_fill_manual(name = "Categories", values = iucn_cat_colors) %>%
+  + scale_fill_manual(name = "Categories", values = iucn_cat_colors_en) %>%
   + theme_void()
 pie_cat_iucn_ref_en
 ```
@@ -902,6 +899,7 @@ hist_cat_iucn_fr = ggplot(data_cat_iucn,
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
 hist_cat_iucn_fr
+
 ##English
 hist_cat_iucn_en = ggplot(data_cat_iucn, 
                        aes(x = reorder(iucn_des_en, -freq_iucn), 
@@ -1048,9 +1046,10 @@ pie_cat_iucn_ref_en = ggplot(data_cat_iucn_ref,
   #              position = position_stack(vjust = 0.7), size=2.5, 
   #              show.legend = FALSE) %>%
   + labs(x = "", y = "",
-         title = paste("Distribution of non-marine protected areas by IUCN categories,", roi, "\nexcluding not reported/categorized (%)"),
+         title = paste("Distribution of non-marine protected areas by IUCN categories,","in", roi, "\nexcluding not reported/categorized (%)"),
          subtitle = paste("Sample :", sum(data_cat_iucn_ref$n_iucn), "out of", sum(data_cat_iucn$n_iucn),  "non-marine protected areas")) %>%
-  + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
++ scale_fill_manual(name = "Categories",
+                      values = iucn_cat_colors_en ) %>%
   + theme_void()
 pie_cat_iucn_ref_en
 
@@ -1099,7 +1098,7 @@ ggsave(paste(tmp, "pie_cat_iucn_ref_fr.png", sep = "/"),
 ggsave(paste(tmp, "pie_cat_iucn_ref_en.png", sep = "/"),
        plot = pie_cat_iucn_ref_en,
        device = "png",
-       height = 6, width = 9)
+       height = 3, width = 7)
 
 print(xtable(tbl_cat_iucn_fr, type = "latex"),
       file = paste(tmp, "tbl_cat_iucn_fr.tex", sep = "/"))
@@ -1484,24 +1483,27 @@ hist_eco_shr_fr
 #Histogram in share (in English)
 hist_eco_shr_en = ggplot(data_eco_hist, 
                      aes(x = ecosyst_en, y = freq, fill = ecosyst_en)) %>%
-+ geom_bar(width = 0.50, fill= "#3182BD", stat="identity") %>%
++ geom_bar(width = 0.50, stat="identity") %>%
+  #fill= "#3182BD", 
 + geom_text(aes(label = round(n, 1), y = freq), 
         vjust = -0.1, color="black",
         size=3.5) %>%
-+ labs(title = paste("Proportion of protected areas by ecosystem type,", roi,  "\n(excluding not referenced PAs)"),
-       subtitle = paste("Sample :", sum(data_eco_hist$n), "out of", nrow(subset(data_stat_nodupl, region == roi)), "protected areas. Number of areas indicated above."),
++ labs(title = paste("Proportion of protected areas by ecosystem type,","in", roi,  "\n(excluding not referenced PAs)"),
+       subtitle = paste("Sample :", sum(data_eco_hist$n), "out of", nrow(subset(data_stat_nodupl, region == roi)), "protected areas.\n Number of areas indicated above."),
          x = "Ecosystem type",
          y = "Proportion of protected areas(%)") %>%
-  + theme(legend.position = "bottom",
-      legend.key = element_rect(fill = "white"),
-      plot.title = element_text(size = 14, face = "bold"), 
-      axis.text.x = element_text(angle = 0,size=10, hjust = .5, vjust = .6),
-      axis.title.x = element_text(margin = margin(t = 10)),
-      panel.background = element_rect(fill = 'white', colour = 'white', 
-                                      linewidth = 0.5, linetype = 'solid'),
-      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
-      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
-      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+  # + theme(legend.position = "bottom",
+  #     legend.key = element_rect(fill = "white"),
+  #     plot.title = element_text(size = 14, face = "bold"), 
+  #     axis.text.x = element_text(angle = 0,size=10, hjust = .5, vjust = .6),
+  #     axis.title.x = element_text(margin = margin(t = 10)),
+  #     panel.background = element_rect(fill = 'white', colour = 'white', 
+  #                                     linewidth = 0.5, linetype = 'solid'),
+  #     panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+  #     panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+  #     plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))%>%
+  + scale_fill_manual(name = "Ecosystem",
+                      values = eco_colors_en) 
 hist_eco_shr_en
 
 
@@ -1594,7 +1596,7 @@ ggsave(paste(tmp, paste0("hist_eco_shr_", roi, "_fr.png"), sep = "/"),
 ggsave(paste(tmp, paste0("hist_eco_shr_", roi, "_en.png"), sep = "/"),
        plot = hist_eco_shr_en,
        device = "png",
-       height = 6, width = 9)
+       height = 4, width = 7)
 ggsave(paste(tmp, paste0("hist_eco_n_", roi, "_fr.png"), sep = "/"),
        plot = hist_eco_n_fr,
        device = "png",
@@ -4500,7 +4502,7 @@ names(tbl_gov_fr) = c("Gouvernance","Nombre d'AP","Proportion (%)")
 
 
 
-#PAs with nureported or unreferenced governance types are removed
+#PAs with unreported or unreferenced governance types are removed
 ##Tables
 ###English
 data_gov_knwn_en = data_stat_nodupl %>%

@@ -607,14 +607,19 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
   # Take only potential control (group = 1) and treatment (group = 2) in the country gridding to lower the number of computations to perform
   grid.aoi = grid.param %>%
     filter(group %in% c(2,3))
+  
+  mapme_options(
+    outdir =path_tmp
+  )
+  
   # Create a mapme.biodiversity portfolio for the area of interest (aoi). This specifies the period considered and the geospatial units where data are downloaded and indicators computed (here, the treated and control pixels in the country gridding)
-  aoi = init_portfolio(grid.aoi,
-                       years = yr_first:yr_last,
-                       outdir = path_tmp,
-                       add_resources = FALSE)
+  # aoi = init_portfolio(grid.aoi,
+  #                      years = yr_first:yr_last,
+  #                      outdir = path_tmp,
+  #                      add_resources = FALSE)
   
   #Extract a dataframe with pixels ID in the grid and the portfolio : useful for latter plotting of matched control and treated units. 
-  df_gridID_assetID = aoi %>%
+  df_gridID_assetID = grid.aoi %>%
     st_drop_geometry() %>%
     as.data.frame() %>%
     dplyr::select(c(gridID, assetid))
@@ -630,11 +635,10 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
   list_version_gfc = mapme.biodiversity:::.available_gfw_versions() #all versions available
   version_gfc = list_version_gfc[length(list_version_gfc)] #last version considered
   ## Soil characteristics
-  dl.soil = get_resources(aoi, 
-                          resources = c("soilgrids"), 
+  dl.soil = get_resources(aoi, get_soilgrids(
                           layers = c("clay"), # resource specific argument
                           depths = c("0-5cm"), # resource specific argument
-                          stats = c("mean"))
+                          stats = c("mean")))
   ## Accessibility
   dl.travelT = get_resources(aoi, resources = "nelson_et_al",
                              range_traveltime = c("5k_110mio"))
