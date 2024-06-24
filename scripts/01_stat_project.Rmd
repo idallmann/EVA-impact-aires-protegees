@@ -56,8 +56,6 @@ library(WDI)
 
 A dataset with information for each PA funded by the AFD, a dataset of all PAs reported by the World Database on Protected Areas (WDPA), and datasets on aggregated size at country/region/world level and by year. The latter takes into account potential overlap between PAs reported in the WDPA.
 
-
-
 ```{r, eval = FALSE}
 ##Dataset with one line per PA
 data_stat_nodupl = 
@@ -172,6 +170,7 @@ df_ctry_stat_wdpa = WDI(country = "all", start = "1960", end = "2022", extra = T
 
 lst_ctry_stat_wdpa = df_ctry_stat_wdpa$iso3
 ```
+
 ```{r}
 #Define colors
 iucn_cat_colors_en = c(
@@ -187,18 +186,17 @@ iucn_cat_colors_en = c(
 )
 eco_colors_en=c("Terrestrial"="#228B22",
                 "Coastal"="#8B6C42",
-                "Marine"="#22427C")
+                "Marine"="#26C4EC")
 
 eco_colors_fr=c("Terrestre"="#228B22",
                 "Côtier"="#8B6C42",
-                "Marine"="#22427C")
+                "Marine"="#26C4EC")
 
 
 
 
 
 ```
-
 
 ## Performing descriptive statistics
 
@@ -1339,7 +1337,7 @@ pie_eco_fr = ggplot(data_eco_hist,
 pie_eco_fr
 
 
-#Histogram in number (in English)
+#pie chart in share (in English)
 pie_eco_en = ggplot(data_eco_hist, 
                      aes(x = "", y = n, fill = ecosyst_en)) %>%
 + geom_bar(width = 1, stat = "identity",color="white") %>%
@@ -1354,6 +1352,29 @@ pie_eco_en = ggplot(data_eco_hist,
   + scale_fill_brewer(name = "Ecosystem", palette="Paired") %>%
   + theme_void()
 pie_eco_en
+
+#donut chart in share (in English)
+donut_eco_en <- ggplot(data_eco_hist, aes(x = "", y = n, fill = ecosyst_en)) +
+  geom_bar(width = 1, stat = "identity", color = "white") +
+  geom_label(aes(x = 1.3, label = paste0(freq, "%")), 
+             color = "black", position = position_stack(vjust = 0.55), 
+             size = 7, show.legend = FALSE) +
+  coord_polar("y", start = 0) +
+  labs(title = "Proportion of protected areas by ecosystem type \n(excluding not referenced PAs)",
+       subtitle = paste("Sample :", sum(data_eco_hist$n), "out of", nrow(data_stat_nodupl), "protected areas"),
+       x = "",
+       y = "") +
+   scale_fill_manual(name = "Ecosystem",
+                      values = eco_colors_en) +
+  theme_void() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 10),
+    legend.position = "bottom"
+  ) +
+  annotate("text", x = 0, y = 0, label = "AFD", size = 6, fontface = "bold", color = "black") 
+
+donut_eco_en 
 ```
 
 ```{r, eval = FALSE}
@@ -1384,6 +1405,10 @@ ggsave(paste(tmp, "pie_eco_fr.png", sep = "/"),
        height = 6, width = 9)
 ggsave(paste(tmp, "pie_eco_en.png", sep = "/"),
        plot = pie_eco_en,
+       device = "png",
+       height = 6, width = 9)
+ggsave(paste(tmp, "donut_eco_en.png", sep = "/"),
+       plot = donut_eco_en,
        device = "png",
        height = 6, width = 9)
 
@@ -2710,6 +2735,32 @@ hist_distrib_reg_top_both_shr = ggplot(filter(data_distrib_reg, metric %in% c("f
       panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
       panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
       plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+hist_distrib_reg_top_both_shr
+
+#test
+hist_distrib_reg_top_both_shr <- ggplot(filter(data_distrib_reg, metric %in% c("freq_area", "freq_n")), 
+                                        aes(x = reorder(region, -value), y = value, fill = metric)) +
+  geom_bar(position="dodge", stat="identity") +
+  geom_text(aes(label = ifelse(value < 0.5, paste0(value, "%"), "")), 
+            position = position_dodge(width = 0.9), vjust = -0.3, color = "black", size = 3.5) + # Ajouter des annotations pour les valeurs faibles
+  labs(title = "Distribution of AFD funded, non-marine protected areas by region",
+       subtitle = paste("Sample :", sum(filter(data_distrib_reg, metric == "n")$value), "non-marine protected areas covering", 
+                        format(sum(filter(data_distrib_reg, metric == "area_km2")$value), digits = 2, scientific = TRUE), "km²"),
+       x = "",
+       y = "Share of protected areas (%)") +
+  scale_fill_manual(name = "", labels = c("Area", "Number"),
+                    values = c("freq_area" = "#F9429E", "freq_n" = "#660099")) + # Utiliser des couleurs spécifiques
+  theme(legend.position = "bottom",
+        legend.key = element_rect(fill = "white"),
+        plot.title = element_text(size = 14, face = "bold"), 
+        axis.text.x = element_text(angle = 45, size = 10, hjust = .5, vjust = .6),
+        axis.title.x = element_text(margin = margin(t = 10)),
+        panel.background = element_rect(fill = 'white', colour = 'white', 
+                                        linewidth = 0.5, linetype = 'solid'),
+        panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+        panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+        plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+
 hist_distrib_reg_top_both_shr
 ```
 
