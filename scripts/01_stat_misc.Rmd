@@ -2950,9 +2950,6 @@ terr_tidy =
 list_version_gfc = mapme.biodiversity:::.available_gfw_versions() #all versions available
 version_gfc = list_version_gfc[length(list_version_gfc)] #last version considered
 
-
-
-
 #Download forest cover data : initialize a portfolio, get data and compute forest cover
 dl.fc = terr_tidy %>%
   get_resources(get_gfw_treecover(version =  version_gfc),

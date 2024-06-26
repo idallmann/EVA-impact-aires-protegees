@@ -51,7 +51,7 @@ Downloading and installing the relevant packages
 ```{r eval= F, message=FALSE, warning=FALSE}
 #Install some libraries
 ## CRAN version
-install.packages(c("tictoc", "geodata", "wdpar", "exactextractr", "MatchIt", "fixest", "cobalt", "future", "progressr", "future.callr", "janitor", "geomtextpath", "rstac"))
+install.packages(c("tictoc", "geodata", "wdpar", "exactextractr", "MatchIt", "fixest", "cobalt", "future", "progressr", "future.callr", "janitor", "geomtextpath", "rstac","ggrepel"))
 ## Github version (can be relevant if some features have not made it to CRAN version yet)
 remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
 #remotes::install_github("prioritizr/wdpar", upgrade="always")
@@ -69,7 +69,7 @@ library(stringr) #String specific functions
 library(ggplot2) # For plotting
 library(geomtextpath) #For annoted vertical lines in ggplot
 library(RColorBrewer) #Improved color palettes for plot legends
-library(ggrepel) #Refine labelling of some figures
+library("ggrepel") #Refine labelling of some figures
 library(sf) # For handling vector data
 library(terra) # For handling raster data
 library(raster) # For handling raster data
@@ -104,8 +104,8 @@ tmp_pre = paste(tempdir(), "matching_pre", sep = "/")
 tmp_post = paste(tempdir(), "matching_post", sep = "/")
 ## Define a directory where outputs are loaded from/stored in SSPCloud.
 #save_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/") #Today's date
-save_dir = paste("impact_analysis/matching", "2023-11-22_PYD", sep = "/") #A specific date
-load_dir = paste("impact_analysis/matching", "2023-11-22_PYD", sep = "/")
+save_dir = paste("impact_analysis/matching", "2024-06-26_LD", sep = "/") #A specific date
+load_dir = paste("impact_analysis/matching", "2024-06-26_LD", sep = "/")
 
 # Load datasets
 ## WDPA database : just has to be done once to download last version of the WDPA database  

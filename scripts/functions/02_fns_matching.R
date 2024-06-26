@@ -618,6 +618,8 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
   #                      outdir = path_tmp,
   #                      add_resources = FALSE)
   
+  aoi=grid_aoi%>%filter(years %in% yr_first:yr_last)
+  
   #Extract a dataframe with pixels ID in the grid and the portfolio : useful for latter plotting of matched control and treated units. 
   df_gridID_assetID = grid.aoi %>%
     st_drop_geometry() %>%
@@ -635,24 +637,25 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
   list_version_gfc = mapme.biodiversity:::.available_gfw_versions() #all versions available
   version_gfc = list_version_gfc[length(list_version_gfc)] #last version considered
   ## Soil characteristics
-  dl.soil = get_resources(aoi, get_soilgrids(
-                          layers = c("clay"), # resource specific argument
-                          depths = c("0-5cm"), # resource specific argument
-                          stats = c("mean")))
+  dl.soil = aoi %>% get_resources(get_soilgrids(
+                          layers = "clay", # resource specific argument
+                          depths = "0-5cm", # resource specific argument
+                          stats = "mean"))
+  
+  
+  
   ## Accessibility
-  dl.travelT = get_resources(aoi, resources = "nelson_et_al",
-                             range_traveltime = c("5k_110mio"))
+  dl.travelT = aoi%>% get_resources(get_nelson_et_al( ranges = c("5k_110mio")))
+  
   ## Tree cover evolution on the period
-  dl.tree = get_resources(aoi, 
-                          resources = c("gfw_treecover", "gfw_lossyear"),
-                          vers_treecover = version_gfc,
-                          vers_lossyear = version_gfc)
+  dl.tree = aoi %>%get_resources(get_gfw_treecover(version =  version_gfc),
+                                                get_gfw_lossyear(version = version_gfc))
   ## Elevation
-  dl.elevation = get_resources(aoi, "nasa_srtm")
+  dl.elevation = aoi %>% get_resources( get_nasa_srtm())
   ## Terrain Ruggedness Index
-  dl.tri = get_resources(aoi, "nasa_srtm")
+  dl.tri = aoi %>% get_resources( get_nasa_srtm())
   ## Biome
-  dl.bio = get_resources(aoi, resources = "teow")
+  dl.bio = aoi %>% get_resources( get_teow())
   
   print("----Compute indicators")
   #Compute indicators
@@ -666,33 +669,32 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
   library(progressr)
   plan(multisession, workers = 6, gc = TRUE)
   with_progress({
-    get.soil <- calc_indicators(dl.soil,
-                                indicators = "soilproperties",
-                                stats_soil = c("mean"),
-                                engine = "exactextract") %seed% 1 # the "exactextract" engine is chosen as it is the faster one for large rasters (https://tmieno2.github.io/R-as-GIS-for-Economists/extraction-speed-comparison.html)
-
-    get.travelT  <- calc_indicators(dl.travelT,
-                                  indicators = "traveltime",
-                                  stats_accessibility = c("mean"),  #Note KfW use "median" here, but for no specific reason a priori (mail to Kemmeng Liu, 28/09/2023). Mean is chosen coherently with the other covariates, though we could test in a second time whether this changes anything to the results.
-                                  engine = "exactextract") %seed% 2
-
-    get.tree <- calc_indicators(dl.tree,
-                               indicators = "treecover_area",
-                               min_size=0.5, # FAO definition of forest :  Minimum treecover = 10%, minimum size =0.5 hectare (FAO 2020 Global Forest Resources Assessment, https://www.fao.org/3/I8661EN/i8661en.pdf)
-                               min_cover=10) %seed% 3
-
-    get.elevation <- calc_indicators(dl.elevation,
-                      indicators = "elevation",
-                      stats_elevation = c("mean"),
-                      engine = "exactextract") %seed% 4
-
-    get.tri <- calc_indicators(dl.tri,
-                      indicators = "tri",
-                      stats_tri = c("mean"),
-                      engine = "exactextract") %seed% 5
+    get.soil <- dl_soil %>% calc_indicators(
+      calc_soilproperties(
+        stats = "mean",
+        engine = "exactextract"
+      )
+    ) %seed% 1 # the "exactextract" engine is chosen as it is the faster one for large rasters (https://tmieno2.github.io/R-as-GIS-for-Economists/extraction-speed-comparison.html)
     
-    get.bio <- calc_indicators(dl.bio,
-                                  indicators = "biome") %seed% 6
+    get.travelT  <- dl.travelT %>% calc_indicators(calc_traveltime(
+      stats = "mean",
+      engine = "exactextract")
+      #Note KfW use "median" here, but for no specific reason a priori (mail to Kemmeng Liu, 28/09/2023). Mean is chosen coherently with the other covariates, though we could test in a second time whether this changes anything to the results.
+    ) %seed% 2
+    
+    get.tree <- dl.tree %>% calc_indicators(calc_treecover_area(
+                               min_size=0.5, # FAO definition of forest :  Minimum treecover = 10%, minimum size =0.5 hectare (FAO 2020 Global Forest Resources Assessment, https://www.fao.org/3/I8661EN/i8661en.pdf)
+                               min_cover=10)) %seed% 3
+
+    get.elevation <- dl.elevation %>% calc_indicators(calc_elevation(
+                      stats= "mean",
+                      engine = "exactextract")) %seed% 4
+
+    get.tri <- dl_tri %>% calc_indicators(calc_tri(
+                      stats_tri = "mean",
+                      engine = "exactextract")) %seed% 5
+    
+    get.bio <- dl_bio %>% calc_indicators(calc_biome()) %seed% 6
 
     
     })
