@@ -32,7 +32,7 @@
 ### yr_min : the minimum treatment year to be considered in the analysis. As some matching covariates are defined with pre-treatment data (e.g average tree cover loss before treatment), this minimal year is greater than yr_first
 ### name : specify the name of the log file to save
 ### notes : any notes on the analysis performed
-##OUTPUTS :
+##OUTPUTS : 
 ###log : a text file in the R session memory that will be edited through the data processing
 fn_pre_log = function(list_iso, buffer, gridSize, yr_first, yr_last, yr_min, list_cov, name, notes)
 {

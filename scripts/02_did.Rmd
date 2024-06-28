@@ -40,7 +40,7 @@ Downloading and importing relevant packages.
 
 ```{r, eval = FALSE}
 #Install some libraries
-install.packages(c("tictoc", "fixest", "cobalt", "future", "progressr", "did", "latex2exp", "janitor", "stringi"))
+install.packages(c("tictoc", "fixest", "cobalt", "future", "progressr", "did", "latex2exp", "janitor", "stringi","ggrepel"))
 
 # Load Libraries
 library(dplyr)
@@ -51,7 +51,7 @@ library(tidyr)
 library(stringr)
 library(ggplot2) # For plotting
 library(RColorBrewer)
-library(ggrepel)
+library("ggrepel")
 library(aws.s3)
 library(fixest) #For estimating the models
 library(did)
@@ -73,10 +73,10 @@ source("scripts/functions/02_fns_did.R")
 ##Temporary directory
 tmp_did = paste(tempdir(), "did", sep = "/")
 ##Loading and saving directories on the storage. This is either define on today's date, or by a user-defined date. Loadin directory corresponds to the output of 02_matching.Rmd.
-#load_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/")
-load_dir = paste("impact_analysis/matching", "2023-11-22_PYD", sep = "/")
-#save_dir = paste("impact_analysis/did", Sys.Date(), sep = "/")
-save_dir = paste("impact_analysis/did", "2023-11-22_PYD", sep = "/")
+load_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/")
+#load_dir = paste("impact_analysis/matching", "202-11-22_PYD", sep = "/")
+save_dir = paste("impact_analysis/did", Sys.Date(), sep = "/")
+#save_dir = paste("impact_analysis/did", "2023-11-22_PYD", sep = "/")
 
 ## Dataset specific to the PAs portfolio to analyze. Only one is selected depending on the analysis one wants to perform. 
 
