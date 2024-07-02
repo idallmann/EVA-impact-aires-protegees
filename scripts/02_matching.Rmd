@@ -103,9 +103,10 @@ source("scripts/functions/02_fns_matching.R")
 tmp_pre = paste(tempdir(), "matching_pre", sep = "/")
 tmp_post = paste(tempdir(), "matching_post", sep = "/")
 ## Define a directory where outputs are loaded from/stored in SSPCloud.
-#save_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/") #Today's date
-save_dir = paste("impact_analysis/matching", "2024-06-26_LD", sep = "/") #A specific date
-load_dir = paste("impact_analysis/matching", "2024-06-26_LD", sep = "/")
+save_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/") #Today's date
+load_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/")
+# save_dir = paste("impact_analysis/matching", "2024-06-26_LD", sep = "/") #A specific date
+# load_dir = paste("impact_analysis/matching", "2024-06-26_LD", sep = "/")
 
 # Load datasets
 ## WDPA database : just has to be done once to download last version of the WDPA database  
@@ -125,6 +126,19 @@ wdpa_wld_raw = s3read_using(
               object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
               bucket = "projet-afd-eva-ap",
               opts = list("region" = ""))
+
+#duplicate in x lines the PA in x different countries 
+# (this part is added for the special case of the Trinationale AP of Sangha)
+multi_country_row <- wdpa_wld_raw %>%
+  filter(ISO3 == "COG;CMR;CAF") %>%
+  slice(rep(1:n(), each = 3)) %>%
+  mutate(ISO3 = c("COG", "CMR", "CAF"))
+
+wdpa_wld_raw <- wdpa_wld_raw %>%
+  filter(ISO3 != "COG;CMR;CAF") %>%
+  bind_rows(multi_country_row)
+
+
 
 ## Dataset specific to the PAs portfolio to analyze. Only one is selected depending on the analysis one wants to perform. 
 ### PAs supported by the AFD
@@ -218,7 +232,7 @@ list_iso = unique(data_pa_ie_africa_focus$iso3)
 
 # ## Manual definition
 # list_iso = c("COM", "GNB")
-
+list_iso=c("CMR")
 ```
 
 ## Matching process

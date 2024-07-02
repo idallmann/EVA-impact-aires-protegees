@@ -45,39 +45,6 @@ library(geodata)
 
 ```
 
-
-
-```{r Download latest wdpa data  }
-# Function to dowload data
-download_wdpa_data <- function(url, dest_dir) {
-  # Vérifiez si le répertoire de destination existe, sinon le créer
-  if (!dir.exists(dest_dir)) {
-    dir.create(dest_dir, recursive = TRUE)
-  }
-  
-  # Déterminer le nom du fichier à partir de l'URL
-  file_name <- basename(url)
-  dest_file <- file.path(dest_dir, file_name)
-  
-  # Télécharger le fichier
-  download.file(url, dest_file, mode = "wb")
-  
-  # Retourner le chemin du fichier téléchargé
-  return(dest_file)
-}
-
-# using the function 
-url <- "http://wcmc.io/wdpa_current_release"
-dest_dir <- "/home/onyxia/work/EVA-impact-aires-protegees/data" 
-
-downloaded_file <- download_wdpa_data(url, dest_dir)
-cat("Fichier téléchargé à :", downloaded_file, "\n")
-
-unzip(downloaded_file, exdir = "/home/onyxia/work/EVA-impact-aires-protegees/data/")
-data_wdpa <- st_read(dsn = "/home/onyxia/work/EVA-impact-aires-protegees/data/WDPA_WDOECM_Jun2024_Public.gdb")
-
-```
-
 ## Datasets for analysis
 
 ### Merge PAs reporting by AFD technical departments
@@ -155,9 +122,10 @@ data_pa_arb =
 data_pa_afd = rbind(data_pa_eva, data_pa_arb)
 
 #Finally, writing the dataset in csv file. Careful to the delimiter : ";" used as "," present in some variables values.
-# write_delim(data_pa_afd, "data_raw/BDD_PA_AFD.csv",
+# write_delim(data_pa_afd, "data_raw/BDD_PA_AFDtest.csv",
 #             delim = ";",
 #             na = "NA")
+
 # s3write_using(x = data_pa_afd,
 #               FUN = readr::write_delim,
 #               delim = ";",
@@ -242,7 +210,6 @@ data_wdpa =
                object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
               bucket = "projet-afd-eva-ap",
                opts = list("region" = "")) %>% 
-  data_wdpa <- st_read(dsn = "/home/onyxia/work/EVA-impact-aires-protegees/data/WDPA_WDOECM_Jun2024_Public.gdb")%>%
   st_drop_geometry() %>%
   clean_names() %>%
   filter(wdpaid %in% list_wdpa_afd) %>%
@@ -509,7 +476,7 @@ list_var_siop = c("id_projet", "id_concours", "region_afd", "pays", "pays2",
 data_siop_tidy = data_tidy %>%
   dplyr::select(all_of(list_var_siop))
 
-#write_csv(data_siop_tidy, "data_tidy/BDD_siop_tidy.xlsx")
+
 # s3write_using(x = data_siop_tidy,
 #               FUN = readr::write_delim,
 #               delim = ";",
@@ -742,12 +709,12 @@ data_pa_ie = data_pa_nofund_nodupl %>%
   rbind(df_cropd)
 
 #Finally this dataset is saved
-# s3write_using(x = data_pa_ie,
-#               FUN = readr::write_delim,
-#               delim = ";",
-#               object = "data_tidy/BDD_PA_AFD_ie.csv",
-#               bucket = "projet-afd-eva-ap",
-#               opts = list("region" = ""))
+s3write_using(x = data_pa_ie,
+              FUN = readr::write_delim,
+              delim = ";",
+              object = "data_tidy/BDD_PA_AFD_ie.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
 ```
 
 ##### FAPBM portfolio
@@ -953,6 +920,17 @@ data_wdpa =
               opts = list("region" = "")) %>%
   clean_names()
 
+#duplicate in x lines the PA in x different countries 
+multi_country_row <- data_wdpa %>%
+  filter(iso3 == "COG;CMR;CAF") %>%
+  slice(rep(1:n(), each = 3)) %>%
+  mutate(iso3 = c("COG", "CMR", "CAF"))
+
+data_wdpa <- data_wdpa %>%
+  filter(iso3 != "COG;CMR;CAF") %>%
+  bind_rows(multi_country_row)
+
+
 #A dataframe with region name for each iso3 code
 region_iso = data_wdpa %>%
   st_drop_geometry() %>%
@@ -976,49 +954,50 @@ region_iso = data_wdpa %>%
                             origin = "iso3c",
                             destination = "un.name.fr"),
        .after = "iso3")
-  
+
+
 africa_iso = region_iso %>% filter(region == "Africa")
 
-data_pa_africa = data_wdpa %>%
+
+data_pa_africa <- data_wdpa %>%
   filter(iso3 %in% africa_iso$iso3) %>%
   filter(st_geometry_type(geom) == "MULTIPOLYGON") %>%
   st_drop_geometry() %>%
   mutate(name_clean = make_clean_names(name), 
-        region_afd = "", 
-       region = countrycode::countrycode(sourcevar = iso3,
-                            origin = "iso3c",
-                            destination = "un.region.name"),
-       sub_region = countrycode::countrycode(sourcevar = iso3,
-                            origin = "iso3c",
-                            destination = "un.regionsub.name"),
-       country_en = countrycode::countrycode(sourcevar = iso3,
-                            origin = "iso3c",
-                            destination = "un.name.en",
-                            custom_match = c("PYF" = "French Polynesia",
-                                             "ATF" = "Terres australes et antarctiques françaises",
-                                             "REU" = "Reunion",
-                                             "SHN" = "Saint Helena",
-                                             "IOT" = "British Indian Ocean Territory",
-                                               "NCL" = "New Caledonia",
-                                               "MYT" = "Mayotte",
-                                               "COK" = "Cook Islands",
-                                               "ZZ" = "Multi-countries",
-                                               "COG;CMR;CAF" = "Multi-countries")),
-       country_fr = countrycode::countrycode(sourcevar = iso3,
-                            origin = "iso3c",
-                            destination = "un.name.fr",
-                            custom_match = c("PYF" = "Polynésie Française",
-                                             "ATF" = "Terres australes et antarctiques françaises",
-                                             "REU" = "Réunion",
-                                             "SHN" = "Saint Hélène",
-                                             "IOT" = "Territoire Britannique de l'Océan Indien",
-                                             
-                                               "NCL" = "Nouvelle-Calédonie",
-                                               "MYT" = "Mayotte",
-                                               "COK" = "Iles Cook",
-                                               "ZZ" = "Multi-pays",
-                                               "COG;CMR;CAF" = "Multi-pays")),
-       .after = "iso3") %>%
+         region_afd = "", 
+         region = countrycode::countrycode(sourcevar = iso3,
+                                           origin = "iso3c",
+                                           destination = "un.region.name"),
+         sub_region = countrycode::countrycode(sourcevar = iso3,
+                                               origin = "iso3c",
+                                               destination = "un.regionsub.name"),
+         country_en = countrycode::countrycode(sourcevar = iso3,
+                                               origin = "iso3c",
+                                               destination = "un.name.en",
+                                               custom_match = c("PYF" = "French Polynesia",
+                                                                "ATF" = "Terres australes et antarctiques françaises",
+                                                                "REU" = "Reunion",
+                                                                "SHN" = "Saint Helena",
+                                                                "IOT" = "British Indian Ocean Territory",
+                                                                "NCL" = "New Caledonia",
+                                                                "MYT" = "Mayotte",
+                                                                "COK" = "Cook Islands",
+                                                                "ZZ" = "Multi-countries",
+                                                                "COG;CMR;CAF" = "Multi-countries")),
+         country_fr = countrycode::countrycode(sourcevar = iso3,
+                                               origin = "iso3c",
+                                               destination = "un.name.fr",
+                                               custom_match = c("PYF" = "Polynésie Française",
+                                                                "ATF" = "Terres australes et antarctiques françaises",
+                                                                "REU" = "Réunion",
+                                                                "SHN" = "Saint Hélène",
+                                                                "IOT" = "Territoire Britannique de l'Océan Indien",
+                                                                "NCL" = "Nouvelle-Calédonie",
+                                                                "MYT" = "Mayotte",
+                                                                "COK" = "Iles Cook",
+                                                                "ZZ" = "Multi-pays",
+                                                                "COG;CMR;CAF" = "Multi-pays")),
+         .after = "iso3")%>%
   mutate(area_km2 = rep_area, .after = "rep_area") %>%
   mutate(name_pa = name,
          .after = "iso3") %>%
@@ -1072,7 +1051,8 @@ data_pa_africa = data_wdpa %>%
   ###555705344 : remove B, the buffer
   filter(!(wdpa_pid == "555705344_B")) %>%
   ### 555744966 : remove completely, mix of marine and non-marine
-  filter(!(wdpaid == 555744966))
+  filter(!(wdpaid == 555744966))%>%
+  distinct()
   
 
 #Save the dataset
@@ -1162,7 +1142,7 @@ data_fund = data_tidy %>%
   slice(1)
 
 
-#fwrite(data_fund, "data_tidy/BDD_AFD_fund.csv")
+
 # s3write_using(x = data_fund,
 #               FUN = readr::write_delim,
 #               delim = ";",
@@ -1210,13 +1190,13 @@ data_fund_na = data_fund_pa %>%
 
 data_fund_pa_nodupl = rbind(data_fund_wdpa, data_fund_name, data_fund_na)
 
-#fwrite(data_fund, "data_tidy/BDD_PA_AFD_fund.csv")
-# s3write_using(x = data_fund_pa_nodupl,
-#               FUN = readr::write_delim,
-#               delim = ";",
-#               object = "data_tidy/BDD_AFD_fund_PA.csv",
-#               bucket = "projet-afd-eva-ap",
-#               opts = list("region" = ""))
+
+s3write_using(x = data_fund_pa_nodupl,
+              FUN = readr::write_delim,
+              delim = ";",
+              object = "data_tidy/BDD_AFD_fund_PA.csv",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
 ```
 
 ### A polygon dataset for specific use
@@ -1226,17 +1206,14 @@ The funding and non-funding datasets with polygon, for maps creation.
 ```{r, eval = FALSE}
 #Loading the datasets
 ##WDPA data (polygons)
-#data_wdpa =
-  #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
-  # s3read_using(sf::st_read,
-   #           object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
-    #          bucket = "projet-afd-eva-ap",
-     #        opts = list("region" = "")) %>%
-
-data_wdpa <- st_read(dsn = "/home/onyxia/work/EVA-impact-aires-protegees/data/WDPA_WDOECM_Jun2024_Public.gdb")%>%
+data_wdpa =
+s3read_using(sf::st_read,
+          object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
+         bucket = "projet-afd-eva-ap",
+       opts = list("region" = "")) %>%
   clean_names() %>%
-  select(c(wdpaid, wdpa_pid, SHAPE)) %>%
-  mutate(geom_type = sf::st_geometry_type(SHAPE))
+  select(c(wdpaid, wdpa_pid, geom)) %>%
+  mutate(geom_type = sf::st_geometry_type(geom))
 
 ## Non-confidential datasetdata_wdpa <- st_read(dsn = "/home/onyxia/work/EVA-impact-aires-protegees/data/WDPA_WDOECM_Jun2024_Public.gdb")
 data_pa_nofund_nodupl = 
@@ -1272,32 +1249,32 @@ data_pa_nofund_polygon_shp = data_pa_nofund_shp %>%
 # st_write(pa_shp,
 #          dsn = "data_tidy/BDD_pa_afd_shp_pub.gpkg",
 #          delete_dsn = TRUE)
-# s3write_using(x = data_pa_nofund_shp,
-#               FUN = sf::st_write,
-#               delim = ";",
-#               object = "data_tidy/BDD_PA_AFD_nofund_shp.geojson",
-#               bucket = "projet-afd-eva-ap",
-#               opts = list("region" = ""))
+s3write_using(x = data_pa_nofund_shp,
+              FUN = sf::st_write,
+              delim = ";",
+              object = "data_tidy/BDD_PA_AFD_nofund_shp.geojson",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
 
 # st_write(pa_shp,
 #          dsn = "data_tidy/BDD_pa_afd_shp_pub.gpkg",
 #          delete_dsn = TRUE)
-# s3write_using(x = data_pa_nofund_polygon_shp,
-#               FUN = sf::st_write,
-#               delim = ";",
-#               object = "data_tidy/BDD_PA_AFD_nofund_polygon_shp.geojson",
-#               bucket = "projet-afd-eva-ap",
-#               opts = list("region" = ""))
-    
+s3write_using(x = data_pa_nofund_polygon_shp,
+              FUN = sf::st_write,
+              delim = ";",
+              object = "data_tidy/BDD_PA_AFD_nofund_polygon_shp.geojson",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
+
 # st_write(pa_shp,
 #          dsn = "data_tidy/BDD_pa_afd_shp_pub.gpkg",
 #          delete_dsn = TRUE)
-# s3write_using(x = data_pa_fund_shp,
-#               FUN = sf::st_write,
-#               delim = ";",
-#               object = "data_tidy/BDD_PA_AFD_fund_shp.geojson",
-#               bucket = "projet-afd-eva-ap",
-#               opts = list("region" = ""))
+s3write_using(x = data_pa_fund_shp,
+              FUN = sf::st_write,
+              delim = ";",
+              object = "data_tidy/BDD_PA_AFD_fund_shp.geojson",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
 ```
 
 ## Computing total areas covered by PAs in the sample
@@ -1323,23 +1300,23 @@ pa_shp =
   aws.s3::s3read_using(
   FUN = sf::read_sf,
   # Mettre les options de FUN ici
-  object = "data_tidy/BDD_PA_AFD_nofund_shp.gpkg",
+  object = "data_tidy/BDD_PA_AFD_nofund_shp.geojson",
   bucket = "projet-afd-eva-ap",
   opts = list("region" = "")) %>%
   #Take polygons only
-  mutate(geom_type = as.character(st_geometry_type(geom))) %>%
+  mutate(geom_type = as.character(st_geometry_type(geometry))) %>%
   filter(geom_type == "MULTIPOLYGON") %>%
   #Ensure all geometries are valid
   st_make_valid() %>%
   #From multipolygon to polygon
   sf::st_cast(to="POLYGON") %>%
   #Select relevant variables
-  dplyr::select(c(wdpaid, area_afd_km2, rep_area, geom, iso3, region_afd, region, sub_region, year_funding_first, year_funding_all)) 
+  dplyr::select(c(wdpaid, area_afd_km2, rep_area, geometry, iso3, region_afd, region, sub_region, year_funding_first, year_funding_all)) 
 
-#Spatial definition of wdpaid 555547988 overlaps CMR and CAF. Wdpaid 1245 corresponds to the CMR part. The overlap is removed and iso3 redefined so that 555547988 is CAF only. 
-geom_555547988_1245 = st_difference(pa_shp[pa_shp$wdpaid == 555547988,]$geom, pa_shp[pa_shp$wdpaid == 1245,]$geom)
-pa_shp[pa_shp$wdpaid == 555547988,]$geom = geom_555547988_1245
-pa_shp[pa_shp$wdpaid == 555547988,]$iso3 = "CAF"
+#NO USED ANYMORE BECAUSE 1245 ISNT A AFD FUNDED AP- Spatial definition of wdpaid 555547988 overlaps CMR and CAF. Wdpaid 1245 corresponds to the CMR part. The overlap is removed and iso3 redefined so that 555547988 is CAF only. 
+# geom_555547988_1245 = st_difference(pa_shp[pa_shp$wdpaid == 555547988,]$geom, pa_shp[pa_shp$wdpaid == 1245,]$geom)
+# pa_shp[pa_shp$wdpaid == 555547988,]$geom = geom_555547988_1245
+# pa_shp[pa_shp$wdpaid == 555547988,]$iso3 = "CAF"
 
 #Define a tidy version of the former dataset, with modifications on wdpaid 555547988
 pa_shp_tidy = pa_shp %>%
@@ -1347,8 +1324,9 @@ pa_shp_tidy = pa_shp %>%
   st_transform(crs = "+proj=moll +datum=WGS84") %>%
   #Compute areas in km2 from the geometry, in km2. It must be equal to gis_a by definition 
   #Then to take into account potential refinements of the geometries (as for wdpaid 55547988), a variable for relevant area is defined. It takes rep_a value except for modified geometries where area_sf_moll is taken
-  mutate(area_sf_moll = as.numeric(st_area(geom)/1e6),
-         area_afd_km2 = ifelse(wdpaid == 555547988, yes = area_sf_moll, no = rep_area))
+  mutate(area_sf_moll = as.numeric(st_area(geometry)/1e6))
+# ,
+#         area_afd_km2 = ifelse(wdpaid == 555547988, yes = area_sf_moll, no = rep_area))
 ```
 
 ### Computing the intersection at country, region, world level
