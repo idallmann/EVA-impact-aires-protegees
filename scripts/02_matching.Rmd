@@ -86,6 +86,8 @@ library(cobalt) #To visualize density plots and covariate balance from MatchIt o
 library(future) #For parallel computing in mapme.biodiversity
 library(future.callr)  #For parallel computing in mapme.biodiversity
 library(progressr) # To display progress bar   
+library(data.table)
+library(landscapemetrics)
 ```
 
 Load the R functions called in the data processing
@@ -219,7 +221,7 @@ list_iso = unique(data_pa_ie_africa_focus$iso3)
 
 # ## Manual definition
 # list_iso = c("COM", "GNB")
-list_iso=c("CMR")
+list_iso=c("COM")
 ```
 
 ## Matching process

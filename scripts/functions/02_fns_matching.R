@@ -595,6 +595,16 @@ fn_calc_biome_temp = function(x, indicator)
 ##DATA SAVED
 ### pivot.all : a dataframe with variables of interest (outcome, matching covariates) for all treated and potential control pixels
 
+grid.param = grid_param
+path_tmp = tmp_pre 
+iso = i
+yr_first = yr_first
+yr_last = yr_last 
+log = log
+save_dir = save_dir
+
+
+
 fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log, save_dir) 
 {
   output = tryCatch(
@@ -691,7 +701,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
           engine = "exactextract")) %seed% 4
         
         get.tri <- dl.tri %>% calc_indicators(calc_tri(
-          stats_tri = "mean",
+          stats = "mean",
           engine = "exactextract")) %seed% 5
         
         get.bio <- dl.bio %>% calc_indicators(calc_biome()) %seed% 6
@@ -702,29 +712,35 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
       
       print("----Build indicators' datasets")
       #Build indicators' datasets
-      ## Transform the output dataframe into a -ore convenient format
+      ## Transform the output dataframe into a more convenient format
       data.soil = unnest(get.soil, soilproperties) %>%
         #mutate(across(c("mean"), \(x) round(x, 3))) %>% # Round numeric columns --> rounding before the matching algorithm is irrelevant to me
-        pivot_wider(names_from = c("layer", "depth", "stat"), values_from = "mean") %>%
-        rename("clay_0_5cm_mean" = "clay_0-5cm_mean") %>%
+        pivot_wider(names_from = c("variable"), values_from = "value") %>%
+        setnames("clay_0_5cm_mean_mean","clay_0_5cm_mean") %>%
         mutate(clay_0_5cm_mean = case_when(is.nan(clay_0_5cm_mean) ~ NA,
                                            TRUE ~ clay_0_5cm_mean))
       
+      
+      
+      
       data.travelT = unnest(get.travelT, traveltime) %>%
-        pivot_wider(names_from = "distance", values_from = "minutes_mean", names_prefix = "minutes_mean_") %>%
+        pivot_wider(names_from = c("unit","variable"), values_from = "value") %>%
+        setnames("minutes_5k_110mio_traveltime_mean","minutes_mean_5k_110mio")%>%
         mutate(minutes_mean_5k_110mio = case_when(is.nan(minutes_mean_5k_110mio) ~ NA,
                                                   TRUE ~ minutes_mean_5k_110mio))
       
       data.tree = unnest(get.tree, treecover_area) %>%
-        drop_na(treecover) %>% #get rid of units with NA values 
+        drop_na(value) %>% #get rid of units with NA values 
         #mutate(across(c("treecover"), \(x) round(x, 3))) %>% # Round numeric columns
-        pivot_wider(names_from = "years", values_from = "treecover", names_prefix = "treecover_")
+        pivot_wider(names_from = "datetime", values_from = "value", names_prefix = "treecover_")
       
       data.tri = unnest(get.tri, tri) %>%
+        pivot_wider(names_from = c("variable"), values_from = "value")%>%
         mutate(tri_mean = case_when(is.nan(tri_mean) ~ NA,
                                     TRUE ~ tri_mean))
       
       data.elevation = unnest(get.elevation, elevation) %>%
+        pivot_wider(names_from = c("variable"), values_from = "value")%>%
         mutate(elevation_mean = case_when(is.nan(elevation_mean) ~ NA,
                                           TRUE ~ elevation_mean))
       # mutate(elevation_mean = case_when(is.nan(elevation_mean) ~ NA,
