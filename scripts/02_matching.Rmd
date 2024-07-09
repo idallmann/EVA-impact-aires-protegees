@@ -127,19 +127,6 @@ wdpa_wld_raw = s3read_using(
               bucket = "projet-afd-eva-ap",
               opts = list("region" = ""))
 
-#duplicate in x lines the PA in x different countries 
-# (this part is added for the special case of the Trinationale AP of Sangha)
-multi_country_row <- wdpa_wld_raw %>%
-  filter(ISO3 == "COG;CMR;CAF") %>%
-  slice(rep(1:n(), each = 3)) %>%
-  mutate(ISO3 = c("COG", "CMR", "CAF"))
-
-wdpa_wld_raw <- wdpa_wld_raw %>%
-  filter(ISO3 != "COG;CMR;CAF") %>%
-  bind_rows(multi_country_row)
-
-
-
 ## Dataset specific to the PAs portfolio to analyze. Only one is selected depending on the analysis one wants to perform. 
 ### PAs supported by the AFD
 # data_pa =
