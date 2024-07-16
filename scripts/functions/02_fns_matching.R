@@ -595,13 +595,13 @@ fn_calc_biome_temp = function(x, indicator)
 ##DATA SAVED
 ### pivot.all : a dataframe with variables of interest (outcome, matching covariates) for all treated and potential control pixels
 
-grid.param = grid_param
-path_tmp = tmp_pre 
-iso = i
-yr_first = yr_first
-yr_last = yr_last 
-log = log
-save_dir = save_dir
+# grid.param = grid_param
+# path_tmp = tmp_pre 
+# iso = i
+# yr_first = yr_first
+# yr_last = yr_last 
+# log = log
+# save_dir = save_dir
 
 
 
