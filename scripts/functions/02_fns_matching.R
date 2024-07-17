@@ -618,7 +618,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
       grid.aoi = grid.param %>%
         filter(group %in% c(2,3))
       
-      outdir <- file.path(tmp_pre, "mapme-data")
+      outdir <- file.path(path_tmp, "mapme-data")
       
       dir.create(outdir, showWarnings = TRUE)
       
@@ -652,12 +652,12 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
       version_gfc = list_version_gfc[length(list_version_gfc)] #last version considered
       ## Soil characteristics
       
-      # dl.soil = aoi %>% get_resources(get_soilgrids(
-      #   layers = "clay", # resource specific argument
-      #   depths = "0-5cm", # resource specific argument
-      #   stats = "mean"))
-      # 
-      
+      dl.soil = aoi %>% get_resources(get_soilgrids(
+        layers = "clay", # resource specific argument
+        depths = "0-5cm", # resource specific argument
+        stats = "mean"))
+
+
       
       ## Accessibility
       dl.travelT = aoi%>% get_resources(get_nelson_et_al(ranges = c("5k_110mio")))
@@ -670,8 +670,8 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
       ## Terrain Ruggedness Index
       dl.tri = aoi %>% get_resources( get_nasa_srtm())
       ## Biome
-      #dl.bio = aoi %>% get_resources( get_teow())
-      
+      dl.bio = aoi %>% get_resources(get_teow())   
+   
       print("----Compute indicators")
       #Compute indicators
       
@@ -709,8 +709,8 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
           stats = "mean",
           engine = "exactextract")) %seed% 5
         
-        # get.bio <- dl.bio %>% calc_indicators(calc_biome()) %seed% 6
-        # 
+        get.bio <- dl.bio %>% calc_indicators(calc_biome()) %seed% 6
+         
         
       })
       
