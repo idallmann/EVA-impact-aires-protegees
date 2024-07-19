@@ -595,14 +595,13 @@ fn_calc_biome_temp = function(x, indicator)
 ##DATA SAVED
 ### pivot.all : a dataframe with variables of interest (outcome, matching covariates) for all treated and potential control pixels
 
-grid.param = grid_param
-path_tmp = tmp_pre
-iso = i
-yr_first = yr_first
-yr_last = yr_last
-log = log
-save_dir = save_dir
-
+# grid.param = grid_param
+# path_tmp = tmp_pre
+# iso = i
+# yr_first = yr_first
+# yr_last = yr_last
+# log = log
+# save_dir = save_dir
 
 
 fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log, save_dir) 
@@ -618,12 +617,11 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
       grid.aoi = grid.param %>%
         filter(group %in% c(2,3))
       
-      outdir <- file.path(path_tmp, "mapme-data")
-      
-      dir.create(outdir, showWarnings = TRUE)
+      # outdir <- file.path(path_tmp, "mapme-data")
+      # dir.create(outdir, showWarnings = TRUE)
       
       mapme_options(
-        outdir =outdir
+        outdir =path_tmp
       )
       
       # Create a mapme.biodiversity portfolio for the area of interest (aoi). This specifies the period considered and the geospatial units where data are downloaded and indicators computed (here, the treated and control pixels in the country gridding)
@@ -684,13 +682,13 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
       library(progressr)
       plan(multisession, workers = 6, gc = TRUE)
       with_progress({
-        # get.soil <- dl.soil %>% calc_indicators(
-        #   calc_soilproperties(
-        #     stats = "mean",
-        #     engine = "exactextract"
-        #   )
-        # ) %seed% 1 # the "exactextract" engine is chosen as it is the faster one for large rasters (https://tmieno2.github.io/R-as-GIS-for-Economists/extraction-speed-comparison.html)
-        # 
+        get.soil <- dl.soil %>% calc_indicators(
+          calc_soilproperties(
+            stats = "mean",
+            engine = "exactextract"
+          )
+        ) %seed% 1 # the "exactextract" engine is chosen as it is the faster one for large rasters (https://tmieno2.github.io/R-as-GIS-for-Economists/extraction-speed-comparison.html)
+
         get.travelT  <- dl.travelT %>% calc_indicators(calc_traveltime(
           stats = "mean",
           engine = "exactextract")
@@ -719,43 +717,47 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
       #Build indicators' datasets
       
       ## Transform the output dataframe into a more convenient format
-      # data.soil = unnest(get.soil, soilproperties) %>%
-      #   #mutate(across(c("mean"), \(x) round(x, 3))) %>% # Round numeric columns --> rounding before the matching algorithm is irrelevant to me
-      #   pivot_wider(names_from = c("variable"), values_from = "value") %>%
-      #   setnames("clay_0_5cm_mean_mean","clay_0_5cm_mean") %>%
-      #   mutate(clay_0_5cm_mean = case_when(is.nan(clay_0_5cm_mean) ~ NA,
-      #                                      TRUE ~ clay_0_5cm_mean))
-      # 
-      # 
+      data.soil = unnest(get.soil, soilproperties) %>%
+        #mutate(across(c("mean"), \(x) round(x, 3))) %>% # Round numeric columns --> rounding before the matching algorithm is irrelevant to me
+        pivot_wider(names_from = c("variable"), values_from = "value") %>%
+        setnames("clay_0_5cm_mean_mean","clay_0_5cm_mean") %>%
+        mutate(clay_0_5cm_mean = case_when(is.nan(clay_0_5cm_mean) ~ NA,
+                                           TRUE ~ clay_0_5cm_mean))%>%
+        dplyr::select(-c(datetime,unit))
       
-      
+
       data.travelT = unnest(get.travelT, traveltime) %>%
         pivot_wider(names_from = c("unit","variable"), values_from = "value") %>%
         setnames("minutes_5k_110mio_traveltime_mean","minutes_mean_5k_110mio")%>%
         mutate(minutes_mean_5k_110mio = case_when(is.nan(minutes_mean_5k_110mio) ~ NA,
-                                                  TRUE ~ minutes_mean_5k_110mio))
+                                                  TRUE ~ minutes_mean_5k_110mio))%>%
+        dplyr::select(-c(datetime))
       
       data.tree = unnest(get.tree, treecover_area) %>%
         drop_na(value) %>% #get rid of units with NA values 
         #mutate(across(c("treecover"), \(x) round(x, 3))) %>% # Round numeric columns
-        pivot_wider(names_from = "datetime", values_from = "value", names_prefix = "treecover_")
+        mutate(datetime=format(datetime, "%Y"))%>%
+        pivot_wider(names_from = "datetime", values_from = "value", names_prefix = "treecover_")%>%
+        dplyr::select(-c(variable,unit))
+      
       
       data.tri = unnest(get.tri, tri) %>%
         pivot_wider(names_from = c("variable"), values_from = "value")%>%
         mutate(tri_mean = case_when(is.nan(tri_mean) ~ NA,
-                                    TRUE ~ tri_mean))
+                                    TRUE ~ tri_mean))%>%
+        dplyr::select(-c(datetime,unit))
+      
       
       data.elevation = unnest(get.elevation, elevation) %>%
         pivot_wider(names_from = c("variable"), values_from = "value")%>%
         mutate(elevation_mean = case_when(is.nan(elevation_mean) ~ NA,
-                                          TRUE ~ elevation_mean))
-      # mutate(elevation_mean = case_when(is.nan(elevation_mean) ~ NA,
-      #                                   TRUE ~ elevation_mean))
-      
-#      data.bio = unnest(get.bio, biome) %>%
-#        dplyr::select(-c(area))
-      #data.bio = fn_calc_biome_temp(x = dl.bio, indicator = "biome") #A temporary function to compute biome, due to a bug in the mapme.biodiversity package (14/11/2023)
-      
+                                          TRUE ~ elevation_mean))%>%
+        dplyr::select(-c(datetime,unit))
+    
+     data.bio = unnest(get.bio, biome) %>%
+setnames("variable","biomes")%>%
+       dplyr::select(-c(value,unit,datetime))
+  
       
       ## End parallel plan : close parallel sessions, so must be done once indicators' datasets are built
       plan(sequential)
@@ -775,29 +777,31 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
       {
         new_colname = paste0("treeloss_", colnames_loss[[i]][2]) 
         data.tree[[new_colname]] = data.tree[[dropFirst[i]]] - data.tree[[dropLast[i]]]
+       
       }
       
       print("----Export Matching Frame")
       # Remove "geometry" column from dataframes
       df.tree = data.tree %>% mutate(x = NULL) %>% as.data.frame()
       df.travelT = data.travelT %>% mutate(x = NULL) %>% as.data.frame()
-      #df.soil = data.soil %>% mutate(x = NULL) %>% as.data.frame()
+      df.soil = data.soil %>% mutate(x = NULL) %>% as.data.frame()
       df.elevation = data.elevation %>% mutate(x = NULL) %>% as.data.frame()
       df.tri = data.tri %>% mutate(x=NULL) %>% as.data.frame()
-      #df.bio = data.bio %>% mutate(x = NULL) %>% as.data.frame()
+      df.bio = data.bio %>% mutate(x = NULL) %>% as.data.frame()
       
       # Make a dataframe containing only "assetid" and geometry
       # Use data.soil instead of data.tree, as some pixels are removed in data.tree (NA values from get.tree)
-      #df.geom = data.soil[, c("assetid", "x")] %>% as.data.frame() 
-      
-      df.geom = data.tri[, c("assetid", "x")] %>% as.data.frame() 
+      df.geom = data.soil[, c("assetid", "x")] %>% as.data.frame()
+
+  
       
       # Merge all output dataframes 
-      pivot.all = Reduce(dplyr::full_join, list(
-        #df.travelT, 
-                                                #df.soil, 
-                                                df.tree, df.elevation, df.tri,
-                                                #df.bio,
+      pivot.all = Reduce(dplyr::full_join, list(df.travelT, 
+                                                df.bio,
+                                                df.soil, 
+                                                df.elevation,
+                                                df.tri,
+                                                df.tree, 
                                                 df.geom)) %>%
         st_as_sf()
       
@@ -872,6 +876,13 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
 ### is_ok : a boolean indicating whether or not an error occured inside the function
 ##DATA SAVED
 ### The list of PAs in the matching frame, characterized by their WDPAID. Useful to loop over each PAs we want to analyze in a given country
+# iso = "COM"
+#                               yr_min = yr_min
+#                               log = log
+#                               load_dir = load_dir
+#                               save_dir = save_dir
+
+
 fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log, load_dir, save_dir)
 {
   output = tryCatch(
@@ -884,6 +895,8 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log, load_dir, sa
                         bucket = "projet-afd-eva-ap",
                         object = object,
                         opts = list("region" = "")) 
+      
+
       
       #Subset to control and treatment units with year of treatment >= yr_min
       mf = mf %>%
@@ -950,7 +963,8 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log, load_dir, sa
 ## OUTPUTS :
 ### mf : matching frame with the new covariate
 ### is_ok : a boolean indicating whether or not an error occured inside the function
-
+mf = mf_ini_j 
+log = log
 
 fn_post_fl_fc_pre_treat = function(mf, colname.flAvg, log)
   

@@ -57,7 +57,7 @@ remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
 #remotes::install_github("prioritizr/wdpar", upgrade="always")
 
 #Install the web driver to download wdpa data directly
-webdriver::install_phantomjs()  
+#webdriver::install_phantomjs()  
 
 # Load Libraries
 library(dplyr)
