@@ -1,0 +1,359 @@
+---
+title: "Exercise_1"
+output: html_document
+date: "2024-07-23"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+The following exercises will help you to master the steps of the analysis carried out in the chapter "Geospatial Impact Assessment of Conservation on Forest Cover Loss" and to understand the methodology used. The evaluation is conducted here for a single protected area to make it easier to understand the code, but the scripts for analysing the portfolio can be found on the 'github link'.
+
+
+Exercise 1 :  Build a matching sample 
+
+```{r cars}
+# Load Libraries
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(ggplot2) # For plotting
+library(sf) # For handling vector data
+library(terra) # For handling raster data
+library(raster) # For handling raster data
+library(rgeos)
+library(geodata) # For getting country files
+library(wdpar) # For getting protected areas
+library(exactextractr) # For zonal statistics
+#remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
+library(mapme.biodiversity)
+library(future)
+library(progressr)
+```
+
+
+Please fill up the following chunk with : 
+
+- a working directory
+- the country code of Bolivia 
+- the size of the buffer 
+- the size of the grid
+- the WDPA ID of Tariquia protected areas 
+
+```{r}
+# Define the path to a working directory
+wdir = file.path('')
+# Define the file name of the output matching frame
+name_output = "mf_BOL_500ha.gpkg"
+# Specify a country; to find the right country code, please refer to this page https://en.wikipedia.org/wiki/ISO_3166-1_alpha-3
+country = "BOL"
+# Specify buffer width in meter
+buffer_m = 10000
+# Specify the grid cell size in meter
+gridSize = 2236.068 # --> 500ha
+# WDPA IDs; to find the WDPA ID, please refer to this page 
+# https://www.protectedplanet.net/en
+paid = c( 20041)
+```
+
+
+Q2: Run the following code and try to understand what the question ... is doing 
+
+```{r}
+## 2. Generating observation units for matching frame
+# Download country polygon to working directory and load it into workspace
+#gadm <- gadm(country = country, resolution = 1, level = 0, path = wdir) %>%
+#  st_as_sf()
+# If the country polygon file already exists in working directory, it can be loaded into work space by
+gadm = readRDS(file.path(wdir, paste0('gadm41_',country,'_0_pk.rds'))) %>% st_as_sf()
+# Find UTM zone of the country centroid
+centroid = st_coordinates(st_centroid(gadm))
+lonlat2UTM = function(lonlat) {
+  utm = (floor((lonlat[1] + 180) / 6) %% 60) + 1
+  if (lonlat[2] > 0) {
+    utm + 32600
+  } else{
+    utm + 32700
+  }
+}
+utm_code = lonlat2UTM(centroid)
+# Reproject GADM
+gadm_prj = gadm %>% st_transform(crs = utm_code)
+# Make bounding box of projected country polygon
+bbox = st_bbox(gadm_prj) %>% st_as_sfc() %>% st_as_sf()
+# Make a Grid to the extent of the bounding box
+grid.ini = st_make_grid(bbox, cellsize = c(gridSize,gridSize))
+# Crop Grid to the extent of country boundary by
+# subsetting to the grid cells that intersect with the country
+grid.sub = grid.ini %>%
+  st_intersects(gadm_prj, .) %>%
+  unlist()
+# Filter the grid to the subset
+grid = grid.ini[sort(grid.sub)] %>%
+  st_as_sf() %>%
+  mutate(gridID = seq(1:nrow(.))) # Add id for grid cells
+# Visualize
+ggplot() +
+ geom_sf(data = st_geometry(bbox)) +
+ geom_sf(data = st_geometry(gadm_prj)) +
+ geom_sf(data = st_geometry(grid), alpha = 0)
+
+## 3. Determining Group IDs and WDPA IDs for all observation units
+# Get the PA polygons/points of the specified country;
+# They're downloaded to the working directory.
+#wdpa = wdpa_fetch(country, wait = TRUE, download_dir = wdir)
+# If the PA file already exists, it can be loaded in this way
+wdpa = wdpa_read(paste0(wdir, '/WDPA_Jul2023_BOL-shapefile.zip'))
+# PAs are projected, and column "geometry_type" is added
+wdpa_prj = wdpa_clean(wdpa, geometry_precision = 1000,
+                      # Don't erase overlapped polygons
+                      erase_overlaps = FALSE) %>%
+  # Remove the PAs that are only proposed, or have geometry type "point"
+  filter(STATUS != "Proposed") %>%
+  filter(GEOMETRY_TYPE != "POINT") %>%
+  # Project PA polygons to the previously determined UTM zone
+  st_transform(crs = utm_code)
+
+# Separate funded and non-funded protected areas
+wdpaID_funded = paid
+wdpa_funded = wdpa_prj %>% filter(WDPAID %in% wdpaID_funded) %>%
+  mutate(group=1) # Assign an ID "1" to the funded PA group
+
+wdpa_nofund = wdpa_prj %>%
+  filter(!WDPAID %in% wdpaID_funded) %>%
+  st_buffer(., dist=0) # a hack to solve 'bad' polygons in R, e.g. problem of self-intersection
+# Determine the non-funded PAs that intersect with funded PAs,
+# and delete the intersection part from non-funded PAs to reduce noise when rasterizing WDPAIDs later.
+intersection = st_intersection(wdpa_nofund, wdpa_funded)
+wdpa_nofund = wdpa_nofund %>%
+  st_difference(., st_union(st_geometry(intersection))) %>%
+  # Assign an ID "2" to the non-funded PA group
+  mutate(group=2)
+
+# Make Buffers of 10km around all protected areas
+wdpa_buffer <- st_buffer(wdpa_funded, dist = buffer_m) %>%
+  rbind(st_buffer(wdpa_nofund, dist = buffer_m)) %>%
+  # Assign an ID "3" to the buffer group
+  mutate(group=3)
+# Merge the dataframes of funded PAs, non-funded PAs and buffers
+wdpa_groups = rbind(wdpa_funded, wdpa_nofund, wdpa_buffer)
+# Subset to polygons that intersect with country boundary
+wdpa.sub = wdpa_groups %>%
+  st_intersects(gadm_prj, .) %>%
+  unlist()
+# Filter the PA+buffer to the subset
+wdpa_groups = wdpa_groups[sort(wdpa.sub),] %>%
+  st_as_sf()
+
+ggplot(wdpa_groups) +
+  geom_sf(aes(fill = factor(WDPAID)), lwd=0, alpha=0.4) +
+  theme_bw()
+
+
+# Initialize an empty raster to the spatial extent of the country
+r.ini = raster()
+extent(r.ini) = extent(gadm_prj)
+# Specify the raster resolution as same as the pre-defined 'gridSize'
+res(r.ini) = gridSize
+# Assign the raster pixels with "Group" values,
+# Take the minial value if a pixel is covered by overlapped polygons, so that PA Group ID has higher priority than Buffer ID.
+# Assign value "0" to the background pixels (control candidates group)
+r.group = rasterize(wdpa_groups, r.ini, field="group", fun="min", background=0) %>%
+  mask(., gadm_prj)
+# Rename Layer
+names(r.group) = "group"
+# Rasterize wdpaid
+r.wdpaid = rasterize(wdpa_prj, r.ini, field="WDPAID", fun="first", background=0) %>%
+  mask(., gadm_prj)
+names(r.wdpaid) = "wdpaid"
+
+# Aggregate pixel values by taking the majority
+grid.group = exact_extract(x=r.group, y=grid, fun='mode', append_cols="gridID") %>%
+  rename(group = mode)
+grid.wdpaid = exact_extract(x=r.wdpaid, y=grid, fun="mode", append_cols="gridID") %>%
+  rename(wdpaid = mode)
+# Merge data frames
+grid.param = grid.group %>%
+  merge(., grid.wdpaid, by="gridID") %>%
+  merge(., grid, by="gridID") %>%
+  # drop rows having "NA" in column "group"
+  drop_na(group) %>%
+  # drop the column of "gridID"
+  subset(., select=-c(gridID)) %>%
+  st_as_sf() %>%
+  # Grid is projected to WGS84 because mapme.biodiverty package merely works with this CRS
+  st_transform(crs=4326)
+```
+
+Q3: Fill in the following code to visualize different group of the PA
+
+```{r}
+# Visualize grouped grid cells
+grid.param %>%
+
+  #mutate(group = replace(group, wdpaid%in%c(1084, 478028, 555625665, 555697863, 10906), 2)) %>%
+  # Plot Groups for Phase I
+
+  ggplot() +
+  geom_sf(aes(fill = factor(group)), lwd=0) +
+  scale_fill_manual(name="Group", # legend title
+                    values = c("grey", "darkgreen", "darkblue", "orange"),
+                    labels = c("control candidate", "treatment candidate", "non-funded PA", "buffer zone")) +
+  theme_bw()
+```
+
+
+Q4 : Please refer to this page (https://github.com/mapme-initiative/mapme.biodiversity) to find used to download data on soil properties and complete the following code 
+
+(first blank function to download soil data then compute elevation data )
+
+
+
+
+```{r}
+## 4. Calculating deforestation area and other covariates for all observation units
+# Get input data ready for indicator calculation
+aoi = init_portfolio(grid.param,
+                     years = 2000:2021,
+                     outdir = wdir,
+                     tmpdir = file.path(wdir, "tmp"),
+                     add_resources = FALSE)
+
+# Covariate: Soil
+# Download Data
+get.soil = 
+  
+  get_resources(aoi,
+                         resources = c("soilgrids"),
+                         layers = c("clay"), # resource specific argument
+                         depths = c("0-5cm"), # resource specific argument
+                         stats = c("mean"))
+# set up parallel plan with 6 concurrent threads
+plan(multisession, workers = 20)
+# Calculate Indicator
+with_progress({
+  zonal.soil = calc_indicators(get.soil,
+                               indicators = "soilproperties",
+                               stats_soil = c("mean"),
+                               engine = "zonal")
+})
+plan(sequential) # close child processes
+# Transform the output dataframe into a pivot dataframe
+pivot.soil = zonal.soil %>%
+  unnest(soilproperties) %>%
+  mutate(across(mean, round, 3)) %>% # Round numeric columns
+  pivot_wider(names_from = c("layer", "depth", "stat"), values_from = "mean")
+
+# Covariate: Elevation
+# Download Raster Data
+get.elevation = get_resources(aoi, "nasa_srtm")
+# set up parallel plan with 6 concurrent threads
+plan(multisession, workers = 20)
+# Calculate Indicator
+with_progress({
+  zonal.elevation = calc_indicators(get.elevation,
+                                    indicators = "elevation",
+                                    stats_elevation = c("mean"))
+})
+plan(sequential) # close child processes
+# Transform the output dataframe into a pivot dataframe
+pivot.elevation = zonal.elevation %>% unnest(elevation)
+
+# Covariate: TRI
+# set up parallel plan with 6 concurrent threads
+plan(multisession, workers = 20)
+# Calculate Indicator
+with_progress({
+  zonal.tri = calc_indicators(get.elevation, indicators = "tri")
+})
+plan(sequential) # close child processes
+# Transform the output dataframe into a pivot dataframe
+pivot.tri = zonal.tri %>% unnest(tri)
+
+# Covariate: Travel Time
+# Download Data
+get.travelT = get_resources(aoi, resources = "nelson_et_al",
+                            # resource specific argument
+                            range_traveltime = c("5k_110mio"))
+# set up parallel plan with 6 concurrent threads
+plan(multisession, workers = 20)
+# Calculate Indicator
+with_progress({
+  zonal.travelT = calc_indicators(get.travelT,
+                                  indicators = "traveltime",
+                                  stats_accessibility = c("median"))})
+plan(sequential) # close child processes
+# Transform the output dataframe into a pivot dataframe
+pivot.travelT = zonal.travelT %>%
+  unnest(traveltime) %>%
+  pivot_wider(names_from = "distance", values_from = "minutes_median", names_prefix = "minutes_median_")
+
+# Time Series of Tree Cover Area
+# Download Data
+get.tree = get_resources(aoi, resources = c("gfw_treecover", "gfw_lossyear"))
+# set up parallel plan with 6 concurrent threads
+plan(multisession, workers = 20)
+# Calculate time series
+with_progress({
+  zonal.tree = calc_indicators(get.tree,
+                               indicators = "treecover_area",
+                               min_size=1, # indicator-specific argument
+                               min_cover=10) # indicator-specific argument
+})
+plan(sequential) # close child processes
+```
+
+
+Q5 : Why is a multisession used ? 
+
+
+
+```{r}
+# Transform the output dataframe into a pivot dataframe
+pivot.tree = zonal.tree %>%
+  unnest(treecover_area) %>%
+  # Transfer treecover unit to percentage
+  mutate(treecover = round((treecover*1e4)/(gridSize^2)*100, 2)) %>%
+  pivot_wider(names_from = "years", values_from = "treecover", names_prefix = "treecover_")
+
+
+# The calculation of tree loss area is performed at dataframe base
+# Get the column names of tree cover time series
+colnames_tree = names(pivot.tree)[startsWith(names(pivot.tree), "treecover")]
+# Drop the first year
+dropFirst = tail(colnames_tree, -1)
+# Drop the last year
+dropLast = head(colnames_tree, -1)
+# Set list of new column names for tree loss time series
+colnames_loss = dropFirst %>% str_split(., "_")
+# Add new columns: treeloss_tn = treecover_tn - treecover_t(n-1)
+for (i in 1:length(dropFirst)) {
+  new_colname <- paste0("treeloss_", colnames_loss[[i]][2])
+  pivot.tree[[new_colname]] <- pivot.tree[[dropFirst[i]]] - pivot.tree[[dropLast[i]]]
+}
+
+
+# Export Matching Frame
+# Remove "geometry" column from pivot dataframes
+df.tree = pivot.tree %>% mutate(x = NULL) %>% as.data.frame()
+df.travelT = pivot.travelT %>% mutate(x = NULL) %>% as.data.frame()
+df.soil = pivot.soil %>% mutate(x = NULL) %>% as.data.frame()
+df.elevation = pivot.elevation %>% mutate(x = NULL) %>% as.data.frame()
+df.tri = pivot.tri %>% mutate(x=NULL) %>% as.data.frame()
+# Make a dataframe containing only "assetid" and geometry
+df.geom = pivot.tree[, c("assetid", "x")] %>% as.data.frame()
+# Merge all output dataframes
+pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.elevation, df.tri, df.geom)) %>%
+  st_as_sf()
+# Make column Group ID and WDPA ID have data type "integer"
+pivot.all$group = as.integer(pivot.all$group)
+pivot.all$wdpaid = as.integer(pivot.all$wdpaid)
+
+# Export the matching frame
+st_write(pivot.all, dsn = file.path(wdir, name_output), delete_dsn = TRUE)
+
+```
+
