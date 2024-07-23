@@ -8,12 +8,9 @@ date: "2024-07-23"
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
-
 The following exercises will help you to master the steps of the analysis carried out in the chapter "Geospatial Impact Assessment of Conservation on Forest Cover Loss" and to understand the methodology used. The evaluation is conducted here for a single protected area to make it easier to understand the code, but the scripts for analysing the portfolio can be found on the 'github link'.
 
-
-Exercise 1 :  Build a matching sample 
+## Exercise 1 : Build a matching sample
 
 ```{r cars}
 # Load Libraries
@@ -34,14 +31,15 @@ library(future)
 library(progressr)
 ```
 
+## Settings ⚙️
 
-Please fill up the following chunk with : 
+Q1 : Please fill up the following chunk with :
 
-- a working directory
-- the country code of Bolivia 
-- the size of the buffer 
-- the size of the grid
-- the WDPA ID of Tariquia protected areas 
+-   a working directory
+-   the country code of Bolivia
+-   the size of the buffer
+-   the size of the grid
+-   the WDPA ID of Tariquia
 
 ```{r}
 # Define the path to a working directory
@@ -59,8 +57,9 @@ gridSize = 2236.068 # --> 500ha
 paid = c( 20041)
 ```
 
+## Griding of the country
 
-Q2: Run the following code and try to understand what the question ... is doing 
+Q2: Run the following code and explain what the question ... is doing
 
 ```{r}
 ## 2. Generating observation units for matching frame
@@ -205,13 +204,9 @@ grid.param %>%
   theme_bw()
 ```
 
+## Download the data
 
-Q4 : Please refer to this page (https://github.com/mapme-initiative/mapme.biodiversity) to find used to download data on soil properties and complete the following code 
-
-(first blank function to download soil data then compute elevation data )
-
-
-
+Q4 : Please refer to this page (<https://github.com/mapme-initiative/mapme.biodiversity>) to find the function to complete the following code
 
 ```{r}
 ## 4. Calculating deforestation area and other covariates for all observation units
@@ -222,8 +217,13 @@ aoi = init_portfolio(grid.param,
                      tmpdir = file.path(wdir, "tmp"),
                      add_resources = FALSE)
 
-# Covariate: Soil
-# Download Data
+```
+
+### Covariate: Soil
+
+Insert the function to download soil data :
+
+```{# Download Data}
 get.soil = 
   
   get_resources(aoi,
@@ -247,11 +247,17 @@ pivot.soil = zonal.soil %>%
   mutate(across(mean, round, 3)) %>% # Round numeric columns
   pivot_wider(names_from = c("layer", "depth", "stat"), values_from = "mean")
 
-# Covariate: Elevation
-# Download Raster Data
+```
+
+### Covariate: Elevation
+
+Insert the function to calculate elevation mean
+
+```{# Download Raster Data}
 get.elevation = get_resources(aoi, "nasa_srtm")
 # set up parallel plan with 6 concurrent threads
 plan(multisession, workers = 20)
+
 # Calculate Indicator
 with_progress({
   zonal.elevation = calc_indicators(get.elevation,
@@ -262,8 +268,12 @@ plan(sequential) # close child processes
 # Transform the output dataframe into a pivot dataframe
 pivot.elevation = zonal.elevation %>% unnest(elevation)
 
-# Covariate: TRI
-# set up parallel plan with 6 concurrent threads
+
+```
+
+### Covariate: TRI
+
+```{# set up parallel plan with 6 concurrent threads}
 plan(multisession, workers = 20)
 # Calculate Indicator
 with_progress({
@@ -273,8 +283,14 @@ plan(sequential) # close child processes
 # Transform the output dataframe into a pivot dataframe
 pivot.tri = zonal.tri %>% unnest(tri)
 
-# Covariate: Travel Time
-# Download Data
+
+```
+
+### Covariate: Travel Time
+
+Download data related to travel time and calculate the median travel time
+
+```{# Download Data}
 get.travelT = get_resources(aoi, resources = "nelson_et_al",
                             # resource specific argument
                             range_traveltime = c("5k_110mio"))
@@ -291,8 +307,11 @@ pivot.travelT = zonal.travelT %>%
   unnest(traveltime) %>%
   pivot_wider(names_from = "distance", values_from = "minutes_median", names_prefix = "minutes_median_")
 
-# Time Series of Tree Cover Area
-# Download Data
+```
+
+### Time Series of Tree Cover Area
+
+```{# Download Data}
 get.tree = get_resources(aoi, resources = c("gfw_treecover", "gfw_lossyear"))
 # set up parallel plan with 6 concurrent threads
 plan(multisession, workers = 20)
@@ -304,20 +323,19 @@ with_progress({
                                min_cover=10) # indicator-specific argument
 })
 plan(sequential) # close child processes
-```
 
-
-Q5 : Why is a multisession used ? 
-
-
-
-```{r}
 # Transform the output dataframe into a pivot dataframe
 pivot.tree = zonal.tree %>%
   unnest(treecover_area) %>%
   # Transfer treecover unit to percentage
   mutate(treecover = round((treecover*1e4)/(gridSize^2)*100, 2)) %>%
   pivot_wider(names_from = "years", values_from = "treecover", names_prefix = "treecover_")
+
+```
+
+Q5 : Why is a multisession used ? Explain
+
+```{r}
 
 
 # The calculation of tree loss area is performed at dataframe base
@@ -356,4 +374,3 @@ pivot.all$wdpaid = as.integer(pivot.all$wdpaid)
 st_write(pivot.all, dsn = file.path(wdir, name_output), delete_dsn = TRUE)
 
 ```
-

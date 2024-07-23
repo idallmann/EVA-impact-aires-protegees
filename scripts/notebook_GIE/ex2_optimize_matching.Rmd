@@ -1,18 +1,18 @@
 ---
 title: "exercise_2"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 date: "2024-07-23"
 ---
 
-The following exercise will help you understand the challenges of a matching model. 
+The following exercise will help you understand the trade-off between the quality of matching and the quantity of matched units. The goal is to explore how adjusting these parameters affects the results and attempt to find a balance.
 
- You can first run all the code and read the different informations about the result graphics. 
-
+#Part I : Automatic binnings First run all the code and read the different info given.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-
 
 ```{r pressure, echo=FALSE}
 # script to manualy adjust bins of CEM matching
@@ -24,8 +24,7 @@ if(length(newp)) install.packages(newp)
 lapply(lop, require, character.only = TRUE)
 ```
 
-
-# Settings
+## Settings
 
 ```{r pressure, echo=FALSE}
 # Define the path to a working directory where output will be saved
@@ -66,9 +65,10 @@ colfc.bind = "_"
 colfl.prefix = "fl"
 ```
 
+## CEM Matching
 
 ```{r pressure, echo=FALSE}
-###=======================CEM Matching=======================================###
+
 # Load matching frame
 mf = st_read(mf.file) %>%
   filter(group==0 | group==1) %>%
@@ -106,6 +106,7 @@ formula = eval(bquote(group ~ .(as.name(colname.travelTime)) + .(as.name(colname
 ))
 ```
 
+### Define cut-offs
 
 ```{r pressure, echo=FALSE}
 # Make cut-off list ####
@@ -127,10 +128,12 @@ lst_cutoffs[[colname.fcIni]] = as.integer(quantile(mf[[colname.fcIni]], probs = 
 
 lst_cutoffs[[colname.flprefund]] = (quantile(mf[[colname.flprefund]], probs = seq(0, 1, 0.33), na.rm=TRUE))
 #lst_cutoffs[[colname.flprefund]] =  (c(0,0.01,0.03,0.12,1))
+```
 
+### CEM Match
 
+```{r pressure, echo=FALSE}
 
-# CEM Match
 out.cem = matchit(formula,
                   data = mf, 
                   method = "cem", 
@@ -138,8 +141,8 @@ out.cem = matchit(formula,
 summary(out.cem)
 ```
 
+## Generate CEM Statistics
 
-4. Generate CEM Statistics
 ```{r pressure, echo=FALSE}
 # Save CEM Statistics to Dataframe
 # Summary of matching output
@@ -189,11 +192,9 @@ st_write(matched.wide.1,
          delete_dsn = TRUE)
 ```
 
+### Balance plot
 
 [Info on balance plot]
-
-
-
 
 ```{r pressure, echo=FALSE}
 #==========================Balance Plot====================================
@@ -247,12 +248,13 @@ p_covBal <- p_covBal +
 p_covBal %>% ggexport(filename = file.path(path_cemplots, "covBal", paste0("cem_tn_covBal_", bmz, "_", as.character(wdpaid.target), ".png")))
 ```
 
-
+### Histogramms
 
 [Info on histogramms]
 
 ```{r pressure, echo=FALSE}
-#==========================Histogramms========================
+
+
 # Convert dataframe of matched objects to pivot wide form
 matched.wide.1 = match.data(object=out.cem, data=mf) %>%
   # Add column "matched", mark matched observations as 1
@@ -435,6 +437,7 @@ p_density = ggpubr::ggarrange(p_fc, p_fl, p_elevation, p_tri, p_clay, p_travel,
 p_density %>% ggexport(filename = file.path(path_cemplots, "density", paste0("cem_tn_density_", bmz, "_", as.character(wdpaid.target), ".png")))
 ```
 
+### Trend plot
 
 [Info on trend plot]
 
@@ -514,15 +517,21 @@ trend.plot <- ggplot(df.trend, aes(x = year, y = avgFC)) +
 trend.plot %>% ggexport(filename = file.path(path_cemplots, "trend", paste0("cem_tn_trend_", bmz, "_", as.character(wdpaid.target), ".png")))
 ```
 
+Q1: Observe and describe the results focusing both on the quality of the matching and the quantity of units matched.
 
-Q1: Observe and describe the results focusing both on the quality of the matching and the quantity of units matched. 
+-   How many cells are successfully matched ?
+-   Describe the balance of treatment and control groups
 
-- How many cells are successfully matched ? 
-- Describe the balance of treatment and control groups 
+#Part II / Maximizing Quantity
 
-
-#Part II / Maximizing Quantity 
-Q2: Change the size of the bins used for the matching. 
+Q2: Change the size of the bins used for the matching to increase the number of matched units
 
 [paste the same code ]
 
+Q3: Compare the results with the first parameters. How is the quality of matching affect ?
+
+#Part III / Maximizing Quality Q4 : Adjust the matching criteria to improve the quality of the matches [paste the same code ] Q5: Provide commentary on how improving the quality affected the quantity.
+
+#Part IV / Finding a trade-off
+
+Q6 : Try to find a balance between quality and quantity.
