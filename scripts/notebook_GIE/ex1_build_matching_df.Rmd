@@ -12,6 +12,14 @@ The following exercises will help you to master the steps of the analysis carrie
 
 ## Exercise 1 : Build a matching sample
 
+```{r}
+# load/install packages if necessary
+lop <- c("ggplot2", "tidyr", "dplyr", "stringr", "sf", "terra", "raster", "geodata", "exactextractr", "mapme.biodiversity", "future","progressr","wdpar")
+newp <- lop[!(lop %in% installed.packages()[,"Package"])]
+if(length(newp)) install.packages(newp)
+lapply(lop, require, character.only = TRUE)
+```
+
 ```{r cars}
 # Load Libraries
 library(dplyr)
@@ -21,7 +29,6 @@ library(ggplot2) # For plotting
 library(sf) # For handling vector data
 library(terra) # For handling raster data
 library(raster) # For handling raster data
-library(rgeos)
 library(geodata) # For getting country files
 library(wdpar) # For getting protected areas
 library(exactextractr) # For zonal statistics
@@ -42,8 +49,9 @@ Q1 : Please fill up the following chunk with :
 -   the WDPA ID of Tariquia
 
 ```{r}
+
 # Define the path to a working directory
-wdir = file.path('')
+wdir = file.path(tempdir())
 # Define the file name of the output matching frame
 name_output = "mf_BOL_500ha.gpkg"
 # Specify a country; to find the right country code, please refer to this page https://en.wikipedia.org/wiki/ISO_3166-1_alpha-3
@@ -52,22 +60,22 @@ country = "BOL"
 buffer_m = 10000
 # Specify the grid cell size in meter
 gridSize = 2236.068 # --> 500ha
-# WDPA IDs; to find the WDPA ID, please refer to this page 
+# Specify a WDPA IDs; to find the WDPA ID, please refer to this page 
 # https://www.protectedplanet.net/en
 paid = c( 20041)
 ```
 
-## Griding of the country
+## Gridding of the country
 
 Q2: Run the following code and explain what the question ... is doing
 
 ```{r}
 ## 2. Generating observation units for matching frame
 # Download country polygon to working directory and load it into workspace
-#gadm <- gadm(country = country, resolution = 1, level = 0, path = wdir) %>%
-#  st_as_sf()
+gadm <- gadm(country = country, resolution = 1, level = 0, path = wdir) %>%
+  st_as_sf()
 # If the country polygon file already exists in working directory, it can be loaded into work space by
-gadm = readRDS(file.path(wdir, paste0('gadm41_',country,'_0_pk.rds'))) %>% st_as_sf()
+#gadm = readRDS(file.path(wdir, paste0('gadm41_',country,'_0_pk.rds'))) %>% st_as_sf()
 # Find UTM zone of the country centroid
 centroid = st_coordinates(st_centroid(gadm))
 lonlat2UTM = function(lonlat) {
@@ -105,7 +113,8 @@ ggplot() +
 # They're downloaded to the working directory.
 #wdpa = wdpa_fetch(country, wait = TRUE, download_dir = wdir)
 # If the PA file already exists, it can be loaded in this way
-wdpa = wdpa_read(paste0(wdir, '/WDPA_Jul2023_BOL-shapefile.zip'))
+#wdpa = wdpa_read(paste0(wdir, '/WDPA_Jul2023_BOL-shapefile.zip'))
+wdpa=wdpa_wld_raw %>% filter(ISO3=="BOL")
 # PAs are projected, and column "geometry_type" is added
 wdpa_prj = wdpa_clean(wdpa, geometry_precision = 1000,
                       # Don't erase overlapped polygons
@@ -127,10 +136,9 @@ wdpa_nofund = wdpa_prj %>%
 # Determine the non-funded PAs that intersect with funded PAs,
 # and delete the intersection part from non-funded PAs to reduce noise when rasterizing WDPAIDs later.
 intersection = st_intersection(wdpa_nofund, wdpa_funded)
-wdpa_nofund = wdpa_nofund %>%
-  st_difference(., st_union(st_geometry(intersection))) %>%
-  # Assign an ID "2" to the non-funded PA group
-  mutate(group=2)
+wdpa_nofund <- wdpa_nofund %>%
+  { if (nrow(intersection) == 0) . else st_difference(., st_union(st_geometry(intersection))) } %>%
+  mutate(group = 2)
 
 # Make Buffers of 10km around all protected areas
 wdpa_buffer <- st_buffer(wdpa_funded, dist = buffer_m) %>%
@@ -158,7 +166,7 @@ extent(r.ini) = extent(gadm_prj)
 # Specify the raster resolution as same as the pre-defined 'gridSize'
 res(r.ini) = gridSize
 # Assign the raster pixels with "Group" values,
-# Take the minial value if a pixel is covered by overlapped polygons, so that PA Group ID has higher priority than Buffer ID.
+# Take the minimal value if a pixel is covered by overlapped polygons, so that PA Group ID has higher priority than Buffer ID.
 # Assign value "0" to the background pixels (control candidates group)
 r.group = rasterize(wdpa_groups, r.ini, field="group", fun="min", background=0) %>%
   mask(., gadm_prj)
@@ -211,34 +219,38 @@ Q4 : Please refer to this page (<https://github.com/mapme-initiative/mapme.biodi
 ```{r}
 ## 4. Calculating deforestation area and other covariates for all observation units
 # Get input data ready for indicator calculation
-aoi = init_portfolio(grid.param,
-                     years = 2000:2021,
-                     outdir = wdir,
-                     tmpdir = file.path(wdir, "tmp"),
-                     add_resources = FALSE)
 
+#years=2000:2021
+mapme_options(outdir =wdir)
+# aoi = init_portfolio(grid.param,
+#                      years = 2000:2021,
+#                      outdir = wdir,
+#                      tmpdir = file.path(wdir, "tmp"),
+#                      add_resources = FALSE)
+
+aoi=grid.param
 ```
 
 ### Covariate: Soil
 
 Insert the function to download soil data :
 
-```{# Download Data}
-get.soil = 
-  
-  get_resources(aoi,
-                         resources = c("soilgrids"),
-                         layers = c("clay"), # resource specific argument
-                         depths = c("0-5cm"), # resource specific argument
-                         stats = c("mean"))
+```{r}
+get.soil = aoi %>% get_resources(get_soilgrids(
+        layers = "clay", # resource specific argument
+        depths = "0-5cm", # resource specific argument
+        stats = "mean"))
+                         
 # set up parallel plan with 6 concurrent threads
 plan(multisession, workers = 20)
 # Calculate Indicator
 with_progress({
-  zonal.soil = calc_indicators(get.soil,
-                               indicators = "soilproperties",
-                               stats_soil = c("mean"),
-                               engine = "zonal")
+  zonal.soil = get.soil %>% calc_indicators(
+          calc_soilproperties(
+            stats = "mean",
+            engine = "zonal"
+          )
+        )
 })
 plan(sequential) # close child processes
 # Transform the output dataframe into a pivot dataframe
@@ -253,16 +265,18 @@ pivot.soil = zonal.soil %>%
 
 Insert the function to calculate elevation mean
 
-```{# Download Raster Data}
-get.elevation = get_resources(aoi, "nasa_srtm")
+```{r}
+get.elevation = aoi %>% get_resources(get_nasa_srtm())
 # set up parallel plan with 6 concurrent threads
 plan(multisession, workers = 20)
 
 # Calculate Indicator
 with_progress({
-  zonal.elevation = calc_indicators(get.elevation,
-                                    indicators = "elevation",
-                                    stats_elevation = c("mean"))
+  zonal.elevation = calc_indicators(calc_elevation(
+          stats= "mean",
+          engine = "exactextract"))
+  
+  
 })
 plan(sequential) # close child processes
 # Transform the output dataframe into a pivot dataframe
@@ -273,11 +287,14 @@ pivot.elevation = zonal.elevation %>% unnest(elevation)
 
 ### Covariate: TRI
 
-```{# set up parallel plan with 6 concurrent threads}
+```{r}
+# set up parallel plan with 6 concurrent threads
 plan(multisession, workers = 20)
 # Calculate Indicator
 with_progress({
-  zonal.tri = calc_indicators(get.elevation, indicators = "tri")
+  zonal.tri = get.elevation %>% calc_indicators(calc_tri(
+          stats = "mean",
+          engine = "exactextract"))
 })
 plan(sequential) # close child processes
 # Transform the output dataframe into a pivot dataframe
@@ -290,17 +307,17 @@ pivot.tri = zonal.tri %>% unnest(tri)
 
 Download data related to travel time and calculate the median travel time
 
-```{# Download Data}
-get.travelT = get_resources(aoi, resources = "nelson_et_al",
-                            # resource specific argument
-                            range_traveltime = c("5k_110mio"))
+```{r}
+get.travelT = aoi%>% get_resources(get_nelson_et_al(ranges = c("5k_110mio")))
+
 # set up parallel plan with 6 concurrent threads
 plan(multisession, workers = 20)
 # Calculate Indicator
 with_progress({
-  zonal.travelT = calc_indicators(get.travelT,
-                                  indicators = "traveltime",
-                                  stats_accessibility = c("median"))})
+  zonal.travelT  <-get.travelT %>% calc_indicators(calc_traveltime(
+          stats = "median",
+          engine = "exactextract"))
+  })
 plan(sequential) # close child processes
 # Transform the output dataframe into a pivot dataframe
 pivot.travelT = zonal.travelT %>%
@@ -311,16 +328,16 @@ pivot.travelT = zonal.travelT %>%
 
 ### Time Series of Tree Cover Area
 
-```{# Download Data}
-get.tree = get_resources(aoi, resources = c("gfw_treecover", "gfw_lossyear"))
+```{r}
+get.tree = aoi %>%get_resources(get_gfw_treecover(version =  version_gfc),
+                                     get_gfw_lossyear(version = version_gfc))
 # set up parallel plan with 6 concurrent threads
 plan(multisession, workers = 20)
 # Calculate time series
 with_progress({
-  zonal.tree = calc_indicators(get.tree,
-                               indicators = "treecover_area",
-                               min_size=1, # indicator-specific argument
-                               min_cover=10) # indicator-specific argument
+  zonal.tree = get.tree %>% calc_indicators(calc_treecover_area(years= years, min_size=0.5, 
+                                                                    min_cover=10))
+  
 })
 plan(sequential) # close child processes
 
@@ -373,4 +390,54 @@ pivot.all$wdpaid = as.integer(pivot.all$wdpaid)
 # Export the matching frame
 st_write(pivot.all, dsn = file.path(wdir, name_output), delete_dsn = TRUE)
 
+```
+
+# Create an interactive map 
+
+To visualise
+
+```{r}
+worldMaps <- function(df, world_data, data_type, period, indicator){
+  
+  # Function for setting the aesthetics of the plot
+  my_theme <- function () { 
+    theme_bw() + theme(axis.text = element_text(size = 14),
+                       axis.title = element_text(size = 14),
+                       strip.text = element_text(size = 14),
+                       panel.grid.major = element_blank(), 
+                       panel.grid.minor = element_blank(),
+                       panel.background = element_blank(), 
+                       legend.position = "bottom",
+                       panel.border = element_blank(), 
+                       strip.background = element_rect(fill = 'white', colour = 'white'))
+  }
+  
+  # Select only the data that the user has selected to view
+  plotdf <- df[df$Indicator == indicator & df$DataType == data_type & df$Period == period,]
+  plotdf <- plotdf[!is.na(plotdf$ISO3), ]
+  
+  # Add the data the user wants to see to the geographical world data
+  world_data['DataType'] <- rep(data_type, nrow(world_data))
+  world_data['Period'] <- rep(period, nrow(world_data))
+  world_data['Indicator'] <- rep(indicator, nrow(world_data))
+  world_data['Value'] <- plotdf$Value[match(world_data$ISO3, plotdf$ISO3)]
+  
+  # Create caption with the data source to show underneath the map
+  capt <- paste0("Source: ", ifelse(data_type == "Childlessness", "United Nations" , "World Bank"))
+  
+  # Specify the plot for the world map
+  library(RColorBrewer)
+  library(ggiraph)
+  g <- ggplot() + 
+    geom_polygon_interactive(data = world_data, color = 'gray70', size = 0.1,
+                                    aes(x = long, y = lat, fill = Value, group = group, 
+                                        tooltip = sprintf("%s<br/>%s", ISO3, Value))) + 
+    scale_fill_gradientn(colours = brewer.pal(5, "RdBu"), na.value = 'white') + 
+    scale_y_continuous(limits = c(-60, 90), breaks = c()) + 
+    scale_x_continuous(breaks = c()) + 
+    labs(fill = data_type, color = data_type, title = NULL, x = NULL, y = NULL, caption = capt) + 
+    my_theme()
+  
+  return(g)
+}
 ```
