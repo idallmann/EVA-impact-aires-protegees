@@ -256,8 +256,10 @@ plan(sequential) # close child processes
 # Transform the output dataframe into a pivot dataframe
 pivot.soil = zonal.soil %>%
   unnest(soilproperties) %>%
-  mutate(across(mean, round, 3)) %>% # Round numeric columns
-  pivot_wider(names_from = c("layer", "depth", "stat"), values_from = "mean")
+  mutate(across(value, round, 3)) %>% # Round numeric columns
+  pivot_wider(names_from = c("variable"), values_from = "value")%>%
+  dplyr::select(-c(datetime,unit))
+      
 
 ```
 
@@ -280,7 +282,10 @@ with_progress({
 })
 plan(sequential) # close child processes
 # Transform the output dataframe into a pivot dataframe
-pivot.elevation = zonal.elevation %>% unnest(elevation)
+pivot.elevation = zonal.elevation %>% unnest(elevation)%>%
+  pivot_wider(names_from = c("variable"), values_from = "value")%>%
+  dplyr::select(-c(datetime,unit))
+      
 
 
 ```
@@ -298,7 +303,9 @@ with_progress({
 })
 plan(sequential) # close child processes
 # Transform the output dataframe into a pivot dataframe
-pivot.tri = zonal.tri %>% unnest(tri)
+pivot.tri = zonal.tri %>% unnest(tri)%>%
+  pivot_wider(names_from = c("variable"), values_from = "value")%>%
+  dplyr::select(-c(datetime,unit))
 
 
 ```
@@ -322,7 +329,9 @@ plan(sequential) # close child processes
 # Transform the output dataframe into a pivot dataframe
 pivot.travelT = zonal.travelT %>%
   unnest(traveltime) %>%
-  pivot_wider(names_from = "distance", values_from = "minutes_median", names_prefix = "minutes_median_")
+  pivot_wider(names_from = "variable", values_from = "value", 
+              names_prefix = "minutes_median_")%>%
+  dplyr::select(-c(datetime,unit))
 
 ```
 
@@ -335,7 +344,7 @@ get.tree = aoi %>%get_resources(get_gfw_treecover(version =  version_gfc),
 plan(multisession, workers = 20)
 # Calculate time series
 with_progress({
-  zonal.tree = get.tree %>% calc_indicators(calc_treecover_area(years= years, min_size=0.5, 
+  zonal.tree = get.tree %>% calc_indicators(calc_treecover_area(years=years, min_size=0.5, 
                                                                     min_cover=10))
   
 })
@@ -346,7 +355,8 @@ pivot.tree = zonal.tree %>%
   unnest(treecover_area) %>%
   # Transfer treecover unit to percentage
   mutate(treecover = round((treecover*1e4)/(gridSize^2)*100, 2)) %>%
-  pivot_wider(names_from = "years", values_from = "treecover", names_prefix = "treecover_")
+  pivot_wider(names_from = "datetime", values_from = "value", names_prefix = "treecover_")%>%
+  dplyr::select(-c(datetime,unit))
 
 ```
 
@@ -392,7 +402,7 @@ st_write(pivot.all, dsn = file.path(wdir, name_output), delete_dsn = TRUE)
 
 ```
 
-# Create an interactive map 
+# Create an interactive map
 
 To visualise
 
