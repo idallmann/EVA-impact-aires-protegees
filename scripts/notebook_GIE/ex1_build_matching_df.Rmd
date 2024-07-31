@@ -14,7 +14,7 @@ The following exercises will help you to master the steps of the analysis carrie
 
 ```{r}
 # load/install packages if necessary
-lop <- c("ggplot2", "tidyr", "dplyr", "stringr", "sf", "terra", "raster", "geodata", "exactextractr", "mapme.biodiversity", "future","progressr","wdpar")
+lop <- c("ggplot2", "tidyr", "dplyr", "stringr", "sf", "terra", "raster", "geodata", "exactextractr", "mapme.biodiversity", "future","progressr","wdpar","landscapemetrics")
 newp <- lop[!(lop %in% installed.packages()[,"Package"])]
 if(length(newp)) install.packages(newp)
 lapply(lop, require, character.only = TRUE)
@@ -37,7 +37,17 @@ library(mapme.biodiversity)
 library(future)
 library(progressr)
 ```
+```{r eval= F, message=FALSE, warning=FALSE}
+# Add this, to download correctly travel data 
 
+Sys.setenv(
+  "VSI_CACHE" = "TRUE",
+  "CPL_VSIL_CURL_CHUNK_SIZE" = "10485760",
+  "GDAL_HTTP_MAX_RETRY" = "5",
+  "GDAL_HTTP_RETRY_DELAY" = "15"
+)
+
+```
 ## Settings ⚙️
 
 Q1 : Please fill up the following chunk with :
@@ -53,16 +63,16 @@ Q1 : Please fill up the following chunk with :
 # Define the path to a working directory
 wdir = file.path(tempdir())
 # Define the file name of the output matching frame
-name_output = "mf_BOL_500ha.gpkg"
+name_output = "mf_SLV_500ha.gpkg"
 # Specify a country; to find the right country code, please refer to this page https://en.wikipedia.org/wiki/ISO_3166-1_alpha-3
-country = "BOL"
+country = "SLV"
 # Specify buffer width in meter
 buffer_m = 10000
 # Specify the grid cell size in meter
 gridSize = 2236.068 # --> 500ha
 # Specify a WDPA IDs; to find the WDPA ID, please refer to this page 
 # https://www.protectedplanet.net/en
-paid = c( 20041)
+paid = c(9638)
 ```
 
 ## Gridding of the country
@@ -114,7 +124,7 @@ ggplot() +
 #wdpa = wdpa_fetch(country, wait = TRUE, download_dir = wdir)
 # If the PA file already exists, it can be loaded in this way
 #wdpa = wdpa_read(paste0(wdir, '/WDPA_Jul2023_BOL-shapefile.zip'))
-wdpa=wdpa_wld_raw %>% filter(ISO3=="BOL")
+wdpa=wdpa_wld_raw %>% filter(ISO3=="SLV")
 # PAs are projected, and column "geometry_type" is added
 wdpa_prj = wdpa_clean(wdpa, geometry_precision = 1000,
                       # Don't erase overlapped polygons
@@ -219,7 +229,9 @@ Q4 : Please refer to this page (<https://github.com/mapme-initiative/mapme.biodi
 ```{r}
 ## 4. Calculating deforestation area and other covariates for all observation units
 # Get input data ready for indicator calculation
-
+      ## Version of Global Forest Cover data to consider
+      list_version_gfc = mapme.biodiversity:::.available_gfw_versions() #all versions available
+      version_gfc = list_version_gfc[length(list_version_gfc)] #last version considered
 #years=2000:2021
 mapme_options(outdir =wdir)
 # aoi = init_portfolio(grid.param,
@@ -228,6 +240,7 @@ mapme_options(outdir =wdir)
 #                      tmpdir = file.path(wdir, "tmp"),
 #                      add_resources = FALSE)
 
+years = 2000:2021
 aoi=grid.param
 ```
 
@@ -274,7 +287,7 @@ plan(multisession, workers = 20)
 
 # Calculate Indicator
 with_progress({
-  zonal.elevation = calc_indicators(calc_elevation(
+  zonal.elevation = get.elevation %>% calc_indicators(calc_elevation(
           stats= "mean",
           engine = "exactextract"))
   
@@ -329,8 +342,7 @@ plan(sequential) # close child processes
 # Transform the output dataframe into a pivot dataframe
 pivot.travelT = zonal.travelT %>%
   unnest(traveltime) %>%
-  pivot_wider(names_from = "variable", values_from = "value", 
-              names_prefix = "minutes_median_")%>%
+  pivot_wider(names_from = "variable", values_from = "value")%>%
   dplyr::select(-c(datetime,unit))
 
 ```
@@ -354,9 +366,9 @@ plan(sequential) # close child processes
 pivot.tree = zonal.tree %>%
   unnest(treecover_area) %>%
   # Transfer treecover unit to percentage
-  mutate(treecover = round((treecover*1e4)/(gridSize^2)*100, 2)) %>%
+  mutate(value = round((value*1e4)/(gridSize^2)*100, 2),datetime=format(datetime, "%Y")) %>%
   pivot_wider(names_from = "datetime", values_from = "value", names_prefix = "treecover_")%>%
-  dplyr::select(-c(datetime,unit))
+  dplyr::select(-c(unit,variable))
 
 ```
 
@@ -403,8 +415,101 @@ st_write(pivot.all, dsn = file.path(wdir, name_output), delete_dsn = TRUE)
 ```
 
 # Create an interactive map
+```{r}
 
-To visualise
+
+ui <- fluidPage(
+    titlePanel("Visualisation des Zones Protégées"),
+    sidebarLayout(
+        sidebarPanel(
+            selectInput("Group", "Type de zone :", 
+                        choices = c("0","1","2","3")),
+            selectInput("parameter", "Paramètre à afficher :", 
+                        choices = names(pivot.all%>%dplyr::select(-c(group,wdpaid,assetid,x)))) # Modifier cette ligne selon vos paramètres
+        ),
+        mainPanel(
+            leafletOutput("map")
+        )
+    )
+)
+
+server <- function(input, output, session) {
+    filteredData <- reactive({
+        pivot.all %>%
+            filter(group == input$group)
+    })
+    
+    output$map <- renderLeaflet({
+        data_sf <- st_as_sf(filteredData(), coords = c("lon", "lat"), crs = 4326)
+        
+        leaflet(pivot.all) %>%
+            addProviderTiles(providers$OpenStreetMap) %>%
+            addCircles(
+                radius = ~parameter, # Vous pouvez ajuster le paramètre ici selon vos besoins
+                color = ~parameter, # Ajustez en fonction de vos données
+                popup = ~paste0("Valeur: ", parameter)
+            ) %>%
+            addLegend(pal = colorNumeric(palette = "YlOrRd", domain = pivot.all$parameter), 
+                      values = pivot.all$parameter, 
+                      title = "Valeur du paramètre")
+    })
+}
+
+shinyApp(ui, server)
+```
+```{r}
+# Définir les couleurs de contour pour chaque groupe
+contour_colors <- c(
+  `0` = "grey",
+  `1` = "darkgreen",
+  `2` = "darkblue",
+  `3` = "orange"
+)
+
+# Define UI
+ui <- fluidPage(
+  titlePanel("Visualisation des Pixels"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("param", 
+                  "Choisir le paramètre à afficher :", 
+                  choices = names(pivot.all)[!(names(pivot.all) %in% c("x", "group","wdpaid","assetid"))])
+    ),
+    mainPanel(
+      plotOutput("mapPlot")
+    )
+  )
+)
+
+# Define server logic
+server <- function(input, output) {
+  
+  output$mapPlot <- renderPlot({
+    # Créer la carte avec ggplot2
+    ggplot() +
+      geom_sf(data = pivot.all, aes(fill = !!sym(input$param)), color = "black") +
+      scale_fill_viridis_c() +  # Palette de couleurs pour le paramètre
+      scale_color_manual(values = contour_colors) +
+      theme_minimal() +
+      labs(fill = input$param, title = "Carte des pixels avec contours colorés") +
+      theme(legend.position = "right")
+  })
+}
+
+# Run the application 
+shinyApp(ui = ui, server = server)
+```
+```{r}
+ggplot() +
+  geom_sf(data = pivot.all, aes(fill = treecover_2000, color = as.factor(group)), size = 0.3) +
+  scale_fill_viridis_c() +  # Palette de couleurs pour le paramètre
+  scale_color_manual(values = contour_colors) +  # Couleurs des contours pour chaque groupe
+  theme_minimal() +
+  labs(fill = "Tree Cover 2000", color = "Group", title = "Carte des pixels avec contours colorés") +
+  theme(legend.position = "right")
+
+```
+
 
 ```{r}
 worldMaps <- function(df, world_data, data_type, period, indicator){
