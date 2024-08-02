@@ -2,13 +2,21 @@
 title: "Exercise_1"
 output: html_document
 date: "2024-07-23"
+editor_options: 
+  markdown: 
+    wrap: 72
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-The following exercises will help you to master the steps of the analysis carried out in the chapter "Geospatial Impact Assessment of Conservation on Forest Cover Loss" and to understand the methodology used. The evaluation is conducted here for a single protected area to make it easier to understand the code, but the scripts for analysing the portfolio can be found on the 'github link'.
+The following exercises will help you to master the steps of the
+analysis carried out in the chapter "Geospatial Impact Assessment of
+Conservation on Forest Cover Loss" and to understand the methodology
+used. The evaluation is conducted here for a single protected area to
+make it easier to understand the code, but the scripts for analysing the
+portfolio can be found on the 'github link'.
 
 ## Exercise 1 : Build a matching sample
 
@@ -49,16 +57,16 @@ Sys.setenv(
 )
 
 ```
+
 ## Settings ⚙️
 
-1. The first step is to decide the parameters of your analysis, in then next cell you have to choose: 
--   a working directory
--   the country code of El Salvador
--   the size of the buffer
--   the size of the grid
--   the WDPA ID of the Parque Nacional Montecristo
+The first step is to decide the parameters of your analysis, in then
+next cell you have to choose: - a working directory - the country code
+of El Salvador - the size of the buffer - the size of the grid - the
+WDPA ID of the Parque Nacional Montecristo
 
-To lower the computation time we choose to analyse the Parque Nacional Montecristo but you can try with another PA. 
+To lower the computation time we choose to analyse the Parque Nacional
+Montecristo but you can try with another PA.
 
 ```{r}
 
@@ -77,17 +85,26 @@ gridSize = 2236.068 # --> 500ha
 paid = c(9638)
 ```
 
-## Gridding of the country
-
-2. 
-
-
-
-The next step is to download the country polygon and transform it to the appropriate UTM (Universal Transverse Mercator) zone based on the country's centroid. A bounding box is created, and a grid is generated within this box, intersecting with the country's boundary to form the observation units.
-
 ## 2. Generating observation units for matching frame
+
+The second step is to prepare a grid of observation units for the
+spatial analysis, tailored specifically to the chosen country After
+downloading the country polygon, it is necessary to reproject the
+country polygon to the appropriate UTM (Universal Transverse Mercator)
+zone based on the country's centroid. The UTM projection minimizes
+distortion for specific regions, making spatial calculations like
+distances and areas more accurate. A bounding box is created, and a grid
+is generated within this box, intersecting with the country's boundary
+to form the observation units.
+
+Explain the purpose of the `lonlat2UTM` function. How does it determine
+the correct UTM zone for the country’s centroid?
+
+Describe what you expect to see in the final plot produced by the
+`ggplot` code.
+
 ```{r}
-# Download country polygon to working directory and load it into workspace
+# Download country polygon to working directory and load it into workspace 
 gadm <- gadm(country = country, resolution = 1, level = 0, path = wdir) %>%
   st_as_sf()
 
@@ -122,16 +139,27 @@ ggplot() +
  geom_sf(data = st_geometry(bbox)) +
  geom_sf(data = st_geometry(gadm_prj)) +
  geom_sf(data = st_geometry(grid), alpha = 0)
+
 ```
 
+
+
 ## 3. Determining Group IDs and WDPA IDs for all observation units
-Then, the code works with protected area (PA) polygons, separating funded and non-funded PAs and adding buffer zones around them. These PA polygons are filtered, cleaned, and projected to the UTM zone, then merged into a single dataset with group identifiers for funded, non-funded, and buffer areas. 
+
+Then, the code works with protected area (PA) polygons, separating
+funded and non-funded PAs and adding buffer zones around them. These PA
+polygons are filtered, cleaned, and projected to the UTM zone, then
+merged into a single dataset with group identifiers for funded,
+non-funded, and buffer areas.
+
 ```{r}
 # Get the PA polygons/points of the specified country;
 # They're downloaded to the working directory.
+
 #wdpa = wdpa_fetch(country, wait = TRUE, download_dir = wdir)
 # If the PA file already exists, it can be loaded in this way
 #wdpa = wdpa_read(paste0(wdir, '/WDPA_Jul2023_BOL-shapefile.zip'))
+
 wdpa=wdpa_wld_raw %>% filter(ISO3=="SLV")
 # PAs are projected, and column "geometry_type" is added
 wdpa_prj = wdpa_clean(wdpa, geometry_precision = 1000,
@@ -178,9 +206,16 @@ ggplot(wdpa_groups) +
   theme_bw()
 ```
 
-The script proceeds by initializing a raster grid over the country's extent, with pixel values representing group IDs. It assigns minimal values to pixels covered by overlapping polygons, ensuring that PA group IDs take precedence over buffer IDs. Another raster layer is created for WDPA IDs.
+The script proceeds by initializing a raster grid over the country's
+extent, with pixel values representing group IDs. It assigns minimal
+values to pixels covered by overlapping polygons, ensuring that PA group
+IDs take precedence over buffer IDs. Another raster layer is created for
+WDPA IDs.
 
-Finally, the raster values are aggregated into the grid cells by taking the mode, merged into a single dataset, and transformed to the WGS84 coordinate system to comply with the mapme.biodiversity package requirements.
+Finally, the raster values are aggregated into the grid cells by taking
+the mode, merged into a single dataset, and transformed to the WGS84
+coordinate system to comply with the mapme.biodiversity package
+requirements.
 
 ```{r}
 # Initialize an empty raster to the spatial extent of the country
@@ -218,7 +253,9 @@ grid.param = grid.group %>%
   st_transform(crs=4326)
 ```
 
-You can now visualize the gridding of the country and the attribution of group to each cell. To do so add the right dataframe the "factor()" and choose colors : 
+You can now visualize the gridding of the country and the attribution of
+group to each cell. To do so add the right dataframe the "factor()" and
+choose colors :
 
 ```{r}
 # Visualize grouped grid cells
@@ -233,7 +270,14 @@ grid.param %>%
 
 ## Download the data
 
-Q4 : Please refer to this page (<https://github.com/mapme-initiative/mapme.biodiversity>) to find the function to complete the following code
+Once a group have been attributed to each cells, all the covariates need
+to be downloaded. To do so you can use the Mapme.biodiversity package
+that enable you to download multiple ressources and then compute the
+right indicators. Please refer to this page
+(<https://github.com/mapme-initiative/mapme.biodiversity>) to find the
+function to complete the following code. You will be ask to : - Download
+the soil data - Calculate elevation - Download travel time data and
+compute the indicators
 
 ```{r}
 ## 4. Calculating deforestation area and other covariates for all observation units
@@ -255,7 +299,8 @@ aoi=grid.param
 
 ### Covariate: Soil
 
-Insert the function to download soil data :
+Insert the function to download soil data, the layers used should be
+"clay", the depth between 0 and 5cm and the statistic the mean :
 
 ```{r}
 get.soil = aoi %>% get_resources(get_soilgrids(
@@ -287,7 +332,8 @@ pivot.soil = zonal.soil %>%
 
 ### Covariate: Elevation
 
-Insert the function to calculate elevation mean
+Insert the function to calculate elevation mean, you should use the mean
+statistic and the exactextract engine :
 
 ```{r}
 get.elevation = aoi %>% get_resources(get_nasa_srtm())
@@ -334,7 +380,8 @@ pivot.tri = zonal.tri %>% unnest(tri)%>%
 
 ### Covariate: Travel Time
 
-Download data related to travel time and calculate the median travel time
+Download data related to travel time and calculate the median travel
+time
 
 ```{r}
 get.travelT = aoi%>% get_resources(get_nelson_et_al(ranges = c("5k_110mio")))
@@ -384,8 +431,6 @@ pivot.tree = zonal.tree %>%
 Q5 : Why is a multisession used ? Explain
 
 ```{r}
-
-
 # The calculation of tree loss area is performed at dataframe base
 # Get the column names of tree cover time series
 colnames_tree = names(pivot.tree)[startsWith(names(pivot.tree), "treecover")]
@@ -424,48 +469,7 @@ st_write(pivot.all, dsn = file.path(wdir, name_output), delete_dsn = TRUE)
 ```
 
 # Create an interactive map
-```{r}
 
-
-ui <- fluidPage(
-    titlePanel("Visualisation des Zones Protégées"),
-    sidebarLayout(
-        sidebarPanel(
-            selectInput("Group", "Type de zone :", 
-                        choices = c("0","1","2","3")),
-            selectInput("parameter", "Paramètre à afficher :", 
-                        choices = names(pivot.all%>%dplyr::select(-c(group,wdpaid,assetid,x)))) # Modifier cette ligne selon vos paramètres
-        ),
-        mainPanel(
-            leafletOutput("map")
-        )
-    )
-)
-
-server <- function(input, output, session) {
-    filteredData <- reactive({
-        pivot.all %>%
-            filter(group == input$group)
-    })
-    
-    output$map <- renderLeaflet({
-        data_sf <- st_as_sf(filteredData(), coords = c("lon", "lat"), crs = 4326)
-        
-        leaflet(pivot.all) %>%
-            addProviderTiles(providers$OpenStreetMap) %>%
-            addCircles(
-                radius = ~parameter, # Vous pouvez ajuster le paramètre ici selon vos besoins
-                color = ~parameter, # Ajustez en fonction de vos données
-                popup = ~paste0("Valeur: ", parameter)
-            ) %>%
-            addLegend(pal = colorNumeric(palette = "YlOrRd", domain = pivot.all$parameter), 
-                      values = pivot.all$parameter, 
-                      title = "Valeur du paramètre")
-    })
-}
-
-shinyApp(ui, server)
-```
 ```{r}
 # Définir les couleurs de contour pour chaque groupe
 contour_colors <- c(
@@ -508,6 +512,7 @@ server <- function(input, output) {
 # Run the application 
 shinyApp(ui = ui, server = server)
 ```
+
 ```{r}
 ggplot() +
   geom_sf(data = pivot.all, aes(fill = treecover_2000, color = as.factor(group)), size = 0.3) +
@@ -518,7 +523,6 @@ ggplot() +
   theme(legend.position = "right")
 
 ```
-
 
 ```{r}
 worldMaps <- function(df, world_data, data_type, period, indicator){
