@@ -13,14 +13,14 @@ The following exercises will help you to master the steps of the analysis carrie
 ## Exercise 1 : Build a matching sample
 
 ```{r}
-# load/install packages if necessary
+# install packages if necessary
 lop <- c("ggplot2", "tidyr", "dplyr", "stringr", "sf", "terra", "raster", "geodata", "exactextractr", "mapme.biodiversity", "future","progressr","wdpar","landscapemetrics")
 newp <- lop[!(lop %in% installed.packages()[,"Package"])]
 if(length(newp)) install.packages(newp)
 lapply(lop, require, character.only = TRUE)
 ```
 
-```{r cars}
+```{r }
 # Load Libraries
 library(dplyr)
 library(tidyr)
@@ -32,13 +32,14 @@ library(raster) # For handling raster data
 library(geodata) # For getting country files
 library(wdpar) # For getting protected areas
 library(exactextractr) # For zonal statistics
-#remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
+remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
 library(mapme.biodiversity)
 library(future)
 library(progressr)
 ```
+
 ```{r eval= F, message=FALSE, warning=FALSE}
-# Add this, to download correctly travel data 
+# Run this, to download correctly travel data 
 
 Sys.setenv(
   "VSI_CACHE" = "TRUE",
@@ -50,13 +51,14 @@ Sys.setenv(
 ```
 ## Settings ⚙️
 
-Q1 : Please fill up the following chunk with :
-
+1. The first step is to decide the parameters of your analysis, in then next cell you have to choose: 
 -   a working directory
--   the country code of Bolivia
+-   the country code of El Salvador
 -   the size of the buffer
 -   the size of the grid
--   the WDPA ID of Tariquia
+-   the WDPA ID of the Parque Nacional Montecristo
+
+To lower the computation time we choose to analyse the Parque Nacional Montecristo but you can try with another PA. 
 
 ```{r}
 
@@ -77,15 +79,18 @@ paid = c(9638)
 
 ## Gridding of the country
 
-Q2: Run the following code and explain what the question ... is doing
+2. 
 
-```{r}
+
+
+The next step is to download the country polygon and transform it to the appropriate UTM (Universal Transverse Mercator) zone based on the country's centroid. A bounding box is created, and a grid is generated within this box, intersecting with the country's boundary to form the observation units.
+
 ## 2. Generating observation units for matching frame
+```{r}
 # Download country polygon to working directory and load it into workspace
 gadm <- gadm(country = country, resolution = 1, level = 0, path = wdir) %>%
   st_as_sf()
-# If the country polygon file already exists in working directory, it can be loaded into work space by
-#gadm = readRDS(file.path(wdir, paste0('gadm41_',country,'_0_pk.rds'))) %>% st_as_sf()
+
 # Find UTM zone of the country centroid
 centroid = st_coordinates(st_centroid(gadm))
 lonlat2UTM = function(lonlat) {
@@ -117,8 +122,11 @@ ggplot() +
  geom_sf(data = st_geometry(bbox)) +
  geom_sf(data = st_geometry(gadm_prj)) +
  geom_sf(data = st_geometry(grid), alpha = 0)
+```
 
 ## 3. Determining Group IDs and WDPA IDs for all observation units
+Then, the code works with protected area (PA) polygons, separating funded and non-funded PAs and adding buffer zones around them. These PA polygons are filtered, cleaned, and projected to the UTM zone, then merged into a single dataset with group identifiers for funded, non-funded, and buffer areas. 
+```{r}
 # Get the PA polygons/points of the specified country;
 # They're downloaded to the working directory.
 #wdpa = wdpa_fetch(country, wait = TRUE, download_dir = wdir)
@@ -168,8 +176,13 @@ wdpa_groups = wdpa_groups[sort(wdpa.sub),] %>%
 ggplot(wdpa_groups) +
   geom_sf(aes(fill = factor(WDPAID)), lwd=0, alpha=0.4) +
   theme_bw()
+```
 
+The script proceeds by initializing a raster grid over the country's extent, with pixel values representing group IDs. It assigns minimal values to pixels covered by overlapping polygons, ensuring that PA group IDs take precedence over buffer IDs. Another raster layer is created for WDPA IDs.
 
+Finally, the raster values are aggregated into the grid cells by taking the mode, merged into a single dataset, and transformed to the WGS84 coordinate system to comply with the mapme.biodiversity package requirements.
+
+```{r}
 # Initialize an empty raster to the spatial extent of the country
 r.ini = raster()
 extent(r.ini) = extent(gadm_prj)
@@ -205,19 +218,15 @@ grid.param = grid.group %>%
   st_transform(crs=4326)
 ```
 
-Q3: Fill in the following code to visualize different group of the PA
+You can now visualize the gridding of the country and the attribution of group to each cell. To do so add the right dataframe the "factor()" and choose colors : 
 
 ```{r}
 # Visualize grouped grid cells
 grid.param %>%
-
-  #mutate(group = replace(group, wdpaid%in%c(1084, 478028, 555625665, 555697863, 10906), 2)) %>%
-  # Plot Groups for Phase I
-
   ggplot() +
-  geom_sf(aes(fill = factor(group)), lwd=0) +
+  geom_sf(aes(fill = factor(group)), lwd=0) + # add the right dataframe in factor()
   scale_fill_manual(name="Group", # legend title
-                    values = c("grey", "darkgreen", "darkblue", "orange"),
+                    values = c("grey", "darkgreen", "darkblue", "orange"),#add colors
                     labels = c("control candidate", "treatment candidate", "non-funded PA", "buffer zone")) +
   theme_bw()
 ```
