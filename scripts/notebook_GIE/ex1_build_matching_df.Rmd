@@ -160,6 +160,12 @@ non-funded, and buffer areas.
 # If the PA file already exists, it can be loaded in this way
 #wdpa = wdpa_read(paste0(wdir, '/WDPA_Jul2023_BOL-shapefile.zip'))
 
+# This part will be remove, but the wdpa_fetch is not working for now 
+wdpa_wld_raw = s3read_using(
+              sf::st_read,
+              object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
 wdpa=wdpa_wld_raw %>% filter(ISO3=="SLV")
 # PAs are projected, and column "geometry_type" is added
 wdpa_prj = wdpa_clean(wdpa, geometry_precision = 1000,
