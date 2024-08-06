@@ -8,6 +8,7 @@ date: "2024-07-23"
 
 The following exercise will help you understand the trade-off between the quality of matching and the quantity of matched units. The goal is to explore how adjusting these parameters affects the results and attempt to find a balance.
 
+- add some visualisation
 #Part I : Automatic binnings First run all the code and read the different info given.
 
 ```{r setup, include=FALSE}

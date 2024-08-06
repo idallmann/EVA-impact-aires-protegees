@@ -61,9 +61,12 @@ Sys.setenv(
 ## Settings ⚙️
 
 The first step is to decide the parameters of your analysis, in then
-next cell you have to choose: - a working directory - the country code
-of El Salvador - the size of the buffer - the size of the grid - the
-WDPA ID of the Parque Nacional Montecristo
+next cell you have to choose:
+- a working directory 
+- the country code of El Salvador 
+- the size of the buffer 
+- the size of the grid
+- the WDPA ID of the Parque Nacional Montecristo
 
 To lower the computation time we choose to analyse the Parque Nacional
 Montecristo but you can try with another PA.
@@ -98,10 +101,13 @@ is generated within this box, intersecting with the country's boundary
 to form the observation units.
 
 Explain the purpose of the `lonlat2UTM` function. How does it determine
-the correct UTM zone for the country’s centroid?
+the correct UTM zone for the country’s centroid? 
 
 Describe what you expect to see in the final plot produced by the
 `ggplot` code.
+
+question on projection, different projecttion exist, need to use the right one 
+add the right objecti to obtain the map of the grid and the country 
 
 ```{r}
 # Download country polygon to working directory and load it into workspace 
@@ -152,6 +158,8 @@ polygons are filtered, cleaned, and projected to the UTM zone, then
 merged into a single dataset with group identifiers for funded,
 non-funded, and buffer areas.
 
+- add a question on st_buffer 
+
 ```{r}
 # Get the PA polygons/points of the specified country;
 # They're downloaded to the working directory.
@@ -197,6 +205,7 @@ wdpa_buffer <- st_buffer(wdpa_funded, dist = buffer_m) %>%
   rbind(st_buffer(wdpa_nofund, dist = buffer_m)) %>%
   # Assign an ID "3" to the buffer group
   mutate(group=3)
+
 # Merge the dataframes of funded PAs, non-funded PAs and buffers
 wdpa_groups = rbind(wdpa_funded, wdpa_nofund, wdpa_buffer)
 # Subset to polygons that intersect with country boundary
@@ -210,9 +219,11 @@ wdpa_groups = wdpa_groups[sort(wdpa.sub),] %>%
 ggplot(wdpa_groups) +
   geom_sf(aes(fill = factor(WDPAID)), lwd=0, alpha=0.4) +
   theme_bw()
+#enlever la légende 
+
 ```
 
-The script proceeds by initializing a raster grid over the country's
+Then a a raster grid is initialized over the country's
 extent, with pixel values representing group IDs. It assigns minimal
 values to pixels covered by overlapping polygons, ensuring that PA group
 IDs take precedence over buffer IDs. Another raster layer is created for
@@ -222,6 +233,9 @@ Finally, the raster values are aggregated into the grid cells by taking
 the mode, merged into a single dataset, and transformed to the WGS84
 coordinate system to comply with the mapme.biodiversity package
 requirements.
+
+- explain why se're using a raster (Ask Melvin)
+- change the function of extract extact to a min or a max and comment the result 
 
 ```{r}
 # Initialize an empty raster to the spatial extent of the country
@@ -274,6 +288,7 @@ grid.param %>%
   theme_bw()
 ```
 
+- add the quesiton here 
 ## Download the data
 
 Once a group have been attributed to each cells, all the covariates need
@@ -281,9 +296,14 @@ to be downloaded. To do so you can use the Mapme.biodiversity package
 that enable you to download multiple ressources and then compute the
 right indicators. Please refer to this page
 (<https://github.com/mapme-initiative/mapme.biodiversity>) to find the
-function to complete the following code. You will be ask to : - Download
-the soil data - Calculate elevation - Download travel time data and
-compute the indicators
+function to complete the following code. You will be ask to : 
+- Download the soil data
+- Calculate elevation 
+- Download travel time data and compute the indicators
+
+
+-add a question on multisession + function on time 
+
 
 ```{r}
 ## 4. Calculating deforestation area and other covariates for all observation units
@@ -410,6 +430,8 @@ pivot.travelT = zonal.travelT %>%
 ```
 
 ### Time Series of Tree Cover Area
+# comment min_cover
+
 
 ```{r}
 get.tree = aoi %>%get_resources(get_gfw_treecover(version =  version_gfc),
@@ -422,6 +444,8 @@ with_progress({
                                                                     min_cover=10))
   
 })
+
+#ask Melvin about min_cover 
 plan(sequential) # close child processes
 
 # Transform the output dataframe into a pivot dataframe
@@ -434,7 +458,7 @@ pivot.tree = zonal.tree %>%
 
 ```
 
-Q5 : Why is a multisession used ? Explain
+
 
 ```{r}
 # The calculation of tree loss area is performed at dataframe base
