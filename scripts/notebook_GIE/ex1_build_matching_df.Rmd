@@ -365,7 +365,17 @@ You will be ask to :
 
 \- Download travel time data and compute the indicators
 
--add a question on multisession + function on time
+This section use multisession the speed up the computing of covariates.
+
+Multisession
+
+:   **Multisession** refers to a type of parallel processing where
+    multiple R sessions (or processes) are created to execute code
+    concurrently. Each session operates independently and runs in its
+    own R process, allowing for parallel execution of tasks.
+
+For the first variable try to rerun the cell without using multisession
+and compare the execution time.
 
 ```{r}
 ## 4. Calculating deforestation area and other covariates for all observation units
@@ -392,6 +402,9 @@ Enter the function to download soil data. Use the following parameters :
 "mean".
 
 ```{r}
+start_time <- Sys.time()
+
+
 get.soil = aoi %>% get_resources(get_soilgrids(
         layers = "clay", # resource specific argument
         depths = "0-5cm", # resource specific argument
@@ -416,16 +429,46 @@ pivot.soil = zonal.soil %>%
   pivot_wider(names_from = c("variable"), values_from = "value")%>%
   dplyr::select(-c(datetime,unit))
       
-start_time <- Sys.time()
 
-# Votre fonction ou code ici
-result <- votre_fonction()
 
 end_time <- Sys.time()
 elapsed_time <- end_time - start_time
 
 cat("Temps d'exécution:", elapsed_time, "\n")
 
+```
+
+```{r}
+start_time <- Sys.time()
+get.soil = aoi %>% get_resources(get_soilgrids(
+        layers = "clay", # resource specific argument
+        depths = "0-5cm", # resource specific argument
+        stats = "mean"))
+                         
+
+# Calculate Indicator
+with_progress({
+  zonal.soil = get.soil %>% calc_indicators(
+          calc_soilproperties(
+            stats = "mean",
+            engine = "zonal"
+          )
+        )
+})
+
+# Transform the output dataframe into a pivot dataframe
+pivot.soil = zonal.soil %>%
+  unnest(soilproperties) %>%
+  mutate(across(value, round, 3)) %>% # Round numeric columns
+  pivot_wider(names_from = c("variable"), values_from = "value")%>%
+  dplyr::select(-c(datetime,unit))
+      
+
+
+end_time <- Sys.time()
+elapsed_time <- end_time - start_time
+
+cat("Temps d'exécution:", elapsed_time, "\n")
 ```
 
 ### Covariate: Elevation
