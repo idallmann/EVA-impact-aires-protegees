@@ -22,7 +22,7 @@ portfolio can be found on the 'github link'.
 
 ```{r}
 # install packages if necessary
-lop <- c("ggplot2", "tidyr", "dplyr", "stringr", "sf", "terra", "raster", "geodata", "exactextractr", "mapme.biodiversity", "future","progressr","wdpar","landscapemetrics")
+lop <- c("ggplot2", "tidyr", "dplyr", "stringr", "sf", "terra", "raster", "geodata", "exactextractr", "mapme.biodiversity", "future","progressr","wdpar","landscapemetrics","grid.extra","rstac")
 newp <- lop[!(lop %in% installed.packages()[,"Package"])]
 if(length(newp)) install.packages(newp)
 lapply(lop, require, character.only = TRUE)
@@ -45,7 +45,8 @@ remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
 library(mapme.biodiversity) # Biodiversity data processing and analysis
 library(future) # For parallel and distributed processing
 library(progressr) # Progress bars for long-running operations
-
+library(gridExtra)
+library(rstac)
 ```
 
 ## Settings ⚙️
@@ -87,12 +88,6 @@ distortion for specific regions, making spatial calculations like
 distances and areas more accurate. A bounding box is created, and a grid
 is generated within this box, intersecting with the country's boundary
 to form the observation units.
-
-Explain the purpose of the `lonlat2UTM` function. How does it determine
-the correct UTM zone for the country’s centroid?
-
-Describe what you expect to see in the final plot produced by the
-`ggplot` code.
 
 1.  [ADD A QUESTION ABOUT PROJECTION]
 
@@ -146,8 +141,8 @@ polygons are filtered, cleaned, and projected to the UTM zone, then
 merged into a single dataset with group identifiers for funded,
 non-funded, and buffer areas.
 
--   Find the right sf function to create buffer around all PA using the
-    buffer size (buffer_m) choose before and complete the code
+1.Find the right sf function to create buffer around all PA using the
+buffer size (buffer_m) chosen before and complete the code
 
 ```{r}
 # Get the PA polygons/points of the specified country;
@@ -230,9 +225,6 @@ the mode, merged into a single dataset, and transformed to the WGS84
 coordinate system to comply with the mapme.biodiversity package
 requirements.
 
--   change the function of extract extact to a min or a max and comment
-    the result
-
 ```{r}
 # Initialize an empty raster to the spatial extent of the country
 r.ini = raster()
@@ -269,49 +261,37 @@ grid.param = grid.group %>%
   st_transform(crs=4326)
 ```
 
-You can now visualize the gridding of the country and the attribution of
+You can now visualize the griding of the country and the attribution of
 group to each cell.
 
 ```{r}
 # Visualize grouped grid cells
-map=grid.param %>%
+grid.param %>%
   ggplot() +
   geom_sf(aes(fill = factor(group)), lwd=0) + # add the right dataframe in factor()
   scale_fill_manual(name="Group", # legend title
                     values = c("grey", "darkgreen", "darkblue", "orange"),#add colors
                     labels = c("control candidate", "treatment candidate", "non-funded PA", "buffer zone")) +
   theme_bw()
+
 ```
 
-Try to change the function used by exactextract to "min", then to
-understand the difference compute group statistics of grid.param and map
-to see the difference
+The function used to aggreagte pixel values influence the final value
+obtained.
+
+1.  Try to change the function used by exactextract() to "min"
+2.  Compute group statistics of grid.param and grid.param_2, comment the
+    difference
+3.  Map grid.param and grid.param_2 to visualize the difference
 
 ```{r}
-# Initialize an empty raster to the spatial extent of the country
-r.ini = raster()
-extent(r.ini) = extent(gadm_prj)
-# Specify the raster resolution as same as the pre-defined 'gridSize'
-res(r.ini) = gridSize
-# Assign the raster pixels with "Group" values,
-# Take the minimal value if a pixel is covered by overlapped polygons, so that PA Group ID has higher priority than Buffer ID.
-# Assign value "0" to the background pixels (control candidates group)
-r.group = rasterize(wdpa_groups, r.ini, field="group", fun="min", background=0) %>%
-  mask(., gadm_prj)
-# Rename Layer
-names(r.group) = "group"
-# Rasterize wdpaid
-r.wdpaid = rasterize(wdpa_prj, r.ini, field="WDPAID", fun="first", background=0) %>%
-  mask(., gadm_prj)
-names(r.wdpaid) = "wdpaid"
-
-# Aggregate pixel values by taking the majority
+# Aggregate pixel values by taking the min
 grid.group_2 = exact_extract(x=r.group, y=grid, fun='min', append_cols="gridID") %>%
   rename(group = min)
 grid.wdpaid_2 = exact_extract(x=r.wdpaid, y=grid, fun="min", append_cols="gridID") %>%
   rename(wdpaid = min)
 # Merge data frames
-grid.param_2 = grid.group %>%
+grid.param_2 = grid.group_2 %>%
   merge(., grid.wdpaid_2, by="gridID") %>%
   merge(., grid, by="gridID") %>%
   # drop rows having "NA" in column "group"
@@ -322,12 +302,19 @@ grid.param_2 = grid.group %>%
   # Grid is projected to WGS84 because mapme.biodiverty package merely works with this CRS
   st_transform(crs=4326)
 
-# Visualize maps with "mode" and "min" function
-# Divise graphical space in two columns
-par(mfrow=c(1, 2)) 
+```
 
+```{r}
+# Compute group statistic for grid.param and grid.param_2
+stat_1=table(grid.param$group)
+stat_2= table(grid.param_2$group)
+c(stat_1,stat_2)
+```
+
+```{r}
+# Visualize maps with "mode" and "min" function
 # create the graph of grid.param
-grid.param %>%
+map_1=grid.param %>%
   ggplot() +
   geom_sf(aes(fill = factor(group)), lwd=0) + 
   scale_fill_manual(name="Group",
@@ -336,7 +323,7 @@ grid.param %>%
   theme_bw()
 
 # create the graphe of grid.param_2
-grid.param_2 %>%
+map_2=grid.param_2 %>%
   ggplot() +
   geom_sf(aes(fill = factor(group)), lwd=0) + 
   scale_fill_manual(name="Group",
@@ -344,11 +331,10 @@ grid.param_2 %>%
                     labels = c("control candidate", "treatment candidate", "non-funded PA", "buffer zone")) +
   theme_bw()
 
-# Remettre les paramètres graphiques à la normale
-par(mfrow=c(1, 1))
+grid.arrange(map_1, map_2, ncol = 2)
 ```
 
-## Download the data
+## 4. Download the data
 
 Once a group have been attributed to each cells, all the covariates need
 to be downloaded. To do so you can use the Mapme.biodiversity package
@@ -397,9 +383,9 @@ aoi=grid.param
 
 ### Covariate: Soil
 
-Enter the function to download soil data. Use the following parameters :
-"clay' for the layers , a depth between 0 and 5 cm, and the statistic
-"mean".
+1.  Enter the function to download soil data. Use the following
+    parameters : "clay' for the layers , a depth between 0 and 5 cm, and
+    the statistic "mean".
 
 ```{r}
 start_time <- Sys.time()
@@ -437,6 +423,8 @@ elapsed_time <- end_time - start_time
 cat("Temps d'exécution:", elapsed_time, "\n")
 
 ```
+
+2.  Try running the same cells without the multisession and compare
 
 ```{r}
 start_time <- Sys.time()
@@ -558,8 +546,6 @@ pivot.travelT = zonal.travelT %>%
 
 ### Time Series of Tree Cover Area
 
-# comment min_cover
-
 ```{r}
 get.tree = aoi %>%get_resources(get_gfw_treecover(version =  version_gfc),
                                      get_gfw_lossyear(version = version_gfc))
@@ -601,7 +587,6 @@ for (i in 1:length(dropFirst)) {
   pivot.tree[[new_colname]] <- pivot.tree[[dropFirst[i]]] - pivot.tree[[dropLast[i]]]
 }
 
-
 # Export Matching Frame
 # Remove "geometry" column from pivot dataframes
 df.tree = pivot.tree %>% mutate(x = NULL) %>% as.data.frame()
@@ -623,10 +608,10 @@ st_write(pivot.all, dsn = file.path(wdir, name_output), delete_dsn = TRUE)
 
 ```
 
-# Create an interactive map
+# 5. Create an interactive map
 
 ```{r}
-# Définir les couleurs de contour pour chaque groupe
+# Define group colors 
 contour_colors <- c(
   `0` = "grey",
   `1` = "darkgreen",
@@ -666,61 +651,4 @@ server <- function(input, output) {
 
 # Run the application 
 shinyApp(ui = ui, server = server)
-```
-
-```{r}
-ggplot() +
-  geom_sf(data = pivot.all, aes(fill = treecover_2000, color = as.factor(group)), size = 0.3) +
-  scale_fill_viridis_c() +  # Palette de couleurs pour le paramètre
-  scale_color_manual(values = contour_colors) +  # Couleurs des contours pour chaque groupe
-  theme_minimal() +
-  labs(fill = "Tree Cover 2000", color = "Group", title = "Carte des pixels avec contours colorés") +
-  theme(legend.position = "right")
-
-```
-
-```{r}
-worldMaps <- function(df, world_data, data_type, period, indicator){
-  
-  # Function for setting the aesthetics of the plot
-  my_theme <- function () { 
-    theme_bw() + theme(axis.text = element_text(size = 14),
-                       axis.title = element_text(size = 14),
-                       strip.text = element_text(size = 14),
-                       panel.grid.major = element_blank(), 
-                       panel.grid.minor = element_blank(),
-                       panel.background = element_blank(), 
-                       legend.position = "bottom",
-                       panel.border = element_blank(), 
-                       strip.background = element_rect(fill = 'white', colour = 'white'))
-  }
-  
-  # Select only the data that the user has selected to view
-  plotdf <- df[df$Indicator == indicator & df$DataType == data_type & df$Period == period,]
-  plotdf <- plotdf[!is.na(plotdf$ISO3), ]
-  
-  # Add the data the user wants to see to the geographical world data
-  world_data['DataType'] <- rep(data_type, nrow(world_data))
-  world_data['Period'] <- rep(period, nrow(world_data))
-  world_data['Indicator'] <- rep(indicator, nrow(world_data))
-  world_data['Value'] <- plotdf$Value[match(world_data$ISO3, plotdf$ISO3)]
-  
-  # Create caption with the data source to show underneath the map
-  capt <- paste0("Source: ", ifelse(data_type == "Childlessness", "United Nations" , "World Bank"))
-  
-  # Specify the plot for the world map
-  library(RColorBrewer)
-  library(ggiraph)
-  g <- ggplot() + 
-    geom_polygon_interactive(data = world_data, color = 'gray70', size = 0.1,
-                                    aes(x = long, y = lat, fill = Value, group = group, 
-                                        tooltip = sprintf("%s<br/>%s", ISO3, Value))) + 
-    scale_fill_gradientn(colours = brewer.pal(5, "RdBu"), na.value = 'white') + 
-    scale_y_continuous(limits = c(-60, 90), breaks = c()) + 
-    scale_x_continuous(breaks = c()) + 
-    labs(fill = data_type, color = data_type, title = NULL, x = NULL, y = NULL, caption = capt) + 
-    my_theme()
-  
-  return(g)
-}
 ```
