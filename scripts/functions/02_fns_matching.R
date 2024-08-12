@@ -668,7 +668,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
       ## Terrain Ruggedness Index
       dl.tri = aoi %>% get_resources( get_nasa_srtm())
       ## Biome
-      dl.bio = aoi %>% get_resources(get_teow())   
+     # dl.bio = aoi %>% get_resources(get_teow())   
    
       print("----Compute indicators")
       #Compute indicators
@@ -707,7 +707,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
           stats = "mean",
           engine = "exactextract")) %seed% 5
         
-        get.bio <- dl.bio %>% calc_indicators(calc_biome()) %seed% 6
+        #get.bio <- dl.bio %>% calc_indicators(calc_biome()) %seed% 6
          
         
       })
@@ -754,10 +754,10 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
                                           TRUE ~ elevation_mean))%>%
         dplyr::select(-c(datetime,unit))
     
-     data.bio = unnest(get.bio, biome) %>%
-setnames("variable","biomes")%>%
-       dplyr::select(-c(value,unit,datetime))
-  
+#      data.bio = unnest(get.bio, biome) %>%
+# setnames("variable","biomes")%>%
+#        dplyr::select(-c(value,unit,datetime))
+#   
       
       ## End parallel plan : close parallel sessions, so must be done once indicators' datasets are built
       plan(sequential)
@@ -963,8 +963,6 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log, load_dir, sa
 ## OUTPUTS :
 ### mf : matching frame with the new covariate
 ### is_ok : a boolean indicating whether or not an error occured inside the function
-mf = mf_ini_j 
-log = log
 
 fn_post_fl_fc_pre_treat = function(mf, colname.flAvg, log)
   
@@ -1096,7 +1094,8 @@ fn_post_match_auto = function(mf,
                               k2k_method,
                               th_mean, 
                               th_var_min, th_var_max,
-                              colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcAvg, colname.flAvg, colname.biome,
+                              colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcAvg, colname.flAvg, 
+                              #colname.biome,
                               log)
 {
   
@@ -1111,21 +1110,28 @@ fn_post_match_auto = function(mf,
         # Formula
         ## Two cases : if only one value of biome across control and treated units considered for the matching, then we do not consider biome (de facto, matched units will have the same biome). If we have at least two biomes, then we need to take it into account in the formula.
         ## Note that no grouping is needed for the categorical variable "biomes" : according to the documentation "Note that if a categorical variable does not appear in grouping, it will not be coarsened, so exact matching will take place on it". 
-        if(length(unique(mf$biomes)) == 1) 
-        {
-          formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
-                                + .(as.name(colname.clayContent))  
-                                +  .(as.name(colname.fcAvg)) 
-                                + .(as.name(colname.flAvg))
-                                + .(as.name(colname.tri))
-                                + .(as.name(colname.elevation))))
-        } else formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
-                                     + .(as.name(colname.clayContent))  
-                                     +  .(as.name(colname.fcAvg)) 
-                                     + .(as.name(colname.flAvg))
-                                     + .(as.name(colname.tri))
-                                     + .(as.name(colname.elevation))
-                                     + .(as.name(colname.biome))))
+        # if(length(unique(mf$biomes)) == 1) 
+        # {
+        #   formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
+        #                         + .(as.name(colname.clayContent))  
+        #                         +  .(as.name(colname.fcAvg)) 
+        #                         + .(as.name(colname.flAvg))
+        #                         + .(as.name(colname.tri))
+        #                         + .(as.name(colname.elevation))))
+        # } else formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
+        #                              + .(as.name(colname.clayContent))  
+        #                              +  .(as.name(colname.fcAvg)) 
+        #                              + .(as.name(colname.flAvg))
+        #                              + .(as.name(colname.tri))
+        #                              + .(as.name(colname.elevation))
+        #                              + .(as.name(colname.biome))))
+        
+        formula = eval(bquote(group ~ .(as.name(colname.travelTime))
+                                                      + .(as.name(colname.clayContent))
+                                                      +  .(as.name(colname.fcAvg))
+                                                      + .(as.name(colname.flAvg))
+                                                      + .(as.name(colname.tri))
+                                                      + .(as.name(colname.elevation))))
         
         #Try to perform matching
         out.cem = matchit(formula,
@@ -1222,7 +1228,8 @@ fn_post_match_auto = function(mf,
 ### A table with statistics on unmatched control and treated units,
 
 fn_post_covbal = function(out.cem, tbl.quality, mf, 
-                          colname.travelTime, colname.clayContent, colname.fcAvg, colname.flAvg, colname.tri, colname.elevation, colname.biome,
+                          colname.travelTime, colname.clayContent, colname.fcAvg, colname.flAvg, colname.tri, colname.elevation,
+                          #colname.biome,
                           th_mean,
                           
                           iso, path_tmp, wdpaid, log,
@@ -1259,9 +1266,13 @@ fn_post_covbal = function(out.cem, tbl.quality, mf,
       colname.flAvg.new = paste0("Pre-treatment forest loss\n",  year.start.fl, "-", year.end.fl)
       colname.fcAvg.new = paste0("Pre-treatment forest cover\n",  year.start.fc, "-", year.end.fc)
       c_name = data.frame(old = c(colname.travelTime, colname.clayContent, colname.tri, colname.elevation,
-                                  colname.fcAvg, colname.flAvg, colname.biome),
+                                  colname.fcAvg, colname.flAvg
+                                  #,colname.biome
+                                  ),
                           new = c("Accessibility", "Clay Content", "Terrain Ruggedness Index (TRI)", "Elevation", colname.fcAvg.new,
-                                  colname.flAvg.new, "Biomes"))
+                                  colname.flAvg.new
+                                  #,"Biomes"
+                                  ))
       
       # Refer to cobalt::love.plot()
       # https://cloud.r-project.org/web/packages/cobalt/vignettes/cobalt.html#love.plot
@@ -1373,7 +1384,8 @@ fn_post_covbal = function(out.cem, tbl.quality, mf,
 ## DATA SAVED :
 ### Density plots of the matching covariates considered, for matched treated and control units
 fn_post_plot_density = function(out.cem, mf, 
-                                colname.travelTime, colname.clayContent, colname.fcAvg, colname.flAvg, colname.tri, colname.elevation, colname.biome,
+                                colname.travelTime, colname.clayContent, colname.fcAvg, colname.flAvg, colname.tri, colname.elevation, 
+                                #colname.biome,
                                 iso, path_tmp, wdpaid, log, save_dir)
 {
   output = tryCatch(
@@ -1602,50 +1614,50 @@ fn_post_plot_density = function(out.cem, mf,
         )
       
       #Proportion of biomes : plotted only if biome is taken in the formula, not relevant otherwise
-      formula = as.character(out.cem$formula)[3]
-      if(grepl("biome", formula)) {
-        
-        
-        fig_biome = bal.plot(out.cem, 
-                             var.name = colname.biome,
-                             #sample.names = c("Control", "Treatment"),
-                             which = "both",
-                             mirror = F,
-                             alpha.weight = T) +
-          coord_flip() +
-          facet_wrap(.~which, labeller = as_labeller(fnl)) +
-          #scale_fill_viridis(discrete = T) +
-          scale_fill_discrete(labels = c("Control", "Treatment")) +
-          #scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
-          labs(title = "Distributional balance for biomes",
-               subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
-               x = "",
-               fill = "Group") +
-          theme_bw() +
-          theme(
-            plot.title = element_text(family="Arial Black", size=16, hjust = 0),
-            plot.caption = element_text(size = 10 ,hjust = 0),
-            legend.title = element_blank(),
-            legend.text=element_text(size=14),
-            legend.spacing.x = unit(0.5, 'cm'),
-            legend.spacing.y = unit(0.75, 'cm'),
-            
-            axis.text=element_text(size=10),
-            axis.title=element_text(size=14),
-            axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
-            axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
-            
-            strip.text.x = element_text(size = 12), # Facet Label
-            panel.spacing = unit(1, "lines")
-          )
-        
-        tmp = paste(tempdir(), "fig", sep = "/")
-        ggsave(paste(tmp, paste0("fig_biome_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
-               plot = fig_biome,
-               device = "png",
-               height = 4, width = 10)
-        
-      } else print("Biome is not taken as a matching covariate : no density plot")
+      # formula = as.character(out.cem$formula)[3]
+      # if(grepl("biome", formula)) {
+      #   
+      #   
+      #   fig_biome = bal.plot(out.cem, 
+      #                        var.name = colname.biome,
+      #                        #sample.names = c("Control", "Treatment"),
+      #                        which = "both",
+      #                        mirror = F,
+      #                        alpha.weight = T) +
+      #     coord_flip() +
+      #     facet_wrap(.~which, labeller = as_labeller(fnl)) +
+      #     #scale_fill_viridis(discrete = T) +
+      #     scale_fill_discrete(labels = c("Control", "Treatment")) +
+      #     #scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+      #     labs(title = "Distributional balance for biomes",
+      #          subtitle = paste0("Protected area in ", country.name, ", WDPAID ", wdpaid),
+      #          x = "",
+      #          fill = "Group") +
+      #     theme_bw() +
+      #     theme(
+      #       plot.title = element_text(family="Arial Black", size=16, hjust = 0),
+      #       plot.caption = element_text(size = 10 ,hjust = 0),
+      #       legend.title = element_blank(),
+      #       legend.text=element_text(size=14),
+      #       legend.spacing.x = unit(0.5, 'cm'),
+      #       legend.spacing.y = unit(0.75, 'cm'),
+      #       
+      #       axis.text=element_text(size=10),
+      #       axis.title=element_text(size=14),
+      #       axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+      #       axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+      #       
+      #       strip.text.x = element_text(size = 12), # Facet Label
+      #       panel.spacing = unit(1, "lines")
+      #     )
+      #   
+      #   tmp = paste(tempdir(), "fig", sep = "/")
+      #   ggsave(paste(tmp, paste0("fig_biome_dplot_", iso, "_", wdpaid, ".png"), sep = "/"),
+      #          plot = fig_biome,
+      #          device = "png",
+      #          height = 4, width = 10)
+      #   
+      # } else print("Biome is not taken as a matching covariate : no density plot")
       
       #Saving plots
       
@@ -1732,7 +1744,8 @@ fn_post_plot_density = function(out.cem, mf,
 ## DATA SAVED :
 ### Histograms of the matching covariates considered, for matched treated and control units
 fn_post_plot_hist = function(out.cem, mf, 
-                             colname.travelTime, colname.clayContent, colname.fcAvg, colname.flAvg, colname.tri, colname.elevation, colname.biome,
+                             colname.travelTime, colname.clayContent, colname.fcAvg, colname.flAvg, colname.tri, colname.elevation, 
+                             #colname.biome,
                              iso, path_tmp, wdpaid, log, save_dir)
 {
   output = tryCatch(
@@ -1961,7 +1974,7 @@ fn_post_plot_hist = function(out.cem, mf,
         )
       
       #/!\ Biome already plotted with fn_post_plot_density : no need to plot it again
-      useless_var = colname.biome #To avoid error if colname.biome not used in the function
+     # useless_var = colname.biome #To avoid error if colname.biome not used in the function
       # #Proportion of biomes : plotted only if biome is taken in the formula, not relevant otherwise
       # formula = as.character(out.cem$formula)[3]
       # if(grepl("biome", formula)) {
@@ -2105,7 +2118,9 @@ fn_post_panel = function(out.cem, mf, wdpaid, iso, log, save_dir)
       
       # Pivot Wide ==> Pivot Long
       matched.long = matched.wide %>%
-        dplyr::select(c(region_afd, region, sub_region, country_en, iso3, group, focus, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, res_m, minutes_mean_5k_110mio, clay_0_5cm_mean, elevation_mean, tri_mean, biomes, starts_with("treecover"), avgLoss_pre_treat, avgCover_pre_treat, start_pre_treat_fl, end_pre_treat_fl , start_pre_treat_fc, end_pre_treat_fc)) %>%
+        dplyr::select(c(region_afd, region, sub_region, country_en, iso3, group, focus, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, res_m, minutes_mean_5k_110mio, clay_0_5cm_mean, elevation_mean, tri_mean,
+                        #biomes,
+                        starts_with("treecover"), avgLoss_pre_treat, avgCover_pre_treat, start_pre_treat_fl, end_pre_treat_fl , start_pre_treat_fc, end_pre_treat_fc)) %>%
         pivot_longer(cols = c(starts_with("treecover")),
                      names_to = c("var", "year"),
                      names_sep = "_",
@@ -2118,7 +2133,9 @@ fn_post_panel = function(out.cem, mf, wdpaid, iso, log, save_dir)
       
       # Pivot Wide ==> Pivot Long
       unmatched.long = unmatched.wide %>%
-        dplyr::select(c(region_afd, region, sub_region, country_en, iso3, group, focus, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, res_m, minutes_mean_5k_110mio, clay_0_5cm_mean, elevation_mean, tri_mean, biomes, starts_with("treecover"), avgLoss_pre_treat, avgCover_pre_treat, start_pre_treat_fl, end_pre_treat_fl , start_pre_treat_fc, end_pre_treat_fc)) %>%    pivot_longer(cols = c(starts_with("treecover")),
+        dplyr::select(c(region_afd, region, sub_region, country_en, iso3, group, focus, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, res_m, minutes_mean_5k_110mio, clay_0_5cm_mean, elevation_mean, tri_mean, 
+                        #biomes, 
+                        starts_with("treecover"), avgLoss_pre_treat, avgCover_pre_treat, start_pre_treat_fl, end_pre_treat_fl , start_pre_treat_fc, end_pre_treat_fc)) %>%    pivot_longer(cols = c(starts_with("treecover")),
                                                                                                                                                                                                                                                                                                                                                                                                                names_to = c("var", "year"),
                                                                                                                                                                                                                                                                                                                                                                                                                names_sep = "_",
                                                                                                                                                                                                                                                                                                                                                                                                                values_to = "fc_ha") %>%
@@ -2507,31 +2524,31 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
       #   group_by(is_m) %>%
       #   mutate(freq = n_biome/sum(n_biome))
       
-      fig_biome = ggplot(data = df,
-                         aes(y = biomes, fill = is_m)) %>%
-        + geom_bar(aes(x = ..prop..), stat = "count", position = "dodge") %>%
-        + labs(title = "Distribution of biomes among treated units",
-               subtitle = paste0("Protected area in ", country_en, ", WDPAID ", wdpaid),
-               x = "Proportion",
-               y = "") %>%
-        + scale_color_brewer(name = "", palette = "Paired") %>%
-        + scale_fill_brewer(name = "", palette = "Paired") %>%
-        + theme_bw() %>%
-        + theme(
-          plot.title = element_text(family="Arial Black", size=16, hjust = 0),
-          plot.caption = element_text(size = 10 ,hjust = 0),
-          #legend.title = element_blank(),
-          #legend.text=element_text(size=14),
-          #legend.spacing.x = unit(0.5, 'cm'),
-          #legend.spacing.y = unit(0.75, 'cm'),
-          
-          axis.text=element_text(size=10),
-          axis.title=element_text(size=14),
-          axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
-          axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
-          
-          strip.text.x = element_text(size = 12) # Facet Label
-        )
+      # fig_biome = ggplot(data = df,
+      #                    aes(y = biomes, fill = is_m)) %>%
+      #   + geom_bar(aes(x = ..prop..), stat = "count", position = "dodge") %>%
+      #   + labs(title = "Distribution of biomes among treated units",
+      #          subtitle = paste0("Protected area in ", country_en, ", WDPAID ", wdpaid),
+      #          x = "Proportion",
+      #          y = "") %>%
+      #   + scale_color_brewer(name = "", palette = "Paired") %>%
+      #   + scale_fill_brewer(name = "", palette = "Paired") %>%
+      #   + theme_bw() %>%
+      #   + theme(
+      #     plot.title = element_text(family="Arial Black", size=16, hjust = 0),
+      #     plot.caption = element_text(size = 10 ,hjust = 0),
+      #     #legend.title = element_blank(),
+      #     #legend.text=element_text(size=14),
+      #     #legend.spacing.x = unit(0.5, 'cm'),
+      #     #legend.spacing.y = unit(0.75, 'cm'),
+      #     
+      #     axis.text=element_text(size=10),
+      #     axis.title=element_text(size=14),
+      #     axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+      #     axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+      #     
+      #     strip.text.x = element_text(size = 12) # Facet Label
+      #   )
       
       #Saving plots
       tmp = paste(tempdir(), "fig", sep = "/")
@@ -2559,10 +2576,10 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
              plot = fig_loss,
              device = "png",
              height = 6, width = 9)
-      ggsave(paste(tmp, paste0("fig_biome_dplot_treated_", iso, "_", wdpaid, ".png"), sep = "/"),
-             plot = fig_biome,
-             device = "png",
-             height = 4, width = 10)
+      # ggsave(paste(tmp, paste0("fig_biome_dplot_treated_", iso, "_", wdpaid, ".png"), sep = "/"),
+      #        plot = fig_biome,
+      #        device = "png",
+      #        height = 4, width = 10)
       
       print(xtable(tbl.quality, type = "latex", auto = T),
             file = paste(tmp, paste0("tbl_quality_tt_", iso, "_", wdpaid, ".tex"), sep = "/"))

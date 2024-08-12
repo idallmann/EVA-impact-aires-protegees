@@ -212,8 +212,10 @@ colname.elevation = "elevation_mean"
 colname.tri = "tri_mean" #Terrain Ruggedness Index
 colname.fcAvg = "avgCover_pre_treat"  #Forest cover pre-treatment
 colname.flAvg = "avgLoss_pre_treat" #Forest loss pre-treatment
-colname.biome = "biomes"
-list_cov = paste(colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcAvg, colname.flAvg, colname.biome, sep = ";")
+#colname.biome = "biomes"
+list_cov = paste(colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcAvg, colname.flAvg
+                 #,colname.biome
+                 , sep = ";")
 
 
 #Matching 
@@ -437,7 +439,7 @@ for (i in list_iso)
                                    colname.tri = colname.tri, 
                                    colname.fcAvg = colname.fcAvg, 
                                    colname.flAvg = colname.flAvg,
-                                   colname.biome = colname.biome,
+                                   #colname.biome = colname.biome,
                                    log = log)
     if(output_cem$is_ok == FALSE){next} else out_cem_j = output_cem$out.cem
     
@@ -457,7 +459,7 @@ for (i in list_iso)
                    colname.flAvg = colname.flAvg,
                    colname.tri = colname.tri,
                    colname.elevation = colname.elevation,
-                   colname.biome = colname.biome,
+                  # colname.biome = colname.biome,
                    th_mean = th_mean,
                    iso = i,
                    path_tmp = tmp_post,
@@ -476,7 +478,7 @@ for (i in list_iso)
                                          colname.flAvg = colname.flAvg,
                                          colname.tri = colname.tri,
                                          colname.elevation = colname.elevation,
-                                         colname.biome = colname.biome,
+                                        # colname.biome = colname.biome,
                                          iso = i,
                                          path_tmp = tmp_post,
                                          wdpaid = j,
@@ -492,7 +494,7 @@ for (i in list_iso)
                                      colname.flAvg = colname.flAvg,
                                      colname.tri = colname.tri,
                                      colname.elevation = colname.elevation,
-                                     colname.biome = colname.biome,
+                                  #   colname.biome = colname.biome,
                                      iso = i,
                                      path_tmp = tmp_post,
                                      wdpaid = j,
