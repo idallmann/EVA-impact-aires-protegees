@@ -49,7 +49,7 @@ library(gridExtra)
 library(rstac)
 ```
 
-## Settings ⚙️
+## 1. Settings ⚙️
 
 The first step is to decide the parameters of your analysis, in the next
 cell you have to enter: - a working directory - the name of the output
@@ -61,7 +61,6 @@ To lower the computation time we choose to analyse the Parque Nacional
 Montecristo but you can try with another PA.
 
 ```{r}
-
 # Define the path to a working directory
 wdir = file.path(tempdir())
 # Define the file name of the output matching frame
