@@ -22,7 +22,7 @@ portfolio can be found on the 'github link'.
 
 ```{r}
 # install packages if necessary
-lop <- c("ggplot2", "tidyr", "dplyr", "stringr", "sf", "terra", "raster", "geodata", "exactextractr", "mapme.biodiversity", "future","progressr","wdpar","landscapemetrics","grid.extra","rstac")
+lop <- c("ggplot2", "tidyr", "dplyr", "stringr", "sf", "terra", "raster", "geodata", "exactextractr", "mapme.biodiversity", "future","progressr","wdpar","landscapemetrics","gridExtra","rstac")
 newp <- lop[!(lop %in% installed.packages()[,"Package"])]
 if(length(newp)) install.packages(newp)
 lapply(lop, require, character.only = TRUE)
@@ -52,8 +52,11 @@ library(rstac)
 ## 1. Settings ⚙️
 
 The first step is to decide the parameters of your analysis, in the next
-cell you have to enter: - a working directory - the name of the output
-matching frame - the country code of El Salvador - the size of the
+cell you have to enter: 
+- a working directory 
+- the name of the output
+matching frame 
+- the country code of El Salvador - the size of the
 buffer - the size of the grid - the WDPA ID of the Parque Nacional
 Montecristo
 
@@ -88,7 +91,10 @@ distances and areas more accurate. A bounding box is created, and a grid
 is generated within this box, intersecting with the country's boundary
 to form the observation units.
 
-1.  [ADD A QUESTION ABOUT PROJECTION]
+[reference to the chapter about projection ]
+
+1.  [ADD A QUESTION ABOUT PROJECTION] ASK MELVIN 
+
 
 2.  Add the right objects in the \# Visualize section to obtain a map
     with the box,the grid and the shape of the country
@@ -168,10 +174,12 @@ wdpa_funded = wdpa_prj %>% filter(WDPAID %in% wdpaID_funded) %>%
 
 wdpa_nofund = wdpa_prj %>%
   filter(!WDPAID %in% wdpaID_funded) %>%
-  st_buffer(., dist=0) # a hack to solve 'bad' polygons in R, e.g. problem of self-intersection
+  st_buffer(., dist=0) # a hack to solve geometries issues with polygons in R, e.g. problem of self-intersection
+#add a link 
 
 # Determine the non-funded PAs that intersect with funded PAs,
 # and delete the intersection part from non-funded PAs to reduce noise when rasterizing WDPAIDs later.
+
 intersection = st_intersection(wdpa_nofund, wdpa_funded)
 wdpa_nofund <- wdpa_nofund %>%
   { if (nrow(intersection) == 0) . else st_difference(., st_union(st_geometry(intersection))) } %>%
@@ -194,13 +202,24 @@ wdpa.sub = wdpa_groups %>%
 wdpa_groups = wdpa_groups[sort(wdpa.sub),] %>%
   st_as_sf()
 
-#Plot different PA
-ggplot(wdpa_groups) +
-   geom_sf(data = st_geometry(gadm_prj))+
-  geom_sf(aes(fill = factor(WDPAID)), lwd = 0.1, alpha = 0.1) +
-  theme_bw() +
-  theme(legend.position = "none")
-# This map allow to visualize each PA in the country and its buffer zone around 
+
+
+# This map allow to visualize each PA in the country and its buffer zone around
+colors <- c("1" = "darkgreen", "2" = "darkblue", "3" = "orange")
+
+ggplot() +
+   geom_sf(data = st_geometry(gadm_prj), fill = "lightgray", color = "lightgray", lwd = 0.2) + 
+    geom_sf(data = subset(wdpa_groups, group == "3"), aes(fill = factor(group)), color = "black", lwd = 0.3, alpha = 0.6) +
+    geom_sf(data = subset(wdpa_groups, group == "2"), aes(fill = factor(group)), color = "black", lwd = 0.3, alpha = 0.6) +
+    geom_sf(data = subset(wdpa_groups, group == "1"), aes(fill = factor(group)), color = "black", lwd = 0.3, alpha = 0.6) +
+    scale_fill_manual(values = colors, 
+                      labels = c("1" = "Funded PA", 
+                               "2" = "Non Funded PA", 
+                               "3" = "Buffer Zone")) +
+    theme_bw() +
+    theme(legend.position = "right")
+
+
 ```
 
 The next section attribute a group to each pixel of the grid. To speed
@@ -219,8 +238,9 @@ covered by overlapping polygons, ensuring that PA group IDs take
 precedence over buffer IDs. Another raster layer is created for WDPA
 IDs.
 
-Finally, the raster values are aggregated into the grid cells by taking
-the mode, merged into a single dataset, and transformed to the WGS84
+Finally, the raster values are aggregated into the grid cells with the "mode"
+function,that input the value of the group with the largest presence to each pixel.
+Then values get merged into a single dataset, and transformed to the WGS84
 coordinate system to comply with the mapme.biodiversity package
 requirements.
 
@@ -260,7 +280,7 @@ grid.param = grid.group %>%
   st_transform(crs=4326)
 ```
 
-You can now visualize the griding of the country and the attribution of
+You can now visualize the gridding of the country and the attribution of
 group to each cell.
 
 ```{r}
@@ -275,13 +295,14 @@ grid.param %>%
 
 ```
 
-The function used to aggreagte pixel values influence the final value
+The function used to aggregate pixel values influence the final value
 obtained.
-
-1.  Try to change the function used by exactextract() to "min"
-2.  Compute group statistics of grid.param and grid.param_2, comment the
-    difference
-3.  Map grid.param and grid.param_2 to visualize the difference
+In this script, the "mode" function is used, but other functions such as "max" or "min" could be employed instead. 
+1. If, for example, a cell is to be placed in the treatment group as soon as it interferes with an AP, which function should be used?   
+2. Add this function in exactextract() 
+3.Compute summary statistic (distribution) for the "group" variable in grid.param and grid.param_2. Comment on the
+    difference.
+3.  Map grid.param and grid.param_2 to visualize the difference.
 
 ```{r}
 # Aggregate pixel values by taking the min
@@ -304,7 +325,7 @@ grid.param_2 = grid.group_2 %>%
 ```
 
 ```{r}
-# Compute group statistic for grid.param and grid.param_2
+# Compute summary statistic (distribution) for group variable in grid.param and grid.param_2
 stat_1=table(grid.param$group)
 stat_2= table(grid.param_2$group)
 c(stat_1,stat_2)
@@ -330,7 +351,7 @@ map_2=grid.param_2 %>%
                     labels = c("control candidate", "treatment candidate", "non-funded PA", "buffer zone")) +
   theme_bw()
 
-grid.arrange(map_1, map_2, ncol = 2)
+grid.arrange(map_1, map_2, nrow = 2)
 ```
 
 ## 4. Download the data
@@ -455,7 +476,7 @@ pivot.soil = zonal.soil %>%
 end_time <- Sys.time()
 elapsed_time <- end_time - start_time
 
-cat("Temps d'exécution:", elapsed_time, "\n")
+cat("execution time:", elapsed_time, "\n")
 ```
 
 ### Covariate: Elevation
@@ -608,7 +629,8 @@ st_write(pivot.all, dsn = file.path(wdir, name_output), delete_dsn = TRUE)
 ```
 
 # 5. Create an interactive map
-
+ 
+ explication sur les shiny ap 
 ```{r}
 # Define group colors 
 contour_colors <- c(
