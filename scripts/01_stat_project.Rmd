@@ -4691,6 +4691,9 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ### Map of PA 
 
 ```{r }
+
+install.packages("rnaturalearth")
+library(rnaturalearth)
 # Load the polygon data of protected areas from AWS S3 bucket
 data_map <- aws.s3::s3read_using(
   sf::st_read,
@@ -4766,4 +4769,18 @@ ggplot() +
        y = "Latitude")+
   coord_sf(xlim = c(22, 50), ylim = c(-23,9)) 
 ```
+
+```{r}
+# Zoomed map of Madagascar
+ggplot() +
+  geom_sf(data = focus_map, fill = "antiquewhite", color = "white") +  # Fond de carte
+  geom_sf(data = data_map_focus, fill = "chartreuse3", color = "darkgreen") +  # Polygones de zones protégées
+#  geom_sf_text(data = africa, aes(label = name), size = 3, color = "black", check_overlap = TRUE) +  # Noms des pays
+  theme(panel.grid.major = element_line(color = gray(.5), linetype = "dashed", size = 0.1), panel.background = element_rect(fill = "aliceblue"))+
+  labs(title = "Zones Protégées en Afrique, zoom ouest",
+       x = "Longitude",
+       y = "Latitude")+
+  coord_sf(xlim = c(22, 50), ylim = c(-23,9)) 
+```
+
 
