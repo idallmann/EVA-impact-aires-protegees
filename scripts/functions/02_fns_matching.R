@@ -595,13 +595,13 @@ fn_calc_biome_temp = function(x, indicator)
 ##DATA SAVED
 ### pivot.all : a dataframe with variables of interest (outcome, matching covariates) for all treated and potential control pixels
 
-# grid.param = grid_param
-# path_tmp = tmp_pre
-# iso = i
-# yr_first = yr_first
-# yr_last = yr_last
-# log = log
-# save_dir = save_dir
+grid.param = grid_param
+path_tmp = tmp_pre
+iso = i
+yr_first = yr_first
+yr_last = yr_last
+log = log
+save_dir = save_dir
 
 
 fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log, save_dir) 
@@ -624,11 +624,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
         outdir =path_tmp
       )
       
-      # Create a mapme.biodiversity portfolio for the area of interest (aoi). This specifies the period considered and the geospatial units where data are downloaded and indicators computed (here, the treated and control pixels in the country gridding)
-      # aoi = init_portfolio(grid.aoi,
-      #                      years = yr_first:yr_last,
-      #                      outdir = path_tmp,
-      #                      add_resources = FALSE)
+   
       
       aoi=grid.aoi %>% mutate(assetid = row_number())
       
@@ -680,7 +676,8 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
       # Note after each calc_indicators is specified a seed manually (for reproducibility). This is to ensure the Random Number Generating processes in the parellel sessons are independant, and avoid any bug (https://www.r-bloggers.com/2020/09/future-1-19-1-making-sure-proper-random-numbers-are-produced-in-parallel-processing/; https://stackoverflow.com/questions/69365728/how-do-i-suppress-a-random-number-generation-warning-with-future-callr)
       library(future)
       library(progressr)
-      plan(multisession, workers = 6, gc = TRUE)
+      plan(cluster, workers = 6, gc = TRUE)
+      plan(multisession(), workers = 6, gc = TRUE)
       with_progress({
         get.soil <- dl.soil %>% calc_indicators(
           calc_soilproperties(
@@ -787,7 +784,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
       df.soil = data.soil %>% mutate(x = NULL) %>% as.data.frame()
       df.elevation = data.elevation %>% mutate(x = NULL) %>% as.data.frame()
       df.tri = data.tri %>% mutate(x=NULL) %>% as.data.frame()
-      df.bio = data.bio %>% mutate(x = NULL) %>% as.data.frame()
+      #df.bio = data.bio %>% mutate(x = NULL) %>% as.data.frame()
       
       # Make a dataframe containing only "assetid" and geometry
       # Use data.soil instead of data.tree, as some pixels are removed in data.tree (NA values from get.tree)
@@ -797,7 +794,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
       
       # Merge all output dataframes 
       pivot.all = Reduce(dplyr::full_join, list(df.travelT, 
-                                                df.bio,
+                                               # df.bio,
                                                 df.soil, 
                                                 df.elevation,
                                                 df.tri,
@@ -876,7 +873,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
 ### is_ok : a boolean indicating whether or not an error occured inside the function
 ##DATA SAVED
 ### The list of PAs in the matching frame, characterized by their WDPAID. Useful to loop over each PAs we want to analyze in a given country
-# iso = "COM"
+# iso = "MDG"
 #                               yr_min = yr_min
 #                               log = log
 #                               load_dir = load_dir

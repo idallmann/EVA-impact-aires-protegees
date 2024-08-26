@@ -239,7 +239,7 @@ list_iso = unique(data_pa_ie_africa_focus$iso3)
 
 # ## Manual definition
 # list_iso = c("COM", "GNB")
-list_iso=c("COM")
+list_iso=c("MDG")
 ```
 
 ## Matching process
@@ -259,6 +259,8 @@ For more details about the each step, please refer to the definition of the func
 
 # The analysis is designed to analyze a portfolio of PA in different countries, using loop over countries and over PA. To better understand a function, or identify and debug an error, a good practice is to enter the loops using a single country or PA. Thus, it is possible to run the analysis step by step, and even enter into the functions to understand what is done « behind the doors ». For instance in « 02_matching.Rmd), set value i = « COM » in the first loop and j = 313046 to peform the analysis step by step for PA with WDPA ID 313046 in Comoros.
 
+i="MDG"
+j="352249"
 
 #For each country in the list, the different steps of the pre-processing are performed, and the process duration computed
 count = 0 #Initialize counter
@@ -345,8 +347,11 @@ for (i in list_iso)
 ### POST-PROCESSING
 ##########
 
-  # The analysis is designed to analyze a portfolio of PA in different countries, using loop over countries and over PA. To better understand a function, or identify and debug an error, a good practice is to enter the loops using a single country or PA. Thus, it is possible to run the analysis step by step, and even enter into the functions to understand what is done « behind the doors ». For instance in « 02_matching.Rmd), set value i = « COM » in the first loop and j = 313046 to peform the analysis step by step for PA with WDPA ID 313046 in Comoros.
-  
+  # The analysis is designed to analyze a portfolio of PA in different countries, using loop over countries and over PA. To better understand a function, or identify and debug an error, a good practice is to enter the loops using a single country or PA. Thus, it is possible to run the analysis step by step, and even enter into the fuakira nctions to understand what is done « behind the doors ». For instance in « 02_matching.Rmd), set value i = « COM » in the first loop and j = 313046 to peform the analysis step by step for PA with WDPA ID 313046 in Comoros.
+
+  i="MDG"
+j="352249"
+ 
   
            
 #For each country in the list, the different steps of the post-processing are performed, and duration of the processing computed
