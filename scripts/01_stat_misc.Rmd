@@ -42,38 +42,6 @@ library(mapme.biodiversity)
 
 A dataset with information for each protected area funded by the AFD, and datasets on aggregated size at country/region/world level and by year. The latter takes into account potential overlap between PAs reported in the World Database on Protected Areas (WDPA).
 
-```{r Download latest wdpa data  }
-# Function to dowload data
-download_wdpa_data <- function(url, dest_dir) {
-  # Vérifiez si le répertoire de destination existe, sinon le créer
-  if (!dir.exists(dest_dir)) {
-    dir.create(dest_dir, recursive = TRUE)
-  }
-  
-  # Déterminer le nom du fichier à partir de l'URL
-  file_name <- basename(url)
-  dest_file <- file.path(dest_dir, file_name)
-  
-  # Télécharger le fichier
-  download.file(url, dest_file, mode = "wb")
-  
-  # Retourner le chemin du fichier téléchargé
-  return(dest_file)
-}
-
-# using the function 
-url <- "http://wcmc.io/wdpa_current_release"
-dest_dir <- "/home/onyxia/work/EVA-impact-aires-protegees/data" 
-
-downloaded_file <- download_wdpa_data(url, dest_dir)
-cat("Fichier téléchargé à :", downloaded_file, "\n")
-
-unzip(downloaded_file, exdir = "/home/onyxia/work/EVA-impact-aires-protegees/data/")
-data_wdpa <- st_read(dsn = "/home/onyxia/work/EVA-impact-aires-protegees/data/WDPA_WDOECM_Jun2024_Public.gdb")
-
-```
-
-
 
 
 ```{r, eval = FALSE}
