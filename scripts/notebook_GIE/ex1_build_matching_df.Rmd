@@ -11,20 +11,23 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-The following exercises will help you master the steps of the
-analysis carried out in the chapter "Geospatial Impact Assessment of
-Conservation on Forest Cover Loss" and to understand the methodology
+The following exercises will help you master the steps of the analysis
+carried out in the chapter Geospatial Impact Evaluation of protected
+areas support on forest cover loss and to understand the methodology
 used. The evaluation is conducted here for a single protected area to
-make it easier to understand the code, but the scripts for analysing the
-portfolio can be found on the 'github link'.
+make it easier to understand the code, but the scripts to analyse an
+entire portfolio can be found on the 'github link'.
 
-The objective of this first exercise is to build for a given PA a dataset with outcomes, covariates and treatment variables for each unit of observation (cells) that will then be used in the matching process . This notebook will also enable you to create your own shiny app to view the data interactively. 
-There are four parts to this notebook: 
+The objective of this first exercise is to build for a given PA a
+dataset with outcomes, covariates and treatment variables for each unit
+of observation (cells) that will then be used in the matching process .
+This notebook will also enable you to create your own shiny app to view
+the data interactively. There are four parts to this notebook:
 
-1. Settings 
-2. Classify observations 
-3. Download the data 
-4. Create an interactive map 
+1.  Settings
+2.  Classify observations
+3.  Download the data
+4.  Create an interactive map
 
 ## Exercise 1 : Build a matching sample
 
@@ -58,7 +61,9 @@ library(rstac) # Interface for querying and accessing SpatioTemporal Asset Catal
 ```
 
 ## 1. Settings ⚙️
-Please enter a working directory and the name you wish to give to the output of this notebook, which is a dataset ready for matching : 
+
+1.  Please enter a working directory and the name you wish to give to
+    the output of this notebook, which is a dataset ready for matching :
 
 ```{r}
 # Define the path to a working directory
@@ -67,16 +72,23 @@ wdir = file.path(tempdir())
 name_output = "mf_SLV_500ha.gpkg"
 ```
 
-The first step is to decide the parameters of your analysis, in the next
-cell please enter: 
-- the country code of El Salvador 
-- the size of the buffer 
-- the size of the grid 
-- the WDPA ID of the Parque Nacional Montecristo
+2.  The next step is to decide the parameters of your analysis, in the
+    next cell please enter:
+
+\- the country code of El Salvador
+
+ - the size of the buffer
+
+\- the size of the grid
+
+\- the WDPA ID of the Parque Nacional Montecristo
 
 To lower the computation time we choose to analyse the Parque Nacional
-Montecristo but you can try with another PA. 
-It is also possible to vary the following parameters according to the PA you wish to analyse. Initially you can use the same parameters as in the case study. You can then run the notebook again with different parameters to see the difference in the results.
+Montecristo but you can try with another PA. It is also possible to vary
+the following parameters according to the PA you wish to analyse.
+Initially you can use the same parameters as in the case study. You can
+then run the notebook again with different parameters to see the
+difference in the results.
 
 ```{r}
 # Specify a country iso 3; to find the right country code, please refer to this page https://en.wikipedia.org/wiki/ISO_3166-1_alpha-3
@@ -99,15 +111,12 @@ country polygon to the appropriate UTM (Universal Transverse Mercator)
 zone based on the country's centroid. The UTM projection minimizes
 distortion for specific regions, making spatial calculations like
 distances and areas more accurate. A bounding box is created, and a grid
-is generated within this box so that it covers the whole country. It is then intersected with the country's boundary to retain only cells located within the country 
-as observation units.
-
-
-
-
+is generated within this box so that it covers the whole country. It is
+then intersected with the country's boundary to retain only cells
+located within the country as observation units.
 
 1.  Add the right objects in the \# Visualize section to obtain a map
-    with the box,the grid and the shape of the country
+    with the box, the grid and the shape of the country
 
 ```{r}
 # Download country polygon to working directory and load it into workspace 
@@ -148,25 +157,39 @@ ggplot() +
  geom_sf(data = st_geometry(grid), alpha = 0)
 
 ```
+
 To answer following questions you can refer to XXX chapter
 
-2.Obtain information about "gadm" and "gadm_prj" object. To do so you can just enter the name of the object in the console. 
+2.  Obtain information about "gadm" and "gadm_prj" object. To do so you
+    can just enter the name of the object in the console.
 
-a.What is the main coordinate system used for each geospatial object? 
-b. What are the units of measurement used in each projection?
-c. Why do we use a projected system (UTM) in some geospatial applications instead of a geodetic system (WGS 84)?
+a.What is the main coordinate system used for each geospatial object?
 
+b\. What are the units of measurement used in each projection?
 
-## 3. Determining Group IDs and WDPA IDs for all observation units
+c\. Why do we use a projected system (UTM) in some geospatial
+applications instead of a geodetic system (WGS 84)?
 
-Then, the code works with protected area (PA) polygons, separating
-funded and non-funded PAs and adding buffer zones around them. These PA
-polygons are filtered, cleaned, and projected to the UTM zone, then
-merged into a single dataset with group identifiers for funded,
-non-funded, and buffer areas.
-Then, we need to define the status of each observation unit (cell), meaning whether it is concerned by the analysed PA (group 1), an other PA (group 2), or a buffer area around a PA (group 3). For each cell, we also need to retrieve the WDPA ID, when applicable. Cells belonging to none of those groups form the group of potential control units (group 0). 
-To this end this section first downloads protected area (PA) polygons from WDPA and reprojects them to the same projection used previously. After some filtering and cleaning of PA polygons, a buffer is created around each one of them. Then, each polygon is assigned to a group (group 1 for the analysed PA, group 2 for other Pas and group 3 for buffer zones).
-In a second step, this dataset of PA polygons and buffers is rasterized, and zonal statistics are used to define the treatment group of each cell/observation unit. 
+## 3. Classifying observation units
+
+The next step is to classify observation units i.e. cells of the grid
+into one of these four groups:
+
+-   Group 1 : PA analysed
+
+-   Group 2 : Other PA
+
+-   Group 3 : Buffer zone
+
+-   Group 0 : Others (meaning none of the above groups)
+
+To this end this section first downloads protected area (PA) polygons
+from WDPA and reprojects them to the same projection used previously.
+After some filtering and cleaning of PA polygons, a buffer is created
+around each one of them. Then, each polygon is assigned to a group . In
+a second step, this dataset of PA polygons and buffers is rasterized,
+and zonal statistics are used to define the treatment group of each
+cell/observation unit.
 
 1.Find the right sf function to create buffer around all PA using the
 buffer size (buffer_m) chosen before and complete the code
@@ -192,7 +215,7 @@ wdpa_focus = wdpa_prj %>% filter(WDPAID == paid) %>%
   mutate(group=1) # Assign an ID "1" to the analysed PA
 
 wdpa_nofocus = wdpa_prj %>%
-  filter(WDPAI!=paid) %>%
+  filter(WDPAID!=paid) %>%
   st_buffer(., dist=0) # a hack to solve geometries issues with polygons in R, e.g. problem of self-intersection
 #add a link 
 
@@ -232,7 +255,7 @@ ggplot() +
     geom_sf(data = subset(wdpa_groups, group == "2"), aes(fill = factor(group)), color = "black", lwd = 0.3, alpha = 0.6) +
     geom_sf(data = subset(wdpa_groups, group == "1"), aes(fill = factor(group)), color = "black", lwd = 0.3, alpha = 0.6) +
     scale_fill_manual(values = colors, 
-                      labels = c("1" = "Funded PA", 
+                      labels = c("1" = "Analysed PA", 
                                "2" = "Non Funded PA", 
                                "3" = "Buffer Zone")) +
     theme_bw() +
@@ -243,8 +266,9 @@ ggplot() +
 
 The next section attribute a group to each pixel of the grid
 
-The objective is to define to which group each cell of the grid belongs to (analysed PA, other PA, buffer, none).To speed
-up calculations a raster grid is used.
+The objective is to define to which group each cell of the grid belongs
+to (analysed PA, other PA, buffer, none).To speed up calculations a
+raster grid is used.
 
 raster
 
@@ -253,18 +277,22 @@ raster
     value representing information, such as color in an image or a
     particular data value in a geographic context
 
-A raster layer is created over the country's extent, with pixel size equal to our grid cell size. 
-The polygon layer (containing PAs and buffer zones) is rasterized, and each pixel in the newly created raster is assigned to a group with pixel
-values representing group IDs. When a pixel is covered by overlapping polygons the pixel value is assignedthe smallest group value. 
-For instance, if a pixel is located both in a buffer polygon and in the analysed P, the pixel value will be set to group 1 i.e. the analyzed PA zone, ensuring that PA group IDs take precedence over buffer IDs
- Another raster layer is created to assign a WDPA id to each unit of observation.
-IDs.
+A raster layer is created over the country's extent, with pixel size
+equal to our grid cell size. The polygon layer (containing PAs and
+buffer zones) is rasterized, and each pixel in the newly created raster
+is assigned to a group with pixel values representing group IDs. When a
+pixel is covered by overlapping polygons the pixel value is assignedthe
+smallest group value. For instance, if a pixel is located both in a
+buffer polygon and in the analysed P, the pixel value will be set to
+group 1 i.e. the analyzed PA zone, ensuring that PA group IDs take
+precedence over buffer IDs Another raster layer is created to assign a
+WDPA id to each unit of observation. IDs.
 
-Finally, the raster values are aggregated into the grid cells with the "mode"
-function,that input the value of the group with the largest presence to each pixel.
-Then values get merged into a single dataset, and transformed to the WGS84
-coordinate system to comply with the mapme.biodiversity package
-requirements.
+Finally, the raster values are aggregated into the grid cells with the
+"mode" function,that input the value of the group with the largest
+presence to each pixel. Then values get merged into a single dataset,
+and transformed to the WGS84 coordinate system to comply with the
+mapme.biodiversity package requirements.
 
 ```{r}
 # Initialize an empty raster to the spatial extent of the country
@@ -304,8 +332,8 @@ grid.param = grid.group %>%
   st_transform(crs=4326)
 ```
 
-You can now visualize the gridding of the country and the attribution of a
-group to each cell.
+You can now visualize the gridding of the country and the attribution of
+a group to each cell.
 
 ```{r}
 # Visualize the group of grid cells
@@ -319,12 +347,17 @@ grid.param %>%
 
 ```
 
-The function used to aggregate pixel values into the grid cells in the exact_extract() function influences the final group attribution obtained for each cells 
+The function used to aggregate pixel values into the grid cells in the
+exact_extract() function influences the final group attribution obtained
+for each cells
 
-Instead of assigning to a grid cell the most frequent value among the pixels it overlaps we may want to retain the smallest pixel value, so that if the grid cell overlaps with any pixels that intersects a PA, the grid cell is assigned to the PA group. 
-1. Go back to the previous code chunk and try to change the function used in exact_extract() to retain the smallest pixel value.
-2. Compute group statistics of grid.param and grid.param_2, comment the
-    difference
+Instead of assigning to a grid cell the most frequent value among the
+pixels it overlaps we may want to retain the smallest pixel value, so
+that if the grid cell overlaps with any pixels that intersects a PA, the
+grid cell is assigned to the PA group. 1. Go back to the previous code
+chunk and try to change the function used in exact_extract() to retain
+the smallest pixel value. 2. Compute group statistics of grid.param and
+grid.param_2, comment the difference
 
 3.  Map grid.param and grid.param_2 to visualize the difference.
 
@@ -380,10 +413,10 @@ grid.arrange(map_1, map_2, nrow = 2)
 
 ## 4. Download the data
 
-Once each cell has been assigned to a group, all the covariates need
-to be downloaded. To do so you can use the Mapme.biodiversity package
-that enables you to download multiple resources and then compute the
-right indicators. Please refer to this page
+Once each cell has been assigned to a group, all the covariates need to
+be downloaded. To do so you can use the Mapme.biodiversity package that
+enables you to download multiple resources and then compute the right
+indicators. Please refer to this page
 (<https://github.com/mapme-initiative/mapme.biodiversity>) to find the
 function to complete the following code.
 
@@ -468,7 +501,8 @@ cat("Elapsed time:", elapsed_time, "\n")
 
 ```
 
-2.  Try running the same code chunk without the multisession and compare execution times
+2.  Try running the same code chunk without the multisession and compare
+    execution times
 
 ```{r}
 start_time <- Sys.time()
@@ -653,9 +687,13 @@ st_write(pivot.all, dsn = file.path(wdir, name_output), delete_dsn = TRUE)
 
 ```
 
-# 5. Create an interactive map
- 
- explication sur les shiny ap 
+# 5. Create an interactive map (unfinished)
+
+Shiny apps are interactive web applications built using R. It is
+particularly useful for analyzing geospatial data because it provides an
+dynamic platform for visualizing them. Run the following code to see a
+beta version of a shiny app. To improve this application try adding...
+
 ```{r}
 # Define group colors 
 contour_colors <- c(
