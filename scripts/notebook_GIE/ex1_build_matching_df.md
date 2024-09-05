@@ -77,7 +77,7 @@ name_output = "mf_SLV_500ha.gpkg"
 
 \- the country code of El Salvador
 
- - the size of the buffer
+\- the size of the buffer
 
 \- the size of the grid
 
@@ -172,7 +172,7 @@ applications instead of a geodetic system (WGS 84)?
 
 ## 3. Classifying observation units
 
-The next step is to classify observation units i.e. cells of the grid
+The next step is to classify observation units, i.e. cells of the grid
 into one of these four groups:
 
 -   Group 1 : PA analysed
