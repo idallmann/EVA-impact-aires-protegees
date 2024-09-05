@@ -104,7 +104,8 @@ as observation units.
 
 [reference to the chapter about projection ]
 
-1. Compare the coordinate reference of "gadm" and "gadm_prj". To do so you can just enter the name of the object in the console to get information about it. 
+1. Compare the CRS of "gadm" and "gadm_prj". To do so you can just enter the name of the object in the console to get information about it. 
+
 2.  Add the right objects in the \# Visualize section to obtain a map
     with the box,the grid and the shape of the country
 
@@ -156,12 +157,8 @@ polygons are filtered, cleaned, and projected to the UTM zone, then
 merged into a single dataset with group identifiers for funded,
 non-funded, and buffer areas.
 Then, we need to define the status of each observation unit (cell), meaning whether it is concerned by the analysed PA (group 1), an other PA (group 2), or a buffer area around a PA (group 3). For each cell, we also need to retrieve the WDPA ID, when applicable. Cells belonging to none of those groups form the group of potential control units (group 0). 
-To this end this section works first downloads with protected area (PA) polygons from WDPA and reproject them to the same projection used previously. After some filtering and cleaning of PA polygons, a buffer is created around each one of them. Then, each polygon is assigned to a group (group 1 for funded Pas, group 2 for unfunded Pas and group 3 for buffer zones, separating
-funded and non-funded PAs and adding buffer zones around them. These PA
-polygons are filtered, cleaned, and projected to the UTM zone, then
-merged into a single dataset with group identifiers for funded,
-non-funded, and buffer areas.   
-In a second step, this dataset of PA polygons and buffers is rasterized, and zonal statistics are used to define the treatment status/group of each cell/observation unit. 
+To this end this section first downloads protected area (PA) polygons from WDPA and reprojects them to the same projection used previously. After some filtering and cleaning of PA polygons, a buffer is created around each one of them. Then, each polygon is assigned to a group (group 1 for funded Pas, group 2 for unfunded Pas and group 3 for buffer zones).
+In a second step, this dataset of PA polygons and buffers is rasterized, and zonal statistics are used to define the treatment group of each cell/observation unit. 
 
 1.Find the right sf function to create buffer around all PA using the
 buffer size (buffer_m) chosen before and complete the code
@@ -181,7 +178,7 @@ wdpa_prj = wdpa_clean(wdpa, geometry_precision = 1000,
   # Remove the PAs that are only proposed, or have geometry type "point"
   filter(STATUS != "Proposed") %>%
   filter(GEOMETRY_TYPE != "POINT") %>%
-  # Project PA polygons to the previously determined UTM zone
+  # Project PA polygons to the previously determined CRS
   st_transform(crs = utm_code)
 
 # Separate funded and non-funded protected areas
