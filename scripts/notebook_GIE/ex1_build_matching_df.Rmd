@@ -11,12 +11,20 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-The following exercises will help you to master the steps of the
+The following exercises will help you master the steps of the
 analysis carried out in the chapter "Geospatial Impact Assessment of
 Conservation on Forest Cover Loss" and to understand the methodology
 used. The evaluation is conducted here for a single protected area to
 make it easier to understand the code, but the scripts for analysing the
 portfolio can be found on the 'github link'.
+
+The objective of this first exercise is to build for a given PA a dataset with outcomes, covariates and treatment variables for each unit of observation (cells) that will then be used in the matching process . This notebook will also enable you to create your own shiny app to view the data interactively. 
+There are four parts to this notebook: 
+
+1. Settings 
+2. Classify observations 
+3. Download the data 
+4. Create an interactive map 
 
 ## Exercise 1 : Build a matching sample
 
@@ -45,29 +53,32 @@ remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
 library(mapme.biodiversity) # Biodiversity data processing and analysis
 library(future) # For parallel and distributed processing
 library(progressr) # Progress bars for long-running operations
-library(gridExtra)
-library(rstac)
+library(gridExtra) # Tools for arranging multiple grid-based visual objects
+library(rstac) # Interface for querying and accessing SpatioTemporal Asset Catalog (STAC) compliant API service
 ```
 
 ## 1. Settings ⚙️
-
-The first step is to decide the parameters of your analysis, in the next
-cell you have to enter: 
-- a working directory 
-- the name of the output
-matching frame 
-- the country code of El Salvador - the size of the
-buffer - the size of the grid - the WDPA ID of the Parque Nacional
-Montecristo
-
-To lower the computation time we choose to analyse the Parque Nacional
-Montecristo but you can try with another PA.
+Please enter a working directory and the name you wish to give to the output of this notebook, which is a dataset ready for matching : 
 
 ```{r}
 # Define the path to a working directory
 wdir = file.path(tempdir())
-# Define the file name of the output matching frame
+# Define the file name of the output matching dataset
 name_output = "mf_SLV_500ha.gpkg"
+```
+
+The first step is to decide the parameters of your analysis, in the next
+cell please enter: 
+- the country code of El Salvador 
+- the size of the buffer 
+- the size of the grid 
+- the WDPA ID of the Parque Nacional Montecristo
+
+To lower the computation time we choose to analyse the Parque Nacional
+Montecristo but you can try with another PA. 
+It is also possible to vary the following parameters according to the PA you wish to analyse. Initially you can use the same parameters as in the case study. You can then run the notebook again with different parameters to see the difference in the results.
+
+```{r}
 # Specify a country iso 3; to find the right country code, please refer to this page https://en.wikipedia.org/wiki/ISO_3166-1_alpha-3
 country = "SLV"
 # Specify buffer width in meter
@@ -88,14 +99,12 @@ country polygon to the appropriate UTM (Universal Transverse Mercator)
 zone based on the country's centroid. The UTM projection minimizes
 distortion for specific regions, making spatial calculations like
 distances and areas more accurate. A bounding box is created, and a grid
-is generated within this box, intersecting with the country's boundary
-to form the observation units.
+is generated within this box so that it covers the whole country. It is then intersected with the country's boundary to retain only cells located within the country 
+as observation units.
 
 [reference to the chapter about projection ]
 
-1.  [ADD A QUESTION ABOUT PROJECTION] ASK MELVIN 
-
-
+1. Compare the coordinate reference of "gadm" and "gadm_prj". To do so you can just enter the name of the object in the console to get information about it. 
 2.  Add the right objects in the \# Visualize section to obtain a map
     with the box,the grid and the shape of the country
 
@@ -117,7 +126,8 @@ lonlat2UTM = function(lonlat) {
 utm_code = lonlat2UTM(centroid)
 # Reproject GADM
 gadm_prj = gadm %>% st_transform(crs = utm_code)
-# Make bounding box of projected country polygon
+# Make bounding box around the reprojected country polygon because it is required in the next function to build the grid 
+
 bbox = st_bbox(gadm_prj) %>% st_as_sfc() %>% st_as_sf()
 # Make a Grid to the extent of the bounding box
 grid.ini = st_make_grid(bbox, cellsize = c(gridSize,gridSize))
@@ -145,6 +155,13 @@ funded and non-funded PAs and adding buffer zones around them. These PA
 polygons are filtered, cleaned, and projected to the UTM zone, then
 merged into a single dataset with group identifiers for funded,
 non-funded, and buffer areas.
+Then, we need to define the status of each observation unit (cell), meaning whether it is concerned by the analysed PA (group 1), an other PA (group 2), or a buffer area around a PA (group 3). For each cell, we also need to retrieve the WDPA ID, when applicable. Cells belonging to none of those groups form the group of potential control units (group 0). 
+To this end this section works first downloads with protected area (PA) polygons from WDPA and reproject them to the same projection used previously. After some filtering and cleaning of PA polygons, a buffer is created around each one of them. Then, each polygon is assigned to a group (group 1 for funded Pas, group 2 for unfunded Pas and group 3 for buffer zones, separating
+funded and non-funded PAs and adding buffer zones around them. These PA
+polygons are filtered, cleaned, and projected to the UTM zone, then
+merged into a single dataset with group identifiers for funded,
+non-funded, and buffer areas.   
+In a second step, this dataset of PA polygons and buffers is rasterized, and zonal statistics are used to define the treatment status/group of each cell/observation unit. 
 
 1.Find the right sf function to create buffer around all PA using the
 buffer size (buffer_m) chosen before and complete the code
