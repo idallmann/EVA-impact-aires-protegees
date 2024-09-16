@@ -223,7 +223,7 @@ list_cov = paste(colname.travelTime, colname.clayContent, colname.elevation, col
 match_method = "cem"
 cutoff_method = "sturges"
 k2k_method = "mahalanobis"
-is_k2k = TRUE
+is_k2k = FALSE
 ## Criteria to assess matching quality
 ### Standardized absolte mean difference : threshold
 th_mean = 0.25 #Used in conservation science, see Desbureaux 2021 for instance
@@ -239,7 +239,7 @@ list_iso = unique(data_pa_ie_africa_focus$iso3)
 
 # ## Manual definition
 # list_iso = c("COM", "GNB")
-list_iso=c("MDG")
+list_iso=c("GMB")
 ```
 
 ## Matching process
@@ -261,7 +261,8 @@ For more details about the each step, please refer to the definition of the func
 
 i="MDG"
 j="352249"
-
+i="COM"
+j="313046"
 #For each country in the list, the different steps of the pre-processing are performed, and the process duration computed
 count = 0 #Initialize counter
 max_i = length(list_iso) #Max value of the counter

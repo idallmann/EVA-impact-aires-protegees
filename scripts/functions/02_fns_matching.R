@@ -266,7 +266,7 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
         mutate(group=4,
                group_name = "PA in sample, not analyzed") %>% # Assign an ID "4" to the PA in sample which cannot be studied in the impact evaluation
         dplyr::select(-c(area_noverlap, area_poly, rm))
-      ##PAs not in the sample
+      ## PAs not in the sample
       wdpa_no_sample = wdpa_prj_noverlap %>% 
         filter(!(WDPAID %in% c(wdpa_sample_ie$WDPAID, wdpa_sample_no_ie$WDPAID))) %>% 
         mutate(group=5,
@@ -365,8 +365,8 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
         #Add name for the group
         mutate(group_name = case_when(group == 0 ~ "Background",
                                       group == 1 ~ "PA overlap",
-                                      group == 2 ~ "Potential control",
-                                      group == 3 ~ "PA in sample, analyzed (potential treatment)",
+                                      group == 2 ~ "Control candidate",
+                                      group == 3 ~ "Treatment candidate",
                                       group == 4 ~ "PA in sample, not analyzed",
                                       group == 5 ~ "PA not in sample",
                                       group == 6 ~ "Buffer")) %>%
@@ -390,11 +390,26 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
         slice(1)
       country.name = country.name$country_en
       
+      
+      
+      group_colors <- c(
+        "Background" = "red",
+        "PA overlap" = "#01796F",
+        "Control candidate" = "gray",
+        "Treatment candidate" = "#16B84E",
+        "PA in sample, not analyzed" = "#26C4EC",
+        "PA not in sample" = "darkblue",
+        "Buffer" = "orange"
+      )
+      
+      
+      
+      
       fig_grid_group = 
         ggplot(grid.param) +
         geom_sf(aes(fill = as.factor(group_name)), color = NA) +
         labs(title = paste("Gridding of", country.name)) +
-        scale_fill_brewer(name = "Group", type = "qual", palette = "YlGnBu", direction = -1) +
+        scale_fill_manual(name = "Group", values = group_colors) +
         # scale_color_viridis_d(
         #   # legend title
         #   name="Group", 
@@ -594,14 +609,14 @@ fn_calc_biome_temp = function(x, indicator)
 ### is_ok : a boolean indicating whether or not an error occured inside the function
 ##DATA SAVED
 ### pivot.all : a dataframe with variables of interest (outcome, matching covariates) for all treated and potential control pixels
-
-grid.param = grid_param
-path_tmp = tmp_pre
-iso = i
-yr_first = yr_first
-yr_last = yr_last
-log = log
-save_dir = save_dir
+# 
+# grid.param = grid_param
+# path_tmp = tmp_pre
+# iso = i
+# yr_first = yr_first
+# yr_last = yr_last
+# log = log
+# save_dir = save_dir
 
 
 fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log, save_dir) 
@@ -677,7 +692,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
       library(future)
       library(progressr)
       plan(cluster, workers = 6, gc = TRUE)
-      plan(multisession(), workers = 6, gc = TRUE)
+     # plan(multisession(), workers = 6, gc = TRUE)
       with_progress({
         get.soil <- dl.soil %>% calc_indicators(
           calc_soilproperties(
