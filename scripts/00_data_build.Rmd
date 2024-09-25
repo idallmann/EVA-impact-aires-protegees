@@ -1244,6 +1244,11 @@ data_pa_nofund_polygon_shp = data_pa_nofund_shp %>%
   filter(geom_type == "MULTIPOLYGON")
 
 
+#Creating the dataset of with geospatial information (polygons)
+data_pa_fabpm_shp = data_pa_fapbm %>%
+  left_join(data_wdpa, by = c("wdpaid", "wdpa_pid"))
+
+
 #Saving the datasets 
 
 # st_write(pa_shp,
@@ -1275,6 +1280,17 @@ s3write_using(x = data_pa_fund_shp,
               object = "data_tidy/BDD_PA_AFD_fund_shp.geojson",
               bucket = "projet-afd-eva-ap",
               opts = list("region" = ""))
+
+s3write_using(x = data_pa_fapbm,
+              FUN = sf::st_write,
+              delim = ";",
+              object = "data_tidy/BDD_PA_FAPBM.geojson",
+              bucket = "projet-afd-eva-ap",
+              opts = list("region" = ""))
+
+
+
+
 ```
 
 ## Computing total areas covered by PAs in the sample

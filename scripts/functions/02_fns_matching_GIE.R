@@ -250,6 +250,9 @@ fn_pre_group = function(iso, wdpa_raw, status, yr_min, path_tmp, utm_code, buffe
       # Separate PA in sample or not
       ##PAs in the sample
       ###... which can bu used in impact evaluation : in the country of interest, wdpaid known, area above 1km² (Wolf et al. 2021), implemented after yr_min defined by the user, non-marine (terrestrial or coastal, Wolf et al. 2021)
+      
+      
+      
       pa_sample_ie = data_pa %>%
         filter(iso3 == iso & is.na(wdpaid) == FALSE & area_km2 > 1 & status_yr >= yr_min & marine %in% c(0,1))
       wdpaID_sample_ie = pa_sample_ie$wdpaid
@@ -610,13 +613,13 @@ fn_calc_biome_temp = function(x, indicator)
 ##DATA SAVED
 ### pivot.all : a dataframe with variables of interest (outcome, matching covariates) for all treated and potential control pixels
 # 
-# grid.param = grid_param
-# path_tmp = tmp_pre
-# iso = i
-# yr_first = yr_first
-# yr_last = yr_last
-# log = log
-# save_dir = save_dir
+grid.param = grid_param
+path_tmp = tmp_pre
+iso = i
+yr_first = yr_first
+yr_last = yr_last
+log = log
+save_dir = save_dir
 
 
 fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log, save_dir) 
@@ -630,16 +633,17 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
       print("----Initialize portfolio")
       # Take only potential control (group = 1) and treatment (group = 2) in the country gridding to lower the number of computations to perform
       grid.aoi = grid.param %>%
-        filter(group %in% c(2,3))
-      
+        filter((group == 2) | (group == 3 & wdpaid == j))
+      grid.aoi = grid.param %>%
+        filter((group == 2) | (group == 3 ))
       # outdir <- file.path(path_tmp, "mapme-data")
       # dir.create(outdir, showWarnings = TRUE)
-      
+      j="20295"
       mapme_options(
         outdir =path_tmp
       )
       
-   
+      
       
       aoi=grid.aoi %>% mutate(assetid = row_number())
       
@@ -667,6 +671,26 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
                                                                   min_size=0.5, # FAO definition of forest :  Minimum treecover = 10%, minimum size =0.5 hectare (FAO 2020 Global Forest Resources Assessment, https://www.fao.org/3/I8661EN/i8661en.pdf)
                                                                   min_cover=10))
       
+      
+      
+      # Define the sampling percentage for treated and control cells
+      percent_treated <- 0.1   # For example, 10% for treated cells
+      percent_control <- 0.1   # For example, 10% for control cells
+      
+      # Select a random sample of treated cells based on the defined percentage
+      sample_treated <- your_data %>%
+        filter(treatment == 1) %>%       # Filter for treated cells (treatment == 1)
+        sample_frac(percent_treated)     # Sample 10% of the treated cells
+      
+      # Select a random sample of control cells based on the defined percentage
+      sample_control <- your_data %>%
+        filter(treatment == 0) %>%       # Filter for control cells (treatment == 0)
+        sample_frac(percent_control)     # Sample 10% of the control cells
+      
+      # Combine the two samples into one dataset if needed
+      sample_combined <- bind_rows(sample_treated, sample_control)
+      
+      
       print("----Download data")
       # Download Data
       ## Version of Global Forest Cover data to consider
@@ -683,20 +707,20 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
         layers = "clay", # resource specific argument
         depths = "0-5cm", # resource specific argument
         stats = "mean"))
-
-
+      
+      
       
       ## Accessibility
       dl.travelT = aoi%>% get_resources(get_nelson_et_al(ranges = c("5k_110mio")))
       
-
+      
       ## Elevation
       dl.elevation = aoi %>% get_resources(get_nasa_srtm())
       ## Terrain Ruggedness Index
       dl.tri = aoi %>% get_resources( get_nasa_srtm())
       ## Biome
-     # dl.bio = aoi %>% get_resources(get_teow())   
-   
+      # dl.bio = aoi %>% get_resources(get_teow())   
+      
       print("----Compute indicators")
       #Compute indicators
       
@@ -708,7 +732,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
       library(future)
       library(progressr)
       plan(cluster, workers = 6, gc = TRUE)
-     # plan(multisession(), workers = 6, gc = TRUE)
+      # plan(multisession(), workers = 6, gc = TRUE)
       with_progress({
         get.soil <- dl.soil %>% calc_indicators(
           calc_soilproperties(
@@ -716,7 +740,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
             engine = "exactextract"
           )
         ) %seed% 1  # the "exactextract" engine is chosen as it is the faster one for large rasters (https://tmieno2.github.io/R-as-GIS-for-Economists/extraction-speed-comparison.html)
-
+        
         get.travelT  <- dl.travelT %>% calc_indicators(calc_traveltime(
           stats = "mean",
           engine = "exactextract")
@@ -736,7 +760,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
           engine = "exactextract")) %seed% 5
         
         #get.bio <- dl.bio %>% calc_indicators(calc_biome()) %seed% 6
-         
+        
         
       })
       
@@ -753,7 +777,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
                                            TRUE ~ clay_0_5cm_mean))%>%
         dplyr::select(-c(datetime,unit))
       
-
+      
       data.travelT = unnest(get.travelT, traveltime) %>%
         pivot_wider(names_from = c("unit","variable"), values_from = "value") %>%
         setnames("minutes_5k_110mio_traveltime_mean","minutes_mean_5k_110mio")%>%
@@ -781,11 +805,11 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
         mutate(elevation_mean = case_when(is.nan(elevation_mean) ~ NA,
                                           TRUE ~ elevation_mean))%>%
         dplyr::select(-c(datetime,unit))
-    
-#      data.bio = unnest(get.bio, biome) %>%
-# setnames("variable","biomes")%>%
-#        dplyr::select(-c(value,unit,datetime))
-#   
+      
+      #      data.bio = unnest(get.bio, biome) %>%
+      # setnames("variable","biomes")%>%
+      #        dplyr::select(-c(value,unit,datetime))
+      #   
       
       ## End parallel plan : close parallel sessions, so must be done once indicators' datasets are built
       plan(sequential)
@@ -805,7 +829,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
       {
         new_colname = paste0("treeloss_", colnames_loss[[i]][2]) 
         data.tree[[new_colname]] = data.tree[[dropFirst[i]]] - data.tree[[dropLast[i]]]
-       
+        
       }
       
       print("----Export Matching Frame")
@@ -820,12 +844,12 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
       # Make a dataframe containing only "assetid" and geometry
       # Use data.soil instead of data.tree, as some pixels are removed in data.tree (NA values from get.tree)
       df.geom = data.soil[, c("assetid", "x")] %>% as.data.frame()
-
-  
+      
+      
       
       # Merge all output dataframes 
       pivot.all = Reduce(dplyr::full_join, list(df.travelT, 
-                                               # df.bio,
+                                                # df.bio,
                                                 df.soil, 
                                                 df.elevation,
                                                 df.tri,
@@ -924,7 +948,7 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log, load_dir, sa
                         object = object,
                         opts = list("region" = "")) 
       
-
+      
       
       #Subset to control and treatment units with year of treatment >= yr_min
       mf = mf %>%
@@ -1155,11 +1179,11 @@ fn_post_match_auto = function(mf,
         #                              + .(as.name(colname.biome))))
         
         formula = eval(bquote(group ~ .(as.name(colname.travelTime))
-                                                      + .(as.name(colname.clayContent))
-                                                      +  .(as.name(colname.fcAvg))
-                                                      + .(as.name(colname.flAvg))
-                                                      + .(as.name(colname.tri))
-                                                      + .(as.name(colname.elevation))))
+                              + .(as.name(colname.clayContent))
+                              +  .(as.name(colname.fcAvg))
+                              + .(as.name(colname.flAvg))
+                              + .(as.name(colname.tri))
+                              + .(as.name(colname.elevation))))
         
         #Try to perform matching
         out.cem = matchit(formula,
@@ -1296,11 +1320,11 @@ fn_post_covbal = function(out.cem, tbl.quality, mf,
       c_name = data.frame(old = c(colname.travelTime, colname.clayContent, colname.tri, colname.elevation,
                                   colname.fcAvg, colname.flAvg
                                   #,colname.biome
-                                  ),
-                          new = c("Accessibility", "Clay Content", "Terrain Ruggedness Index (TRI)", "Elevation", colname.fcAvg.new,
-                                  colname.flAvg.new
-                                  #,"Biomes"
-                                  ))
+      ),
+      new = c("Accessibility", "Clay Content", "Terrain Ruggedness Index (TRI)", "Elevation", colname.fcAvg.new,
+              colname.flAvg.new
+              #,"Biomes"
+      ))
       
       # Refer to cobalt::love.plot()
       # https://cloud.r-project.org/web/packages/cobalt/vignettes/cobalt.html#love.plot
@@ -2002,7 +2026,7 @@ fn_post_plot_hist = function(out.cem, mf,
         )
       
       #/!\ Biome already plotted with fn_post_plot_density : no need to plot it again
-     # useless_var = colname.biome #To avoid error if colname.biome not used in the function
+      # useless_var = colname.biome #To avoid error if colname.biome not used in the function
       # #Proportion of biomes : plotted only if biome is taken in the formula, not relevant otherwise
       # formula = as.character(out.cem$formula)[3]
       # if(grepl("biome", formula)) {
@@ -2164,9 +2188,9 @@ fn_post_panel = function(out.cem, mf, wdpaid, iso, log, save_dir)
         dplyr::select(c(region_afd, region, sub_region, country_en, iso3, group, focus, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, res_m, minutes_mean_5k_110mio, clay_0_5cm_mean, elevation_mean, tri_mean, 
                         #biomes, 
                         starts_with("treecover"), avgLoss_pre_treat, avgCover_pre_treat, start_pre_treat_fl, end_pre_treat_fl , start_pre_treat_fc, end_pre_treat_fc)) %>%    pivot_longer(cols = c(starts_with("treecover")),
-                                                                                                                                                                                                                                                                                                                                                                                                               names_to = c("var", "year"),
-                                                                                                                                                                                                                                                                                                                                                                                                               names_sep = "_",
-                                                                                                                                                                                                                                                                                                                                                                                                               values_to = "fc_ha") %>%
+                                                                                                                                                                                           names_to = c("var", "year"),
+                                                                                                                                                                                           names_sep = "_",
+                                                                                                                                                                                           values_to = "fc_ha") %>%
         st_drop_geometry()
       
       #Save the dataframes
