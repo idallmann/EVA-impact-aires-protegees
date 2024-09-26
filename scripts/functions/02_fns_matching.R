@@ -910,6 +910,9 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
 #                               load_dir = load_dir
 #                               save_dir = save_dir
 
+# Changement à la main pour analyser makira
+# mf$status_yr[mf$wdpaid == 352249] <-"2012"
+# mf$focus[mf$wdpaid == 352249] <-"TRUE"
 
 fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log, load_dir, save_dir)
 {
@@ -920,11 +923,12 @@ fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log, load_dir, sa
       #Load the matching dataframe
       object = paste(load_dir, iso, paste0("matching_frame_spling_", iso, ".gpkg"), sep = "/")
       mf = s3read_using(sf::st_read,
-                        bucket = "projet-afd-eva-ap",
                         object = object,
+                        bucket = "projet-afd-eva-ap",
                         opts = list("region" = "")) 
       
-
+      mf$status_yr[mf$wdpaid == 352249] <-2012
+      mf$focus[mf$wdpaid == 352249] <-"TRUE"
       
       #Subset to control and treatment units with year of treatment >= yr_min
       mf = mf %>%
@@ -1031,15 +1035,15 @@ fn_post_fl_fc_pre_treat = function(mf, colname.flAvg, log)
       ## Note that by construction, treatment.year >= treeloss.ini.year +1 (as yr_min = yr_first+2 in the parameters), so that at least one period of forest cover loss is known for building this variable. 
       ## treecover data starts in 2000 but 2001 for treeloss. Thus if at least one period is accessible for treeloss by construction (2001 if treatment year = 2002), two are for treecover (2000 and 2001). Thus we need to take that into account.
       ### Period for forest loss
-      if((treatment.year-treeloss.ini.year) >=3)
-      {yr_start_loss = (treatment.year)-3
-      yr_end_loss = (treatment.year)-1} else if((treatment.year-treeloss.ini.year <3) & (treatment.year-treeloss.ini.year >0))
+      if((treatment.year-treeloss.ini.year) >=5)
+      {yr_start_loss = (treatment.year)-5
+      yr_end_loss = (treatment.year)-1} else if((treatment.year-treeloss.ini.year <5) & (treatment.year-treeloss.ini.year >0))
       {yr_start_loss = treeloss.ini.year
       yr_end_loss = (treatment.year)-1} 
       ### Period for forest cover
-      if((treatment.year-treecover.ini.year) >=3)
-      {yr_start_cover = (treatment.year)-3
-      yr_end_cover = (treatment.year)-1} else if((treatment.year-treecover.ini.year <3) & (treatment.year-treecover.ini.year >0))
+      if((treatment.year-treecover.ini.year) >=5)
+      {yr_start_cover = (treatment.year)-5
+      yr_end_cover = (treatment.year)-1} else if((treatment.year-treecover.ini.year <5) & (treatment.year-treecover.ini.year >0))
       {yr_start_cover = treecover.ini.year #here is the real change compared to treeloss : the starting year is 2000 and not 2001
       yr_end_cover = (treatment.year)-1} 
       #Transform it in variable suffix
@@ -3238,6 +3242,18 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
 ### is_ok : a boolean indicating whether or not an error occured inside the function
 ##DATA SAVED
 ### Country grid with matched control and treated, for a given protected area (PA) or all protected areas in a country
+
+# iso = i 
+# wdpaid = j
+# is_pa = TRUE
+# df_pix_matched = df_pix_matched_j
+# path_tmp = tmp_post
+# log = log
+# load_dir = load_dir
+# save_dir = save_dir
+
+
+
 fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp, log, load_dir, save_dir)
 {
   

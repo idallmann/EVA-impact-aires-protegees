@@ -123,8 +123,8 @@ tmp_post = paste(tempdir(), "matching_post", sep = "/")
 ## Define a directory where outputs are loaded from/stored in SSPCloud.
 save_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/") #Today's date
 load_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/")
-# save_dir = paste("impact_analysis/matching", "2024-06-26_LD", sep = "/") #A specific date
-# load_dir = paste("impact_analysis/matching", "2024-06-26_LD", sep = "/")
+# save_dir = paste("impact_analysis/matching", "2024-08-13", sep = "/") #A specific date
+# load_dir = paste("impact_analysis/matching", "2024-08-13", sep = "/")
 
 # Load datasets
 ## WDPA database : just has to be done once to download last version of the WDPA database  
