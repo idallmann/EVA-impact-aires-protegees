@@ -1,3 +1,8 @@
+
+
+mardi 1 octobre 2024
+15:48
+
 #####
 #Functions for matching process
 #####
@@ -639,7 +644,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
         outdir =path_tmp
       )
       
-   
+      
       
       aoi=grid.aoi %>% mutate(assetid = row_number())
       
@@ -683,20 +688,20 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
         layers = "clay", # resource specific argument
         depths = "0-5cm", # resource specific argument
         stats = "mean"))
-
-
+      
+      
       
       ## Accessibility
       dl.travelT = aoi%>% get_resources(get_nelson_et_al(ranges = c("5k_110mio")))
       
-
+      
       ## Elevation
       dl.elevation = aoi %>% get_resources(get_nasa_srtm())
       ## Terrain Ruggedness Index
       dl.tri = aoi %>% get_resources( get_nasa_srtm())
       ## Biome
-     # dl.bio = aoi %>% get_resources(get_teow())   
-   
+      # dl.bio = aoi %>% get_resources(get_teow())   
+      
       print("----Compute indicators")
       #Compute indicators
       
@@ -708,7 +713,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
       library(future)
       library(progressr)
       plan(cluster, workers = 6, gc = TRUE)
-     # plan(multisession(), workers = 6, gc = TRUE)
+      # plan(multisession(), workers = 6, gc = TRUE)
       with_progress({
         get.soil <- dl.soil %>% calc_indicators(
           calc_soilproperties(
@@ -716,7 +721,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
             engine = "exactextract"
           )
         ) %seed% 1  # the "exactextract" engine is chosen as it is the faster one for large rasters (https://tmieno2.github.io/R-as-GIS-for-Economists/extraction-speed-comparison.html)
-
+        
         get.travelT  <- dl.travelT %>% calc_indicators(calc_traveltime(
           stats = "mean",
           engine = "exactextract")
@@ -736,7 +741,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
           engine = "exactextract")) %seed% 5
         
         #get.bio <- dl.bio %>% calc_indicators(calc_biome()) %seed% 6
-         
+        
         
       })
       
@@ -753,7 +758,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
                                            TRUE ~ clay_0_5cm_mean))%>%
         dplyr::select(-c(datetime,unit))
       
-
+      
       data.travelT = unnest(get.travelT, traveltime) %>%
         pivot_wider(names_from = c("unit","variable"), values_from = "value") %>%
         setnames("minutes_5k_110mio_traveltime_mean","minutes_mean_5k_110mio")%>%
@@ -781,11 +786,11 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
         mutate(elevation_mean = case_when(is.nan(elevation_mean) ~ NA,
                                           TRUE ~ elevation_mean))%>%
         dplyr::select(-c(datetime,unit))
-    
-#      data.bio = unnest(get.bio, biome) %>%
-# setnames("variable","biomes")%>%
-#        dplyr::select(-c(value,unit,datetime))
-#   
+      
+      #      data.bio = unnest(get.bio, biome) %>%
+      # setnames("variable","biomes")%>%
+      #        dplyr::select(-c(value,unit,datetime))
+      #   
       
       ## End parallel plan : close parallel sessions, so must be done once indicators' datasets are built
       plan(sequential)
@@ -805,7 +810,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
       {
         new_colname = paste0("treeloss_", colnames_loss[[i]][2]) 
         data.tree[[new_colname]] = data.tree[[dropFirst[i]]] - data.tree[[dropLast[i]]]
-       
+        
       }
       
       print("----Export Matching Frame")
@@ -820,12 +825,12 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
       # Make a dataframe containing only "assetid" and geometry
       # Use data.soil instead of data.tree, as some pixels are removed in data.tree (NA values from get.tree)
       df.geom = data.soil[, c("assetid", "x")] %>% as.data.frame()
-
-  
+      
+      
       
       # Merge all output dataframes 
       pivot.all = Reduce(dplyr::full_join, list(df.travelT, 
-                                               # df.bio,
+                                                # df.bio,
                                                 df.soil, 
                                                 df.elevation,
                                                 df.tri,
@@ -1117,6 +1122,27 @@ fn_post_fl_fc_pre_treat = function(mf, colname.flAvg, log)
 ### is_ok : a boolean indicating whether or not an error occured inside the function
 ##NOTES
 ### The matching method chosen is CEM though other exists. For a presentation of the different matching algorithms, see https://cran.r-project.org/web/packages/MatchIt/vignettes/matching-methods.html
+
+
+mf = mf_j
+iso = i
+dummy_int = FALSE
+match_method = match_method
+cutoff_method = cutoff_method
+is_k2k = is_k2k
+k2k_method = k2k_method
+th_mean = th_mean
+th_var_min = th_var_min 
+th_var_max = th_var_max
+colname.travelTime = colname.travelTime
+colname.clayContent = colname.clayContent
+colname.elevation = colname.elevation
+colname.tri = colname.tri 
+colname.fcAvg = colname.fcAvg
+colname.flAvg = colname.flAvg
+#colname.biome = colname.biome,
+log = log
+
 fn_post_match_auto = function(mf,
                               iso,
                               dummy_int,
@@ -1158,20 +1184,37 @@ fn_post_match_auto = function(mf,
         #                              + .(as.name(colname.elevation))
         #                              + .(as.name(colname.biome))))
         
-        formula = eval(bquote(group ~ .(as.name(colname.travelTime))
-                                                      + .(as.name(colname.clayContent))
-                                                      +  .(as.name(colname.fcAvg))
-                                                      + .(as.name(colname.flAvg))
-                                                      + .(as.name(colname.tri))
-                                                      + .(as.name(colname.elevation))))
         
-        #Try to perform matching
-        out.cem = matchit(formula,
-                          data = mf,
-                          method = match_method,  
-                          cutpoints = cutoff_method,
-                          k2k = is_k2k,
-                          k2k.method = k2k_method)
+        custom_avgCover_pre_treat <- c(0, 30, 60, 80,  101)
+        custom_avgLoss_pre_treat <- c(-16, -12 ,-8,-4,0)
+        custom_travelTime <- c(0, 25,50, 75,100, 150, 200, 250, 300, 400, 500, 1000, 1500)
+        custom_clay <- c(20,27,31,35,39,43,49)
+        custom_tri <-c( 0,5,10, 20)
+        custom_elevation<-c(0,250,500,750,1000,1250,1500)
+        custom_cutpoints <- list(
+          "minutes_mean_5k_110mio" = custom_travelTime,   # Cutpoints personnalisés pour cette variable
+          "clay_0_5cm_mean" =  custom_clay,                  # Cutpoints de Sturges pour cette variable
+          "avgCover_pre_treat" = custom_avgCover_pre_treat,               # Cutpoints de Sturges
+          "avgLoss_pre_treat" = custom_avgLoss_pre_treat ,                # Cutpoints de Sturges
+          "tri_mean" = custom_tri,                         # Cutpoints de Sturges
+          "elevation_mean" = custom_elevation                    # Cutpoints de Sturges
+        )
+        formula = eval(bquote(group ~ .(as.name(colname.travelTime))
+                              + .(as.name(colname.clayContent))
+                              + .(as.name(colname.fcAvg))
+                              + .(as.name(colname.flAvg))
+                              + .(as.name(colname.tri))
+                              + .(as.name(colname.elevation))))
+        
+        
+        out.cem = matchit(
+          formula,
+          data = mf,
+          method = match_method,  
+          cutpoints = custom_cutpoints,
+          k2k = is_k2k,
+          k2k.method = k2k_method
+        )
         
         # Then the performance of the matching is assessed, based on https://cran.r-project.org/web/packages/MatchIt/vignettes/assessing-balance.html
         ## Covariate balance : standardized mean difference and variance ratio
@@ -1300,11 +1343,11 @@ fn_post_covbal = function(out.cem, tbl.quality, mf,
       c_name = data.frame(old = c(colname.travelTime, colname.clayContent, colname.tri, colname.elevation,
                                   colname.fcAvg, colname.flAvg
                                   #,colname.biome
-                                  ),
-                          new = c("Accessibility", "Clay Content", "Terrain Ruggedness Index (TRI)", "Elevation", colname.fcAvg.new,
-                                  colname.flAvg.new
-                                  #,"Biomes"
-                                  ))
+      ),
+      new = c("Accessibility", "Clay Content", "Terrain Ruggedness Index (TRI)", "Elevation", colname.fcAvg.new,
+              colname.flAvg.new
+              #,"Biomes"
+      ))
       
       # Refer to cobalt::love.plot()
       # https://cloud.r-project.org/web/packages/cobalt/vignettes/cobalt.html#love.plot
@@ -2006,7 +2049,7 @@ fn_post_plot_hist = function(out.cem, mf,
         )
       
       #/!\ Biome already plotted with fn_post_plot_density : no need to plot it again
-     # useless_var = colname.biome #To avoid error if colname.biome not used in the function
+      # useless_var = colname.biome #To avoid error if colname.biome not used in the function
       # #Proportion of biomes : plotted only if biome is taken in the formula, not relevant otherwise
       # formula = as.character(out.cem$formula)[3]
       # if(grepl("biome", formula)) {
@@ -2168,9 +2211,9 @@ fn_post_panel = function(out.cem, mf, wdpaid, iso, log, save_dir)
         dplyr::select(c(region_afd, region, sub_region, country_en, iso3, group, focus, wdpaid, status_yr, year_funding_first, year_funding_all, assetid, res_m, minutes_mean_5k_110mio, clay_0_5cm_mean, elevation_mean, tri_mean, 
                         #biomes, 
                         starts_with("treecover"), avgLoss_pre_treat, avgCover_pre_treat, start_pre_treat_fl, end_pre_treat_fl , start_pre_treat_fc, end_pre_treat_fc)) %>%    pivot_longer(cols = c(starts_with("treecover")),
-                                                                                                                                                                                                                                                                                                                                                                                                               names_to = c("var", "year"),
-                                                                                                                                                                                                                                                                                                                                                                                                               names_sep = "_",
-                                                                                                                                                                                                                                                                                                                                                                                                               values_to = "fc_ha") %>%
+                                                                                                                                                                                           names_to = c("var", "year"),
+                                                                                                                                                                                           names_sep = "_",
+                                                                                                                                                                                           values_to = "fc_ha") %>%
         st_drop_geometry()
       
       #Save the dataframes
@@ -3243,7 +3286,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
 ##DATA SAVED
 ### Country grid with matched control and treated, for a given protected area (PA) or all protected areas in a country
 
-# iso = i 
+# iso = i
 # wdpaid = j
 # is_pa = TRUE
 # df_pix_matched = df_pix_matched_j
@@ -3286,12 +3329,29 @@ fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp, log, 
         slice(1)
       country.name = country.name$country_en
       
+      grid$group_plot[grid$group_plot=="PA in sample, analyzed (potential treatment)"]<- "Treatment candidate"
+      grid$group_plot[grid$group_plot=="Potential control" ]<- "Control candidate"
+      
+      
+      group_colors <- c(
+        "PA overlap" = "#01796F",
+        "Control candidate" = "gray",
+        "Treatment candidate" = "#16B84E",
+        "PA in sample, not analyzed" = "#26C4EC",
+        "PA not in sample" = "darkblue",
+        "Buffer" = "orange",
+        "Treatment (matched)"="deeppink",
+        "Control (matched)"="red"
+        
+        
+      )
+      
       # Visualize and save grouped grid cells
       fig_grid = 
         ggplot(grid) +
         #The original gridding as a first layer
         geom_sf(aes(fill = as.factor(group_plot)), color = NA) +
-        scale_fill_brewer(name = "Pixel group", type = "qual", palette = "BrBG", direction = 1) +
+        scale_fill_manual(name = "Group", values = group_colors) +
         labs(title = paste("Gridding of", country.name, "after matching"),
              subtitle = ifelse(is_pa == TRUE,
                                yes = paste("Focus on WDPAID", wdpaid),
