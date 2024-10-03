@@ -1,8 +1,4 @@
 
-
-mardi 1 octobre 2024
-15:48
-
 #####
 #Functions for matching process
 #####
@@ -915,9 +911,7 @@ fn_pre_mf_parallel = function(grid.param, path_tmp, iso, yr_first, yr_last, log,
 #                               load_dir = load_dir
 #                               save_dir = save_dir
 
-# Changement à la main pour analyser makira
-# mf$status_yr[mf$wdpaid == 352249] <-"2012"
-# mf$focus[mf$wdpaid == 352249] <-"TRUE"
+
 
 fn_post_load_mf = function(iso, yr_min, name_input, ext_input, log, load_dir, save_dir)
 {
@@ -1035,7 +1029,7 @@ fn_post_fl_fc_pre_treat = function(mf, colname.flAvg, log)
       
       #Define period to compute average loss and cover
       ## Global Forest Watch recommends to smooth forest cover on three years average : "Use 3-year moving averages to smooth any inconsistencies between years caused by the availability of Landsat images and better account for delays in detection of late-year fires and other losses." (https://www.globalforestwatch.org/blog/data-and-research/tree-cover-loss-satellite-data-trend-analysis/) 
-      ##If 3 pre-treatment periods are available at least, then average pre-treatment deforestation/forest cover is computed on this 3 years range
+      ##If 3 pre-treatment periods are available at least, then average pre-treatment forest cover loss/forest cover is computed on this 3 years range
       ## If less than 3 are available, compute on this restricted period
       ## Note that by construction, treatment.year >= treeloss.ini.year +1 (as yr_min = yr_first+2 in the parameters), so that at least one period of forest cover loss is known for building this variable. 
       ## treecover data starts in 2000 but 2001 for treeloss. Thus if at least one period is accessible for treeloss by construction (2001 if treatment year = 2002), two are for treecover (2000 and 2001). Thus we need to take that into account.
@@ -1124,24 +1118,24 @@ fn_post_fl_fc_pre_treat = function(mf, colname.flAvg, log)
 ### The matching method chosen is CEM though other exists. For a presentation of the different matching algorithms, see https://cran.r-project.org/web/packages/MatchIt/vignettes/matching-methods.html
 
 
-mf = mf_j
-iso = i
-dummy_int = FALSE
-match_method = match_method
-cutoff_method = cutoff_method
-is_k2k = is_k2k
-k2k_method = k2k_method
-th_mean = th_mean
-th_var_min = th_var_min 
-th_var_max = th_var_max
-colname.travelTime = colname.travelTime
-colname.clayContent = colname.clayContent
-colname.elevation = colname.elevation
-colname.tri = colname.tri 
-colname.fcAvg = colname.fcAvg
-colname.flAvg = colname.flAvg
-#colname.biome = colname.biome,
-log = log
+# mf = mf_j
+# iso = i
+# dummy_int = FALSE
+# match_method = match_method
+# cutoff_method = cutoff_method
+# is_k2k = is_k2k
+# k2k_method = k2k_method
+# th_mean = th_mean
+# th_var_min = th_var_min 
+# th_var_max = th_var_max
+# colname.travelTime = colname.travelTime
+# colname.clayContent = colname.clayContent
+# colname.elevation = colname.elevation
+# colname.tri = colname.tri 
+# colname.fcAvg = colname.fcAvg
+# colname.flAvg = colname.flAvg
+# #colname.biome = colname.biome,
+# log = log
 
 fn_post_match_auto = function(mf,
                               iso,
@@ -1192,13 +1186,14 @@ fn_post_match_auto = function(mf,
         custom_tri <-c( 0,5,10, 20)
         custom_elevation<-c(0,250,500,750,1000,1250,1500)
         custom_cutpoints <- list(
-          "minutes_mean_5k_110mio" = custom_travelTime,   # Cutpoints personnalisés pour cette variable
-          "clay_0_5cm_mean" =  custom_clay,                  # Cutpoints de Sturges pour cette variable
-          "avgCover_pre_treat" = custom_avgCover_pre_treat,               # Cutpoints de Sturges
-          "avgLoss_pre_treat" = custom_avgLoss_pre_treat ,                # Cutpoints de Sturges
-          "tri_mean" = custom_tri,                         # Cutpoints de Sturges
-          "elevation_mean" = custom_elevation                    # Cutpoints de Sturges
+          "minutes_mean_5k_110mio" = custom_travelTime,   
+          "clay_0_5cm_mean" =  custom_clay,                  
+          "avgCover_pre_treat" = custom_avgCover_pre_treat,              
+          "avgLoss_pre_treat" = custom_avgLoss_pre_treat ,                
+          "tri_mean" = custom_tri,                        
+          "elevation_mean" = custom_elevation                    
         )
+        
         formula = eval(bquote(group ~ .(as.name(colname.travelTime))
                               + .(as.name(colname.clayContent))
                               + .(as.name(colname.fcAvg))
@@ -1211,7 +1206,8 @@ fn_post_match_auto = function(mf,
           formula,
           data = mf,
           method = match_method,  
-          cutpoints = custom_cutpoints,
+          #cutpoints = custom_cutpoints,
+          cutpoints=cutoff_method,
           k2k = is_k2k,
           k2k.method = k2k_method
         )
@@ -2706,7 +2702,7 @@ fn_post_m_unm_treated = function(df_m, df_unm, iso, wdpaid, th_mean, th_var_min,
 ## DATA SAVED :
 ### Evolution of forest cover in a treated and control pixel on average, before and after matching
 ### Same for total forest cover (pixel*# of pixels in the PA)
-### Cumulated deforestation relative to 2000 forest cover, in treated and control pixels, before and after matching
+### Cumulated forest cover loss relative to 2000 forest cover, in treated and control pixels, before and after matching
 fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wdpaid, log, save_dir) 
 {
   
@@ -2787,7 +2783,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
       # fc_avg_pre_treat = mean(fc_avg_pre_treat$fc_ha, na.rm = TRUE)
       
       #Extract number of pixels in the PA
-      #n_pix_pa = area_ha/res_ha #This measure is imperfect for extrapolation of total deforestation avoided, as part of a PA can be coastal. Indeed, this extrapolation assumes implicitly that all the PA is covered by forest potentially deforested in absence of the conservation 
+      #n_pix_pa = area_ha/res_ha #This measure is imperfect for extrapolation of total forest cover loss prevented, as part of a PA can be coastal. Indeed, this extrapolation assumes implicitly that all the PA is covered by forest potentially deforested in absence of the conservation 
       
       
       #Open a multisession for dataframe computations
@@ -2801,12 +2797,12 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
         # Make dataframe for plotting trend
         ## Matched units
         df.matched.trend  <- matched.long %>%
-          #First, compute deforestation relative to 2000 for each pixel (deforestation as computed in Wolf et al. 2021), and forest cover relative to pre-treatment
+          #First, compute forest cover loss relative to 2000 for each pixel (forest cover loss as computed in Wolf et al. 2021), and forest cover relative to pre-treatment
           group_by(assetid) %>%
           mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100,
                  FC_rel_pre_treat = fc_ha/mean(fc_ha[year >= yr_start_cover & year <= yr_end_cover], na.rm = TRUE)) %>%
           ungroup() %>%
-          #Then compute the average forest cover and deforestation in each year, for treated and control groups
+          #Then compute the average forest cover and forest cover loss in each year, for treated and control groups
           #Standard deviation and 95% confidence interval is also computed for each variable
           group_by(group, year) %>%
           summarise(n = n(),
@@ -2833,12 +2829,12 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
         #df.dumb = unmatched.long #Just use the unmacthed.long dataframe to avoid error in the code
         ##Unmatched
         df.unmatched.trend  <- unmatched.long %>%
-          #First, compute deforestation relative to 2000 for each pixel (deforestation as computed in Wolf et al. 2021); compute percentage of forest cover in the pixel in 2000
+          #First, compute forest cover loss relative to 2000 for each pixel (forest cover loss as computed in Wolf et al. 2021); compute percentage of forest cover in the pixel in 2000
           group_by(assetid) %>%
           mutate(FL_2000_cum = (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100,
                  FC_rel_pre_treat = fc_ha/mean(fc_ha[year >= yr_start_cover & year <= yr_end_cover], na.rm = TRUE)) %>%
           ungroup() %>% #Compute average percentage of FC in a pixel in 2000, for each group. Compute also standard deviation
-          #Then compute the average forest cover, average forest cover percentage, and deforestation in each year, for treated and control groups
+          #Then compute the average forest cover, average forest cover percentage, and forest cover loss in each year, for treated and control groups
           #Standard deviation and 95% confidence interval is also computed for each variable
           group_by(group, year) %>%
           summarise(n = n(),
@@ -2996,7 +2992,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
         ) +
         guides(size = guide_legend(override.aes = list(color = c("grey30", "orange")))) # Add legend for geom_vline
       
-      ### Cumulative deforestation relative to 2000
+      ### Cumulative forest cover loss relative to 2000
       fig_trend_unm_defo = ggplot(data = df.trend, aes(x = year, y = avgFL_2000_cum)) +
         geom_line(aes(group = group, color = as.character(group))) +
         geom_point(aes(color = as.character(group))) +
@@ -3007,7 +3003,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
         scale_color_hue(labels = c("Control", "Treatment")) +
         facet_wrap(matched~., ncol = 2, #scales = 'free_x',
                    labeller = labeller(matched = fct.labs)) +
-        labs(title = "Cumulated deforestation relative to 2000 (unmatched units)",
+        labs(title = "Cumulated forest cover loss relative to 2000 (unmatched units)",
              subtitle = paste0(pa.name, ", ", country.name, ", implemented in ", treatment.year),
              caption = paste("Ribbons represent 95% confidence intervals | WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = ), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = 1), "ha | Pixel resolution :", res_ha, "ha.\nNote the area without overlap and total forest cover are computed using the polygon reported by the WDPA.\nsome areas have a polygon size different from the reported one, explaining some inconsistencies with computed areas."),
              x = "Year", y = "Forest loss relative to 2000 (%)", color = "Group") +
@@ -3153,7 +3149,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
         ) +
         guides(size = guide_legend(override.aes = list(color = c("grey30", "orange")))) # Add legend for geom_vline
       
-      ### Cumulative deforestation relative to 2000
+      ### Cumulative forest cover loss relative to 2000
       fig_trend_m_defo = ggplot(data = df.matched.trend, aes(x = year, y = avgFL_2000_cum)) +
         geom_line(aes(group = group, color = as.character(group))) +
         geom_point(aes(color = as.character(group))) +
@@ -3162,7 +3158,7 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
         geom_vline(aes(xintercept=as.character(funding.years), size="Funding year"), linetype=2, linewidth=0.5, color="grey30") +
         scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) +
         scale_color_hue(labels = c("Control", "Treatment")) +
-        labs(title = "Cumulated deforestation relative to 2000 (matched units)",
+        labs(title = "Cumulated forest cover loss relative to 2000 (matched units)",
              subtitle = paste0(pa.name, ", ", country.name, ", implemented in ", treatment.year),
              caption = paste("Ribbons represent 95% confidence intervals | WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = ), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nNote the area without overlap and total forest cover are computed using the polygon reported by the WDPA.\nsome areas have a polygon size different from the reported one, explaining some inconsistencies with computed areas."),
              x = "Year", y = "Forest loss relative to 2000 (%)", color = "Group") +

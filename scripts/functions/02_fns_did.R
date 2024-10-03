@@ -56,14 +56,14 @@ fn_did_list_pa = function(iso, load_dir)
 }
 
 
-#For a protected area, compute annual deforestation rates à la Wolf et al. 2021, before and after treatment
+#For a protected area, compute annual forest cover loss rates à la Wolf et al. 2021, before and after treatment
 ## INPUTS 
 ### iso : the iso3 code for the country considered
 ### wdpaid : the WDPAID of the PA considered
 ### alpha : the margin of error to define confidence interval
 ### load_dir : a path to load matched frame
 ## OUTPUTS
-### df_fl_annual_wolf : a dataframe with statistics on annual deforestation in matched treated and control units, computed à la Wolf et al. 2021
+### df_fl_annual_wolf : a dataframe with statistics on annual forest cover loss in matched treated and control units, computed à la Wolf et al. 2021
 ### is_ok : a boolean indicating whether or not an error occured inside the function 
 fn_fl_wolf = function(iso, wdpaid, alpha, load_dir)
 {
@@ -92,7 +92,7 @@ fn_fl_wolf = function(iso, wdpaid, alpha, load_dir)
       ##Extract focus dummy
       is_focus = as.logical(df_info$focus)
       
-      #Compute annual deforestation rates à la Wolf et al. 2021 before and after treatment for treated, and for all the period for controls. This is averaged across pixels.
+      #Compute annual forest cover loss rates à la Wolf et al. 2021 before and after treatment for treated, and for all the period for controls. This is averaged across pixels.
       
       ###########
       #/!\ Careful : error in the first mutate that mus tbe handle
@@ -138,8 +138,8 @@ fn_fl_wolf = function(iso, wdpaid, alpha, load_dir)
     error = function(e)
     {
       print(e)
-      #cat(paste("Error while computing annual deforestation à la Wolf et al. 2021 :\n", e, "\n"), file = log, append = TRUE)
-      print(paste("Error while annual deforestation à la Wolf et al. 2021 :\n", e, "\n"))
+      #cat(paste("Error while computing annual forest cover loss à la Wolf et al. 2021 :\n", e, "\n"), file = log, append = TRUE)
+      print(paste("Error while annual forest cover loss à la Wolf et al. 2021 :\n", e, "\n"))
       return(list("is_ok" = FALSE))
     }
     
@@ -158,13 +158,13 @@ fn_fl_wolf = function(iso, wdpaid, alpha, load_dir)
 ### save_dir : the saving directory in the remote storage
 ### load_dir : the loading directory in the remote storage
 ## OUTPUTS :
-### df_fc_attgt : treatment effect computed for the protected area considered, expressed in avoided deforestation (hectare)
-### df_fl_attgt : treatment effect computed for the protected area considered, expressed in change of deforestation rate
+### df_fc_attgt : treatment effect computed for the protected area considered, expressed in prevented forest cover loss (hectare)
+### df_fl_attgt : treatment effect computed for the protected area considered, expressed in change of forest cover loss rate
 ### is_ok : a boolean indicating whether or not an error occured inside the function 
 ### df_did : a pre-did dataframe used by the did::att_gt function to compute treatment effect
 ### df_pre_test : a dataframe with pre-treatment p-value to test for parallel trend assumption
 ## DATA SAVED :
-### Dynamic treatment effects : avoided deforestation in an average pixel (in ha), avoided deforestation relative to 2000 forest cover, avoided deforestation extrapolated to the entire protected area (in ha), change in deforestation rate (in percentage points)
+### Dynamic treatment effects : prevented forest cover loss in an average pixel (in ha), prevented forest cover loss relative to 2000 forest cover, prevented forest cover loss extrapolated to the entire protected area (in ha), change in forest cover loss rate (in percentage points)
 fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, is_m, load_dir, save_dir)
 {
   
@@ -319,7 +319,7 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
       
       #Then modify the dataframe before difference-in-difference computations
       ## Set treatment year = 0 for controls (necessary for did package to consider "never treated" units)
-      ## Compute cumulative deforestation relative to 2000 forest cover (outcome where TE is computed)
+      ## Compute cumulative forest cover loss relative to 2000 forest cover (outcome where TE is computed)
       ## Add different areas, important to aggregate and interpret the results at country level
       df_did = df_long %>%
         mutate(treatment_year = case_when(group == 2 ~ 0,
@@ -367,7 +367,7 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
                                yes = fc_attgt$Wpval[1],
                                no = NA)
       
-      ##For change in deforestation rate (percentage points)
+      ##For change in forest cover loss rate (percentage points)
       ### treatment effect computation
       fl_attgt = did::att_gt(yname = "FL_2000_cum",
                              gname = "treatment_year",
@@ -399,7 +399,7 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
                                "pval_fl" = pval_pretest_fl)  
       ### Report results in a dataframe
       ### The computed is at pixel level
-      ### This treatment effect is aggregated to protected area by multiplying treatment effect by the number of pixel in the PA. It is also expressed in percentage of pixel area (avoided deforestation in share of pixel area)
+      ### This treatment effect is aggregated to protected area by multiplying treatment effect by the number of pixel in the PA. It is also expressed in percentage of pixel area (prevented forest cover loss in share of pixel area)
       ### confidence intervals (at pixel level) are computed from bootstrap standard errors after a coefficient is applied.
       ### This computation takes the one from did:::summary.MP function, line 15 and 16. 
       ### They are multiplied by the number of pixels to compute confidence intervals for treatment effect at protected area level 
@@ -411,8 +411,8 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
                                "se" = fc_attgt$se,  
                                "n" = fc_attgt$n) %>%
         #Compute treatment effect at PA level and in share of pixel area
-        ## att_pa : the total avoided deforestation is the avoided deforestation in ha in a given pixel, multiplied by the number of pixel in the PA.
-        ## att_per : avoided deforestation in a pixel, as a share of average forest cover in 2000 in matched treated. Can be extrapolated to full PA in principle (avoided deforestation in share of 2000 forest cover)
+        ## att_pa : the total forest cover loss prevented is the prevented forest cover loss in ha in a given pixel, multiplied by the number of pixel in the PA.
+        ## att_per : prevented forest cover loss in a pixel, as a share of average forest cover in 2000 in matched treated. Can be extrapolated to full PA in principle (prevented forest cover loss in share of 2000 forest cover)
         mutate(att_pa = att_pix*n_pix_fc_pre_treat,
                att_per = att_pix/avgFC_pre_treat_m*100) %>% 
         #Compute time relative to treatment year
@@ -452,7 +452,7 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
                funding_year_list = list.funding.years,
                .before = "treatment_year")
       
-      # Same for change in deforestation rate
+      # Same for change in forest cover loss rate
       df_fl_attgt = data.frame("treatment_year" = fl_attgt$group,
                                "year" = fl_attgt$t,
                                "att" = case_when(fl_attgt$att <= .Machine$double.eps ~ 0,
@@ -494,7 +494,7 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
                .before = "treatment_year")
       
       ###Plot results
-      ## treatment effect : avoided deforestation at pixel level (in ha)
+      ## treatment effect : prevented forest cover loss at pixel level (in ha)
       fig_att_pix = ggplot(data = df_fc_attgt,
                            aes(x = time, y = att_pix)) %>%
         + geom_line(color = "#08519C") %>%
@@ -502,10 +502,10 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
         + geom_ribbon(aes(ymin = cband_lower_pix, ymax = cband_upper_pix),
                       alpha=0.1, fill = "#FB6A4A", color = "black", linetype = "dotted") %>%
         + labs(title = ifelse(is_m == TRUE, 
-                              yes = "Deforestation avoided in a pixel,on average (matched units)",
-                              no = "Deforestation avoided in a pixel,on average (unmatched units)"),
+                              yes = "Forest cover loss prevented in a pixel,on average (matched units)",
+                              no = "Forest cover loss prevented in a pixel,on average (unmatched units)"),
                subtitle = paste0(pa.name, ", ", country.name, ", implemented in ", treatment.year),
-               caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption :", pval_pretest_fc, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the deforestation avoided at pixel level in hectare, due to the conservation program.\nA negative effect means the conservation program has caused higher deforestation."),
+               caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption :", pval_pretest_fc, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the forest cover loss prevented at pixel level in hectare, due to the conservation program.\nA negative effect means the conservation program has caused higher forest cover loss."),
                y = "Area (ha)",
                x = "Year relative to treatment (t = 0)") %>%
         + scale_x_continuous(breaks=seq(min(df_fc_attgt$time),max(df_fc_attgt$time),by=1)) %>%
@@ -534,7 +534,7 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
           panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
         )
       
-      # treatment effect : avoided deforestation in terms of 2000 forest cover
+      # treatment effect : prevented forest cover loss in terms of 2000 forest cover
       fig_att_per = ggplot(data = df_fc_attgt,
                            aes(x = time, y = att_per)) %>%
         + geom_line(color = "#08519C") %>%
@@ -542,10 +542,10 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
         + geom_ribbon(aes(ymin = cband_lower_per, ymax = cband_upper_per),
                       alpha=0.1, fill = "#FB6A4A", color = "black", linetype = "dotted") %>%
         + labs(title = ifelse(is_m == TRUE, 
-                              yes = "Average deforestation avoided relative to pre-treatment forest cover (matched units)",
-                              no = "Average deforestation avoided relative to pre-treatment forest cover (unmatched units)"),
+                              yes = "Average forest cover loss prevented relative to pre-treatment forest cover (matched units)",
+                              no = "Average forest cover loss prevented relative to pre-treatment forest cover (unmatched units)"),
                subtitle = paste0(pa.name, ", ", country.name, ", implemented in ", treatment.year),
-               caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption :", pval_pretest_fc, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the deforestation avoided in percentage of pre-treatment forest cover.\nA negative effect means the conservation program has caused higher deforestation."),
+               caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption :", pval_pretest_fc, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the forest cover loss prevented in percentage of pre-treatment forest cover.\nA negative effect means the conservation program has caused higher forest cover loss."),
                y = "%",
                x = "Year relative to treatment (t = 0)") %>%
         + scale_x_continuous(breaks=seq(min(df_fc_attgt$time),max(df_fc_attgt$time),by=1)) %>%
@@ -574,7 +574,7 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
           panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
         )
       
-      # treatment effect : avoided deforestation in the PA
+      # treatment effect : prevented forest cover loss in the PA
       fig_att_pa = ggplot(data = df_fc_attgt,
                           aes(x = time, y = att_pa)) %>%
         + geom_line(color = "#08519C") %>%
@@ -582,10 +582,10 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
         + geom_ribbon(aes(ymin = cband_lower_pa, ymax = cband_upper_pa),
                       alpha=0.1, fill = "#FB6A4A", color = "black", linetype = "dotted") %>%
         + labs(title = ifelse(is_m == TRUE, 
-                              yes = "Total deforestation avoided (matched units)",
-                              no = "Total deforestation avoided (unmatched units)"),
+                              yes = "Total forest cover loss prevented (matched units)",
+                              no = "Total forest cover loss prevented (unmatched units)"),
                subtitle = paste0(pa.name, ", ", country.name, ", implemented in ", treatment.year),
-               caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption :", pval_pretest_fc, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the total deforestation avoided in the protected areas, in hectare (ha).\nThis measure is an extrapolation to the full protected area of average avoided deforestation at pixel level.\nA negative effect means the conservation program has caused higher deforestation."),
+               caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption :", pval_pretest_fc, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the total forest cover loss prevented in the protected areas, in hectare (ha).\nThis measure is an extrapolation to the full protected area of average prevented forest cover loss at pixel level.\nA negative effect means the conservation program has caused higher forest cover loss."),
                y = "Forest area (ha)",
                x = "Year relative to treatment (t = 0)") %>%
         + scale_x_continuous(breaks=seq(min(df_fc_attgt$time),max(df_fc_attgt$time),by=1)) %>%
@@ -615,7 +615,7 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
         )
       
       
-      # treatment effect : change in deforestation rate
+      # treatment effect : change in forest cover loss rate
       fig_fl_att = ggplot(data = df_fl_attgt,
                           aes(x = time, y = att)) %>%
         + geom_line(color = "#08519C") %>%
@@ -623,11 +623,11 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
         + geom_ribbon(aes(ymin = cband_lower, ymax = cband_upper),
                       alpha=0.1, fill = "#FB6A4A", color = "black", linetype = "dotted") %>%
         + labs(title = ifelse(is_m == TRUE, 
-                              yes = "Effect of the conservation on the deforestation rate, relative to 2000 (matched units)",
-                              no = "Effect of the conservation on the deforestation rate, relative to 2000 (unmatched units)"),
+                              yes = "Effect of the conservation on the forest cover loss rate, relative to 2000 (matched units)",
+                              no = "Effect of the conservation on the forest cover loss rate, relative to 2000 (unmatched units)"),
                subtitle = paste0(pa.name, ", ", country.name, ", implemented in ", treatment.year),
-               caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption :", pval_pretest_fl, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the reduction of cumulated deforestation rate (relative to 2000 forest cover) in percentage points (pp).\nA negative effect means the conservation program has caused higher deforestation."),
-               y = "Reduction of deforestation (p.p)",
+               caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption :", pval_pretest_fl, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the reduction of cumulated forest cover loss rate (relative to 2000 forest cover) in percentage points (pp).\nA negative effect means the conservation program has caused higher forest cover loss."),
+               y = "Reduction of forest cover loss (p.p)",
                x = "Year relative to treatment (t = 0)") %>%
         + scale_x_continuous(breaks=seq(min(df_fc_attgt$time),max(df_fc_attgt$time),by=1)) %>%
         + theme_minimal() %>%
@@ -739,13 +739,13 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
 ### load_dir : the loading directory in the remote storage
 ### ext_input : the extension of input dataframe
 ## OUTPUTS
-### df_fc_attgt : treatment effect computed for the protected area considered, expressed in avoided deforestation (hectare)
-### df_fl_attgt : treatment effect computed for the protected area considered, expressed in change of deforestation rate
+### df_fc_attgt : treatment effect computed for the protected area considered, expressed in prevented forest cover loss (hectare)
+### df_fl_attgt : treatment effect computed for the protected area considered, expressed in change of forest cover loss rate
 ### is_ok : a boolean indicating whether or not an error occured inside the function 
 ### df_did : a pre-did dataframe used by the did::att_gt function to compute treatment effect
 ### df_pre_test : a dataframe with pre-treatment p-value to test for parallel trend assumption
 ## DATA SAVED :
-### Dynamic treatment effects : avoided deforestation in an average pixel (in ha), avoided deforestation relative to 2000 forest cover, avoided deforestation extrapolated to the entire protected area (in ha), change in deforestation rate (in percentage points)
+### Dynamic treatment effects : prevented forest cover loss in an average pixel (in ha), prevented forest cover loss relative to 2000 forest cover, prevented forest cover loss extrapolated to the entire protected area (in ha), change in forest cover loss rate (in percentage points)
 fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_dir)
 {
   
@@ -874,7 +874,7 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
       
       #Then modify the dataframe before difference-in-difference computations
       ## Set treatment year = 0 for controls (necessary for did package to consider "never treated" units)
-      ## Compute cumulative deforestation relative to 2000 forest cover (outcome where TE is computed)
+      ## Compute cumulative forest cover loss relative to 2000 forest cover (outcome where TE is computed)
       ## Add different areas, important to aggregate and interpret the results at country level
       df_did = df_long %>%
         mutate(treatment_year = case_when(group == 2 ~ 0,
@@ -887,7 +887,7 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
         ungroup() %>%
         group_by(assetid) %>%
         mutate(FL_2000_cum = case_when(fc_ha[year == 2000] > 0 ~ (fc_ha-fc_ha[year == 2000])/fc_ha[year == 2000]*100, 
-                                       TRUE ~ 0)) %>% #If forest cover is null in 2000, then it is null in the following years (reforestation not taken inot account here), and deforestation rate is null
+                                       TRUE ~ 0)) %>% #If forest cover is null in 2000, then it is null in the following years (reforestation not taken inot account here), and forest cover loss rate is null
         ungroup()
       
       
@@ -923,7 +923,7 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
                              biters = 1000, #The number of bootstrap iteration, 1000 is default
                              cband = TRUE, #Compute CI
                              clustervars = NULL, #No clustering seems relevant to me 
-                             base_period = "varying",
+                             base_period = "universal",
                              data = df_did,
                              print_details = F)
       
@@ -931,7 +931,7 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
                                yes = fc_attgt$Wpval[1],
                                no = NA)
       
-      ##For change in deforestation rate (percentage points)
+      ##For change in forest cover loss rate (percentage points)
       ### treatment effect computation
       fl_attgt = did::att_gt(yname = "FL_2000_cum",
                              gname = "treatment_year",
@@ -946,7 +946,7 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
                              biters = 1000, #The number of bootstrap iteration, 1000 is default
                              cband = TRUE, #Compute CI
                              clustervars = NULL, #No clustering seems relevant to me
-                             base_period = "varying",
+                             base_period = "universal",
                              data = df_did,
                              print_details = F)
       pval_pretest_fl = ifelse(is.numeric(fl_attgt$Wpval[1]) == TRUE,
@@ -964,7 +964,7 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
       
       ### Report results in a dataframe
       ### The computed is at pixel level
-      ### This treatment effect is aggregated to protected area by multiplying treatment effect by the number of pixel in the PA. It is also expressed in percentage of pixel area (avoided deforestation in share of pixel area)
+      ### This treatment effect is aggregated to protected area by multiplying treatment effect by the number of pixel in the PA. It is also expressed in percentage of pixel area (prevented forest cover loss in share of pixel area)
       ### confidence intervals (at pixel level) are computed from bootstrap standard errors after a coefficient is applied.
       ### This computation takes the one from did:::summary.MP function, line 15 and 16. 
       ### They are multiplied by the number of pixels to compute confidence intervals for treatment effect at protected area level 
@@ -976,8 +976,8 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
                                "se" = fc_attgt$se,  
                                "n" = fc_attgt$n) %>%
         #Compute treatment effect at PA level and in share of pixel area
-        ## att_pa : the total avoided deforestation is the avoided deforestation in ha in a given pixel, multiplied by the number of pixel in the PA.
-        ## att_per : avoided deforestation in a pixel, as a share of average forest cover in 2000 in matched treated. Can be extrapolated to full PA in principle (avoided deforestation in share of 2000 forest cover)
+        ## att_pa : the total forest cover loss prevented is the prevented forest cover loss in ha in a given pixel, multiplied by the number of pixel in the PA.
+        ## att_per : prevented forest cover loss in a pixel, as a share of average forest cover in 2000 in matched treated. Can be extrapolated to full PA in principle (prevented forest cover loss in share of 2000 forest cover)
         mutate(att_pa = att_pix*n_pix_fc_pre_treat,
                att_per = att_pix/avgFC_pre_treat_m*100) %>% 
         #Compute time relative to treatment year
@@ -1018,7 +1018,7 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
                funding_year_list = list.funding.years,
                .before = "treatment_year")
       
-      # Same for change in deforestation rate
+      # Same for change in forest cover loss rate
       df_fl_attgt = data.frame("treatment_year" = fl_attgt$group,
                                "year" = fl_attgt$t,
                                "att" = fl_attgt$att,
@@ -1060,7 +1060,7 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
                .before = "treatment_year")
       
       ###Plot results
-      ## treatment effect : avoided deforestation at pixel level (in ha)
+      ## treatment effect : prevented forest cover loss at pixel level (in ha)
       fig_att_pix = ggplot(data = df_fc_attgt,
                            aes(x = time, y = att_pix)) %>%
         + geom_line(color = "#08519C") %>%
@@ -1068,10 +1068,10 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
         + geom_ribbon(aes(ymin = cband_lower_pix, ymax = cband_upper_pix),
                       alpha=0.1, fill = "#FB6A4A", color = "black", linetype = "dotted") %>%
         + labs(title = ifelse(is_m == TRUE, 
-                              yes = "Deforestation avoided in a pixel, on average (matched units)",
-                              no = "Deforestation avoided in a pixel, on average (unmatched units)"),
+                              yes = "Forest cover loss prevented in a pixel, on average (matched units)",
+                              no = "Forest cover loss prevented in a pixel, on average (unmatched units)"),
                subtitle = paste0(pa.name, ", ", country.name, ", implemented in ", treatment.year),
-               caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption :", pval_pretest_fc, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the deforestation avoided at pixel level in hectare, due to the conservation program.\nA negative effect means the conservation program has caused higher deforestation."),
+               caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption :", pval_pretest_fc, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the forest cover loss prevented at pixel level in hectare, due to the conservation program.\nA negative effect means the conservation program has caused higher forest cover loss."),
                y = "Area (ha)",
                x = "Year relative to treatment (t = 0)") %>%
         + scale_x_continuous(breaks=seq(min(df_fc_attgt$time),max(df_fc_attgt$time),by=1)) %>%
@@ -1100,7 +1100,7 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
           panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
         )
       
-      # treatment effect : avoided deforestation in terms of 2000 forest cover
+      # treatment effect : prevented forest cover loss in terms of 2000 forest cover
       fig_att_per = ggplot(data = df_fc_attgt,
                            aes(x = time, y = att_per)) %>%
         + geom_line(color = "#08519C") %>%
@@ -1108,10 +1108,10 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
         + geom_ribbon(aes(ymin = cband_lower_per, ymax = cband_upper_per),
                       alpha=0.1, fill = "#FB6A4A", color = "black", linetype = "dotted") %>%
         + labs(title = ifelse(is_m == TRUE, 
-                              yes = "Average deforestation avoided relative to pre-treatment forest cover (matched units)",
-                              no = "Average deforestation avoided relative to pre-treatment forest cover (unmatched units)"),
+                              yes = "Average forest cover loss prevented relative to pre-treatment forest cover (matched units)",
+                              no = "Average forest cover loss prevented relative to pre-treatment forest cover (unmatched units)"),
                subtitle = paste0(pa.name, ", ", country.name, ", implemented in ", treatment.year),
-               caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption :", pval_pretest_fc, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the deforestation avoided in percentage of pre-treatment forest cover.\nA negative effect means the conservation program has caused higher deforestation."),
+               caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption :", pval_pretest_fc, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the forest cover loss prevented in percentage of pre-treatment forest cover.\nA negative effect means the conservation program has caused higher forest cover loss."),
                y = "%",
                x = "Year relative to treatment (t = 0)") %>%
         + scale_x_continuous(breaks=seq(min(df_fc_attgt$time),max(df_fc_attgt$time),by=1)) %>%
@@ -1140,7 +1140,7 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
           panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
         )
       
-      # treatment effect : avoided deforestation in the PA
+      # treatment effect : prevented forest cover loss in the PA
       fig_att_pa = ggplot(data = df_fc_attgt,
                           aes(x = time, y = att_pa)) %>%
         + geom_line(color = "#08519C") %>%
@@ -1148,10 +1148,10 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
         + geom_ribbon(aes(ymin = cband_lower_pa, ymax = cband_upper_pa),
                       alpha=0.1, fill = "#FB6A4A", color = "black", linetype = "dotted") %>%
         + labs(title = ifelse(is_m == TRUE, 
-                              yes = "Total deforestation avoided (matched units)",
-                              no = "Total deforestation avoided (unmatched units)"),
+                              yes = "Total forest cover loss prevented (matched units)",
+                              no = "Total forest cover loss prevented (unmatched units)"),
                subtitle = paste0(pa.name, ", ", country.name, ", implemented in ", treatment.year),
-               caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption :", pval_pretest_fc, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the total deforestation avoided in the protected areas, in hectare (ha).\nThis measure is an extrapolation to the full protected area of average avoided deforestation at pixel level.\nA negative effect means the conservation program has caused higher deforestation."),
+               caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption :", pval_pretest_fc, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the total forest cover loss prevented in the protected areas, in hectare (ha).\nThis measure is an extrapolation to the full protected area of average prevented forest cover loss at pixel level.\nA negative effect means the conservation program has caused higher forest cover loss."),
                y = "Forest area (ha)",
                x = "Year relative to treatment (t = 0)") %>%
         + scale_x_continuous(breaks=seq(min(df_fc_attgt$time),max(df_fc_attgt$time),by=1)) %>%
@@ -1181,7 +1181,7 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
         )
       
       
-      # treatment effect : change in deforestation rate
+      # treatment effect : change in forest cover loss rate
       fig_fl_att = ggplot(data = df_fl_attgt,
                           aes(x = time, y = att)) %>%
         + geom_line(color = "#08519C") %>%
@@ -1189,11 +1189,11 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
         + geom_ribbon(aes(ymin = cband_lower, ymax = cband_upper),
                       alpha=0.1, fill = "#FB6A4A", color = "black", linetype = "dotted") %>%
         + labs(title = ifelse(is_m == TRUE, 
-                              yes = "Effect of the conservation on the deforestation rate, relative to 2000 (matched units)",
-                              no = "Effect of the conservation on the deforestation rate, relative to 2000 (unmatched units)"),
+                              yes = "Effect of the conservation on the forest cover loss rate, relative to 2000 (matched units)",
+                              no = "Effect of the conservation on the forest cover loss rate, relative to 2000 (unmatched units)"),
                subtitle = paste0(pa.name, ", ", country.name, ", implemented in ", treatment.year),
-               caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption :", pval_pretest_fl, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the reduction of cumulated deforestation rate (relative to 2000 forest cover) in percentage points (pp).\nA negative effect means the conservation program has caused higher deforestation."),
-               y = "Reduction of deforestation (p.p)",
+               caption = paste("Ribbon represents", (1-alpha)*100, "% confidence interval | P-value for pre-test of parallel trends assumption :", pval_pretest_fl, "\nWDPA ID :", wdpa_id, "| WDPA reported surface :", format(area_ha, big.mark  = ",", scientific = F, digits = 1), "ha | Surface without overlap :", format(area_noverlap_ha, big.mark  = ",", scientific = F, digits = ), "ha\nTotal forest cover before treatment :", format(fc_tot_pre_treat, big.mark  = ",", scientific = F, digits = ), "ha | Pixel resolution :", res_ha, "ha.\nTreatment effect is interpreted as the reduction of cumulated forest cover loss rate (relative to 2000 forest cover) in percentage points (pp).\nA negative effect means the conservation program has caused higher forest cover loss."),
+               y = "Reduction of forest cover loss (p.p)",
                x = "Year relative to treatment (t = 0)") %>%
         + scale_x_continuous(breaks=seq(min(df_fc_attgt$time),max(df_fc_attgt$time),by=1)) %>%
         + theme_minimal() %>%
@@ -1540,7 +1540,7 @@ fn_plot_forest_loss_agg = function(df_plot_forest_loss, save_dir, alpha)
 {
   year.max = max(df_plot_forest_loss$year)
   
-  #Compute average, total deforestation and avoided deforestation ... 
+  #Compute average, total forest cover loss and prevented forest cover loss ... 
   ## across all protected areas in the sample
   df_plot_forest_loss_agg_all = df_plot_forest_loss %>%
     group_by(matched, group, year) %>%
@@ -1694,7 +1694,7 @@ fn_plot_forest_loss_agg = function(df_plot_forest_loss, save_dir, alpha)
   # Define the figures
   fct.labs <- c("Before Matching", "After Matching")
   names(fct.labs) <- c(FALSE, TRUE)
-  ## Total deforestation
+  ## Total forest cover loss
   ### All PA
   fig_forest_loss_agg_tot_all = ggplot(data = filter(df_plot_forest_loss_agg_all, year == year.max),
                                        aes(y = abs(tot_fc_rel00_ha), fill = as.factor(group), x = group)) %>%
@@ -1821,7 +1821,7 @@ fn_plot_forest_loss_agg = function(df_plot_forest_loss, save_dir, alpha)
       panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
     )
   
-  ## Average deforestation
+  ## Average forest cover loss
   ### For all PA
   fig_forest_loss_agg_avg_all = ggplot(data = filter(df_plot_forest_loss_agg_all, year == year.max),
                                        aes(y = abs(avg_fc_rel00_ha), fill = as.factor(group), x = group)) %>%
@@ -1949,7 +1949,7 @@ fn_plot_forest_loss_agg = function(df_plot_forest_loss, save_dir, alpha)
     )
   
   
-  ## Total avoided deforestation
+  ## Total forest cover loss prevented
   ### All PA
   fig_avoidefo_agg_tot_all = ggplot(data = df_avoidefo_agg_all,
                                     aes(y = tot_avoidefo_ha, x = factor(matched, levels = c("Before matching", "After matching")), fill = matched)) %>%
@@ -1961,8 +1961,8 @@ fn_plot_forest_loss_agg = function(df_plot_forest_loss, save_dir, alpha)
                  show.legend = FALSE) %>%
     + scale_fill_brewer(name = "Group", palette = "Blues") %>%
     + labs(x = "",
-           y = "Avoided deforestation (ha)",
-           title = paste("Total avoided deforestation between 2000 and", year.max),
+           y = "prevented forest cover loss (ha)",
+           title = paste("Total forest cover loss prevented between 2000 and", year.max),
            subtitle = paste0("Sample : all protected areas (" , n_pa, " areas with ", format(fc_2000_ha_tot_all, big.mark = ","), " ha of total forest cover in 2000)"),
            caption = paste(((1-alpha)*100), "% confidence intervals")) %>%
     + theme_minimal() %>%
@@ -2001,8 +2001,8 @@ fn_plot_forest_loss_agg = function(df_plot_forest_loss, save_dir, alpha)
                  show.legend = FALSE) %>%
     + scale_fill_brewer(name = "Group", palette = "Blues") %>%
     + labs(x = "",
-           y = "Avoided deforestation (ha)",
-           title = paste("Total avoided deforestation between 2000 and", year.max),
+           y = "prevented forest cover loss (ha)",
+           title = paste("Total forest cover loss prevented between 2000 and", year.max),
            subtitle = paste0("Sample : protected areas of interest (" , n_focus, " areas with ", format(fc_2000_ha_tot_focus, big.mark = ","), " ha of total forest cover in 2000)"),
            caption = paste(((1-alpha)*100), "% confidence intervals")) %>%
     + theme_minimal() %>%
@@ -2041,8 +2041,8 @@ fn_plot_forest_loss_agg = function(df_plot_forest_loss, save_dir, alpha)
                  show.legend = FALSE) %>%
     + scale_fill_brewer(name = "Group", palette = "Blues") %>%
     + labs(x = "",
-           y = "Avoided deforestation (ha)",
-           title = paste("Total avoided deforestation between 2000 and", year.max),
+           y = "prevented forest cover loss (ha)",
+           title = paste("Total forest cover loss prevented between 2000 and", year.max),
            subtitle = paste0("Sample : other protected areas (" , n_nofocus, " areas with ", format(fc_2000_ha_tot_nofocus, big.mark = ","), " ha of total forest cover in 2000)"),
            caption = paste(((1-alpha)*100), "% confidence intervals")) %>%
     + theme_minimal() %>%
@@ -2070,7 +2070,7 @@ fn_plot_forest_loss_agg = function(df_plot_forest_loss, save_dir, alpha)
       panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
     )
   
-  #Average avoided deforestation
+  #Average prevented forest cover loss
   ### All PA
   fig_avoidefo_agg_avg_all = ggplot(data = df_avoidefo_agg_all,
                                     aes(y = avg_avoidefo_ha, x = factor(matched, levels = c("Before matching", "After matching")), fill = matched)) %>%
@@ -2082,8 +2082,8 @@ fn_plot_forest_loss_agg = function(df_plot_forest_loss, save_dir, alpha)
                  show.legend = FALSE) %>%
     + scale_fill_brewer(name = "Group", palette = "Blues") %>%
     + labs(x = "",
-           y = "Avoided deforestation (ha)",
-           title = paste("Average avoided deforestation between 2000 and", year.max),
+           y = "prevented forest cover loss (ha)",
+           title = paste("Average prevented forest cover loss between 2000 and", year.max),
            subtitle = paste0("Sample : all protected areas (" , n_pa, " areas with ", format(fc_2000_ha_avg_all, big.mark = ","), " ha of average forest cover in 2000)"),
            caption = paste(((1-alpha)*100), "% confidence intervals")) %>%
     + theme_minimal() %>%
@@ -2122,8 +2122,8 @@ fn_plot_forest_loss_agg = function(df_plot_forest_loss, save_dir, alpha)
                  show.legend = FALSE) %>%
     + scale_fill_brewer(name = "Group", palette = "Blues") %>%
     + labs(x = "",
-           y = "Avoided deforestation (ha)",
-           title = paste("Average avoided deforestation between 2000 and", year.max),
+           y = "prevented forest cover loss (ha)",
+           title = paste("Average prevented forest cover loss between 2000 and", year.max),
            subtitle = paste0("Sample : protected areas of interest (" , n_focus, " areas with ", format(fc_2000_ha_avg_focus, big.mark = ","), " ha of average forest cover in 2000)"),
            caption = paste(((1-alpha)*100), "% confidence intervals")) %>%
     + theme_minimal() %>%
@@ -2162,8 +2162,8 @@ fn_plot_forest_loss_agg = function(df_plot_forest_loss, save_dir, alpha)
                  show.legend = FALSE) %>%
     + scale_fill_brewer(name = "Group", palette = "Blues") %>%
     + labs(x = "",
-           y = "Avoided deforestation (ha)",
-           title = paste("Average avoided deforestation between 2000 and", year.max),
+           y = "prevented forest cover loss (ha)",
+           title = paste("Average prevented forest cover loss between 2000 and", year.max),
            subtitle = paste0("Sample : other protected areas (" , n_nofocus, " areas with ", format(fc_2000_ha_avg_nofocus, big.mark = ","), " ha of average forest cover in 2000)"),
            caption = paste(((1-alpha)*100), "% confidence intervals")) %>%
     + theme_minimal() %>%
@@ -2263,12 +2263,12 @@ fn_plot_forest_loss_agg = function(df_plot_forest_loss, save_dir, alpha)
 
 # Plotting the treatment effect of each protected area analyzed in the same graph. This function suits for AFD supported protected areas : it includes funding information to the table and figures
 ## INPUTS
-### df_fc_att : a dataset with treatment effects for each protected area in the sample, expressed as avoided deforestation (hectare)
-### df_fl_att : a dataset with treatment effects for each protected area in the sample, expressed as change in deforestation rate
+### df_fc_att : a dataset with treatment effects for each protected area in the sample, expressed as prevented forest cover loss (hectare)
+### df_fl_att : a dataset with treatment effects for each protected area in the sample, expressed as change in forest cover loss rate
 ### alpha : the threshold for confidence interval
 ### save_dir : the saving directory in the remote storage
 ## DATA SAVED
-### Tables and figures : treatment effects computed for each protected area in the sample, expressed as avoided deforestaion (hectare and percentage of 2000 forest cover) and change in deforestation rate.
+### Tables and figures : treatment effects computed for each protected area in the sample, expressed as prevented deforestaion (hectare and percentage of 2000 forest cover) and change in forest cover loss rate.
 fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, alpha, save_dir)
 {
   
@@ -2348,7 +2348,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
                            na.translate = F) %>%
     # + scale_x_continuous(breaks=seq(min(df_plot_fc_att$att_per, na.rm = TRUE),max(df_plot_fc_att$att_per, na.rm = TRUE),by=1)) %>%
     + facet_grid(~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Deforestation avoided relative to pre-treatment forest cover",
+    + labs(title = "Forest cover loss prevented relative to pre-treatment forest cover",
            #caption = "Protected areas of interest are in blue, others are in black.",
            caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021)",
            x = "%",
@@ -2392,7 +2392,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
                            na.translate = F) %>%
     # + scale_x_continuous(breaks=seq(min(df_plot_fc_att$att_per, na.rm = TRUE),max(df_plot_fc_att$att_per, na.rm = TRUE),by=1)) %>%
     + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Deforestation avoided relative to pre-treatment forest cover",
+    + labs(title = "Forest cover loss prevented relative to pre-treatment forest cover",
            caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021)",
            x = "%",
            y = "") %>%
@@ -2438,7 +2438,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
                              na.translate = F) %>%
       # + scale_x_continuous(breaks=seq(min(filter(df_plot_fc_att, iso3 == i)$att_per, na.rm = TRUE),max(filter(df_plot_fc_att, iso3 == i)$att_per, na.rm = TRUE),by=1)) %>%
       + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-      + labs(title = "Deforestation avoided relative to pre-treatment forest cover",
+      + labs(title = "Forest cover loss prevented relative to pre-treatment forest cover",
              subtitle = paste("Country :", country_en),
              caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021)",
              x = "%",
@@ -2499,7 +2499,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
                            na.translate = F) %>%
     # + scale_x_continuous(breaks=seq(min(df_plot_fc_att$att_per, na.rm = TRUE),max(df_plot_fc_att$att_per, na.rm = TRUE),by=1)) %>%
     + facet_grid(~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Deforestation avoided relative to pre-treatment forest cover",
+    + labs(title = "Forest cover loss prevented relative to pre-treatment forest cover",
            subtitle = "Protected areas of interest only",
            caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "%",
@@ -2542,7 +2542,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
                            na.translate = F) %>%
     # + scale_x_continuous(breaks=seq(min(df_plot_fc_att$att_per, na.rm = TRUE),max(df_plot_fc_att$att_per, na.rm = TRUE),by=1)) %>%
     + facet_grid(~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Deforestation avoided relative to pre-treatment forest cover",
+    + labs(title = "Forest cover loss prevented relative to pre-treatment forest cover",
            subtitle = "Other protected areas",
            caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "%",
@@ -2587,7 +2587,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
                            na.translate = F) %>%
     # + scale_x_continuous(breaks=seq(min(df_plot_fc_att$att_per, na.rm = TRUE),max(df_plot_fc_att$att_per, na.rm = TRUE),by=1)) %>%
     + facet_grid(iucn_wolf~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Deforestation avoided relative to pre-treatment forest cover",
+    + labs(title = "Forest cover loss prevented relative to pre-treatment forest cover",
            x = "%",
            y = "") %>%
     + theme_minimal() %>%
@@ -2629,7 +2629,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
                            na.translate = F) %>%
     # + scale_x_continuous(breaks=seq(min(df_plot_fc_att$att_per, na.rm = TRUE),max(df_plot_fc_att$att_per, na.rm = TRUE),by=1)) %>%
     + facet_grid(iucn_wolf~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Deforestation avoided relative to pre-treatment forest cover",
+    + labs(title = "Forest cover loss prevented relative to pre-treatment forest cover",
            subtitle =  "Protected areas of interest only",
            x = "%",
            y = "") %>%
@@ -2661,7 +2661,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
     )
   
   
-  ##treatment effect : total deforestation avoided
+  ##treatment effect : total forest cover loss prevented
   fig_att_pa = ggplot(df_plot_fc_att, 
                       aes(x = att_pa, 
                           y = factor(name_pa_iso_iucn, levels = unique(rev(sort(name_pa_iso_iucn)))),
@@ -2673,7 +2673,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
                            na.translate = F) %>%
     + scale_x_continuous(limits = c(min(df_plot_fc_att$cband_lower_pa, na.rm = T), max(df_plot_fc_att$cband_upper_pa, na.rm = T))) %>%
     + facet_grid(~time,scales="free", space="free",  labeller = as_labeller(names)) %>%
-    + labs(title = "Total deforestation avoided",
+    + labs(title = "Total forest cover loss prevented",
            caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "ha",
            y = "") %>%
@@ -2714,7 +2714,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
     + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                            na.translate = F) %>%
     + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Total deforestation avoided",
+    + labs(title = "Total forest cover loss prevented",
            caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "ha",
            y = "") %>%
@@ -2760,7 +2760,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
       + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                              na.translate = F) %>%
       + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-      + labs(title = "Total deforestation avoided",
+      + labs(title = "Total forest cover loss prevented",
              subtitle = paste("Country :", i),
              caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
              x = "ha",
@@ -2819,7 +2819,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
     + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                            na.translate = F) %>%
     + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Total deforestation avoided",
+    + labs(title = "Total forest cover loss prevented",
            subtitle = "Protected areas of interest only",
            caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "ha",
@@ -2862,7 +2862,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
     + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                            na.translate = F) %>%
     + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Total deforestation avoided",
+    + labs(title = "Total forest cover loss prevented",
            subtitle = "Other protected areas",
            caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "ha",
@@ -2905,7 +2905,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
     + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                            na.translate = F) %>%
     + facet_grid(iucn_wolf~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Total deforestation avoided",
+    + labs(title = "Total forest cover loss prevented",
            x = "ha",
            y = "") %>%
     + theme_minimal() %>%
@@ -2945,7 +2945,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
     + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                            na.translate = F) %>%
     + facet_grid(iucn_wolf~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Total deforestation avoided",
+    + labs(title = "Total forest cover loss prevented",
            subtitle = "Protected areas of interest only",
            x = "ha",
            y = "") %>%
@@ -2975,7 +2975,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
       panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
     )
   
-  ##treatment effect : avoided deforestation in percentage points
+  ##treatment effect : prevented forest cover loss in percentage points
   fig_att_fl = ggplot(df_plot_fl_att, 
                       aes(x = att, 
                           y = factor(name_pa_iso_iucn, levels = unique(rev(sort(name_pa_iso_iucn)))),
@@ -2987,7 +2987,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
     + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                            na.translate = F) %>%
     + facet_grid(~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Reduction of deforestation due to the conservation",
+    + labs(title = "Reduction of forest cover loss due to the conservation",
            caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "p.p.",
            y = "") %>%
@@ -3028,7 +3028,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
     + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                            na.translate = F) %>%
     + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Reduction of deforestation due to the conservation",
+    + labs(title = "Reduction of forest cover loss due to the conservation",
            caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "p.p.",
            y = "") %>%
@@ -3069,7 +3069,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
     + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                            na.translate = F) %>%
     + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Reduction of deforestation due to the conservation",
+    + labs(title = "Reduction of forest cover loss due to the conservation",
            subtitle = "Protected areas of interest only",
            caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "p.p.",
@@ -3112,7 +3112,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
     + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                            na.translate = F) %>%
     + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Reduction of deforestation due to the conservation",
+    + labs(title = "Reduction of forest cover loss due to the conservation",
            subtitle = "Other protected areas",
            caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "p.p.",
@@ -3155,7 +3155,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
     + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                            na.translate = F) %>%
     + facet_grid(iucn_wolf~time, scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Reduction of deforestation due to the conservation",
+    + labs(title = "Reduction of forest cover loss due to the conservation",
            x = "p.p.",
            y = "") %>%
     + theme_minimal() %>%
@@ -3195,7 +3195,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
     + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                            na.translate = F) %>%
     + facet_grid(iucn_wolf~time, scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Reduction of deforestation due to the conservation",
+    + labs(title = "Reduction of forest cover loss due to the conservation",
            subtitle = "Protected areas of interest only",
            x = "p.p.",
            y = "") %>%
@@ -3227,7 +3227,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
   
   
   #Tables 
-  ## treatment effect : percentage of deforestation avoided
+  ## treatment effect : percentage of forest cover loss prevented
   tbl_fc_att_per = df_fc_att %>%
     mutate(focus = case_when(wdpaid %in% list_pa_focus ~ "Yes",
                              !(wdpaid %in% list_pa_focus) ~ "No"),
@@ -3264,7 +3264,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
   names(tbl_fc_att_per) = c("Name", "Interest", "Proj. ID", "Country", "Creation", "Funding year", "KfW", "FFEM", "Protection", 
                             "Effect (5 y., %)", "Signi. (5 y.)","Effect (10 y., %)", "Signi. (10 y.)")
   
-  # treatment effect : total deforestation avoided 
+  # treatment effect : total forest cover loss prevented 
   tbl_fc_att_pa = df_fc_att %>%
     mutate(focus = case_when(wdpaid %in% list_pa_focus ~ "Yes",
                              !(wdpaid %in% list_pa_focus) ~ "No"),
@@ -3302,7 +3302,7 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
                            "Effect (5 y., ha)", "Signi. (5 y.)","Effect (10 y., ha)", "Signi. (10 y.)")
   
   
-  # treatment effect : avoided deforestation, in terms of difference in cumultaed deforestation rate 
+  # treatment effect : prevented forest cover loss, in terms of difference in cumultaed forest cover loss rate 
   tbl_fl_att = df_fl_att %>%
     mutate(focus = case_when(wdpaid %in% list_pa_focus ~ "Yes",
                              !(wdpaid %in% list_pa_focus) ~ "No"),
@@ -3459,12 +3459,12 @@ fn_plot_att_afd = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, 
 
 # Plotting the treatment effect of each protected area analyzed in the same graph. This function suits for all protected areas in general, and does not include any information on funding.
 ## INPUTS
-### df_fc_att : a dataset with treatment effects for each protected area in the sample, expressed as avoided deforestation (hectare)
-### df_fl_att : a dataset with treatment effects for each protected area in the sample, expressed as change in deforestation rate
+### df_fc_att : a dataset with treatment effects for each protected area in the sample, expressed as prevented forest cover loss (hectare)
+### df_fl_att : a dataset with treatment effects for each protected area in the sample, expressed as change in forest cover loss rate
 ### alpha : the threshold for confidence interval
 ### save_dir : the saving directory in the remote storage
 ## DATA SAVED
-### Tables and figures : treatment effects computed for each protected area in the sample, expressed as avoided deforestaion (hectare and percentage of 2000 forest cover) and change in deforestation rate.
+### Tables and figures : treatment effects computed for each protected area in the sample, expressed as prevented deforestaion (hectare and percentage of 2000 forest cover) and change in forest cover loss rate.
 fn_plot_att_general = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_focus, alpha, save_dir)
 {
   
@@ -3540,7 +3540,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_foc
                            na.translate = F) %>%
     # + scale_x_continuous(breaks=seq(min(df_plot_fc_att$att_per, na.rm = TRUE),max(df_plot_fc_att$att_per, na.rm = TRUE),by=1)) %>%
     + facet_grid(~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Deforestation avoided relative to pre-treatment forest cover",
+    + labs(title = "Forest cover loss prevented relative to pre-treatment forest cover",
            #caption = "Protected areas of interest are in blue, others are in black.",
            caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021)",
            x = "%",
@@ -3584,7 +3584,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_foc
                            na.translate = F) %>%
     # + scale_x_continuous(breaks=seq(min(df_plot_fc_att$att_per, na.rm = TRUE),max(df_plot_fc_att$att_per, na.rm = TRUE),by=1)) %>%
     + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Deforestation avoided relative to pre-treatment forest cover",
+    + labs(title = "Forest cover loss prevented relative to pre-treatment forest cover",
            caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021)",
            x = "%",
            y = "") %>%
@@ -3630,7 +3630,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_foc
                              na.translate = F) %>%
       # + scale_x_continuous(breaks=seq(min(filter(df_plot_fc_att, iso3 == i)$att_per, na.rm = TRUE),max(filter(df_plot_fc_att, iso3 == i)$att_per, na.rm = TRUE),by=1)) %>%
       + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-      + labs(title = "Deforestation avoided relative to pre-treatment forest cover",
+      + labs(title = "Forest cover loss prevented relative to pre-treatment forest cover",
              subtitle = paste("Country :", country_en),
              caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021)",
              x = "%",
@@ -3691,7 +3691,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_foc
                            na.translate = F) %>%
     # + scale_x_continuous(breaks=seq(min(df_plot_fc_att$att_per, na.rm = TRUE),max(df_plot_fc_att$att_per, na.rm = TRUE),by=1)) %>%
     + facet_grid(~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Deforestation avoided relative to pre-treatment forest cover",
+    + labs(title = "Forest cover loss prevented relative to pre-treatment forest cover",
            subtitle = "Protected areas of interest only",
            caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "%",
@@ -3734,7 +3734,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_foc
                            na.translate = F) %>%
     # + scale_x_continuous(breaks=seq(min(df_plot_fc_att$att_per, na.rm = TRUE),max(df_plot_fc_att$att_per, na.rm = TRUE),by=1)) %>%
     + facet_grid(~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Deforestation avoided relative to pre-treatment forest cover",
+    + labs(title = "Forest cover loss prevented relative to pre-treatment forest cover",
            subtitle = "Other protected areas",
            caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "%",
@@ -3779,7 +3779,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_foc
                            na.translate = F) %>%
     # + scale_x_continuous(breaks=seq(min(df_plot_fc_att$att_per, na.rm = TRUE),max(df_plot_fc_att$att_per, na.rm = TRUE),by=1)) %>%
     + facet_grid(iucn_wolf~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Deforestation avoided relative to pre-treatment forest cover",
+    + labs(title = "Forest cover loss prevented relative to pre-treatment forest cover",
            x = "%",
            y = "") %>%
     + theme_minimal() %>%
@@ -3821,7 +3821,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_foc
                            na.translate = F) %>%
     # + scale_x_continuous(breaks=seq(min(df_plot_fc_att$att_per, na.rm = TRUE),max(df_plot_fc_att$att_per, na.rm = TRUE),by=1)) %>%
     + facet_grid(iucn_wolf~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Deforestation avoided relative to pre-treatment forest cover",
+    + labs(title = "Forest cover loss prevented relative to pre-treatment forest cover",
            subtitle =  "Protected areas of interest only",
            x = "%",
            y = "") %>%
@@ -3853,7 +3853,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_foc
     )
   
   
-  ##treatment effect : total deforestation avoided
+  ##treatment effect : total forest cover loss prevented
   fig_att_pa = ggplot(df_plot_fc_att, 
                       aes(x = att_pa, 
                           y = factor(name_pa_iso_iucn, levels = unique(rev(sort(name_pa_iso_iucn)))),
@@ -3865,7 +3865,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_foc
                            na.translate = F) %>%
     + scale_x_continuous(limits = c(min(df_plot_fc_att$cband_lower_pa, na.rm = T), max(df_plot_fc_att$cband_upper_pa, na.rm = T))) %>%
     + facet_grid(~time,scales="free", space="free",  labeller = as_labeller(names)) %>%
-    + labs(title = "Total deforestation avoided",
+    + labs(title = "Total forest cover loss prevented",
            caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "ha",
            y = "") %>%
@@ -3906,7 +3906,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_foc
     + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                            na.translate = F) %>%
     + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Total deforestation avoided",
+    + labs(title = "Total forest cover loss prevented",
            caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "ha",
            y = "") %>%
@@ -3952,7 +3952,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_foc
       + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                              na.translate = F) %>%
       + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-      + labs(title = "Total deforestation avoided",
+      + labs(title = "Total forest cover loss prevented",
              subtitle = paste("Country :", i),
              caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
              x = "ha",
@@ -4011,7 +4011,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_foc
     + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                            na.translate = F) %>%
     + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Total deforestation avoided",
+    + labs(title = "Total forest cover loss prevented",
            subtitle = "Protected areas of interest only",
            caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "ha",
@@ -4054,7 +4054,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_foc
     + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                            na.translate = F) %>%
     + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Total deforestation avoided",
+    + labs(title = "Total forest cover loss prevented",
            subtitle = "Other protected areas",
            caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "ha",
@@ -4097,7 +4097,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_foc
     + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                            na.translate = F) %>%
     + facet_grid(iucn_wolf~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Total deforestation avoided",
+    + labs(title = "Total forest cover loss prevented",
            x = "ha",
            y = "") %>%
     + theme_minimal() %>%
@@ -4137,7 +4137,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_foc
     + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                            na.translate = F) %>%
     + facet_grid(iucn_wolf~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Total deforestation avoided",
+    + labs(title = "Total forest cover loss prevented",
            subtitle = "Protected areas of interest only",
            x = "ha",
            y = "") %>%
@@ -4167,7 +4167,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_foc
       panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
     )
   
-  ##treatment effect : avoided deforestation in percentage points
+  ##treatment effect : prevented forest cover loss in percentage points
   fig_att_fl = ggplot(df_plot_fl_att, 
                       aes(x = att, 
                           y = factor(name_pa_iso_iucn, levels = unique(rev(sort(name_pa_iso_iucn)))),
@@ -4179,7 +4179,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_foc
     + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                            na.translate = F) %>%
     + facet_grid(~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Reduction of deforestation due to the conservation",
+    + labs(title = "Reduction of forest cover loss due to the conservation",
            caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "p.p.",
            y = "") %>%
@@ -4220,7 +4220,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_foc
     + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                            na.translate = F) %>%
     + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Reduction of deforestation due to the conservation",
+    + labs(title = "Reduction of forest cover loss due to the conservation",
            caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "p.p.",
            y = "") %>%
@@ -4261,7 +4261,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_foc
     + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                            na.translate = F) %>%
     + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Reduction of deforestation due to the conservation",
+    + labs(title = "Reduction of forest cover loss due to the conservation",
            subtitle = "Protected areas of interest only",
            caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "p.p.",
@@ -4304,7 +4304,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_foc
     + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                            na.translate = F) %>%
     + facet_grid(focus~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Reduction of deforestation due to the conservation",
+    + labs(title = "Reduction of forest cover loss due to the conservation",
            subtitle = "Other protected areas",
            caption = "Country ISO3 code and conservation category precised in parentheses.\nIUCN categories I-IV correspond to strict conservation, V-VI to non-strict (Wolf et al., 2021).",
            x = "p.p.",
@@ -4347,7 +4347,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_foc
     + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                            na.translate = F) %>%
     + facet_grid(iucn_wolf~time, scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Reduction of deforestation due to the conservation",
+    + labs(title = "Reduction of forest cover loss due to the conservation",
            x = "p.p.",
            y = "") %>%
     + theme_minimal() %>%
@@ -4387,7 +4387,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_foc
     + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                            na.translate = F) %>%
     + facet_grid(iucn_wolf~time, scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Reduction of deforestation due to the conservation",
+    + labs(title = "Reduction of forest cover loss due to the conservation",
            subtitle = "Protected areas of interest only",
            x = "p.p.",
            y = "") %>%
@@ -4419,7 +4419,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_foc
   
   
   #Tables 
-  ## treatment effect : percentage of deforestation avoided
+  ## treatment effect : percentage of forest cover loss prevented
   tbl_fc_att_per = df_plot_fc_att  %>%
     mutate(focus = case_when(wdpaid %in% list_pa_focus ~ "Yes",
                              !(wdpaid %in% list_pa_focus) ~ "No"),
@@ -4449,7 +4449,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_foc
   names(tbl_fc_att_per) = c("Name", "PA of interest", "Creation", "Protection", 
                             "Effect (5 y., %)", "Signi. (5 y.)","Effect (10 y., %)", "Signi. (10 y.)")
   
-  # treatment effect : total deforestation avoided 
+  # treatment effect : total forest cover loss prevented 
   tbl_fc_att_pa = df_plot_fc_att %>%
     mutate(focus = case_when(wdpaid %in% list_pa_focus ~ "Yes",
                              !(wdpaid %in% list_pa_focus) ~ "No"),
@@ -4479,7 +4479,7 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_foc
   names(tbl_fc_att_pa) = c("Name", "PA of interest", "Creation", "Protection", 
                            "Effect (5 y., ha)", "Signi. (5 y.)","Effect (10 y., ha)", "Signi. (10 y.)")
   
-  # treatment effect : avoided deforestation, in terms of difference in cumultaed deforestation rate 
+  # treatment effect : prevented forest cover loss, in terms of difference in cumultaed forest cover loss rate 
   tbl_fl_att = df_plot_fl_att %>%
     mutate(focus = case_when(wdpaid %in% list_pa_focus ~ "Yes",
                              !(wdpaid %in% list_pa_focus) ~ "No"),
@@ -4628,12 +4628,12 @@ fn_plot_att_general = function(df_fc_att, df_fl_att, list_pa_focus, list_iso_foc
 
 # Plotting the treatment effects aggregated at country level
 ## INPUTS
-### df_fc_att : a dataset with treatment effects for each protected area in the sample, expressed as avoided deforestation (hectare)
-### df_fl_att : a dataset with treatment effects for each protected area in the sample, expressed as change in deforestation rate
+### df_fc_att : a dataset with treatment effects for each protected area in the sample, expressed as prevented forest cover loss (hectare)
+### df_fl_att : a dataset with treatment effects for each protected area in the sample, expressed as change in forest cover loss rate
 ### alpha : the threshold for confidence interval
 ### save_dir : the saving directory in the remote storage
 ## DATA SAVED
-### Tables and figures : treatment effects computed aggregated at country level, expressed as avoided deforestaion (hectare and percentage of 2000 forest cover) and change in deforestation rate.
+### Tables and figures : treatment effects computed aggregated at country level, expressed as prevented deforestaion (hectare and percentage of 2000 forest cover) and change in forest cover loss rate.
 
 fn_plot_att_agg = function(df_fc_att, df_fl_att, is_focus, alpha, save_dir)
 {
@@ -4662,7 +4662,7 @@ fn_plot_att_agg = function(df_fc_att, df_fl_att, is_focus, alpha, save_dir)
     ungroup()
   
   #Treatment effects are aggregated by country
-  #For avoided deforestation in % of pre-treatment forest cover, treatment effects are averaged and so are CI. CI being NA is less a problem here as we use a mean, not a sum
+  #For prevented forest cover loss in % of pre-treatment forest cover, treatment effects are averaged and so are CI. CI being NA is less a problem here as we use a mean, not a sum
   
   df_fc_att_agg = df_fc_att %>%
     group_by(country_en, iso3, time) %>%
@@ -4730,7 +4730,7 @@ fn_plot_att_agg = function(df_fc_att, df_fl_att, is_focus, alpha, save_dir)
                            na.translate = F) %>%
     # + scale_x_continuous(breaks=seq(min(df_plot_fc_att$att_per, na.rm = TRUE),max(df_plot_fc_att$att_per, na.rm = TRUE),by=1)) %>%
     + facet_grid(~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Deforestation avoided relative to pre-treatment forest cover",
+    + labs(title = "Forest cover loss prevented relative to pre-treatment forest cover",
            subtitle = ifelse(is_focus == T,
                              yes = paste("Sample :", n_pa, "protected areas of interest"),
                              no = paste("Sample :", n_pa, "other protected areas")),
@@ -4764,7 +4764,7 @@ fn_plot_att_agg = function(df_fc_att, df_fl_att, is_focus, alpha, save_dir)
       panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
     )
   
-  ##treatment effect : total deforestation avoided
+  ##treatment effect : total forest cover loss prevented
   fig_att_pa_agg = ggplot(df_plot_fc_att_agg, 
                           aes(x = att_pa, 
                               y = factor(country_en_n, levels = unique(rev(sort(country_en_n)))),
@@ -4775,7 +4775,7 @@ fn_plot_att_agg = function(df_fc_att, df_fl_att, is_focus, alpha, save_dir)
     + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                            na.translate = F) %>%
     + facet_grid(~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Total deforestation avoided",
+    + labs(title = "Total forest cover loss prevented",
            subtitle = ifelse(is_focus == T,
                              yes = paste("Sample :", n_pa, "protected areas of interest"),
                              no = paste("Sample :", n_pa, "other protected areas")),
@@ -4808,7 +4808,7 @@ fn_plot_att_agg = function(df_fc_att, df_fl_att, is_focus, alpha, save_dir)
       panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
     )
   
-  ##treatment effect : avoided deforestation in percentage points
+  ##treatment effect : prevented forest cover loss in percentage points
   fig_att_fl_agg = ggplot(df_plot_fl_att_agg, 
                           aes(x = att, 
                               y = factor(country_en_n, levels = unique(rev(sort(country_en_n)))),
@@ -4819,7 +4819,7 @@ fn_plot_att_agg = function(df_fc_att, df_fl_att, is_focus, alpha, save_dir)
     + scale_color_discrete(name = paste0("Significance\n(", (1-alpha)*100, "% level)"),
                            na.translate = F) %>%
     + facet_grid(~time,scales="free", space="free",  labeller= as_labeller(names)) %>%
-    + labs(title = "Reduction of deforestation due to the conservation",
+    + labs(title = "Reduction of forest cover loss due to the conservation",
            subtitle = ifelse(is_focus == T,
                              yes = paste("Sample :", n_pa, "protected areas of interest"),
                              no = paste("Sample :", n_pa, "other protected areas")),
@@ -4854,7 +4854,7 @@ fn_plot_att_agg = function(df_fc_att, df_fl_att, is_focus, alpha, save_dir)
   
   
   #Tables 
-  ## treatment effect : percentage of deforestation avoided
+  ## treatment effect : percentage of forest cover loss prevented
   tbl_fc_att_per_agg = df_plot_fc_att_agg  %>%
     mutate(sig_per = case_when(sign(cband_lower_per) == sign(cband_upper_per) ~ "Yes",
                                sign(cband_lower_per) != sign(cband_upper_per) ~ "No")
@@ -4877,7 +4877,7 @@ fn_plot_att_agg = function(df_fc_att, df_fl_att, is_focus, alpha, save_dir)
   #                           "Governance", "Effect (5 y., %)", "Significance (5 y.)","Effect (10 y., %)", "Significance (10 y.)")
   names(tbl_fc_att_per_agg) = c("Country", "# PA", "Effect (5 y., %)", "Signi. (5 y.)","Effect (10 y., %)", "Signi. (10 y.)")
   
-  # treatment effect : total deforestation avoided 
+  # treatment effect : total forest cover loss prevented 
   tbl_fc_att_pa_agg = df_plot_fc_att_agg %>%
     mutate(sig_pa = case_when(sign(cband_lower_pa) == sign(cband_upper_pa) ~ "Yes",
                               sign(cband_lower_pa) != sign(cband_upper_pa) ~ "No")) %>%
@@ -4899,7 +4899,7 @@ fn_plot_att_agg = function(df_fc_att, df_fl_att, is_focus, alpha, save_dir)
   #                           "Governance", "Effect (5 y., ha)", "Significance (5 y.)","Effect (10 y., ha)", "Significance (10 y.)")
   names(tbl_fc_att_pa_agg) = c("Country", "# PA", "Effect (5 y., ha)", "Signi. (5 y.)","Effect (10 y., ha)", "Signi. (10 y.)")
   
-  # treatment effect : avoided deforestation, in terms of difference in cumultaed deforestation rate 
+  # treatment effect : prevented forest cover loss, in terms of difference in cumultaed forest cover loss rate 
   tbl_fl_att_agg = df_plot_fl_att_agg %>%
     mutate(sig = case_when(sign(cband_lower) == sign(cband_upper) ~ "Yes",
                            sign(cband_lower) != sign(cband_upper) ~ "No")) %>%
