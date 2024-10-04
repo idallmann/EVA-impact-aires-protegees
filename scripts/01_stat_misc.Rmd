@@ -36,6 +36,7 @@ library(aws.s3)
 library(WDI)
 library(countrycode)
 library(mapme.biodiversity)
+webdriver::install_phantomjs()
 ```
 
 ## Importing datasets
@@ -85,12 +86,15 @@ data_pa_africa_ie = data_pa_africa %>%
 
 #Import WDPA data
 ## Download and save data
+# This has been done on the 04/10/2024
 # data_wdpa = wdpa_fetch(x = "global", wait = TRUE, download_dir = "data_raw",
 #                        page_wait = 2, verbose = TRUE)
-# st_write(wdpa,
-#          dsn = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
-#          delete_dsn = TRUE)
-
+# 
+#  s3write_using(data_wdpa,
+#                     sf::st_write,
+#                     object = "data_raw/wdpa/wdpa_shp_global_raw.gpkg",
+#                     bucket = "projet-afd-eva-ap",
+#                     opts = list("region" = ""))
 ## Load data
 data_wdpa = 
 #   #st_read("data_raw/wdpa/wdpa_shp_global_raw.gpkg") %>%
