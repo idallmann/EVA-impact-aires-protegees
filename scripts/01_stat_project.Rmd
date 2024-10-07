@@ -5065,4 +5065,3 @@ ggplot() +
   coord_sf(xlim = c(22, 50), ylim = c(-23,9)) 
 ```
 
-
