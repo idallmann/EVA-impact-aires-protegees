@@ -16,7 +16,7 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 Installing and importing relevant packages.
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
-install.packages(c("stargazer", "janitor", "questionr", "countrycode", "WDI", "mapme.biodiversity","ggrepel",'landscapemetrics'))
+install.packages(c("stargazer", "janitor", "questionr", "countrycode", "WDI", "mapme.biodiversity","ggrepel","landscapemetrics"))
 library(tidyverse)
 library(stargazer)
 library(dplyr)
@@ -133,13 +133,13 @@ data_wdpa =
   !is.na(wdpaid) & iucn_cat == "Not Assigned" ~ "Non catégorisée",
   TRUE ~ "Non référencée"), .after = iucn_cat) %>%
       mutate(iucn_des_en = case_when(
-  !is.na(wdpaid) & iucn_cat == "Ia" ~ "Strict nature reserve",
-  !is.na(wdpaid) & iucn_cat == "Ib" ~ "Wilderness area",
-  !is.na(wdpaid) & iucn_cat == "II" ~ "National park",
-  !is.na(wdpaid) & iucn_cat == "III" ~ "Natural monument or feature",
-  !is.na(wdpaid) & iucn_cat == "IV" ~ "Habitat or species management area",
-  !is.na(wdpaid) & iucn_cat == "V" ~ "Protected landscape or seascape",
-  !is.na(wdpaid) & iucn_cat == "VI" ~ "Protected area with sust. use of nat. res.",
+  !is.na(wdpaid) & iucn_cat == "Ia" ~ "Ia-Strict nature reserve",
+  !is.na(wdpaid) & iucn_cat == "Ib" ~ "Ib-Wilderness area",
+  !is.na(wdpaid) & iucn_cat == "II" ~ "II-National park",
+  !is.na(wdpaid) & iucn_cat == "III" ~ "III-Natural monument or feature",
+  !is.na(wdpaid) & iucn_cat == "IV" ~ "IV-Habitat or species management area",
+  !is.na(wdpaid) & iucn_cat == "V" ~ "V-Protected landscape or seascape",
+  !is.na(wdpaid) & iucn_cat == "VI" ~ "VI-Protected area with sust. use of nat. res.",
   !is.na(wdpaid) & iucn_cat == "Not Applicable" ~ "Not categorized",
   !is.na(wdpaid) & iucn_cat == "Not Reported" ~ "Not categorized",
   !is.na(wdpaid) & iucn_cat == "Not Assigned" ~ "Not categorized",
@@ -191,15 +191,14 @@ lst_ctry_stat_wdpa = df_ctry_stat_wdpa$iso3
 
 # Dataset for GIE chapter 
 
-data_afd_gie <- data_stat_nodupl %>% dplyr::select(region,marine,wdpaid,area_km2,year_funding_first)
+data_afd_gie <- data_stat_nodupl %>% dplyr::select(region,marine,wdpaid,area_km2,year_funding_first,iucn_des_en)
 
 
-data_fabm_gie<- data_pa_fapbm %>% dplyr::select(region,marine,wdpaid,area_km2)%>%
+data_fapbm_gie<- data_pa_fapbm %>% dplyr::select(region,marine,wdpaid,area_km2,iucn_des_en)%>%
   mutate(year_funding_first=2005)
 
 
-
-data_gie <- rbind(data_fabm_gie, data_afd_gie)
+data_gie <- rbind(data_fapbm_gie, data_afd_gie)
 
 
 
@@ -211,14 +210,15 @@ data_gie <- rbind(data_fabm_gie, data_afd_gie)
 iucn_cat_colors_en = c(
   "Not categorized" = "#B0B0B0",                  # Gris
   "Not referenced"="#C1BFB1",
-  "Habitat or species management area" = "#AE642D", # Marron
-  "Protected landscape or seascape" = "#80D0D0",   # Bleu
-  "Protected area with sust. use of nat. res." = "#94812B", # Orange
-  "Natural monument or feature"="#842E1B",
-  "National park" = "#228B22", # Vert
-  "Wilderness area"="#DFAF2C",
-  "Strict nature reserve" = "#18391E"              
+  "IV-Habitat or species management area" = "#AE642D", # Marron
+  "V-Protected landscape or seascape" = "#80D0D0",   # Bleu
+  "VI-Protected area with sust. use of nat. res." = "#94812B", # Orange
+  "III-Natural monument or feature"="#842E1B",
+  "II-National park" = "#228B22", # Vert
+  "Ib-Wilderness area"="#DFAF2C",
+  "Ia-Strict nature reserve" = "#18391E"              
 )
+
 eco_colors_en=c("Terrestrial"="#228B22",
                 "Coastal"="#8B6C42",
                 "Marine"="#26C4EC","Not referenced"="#BBBBBB")
@@ -226,6 +226,18 @@ eco_colors_en=c("Terrestrial"="#228B22",
 eco_colors_fr=c("Terrestre"="#228B22",
                 "Côtier"="#8B6C42",
                 "Marine"="#26C4EC","Non reférencé"="#BBBBBB")
+
+order_iucn_en <- c("Not categorized",               
+  "Not referenced",  
+  "VI-Protected area with sust. use of nat. res." , 
+  "V-Protected landscape or seascape",  
+  "IV-Habitat or species management area",
+  "III-Natural monument or feature",
+  "II-National park" , 
+  "Ib-Wilderness area",
+  "Ia-Strict nature reserve"              
+)
+
 ```
 
 ## Performing descriptive statistics
@@ -597,6 +609,44 @@ for(f in files)
 
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
+
+##### GIE chapter 
+
+```{r}
+roi="Africa"
+# Convert iucn cat with this order
+data_gie$iucn_des_en<- factor(data_gie$iucn_des_en, levels = order_iucn_en)
+
+data_cat_iucn = data_gie %>%
+  filter(marine %in% c(0,1),region==roi) %>%
+  group_by(iucn_des_en) %>%
+  #number of PAs per IUCN category
+  summarize(n_iucn = n()) %>%
+  ungroup() %>%
+  #Frequency of IUCN categories
+  mutate(n_pa = sum(n_iucn),
+         freq_iucn = round(n_iucn/n_pa*100, 2)) %>%
+  arrange(desc(iucn_des_en)) %>%
+  mutate(ypos_iucn = cumsum(freq_iucn) - 0.5*freq_iucn) 
+
+pie_cat_iucn_en = ggplot(data_cat_iucn, 
+                      aes(x="", y= freq_iucn, fill = iucn_des_en)) %>%
+  + geom_bar(width = 1, stat = "identity", color="white") %>%
+  + coord_polar("y", start=0) %>%
+  + geom_label_repel(aes(x=1.2, label = paste0(round(freq_iucn, 1), "%")), 
+             color = "white", 
+             position = position_stack(vjust = 0.55), 
+             size=2.5, show.legend = FALSE) %>%
+  + labs(x = "", y = "",
+         title = "Distribution of non-marine protected areas by IUCN categories (%)",
+         subtitle = paste("Sample :", sum(data_cat_iucn$n_iucn), "other non-marine protected areas")) %>%
+  # + scale_fill_brewer(name = "Categories", palette = "Dark2") %>%
+      + scale_fill_manual(name = "Categories",
+                      values = iucn_cat_colors_en) %>%
+  + theme_void()
+pie_cat_iucn_en
+```
+
 
 #### IUCN : marine
 
@@ -1228,8 +1278,8 @@ donut_eco_en
 
 #### Governance : non-marine
 
-PA of interest
 
+##### PA of interest
 ```{r, eval = FALSE}
 
 #Table of the governance type distribution
@@ -1336,7 +1386,7 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
-All protected areas (reported by the WDPA)
+##### All protected areas (reported by the WDPA)
 
 ```{r, eval = FALSE}
 
@@ -1442,7 +1492,7 @@ for(f in files)
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
 
-Other PA
+##### Other PA
 
 ```{r, eval = FALSE}
 
@@ -1547,6 +1597,15 @@ for(f in files)
 
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
+
+
+
+
+
+
+
+##### FAPBM
+
 
 #### Governance : marine
 
@@ -2252,6 +2311,130 @@ for(f in files)
 
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
+
+
+## Number of PAs accross time 
+
+```{r}
+roi = "Africa"
+
+data_time_range = data.frame(year = 
+                              c(min(data_gie$year_funding_first, na.rm = TRUE):max(data_gie$year_funding_first, na.rm = TRUE))
+)
+
+
+data_time_n = data_gie %>%
+  filter(region == roi & marine %in% c(0,1)) %>%
+  #filter(is.na(year_funding_first) == FALSE) %>%
+  group_by(year_funding_first) %>%
+  summarize(n = n()) %>%
+  full_join(data_time_range, by = c("year_funding_first" = "year")) %>%
+  mutate(n = case_when(is.na(n)~0, TRUE~n)) %>%
+  arrange(year_funding_first) %>%
+  mutate(n_cum = cumsum(n)) 
+
+#Number of PAs funded by year 
+#French
+fig_n_pa_fr = ggplot(subset(data_time_n, is.na(year_funding_first) == FALSE),
+                  aes(x = factor(year_funding_first), y = n)) %>%
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>% 
+  # + geom_text(aes(y = n, label = ifelse(n == 0, NA, n)), 
+  #             color = "black", size=4, vjust = -0.3) %>%
+  + labs(title = paste("Nombre d'aires protégées non-marines appuyées par année par l'AFD,", roi),
+         subtitle = paste("Echantillon :", sum(subset(data_time_n, is.na(year_funding_first) == FALSE)$n), "aires protégées"),
+         caption = paste("Sur les", sum(data_time_n$n), "aires protégées non-marines financées recensées,", sum(subset(data_time_n, is.na(year_funding_first) == TRUE)$n, na.rm = TRUE), "ont une date de financement inconnue."),
+         x = "Année",
+         y = "Nombre d'aires protégées") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+fig_n_pa_fr
+#English
+fig_n_pa_en = ggplot(subset(data_time_n, is.na(year_funding_first) == FALSE),
+                  aes(x = factor(year_funding_first), y = n)) %>%
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>% 
+  # + geom_text(aes(y = n, label = ifelse(n == 0, NA, n)), 
+  #             color = "black", size=4, vjust = -0.3) %>%
+  + labs(title = paste("Number of non-marine protected areas funded each year by AFD,", roi),
+         subtitle = paste("Sample :", sum(subset(data_time_n, is.na(year_funding_first) == FALSE)$n), "protected areas"),
+       caption = paste("Out of", sum(data_time_n$n), "known non-marine, funded protected areas,", sum(subset(data_time_n, is.na(year_funding_first) == TRUE)$n, na.rm = TRUE), "have unknown funding year."),
+         x = "Year",
+         y = "Number of protected areas") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+fig_n_pa_en
+
+
+#Cumulative number over time
+#French
+fig_ncum_pa_fr = ggplot(subset(data_time_n, is.na(year_funding_first) == FALSE),
+                  aes(x = factor(year_funding_first), y = n_cum)) %>%
+  # + geom_point(color = "#3182BD", size = 1.5) %>%
+  # + geom_line(color = "#3182BD", size = 1) %>% 
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>%
+  + geom_text(aes(y = n_cum, label = n_cum), 
+              color = "black", size=3, vjust = -0.3) %>%
+  + labs(title = paste("Evolution cumulée du nombre d'aires protégées non-marines,", roi),
+         subtitle = paste("Echantillon :", sum(subset(data_time_n, is.na(year_funding_first) == FALSE)$n), "aires protégées"),
+         caption = paste("Sur les", sum(data_time_n$n), "aires protégées non-marines financées recensées,", sum(subset(data_time_n, is.na(year_funding_first) == TRUE)$n, na.rm = TRUE), "ont une date de financement inconnue."),
+         x = "Année",
+         y = "Nombre d'aires protégées") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+fig_ncum_pa_fr
+#English
+fig_ncum_pa_en = ggplot(subset(data_time_n, is.na(year_funding_first) == FALSE),
+                  aes(x = factor(year_funding_first), y = n_cum)) %>%
+  # + geom_point(color = "#3182BD", size = 1.5) %>%
+  # + geom_line(color = "#3182BD", size = 1) %>% 
+  + geom_bar(stat = 'identity', fill = "#3182BD") %>%
+  + geom_text(aes(y = n_cum, label = n_cum), 
+              color = "black", size=3, vjust = -0.3) %>%
+  + labs(title = paste("Cumulated number of non-marine protected areas funded by AFD,", roi),
+         subtitle = paste("Sample :", sum(subset(data_time_n, is.na(year_funding_first) == FALSE)$n), "protected areas"),
+       caption = paste("Out of", sum(data_time_n$n), "known non-marine, funded protected areas,", sum(subset(data_time_n, is.na(year_funding_first) == TRUE)$n, na.rm = TRUE), "have unknown funding year."),
+         x = "Funding year",
+         y = "Number of protected areas") %>%
+  + theme(legend.position = "bottom",
+      legend.key = element_rect(fill = "white"),
+      plot.title = element_text(size = 14, face = "bold"), 
+      axis.text.x = element_text(angle = 45,size=10, hjust = .5, vjust = .6),
+      axis.title.x = element_text(margin = margin(t = 10)),
+      panel.background = element_rect(fill = 'white', colour = 'white', 
+                                      linewidth = 0.5, linetype = 'solid'),
+      panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+      panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+      plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain', hjust = 0))
+fig_ncum_pa_en
+
+
+```
+
+
+
 
 ## Evolution of tree cover and deforestation
 

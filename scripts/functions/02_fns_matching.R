@@ -1206,8 +1206,8 @@ fn_post_match_auto = function(mf,
           formula,
           data = mf,
           method = match_method,  
-          #cutpoints = custom_cutpoints,
-          cutpoints=cutoff_method,
+          cutpoints = custom_cutpoints,
+          #cutpoints=cutoff_method,
           k2k = is_k2k,
           k2k.method = k2k_method
         )
@@ -1301,9 +1301,7 @@ fn_post_match_auto = function(mf,
 fn_post_covbal = function(out.cem, tbl.quality, mf, 
                           colname.travelTime, colname.clayContent, colname.fcAvg, colname.flAvg, colname.tri, colname.elevation,
                           #colname.biome,
-                          th_mean,
-                          
-                          iso, path_tmp, wdpaid, log,
+                          th_mean, iso, path_tmp, wdpaid, log,
                           save_dir)
 {
   
@@ -3282,14 +3280,14 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
 ##DATA SAVED
 ### Country grid with matched control and treated, for a given protected area (PA) or all protected areas in a country
 
-# iso = i
-# wdpaid = j
-# is_pa = TRUE
-# df_pix_matched = df_pix_matched_j
-# path_tmp = tmp_post
-# log = log
-# load_dir = load_dir
-# save_dir = save_dir
+iso = i
+wdpaid = j
+is_pa = TRUE
+df_pix_matched = df_pix_matched_j
+path_tmp = tmp_post
+log = log
+load_dir = load_dir
+save_dir = save_dir
 
 
 
@@ -3328,7 +3326,7 @@ fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp, log, 
       grid$group_plot[grid$group_plot=="PA in sample, analyzed (potential treatment)"]<- "Treatment candidate"
       grid$group_plot[grid$group_plot=="Potential control" ]<- "Control candidate"
       
-      
+     
       group_colors <- c(
         "PA overlap" = "#01796F",
         "Control candidate" = "gray",
@@ -3338,8 +3336,6 @@ fn_post_plot_grid = function(iso, wdpaid, is_pa, df_pix_matched, path_tmp, log, 
         "Buffer" = "orange",
         "Treatment (matched)"="deeppink",
         "Control (matched)"="red"
-        
-        
       )
       
       # Visualize and save grouped grid cells

@@ -125,7 +125,7 @@ tmp_post = paste(tempdir(), "matching_post", sep = "/")
 save_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/") #Today's date
 load_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/")
 # save_dir = paste("impact_analysis/matching", "2024-08-13", sep = "/") #A specific date
-# load_dir = paste("impact_analysis/matching", "2024-08-13", sep = "/")
+ load_dir = paste("impact_analysis/matching", "2024-08-13", sep = "/")
 
 # Load datasets
 ## WDPA database : just has to be done once to download last version of the WDPA database  
@@ -148,19 +148,19 @@ wdpa_wld_raw = s3read_using(
 
 ## Dataset specific to the PAs portfolio to analyze. Only one is selected depending on the analysis one wants to perform. 
 ### PAs supported by the AFD
-# data_pa =
-#   #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
-#   aws.s3::s3read_using(
-#   FUN = data.table::fread,
-#   encoding = "UTF-8",
-#   object = "data_tidy/BDD_PA_AFD_ie.csv",
-#   bucket = "projet-afd-eva-ap",
-#   opts = list("region" = "")) %>%
-#   #Sangha trinational (555547988) created in 2012 actually gathers three former PAs
-#   #in CAF (31458), CMR (1245) and COG (72332) implemented in
-#   #1990, 2001 and 1993 respectively.
-#   # Evaluating the trinational PA is not relevant here : our method relies on pre-treatment obervsations (for matching and DiD) and the outcome is likely to be affected by the initial PAs. On the other hand, evaluating the three earlier PAs might be irrelevant for us : are they funded by the AFD ?? In a first approach, the trinational is removed.
-#   filter(is.na(wdpaid) == TRUE | wdpaid != 555547988)
+data_pa =
+  #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  object = "data_tidy/BDD_PA_AFD_ie.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = "")) %>%
+  #Sangha trinational (555547988) created in 2012 actually gathers three former PAs
+  #in CAF (31458), CMR (1245) and COG (72332) implemented in
+  #1990, 2001 and 1993 respectively.
+  # Evaluating the trinational PA is not relevant here : our method relies on pre-treatment obervsations (for matching and DiD) and the outcome is likely to be affected by the initial PAs. On the other hand, evaluating the three earlier PAs might be irrelevant for us : are they funded by the AFD ?? In a first approach, the trinational is removed.
+  filter(is.na(wdpaid) == TRUE | wdpaid != 555547988)
 
 ## PAs supported by the FAPBM
 # data_pa =

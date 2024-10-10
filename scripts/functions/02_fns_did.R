@@ -242,8 +242,12 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
         group_by(assetid) %>%
         summarize(avg_fc_ha = mean(fc_ha, na.rm = TRUE))
       fc_tot_pre_treat = sum(fc_tot_pre_treat$avg_fc_ha, na.rm = TRUE)
-      n_pix_fc_pre_treat = fc_tot_pre_treat/res_ha 
+     # n_pix_fc_pre_treat = fc_tot_pre_treat/res_ha 
+      n_pix_fc_pre_treat <-df_long_m%>% dplyr::filter(wdpaid==352249)%>%
+        summarise(nb_unique_asset_id = n_distinct(assetid)) %>%
+        pull(nb_unique_asset_id)
       
+     
       ##Extract more information not in the matched dataframe
       wdpa_id = wdpaid #Need to give a name to wdpaid (function argument) different from the variable in the dataset (wdpaid)
       df_info_pa = data_pa %>% 
@@ -359,7 +363,7 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
                              biters = 1000, #The number of bootstrap iteration, 1000 is default
                              cband = TRUE, #Compute CI
                              clustervars = NULL, #No clustering seems relevant to me 
-                             base_period = "varying",
+                             base_period = "universal",
                              data = df_did,
                              print_details = F)
       
@@ -381,7 +385,7 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
                              biters = 1000, #The number of bootstrap iteration, 1000 is default
                              cband = TRUE, #Compute CI
                              clustervars = NULL, #No clustering seems relevant to me
-                             base_period = "varying",
+                             base_period = "universal",
                              data = df_did,
                              print_details = F)
       
@@ -826,8 +830,8 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
         summarize(avg_fc_ha = mean(fc_ha, na.rm = TRUE)) %>%
         ungroup()
       fc_tot_pre_treat = sum(fc_tot_pre_treat$avg_fc_ha, na.rm = TRUE)
-      n_pix_fc_pre_treat = fc_tot_pre_treat/res_ha 
-      
+      # n_pix_fc_pre_treat = fc_tot_pre_treat/res_ha 
+      n_pix_fc_pre_treat=
       ##Extract more information not in the matched dataframe
       wdpa_id = wdpaid #Need to give a name to wdpaid (function argument) different from the variable in the dataset (wdpaid)
       df_info_pa = data_pa %>% 
