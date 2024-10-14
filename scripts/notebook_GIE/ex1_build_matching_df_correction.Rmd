@@ -79,7 +79,7 @@ name_output = "mf_SLV_500ha.gpkg"
 
 \- the country code of El Salvador
 
--   the size of the buffer
+\- the size of the buffer
 
 \- the size of the grid
 
@@ -119,8 +119,8 @@ grid is generated within this box covering the whole country. It is then
 intersected with the country's boundary to retain only cells located
 within the country as observation units.
 
-1.  Add the right objects in the \# Visualize section to obtain a map
-    with the box, the grid, and the shape of the country
+1.  Add the right objects in the `ggplot()` to obtain a map with the
+    box, the grid, and the shape of the country
 
 ```{r}
 # Download country polygon to working directory and load it into workspace 
@@ -255,8 +255,6 @@ wdpa.sub = wdpa_groups %>%
 wdpa_groups = wdpa_groups[sort(wdpa.sub),] %>%
   st_as_sf()
 
-
-
 # This map allow to visualize each PA in the country and its buffer zone around
 colors <- c("1" = "darkgreen", "2" = "darkblue", "3" = "orange")
 
@@ -371,8 +369,8 @@ pixels it overlaps we may want to retain the smallest pixel value, so
 that if the grid cell overlaps with any pixels that intersects a PA, the
 grid cell is assigned to the PA group.
 
-1.  Go back to the previous code chunk and try to change the function
-    used in `exact_extract()` to retain the smallest pixel value.
+1.  Try to change the function used in `exact_extract()` to retain the
+    smallest pixel value.
 
 2.  Compute group statistics of grid.param and grid.param_2, comment the
     difference

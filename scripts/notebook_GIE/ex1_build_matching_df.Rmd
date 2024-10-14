@@ -369,19 +369,19 @@ pixels it overlaps we may want to retain the smallest pixel value, so
 that if the grid cell overlaps with any pixels that intersects a PA, the
 grid cell is assigned to the PA group.
 
-1.  Go back to the previous code chunk and try to change the function
-    used in `exact_extract()` to retain the smallest pixel value.
+1.   Try to change the function used in `exact_extract()` to retain the
+    smallest pixel value.
 
-2.  Compute group statistics of grid.param and grid.param_2, comment the
-    difference
+2.  Compute group statistics of grid.param and `grid.param_2`, comment
+    the difference
 
-3.  Map grid.param and grid.param_2 to visualize the difference.
+3.  Map `grid.param` and `grid.param_2` to visualize the difference.
 
 ```{r}
 # Aggregate pixel values by taking the min
-grid.group_2 = exact_extract(x=r.group, y=grid, fun='min', append_cols="gridID") %>%
+grid.group_2 = exact_extract(x=r.group, y=grid, fun=, append_cols="gridID") %>%
   rename(group = min)
-grid.wdpaid_2 = exact_extract(x=r.wdpaid, y=grid, fun="min", append_cols="gridID") %>%
+grid.wdpaid_2 = exact_extract(x=r.wdpaid, y=grid, fun=, append_cols="gridID") %>%
   rename(wdpaid = min)
 # Merge data frames
 grid.param_2 = grid.group_2 %>%
@@ -399,30 +399,16 @@ grid.param_2 = grid.group_2 %>%
 
 ```{r}
 # Compute summary statistic (distribution) for group variable in grid.param and grid.param_2
-stat_1=table(grid.param$group)
-stat_2= table(grid.param_2$group)
-c(stat_1,stat_2)
+
 ```
 
 ```{r}
 # Visualize maps with "mode" and "min" function
 # create the graph of grid.param
-map_1=grid.param %>%
-  ggplot() +
-  geom_sf(aes(fill = factor(group)), lwd=0) + 
-  scale_fill_manual(name="Group",
-                    values = c("grey", "darkgreen", "darkblue", "orange"),
-                    labels = c("control candidate", "treatment candidate", "non-funded PA", "buffer zone")) +
-  theme_bw()
+map_1
 
 # create the graphe of grid.param_2
-map_2=grid.param_2 %>%
-  ggplot() +
-  geom_sf(aes(fill = factor(group)), lwd=0) + 
-  scale_fill_manual(name="Group",
-                    values = c("grey", "darkgreen", "darkblue", "orange"),
-                    labels = c("control candidate", "treatment candidate", "non-funded PA", "buffer zone")) +
-  theme_bw()
+
 
 grid.arrange(map_1, map_2, nrow = 2)
 ```
@@ -453,7 +439,8 @@ Multisession
     concurrently. Each session operates independently and runs in its
     own R process, allowing for parallel execution of tasks.
 
-    To learn more about multisession see this exercise ( ADD A LINK)
+    To learn more about multisession see this exercise/chapter (ADD A
+    LINK)
 
 ```{r}
 ## 4. Calculating deforestation area and other covariates for all observation units
