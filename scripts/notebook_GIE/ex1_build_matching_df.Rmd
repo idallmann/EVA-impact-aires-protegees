@@ -33,7 +33,7 @@ the data interactively. There are four parts to this notebook:
 
 ```{r}
 # install packages if necessary
-lop <- c("ggplot2", "tidyr", "dplyr", "stringr", "sf", "terra", "raster", "geodata", "exactextractr", "mapme.biodiversity", "future","progressr","wdpar","landscapemetrics","gridExtra","rstac")
+lop <- c("ggplot2", "tidyr", "dplyr", "stringr", "sf", "terra", "raster", "geodata", "exactextractr", "mapme.biodiversity", "future","progressr","wdpar","landscapemetrics","gridExtra","rstac","webdriver")
 newp <- lop[!(lop %in% installed.packages()[,"Package"])]
 if(length(newp)) install.packages(newp)
 lapply(lop, require, character.only = TRUE)
@@ -67,9 +67,9 @@ library(rstac) # Interface for querying and accessing SpatioTemporal Asset Catal
 
 ```{r}
 # Define the path to a working directory
-wdir = file.path(tempdir())
+wdir = 
 # Define the file name of the output matching dataset
-name_output = "mf_SLV_500ha.gpkg"
+name_output = ""
 ```
 
 2.  The next step is to decide the parameters of your analysis, in the
@@ -77,7 +77,7 @@ name_output = "mf_SLV_500ha.gpkg"
 
 \- the country code of El Salvador
 
--   the size of the buffer
+\- the size of the buffer
 
 \- the size of the grid
 
@@ -92,14 +92,14 @@ see the differences in the results.
 
 ```{r}
 # Specify a country iso 3; to find the right country code, please refer to this page https://en.wikipedia.org/wiki/ISO_3166-1_alpha-3
-country = "SLV"
+country = ""
 # Specify buffer width in meter
-buffer_m = 10000
+buffer_m = 
 # Specify the grid cell size in meter
-gridSize = 2236.068 # --> 500ha
+gridSize = 
 # Specify a WDPA IDs; to find the WDPA ID, please refer to this page 
 # https://www.protectedplanet.net/en
-paid = c(9638)
+paid = c()
 ```
 
 ## 2. Generating observation units for matching frame
@@ -117,8 +117,8 @@ grid is generated within this box covering the whole country. It is then
 intersected with the country's boundary to retain only cells located
 within the country as observation units.
 
-1.  Add the right objects in the \# Visualize section to obtain a map
-    with the box, the grid, and the shape of the country
+1.  Add the right objects in the `ggplot()` to obtain a map with the
+    box, the grid, and the shape of the country
 
 ```{r}
 # Download country polygon to working directory and load it into workspace 
@@ -154,9 +154,9 @@ grid = grid.ini[sort(grid.sub)] %>%
   mutate(gridID = seq(1:nrow(.))) # Add id for grid cells
 # Visualize
 ggplot() +
- geom_sf(data = st_geometry(bbox)) +
- geom_sf(data = st_geometry(gadm_prj)) +
- geom_sf(data = st_geometry(grid), alpha = 0)
+ geom_sf(data = st_geometry()) +
+ geom_sf(data = st_geometry()) +
+ geom_sf(data = st_geometry(), alpha = 0)
 
 ```
 
