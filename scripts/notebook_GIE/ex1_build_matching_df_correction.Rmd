@@ -110,14 +110,16 @@ The second step is to prepare a grid of observation units for the
 spatial analysis, tailored specifically to the chosen country. After
 downloading the country polygon, it is necessary to reproject the
 country polygon to the appropriate UTM (Universal Transverse Mercator)
-zone based on the country's centroid (see
-[here](https://gisgeography.com/utm-universal-transverse-mercator-projection/)
-for more information about this projection). The UTM projection
-minimizes distortion for specific regions, making spatial calculations
-like distances and areas more accurate. A bounding box is created, and a
-grid is generated within this box covering the whole country. It is then
-intersected with the country's boundary to retain only cells located
-within the country as observation units.
+zone based on the country's centroid (find more information about this
+projection
+[here](https://gisgeography.com/utm-universal-transverse-mercator-projection/)).
+The UTM projection minimizes distortion for specific regions, making
+spatial calculations like distances and areas more accurate.
+
+A bounding box is created, and a grid is generated within this box
+covering the whole country. It is then intersected with the country's
+boundary to retain only cells located within the country as observation
+units.
 
 1.  Add the right objects in the `ggplot()` to obtain a map with the
     box, the grid, and the shape of the country
@@ -285,7 +287,7 @@ of data must be processed.
 raster
 
 :   A **raster** is a type of spatial data representation that consists
-    of a grid of cells, where each cell has a specific value
+    of a grid of equal size cells, where each cell has a specific value
     representing information, such as color in an image or a particular
     data value in a geographic context
 
