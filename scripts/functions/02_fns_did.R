@@ -238,12 +238,12 @@ fn_did_att_afd = function(iso, wdpaid, data_pa, data_fund, data_report, alpha, i
       yr_end_cover = yr_cover$end_pre_treat_fc
       ### Compute pre-treatment forest area
       fc_tot_pre_treat = df_long_unm %>%
-        filter(group == 3 & year >= yr_start_cover & year <= yr_end_cover) %>%
+        dplyr::filter(group == 3 & year >= yr_start_cover & year <= yr_end_cover) %>%
         group_by(assetid) %>%
         summarize(avg_fc_ha = mean(fc_ha, na.rm = TRUE))
       fc_tot_pre_treat = sum(fc_tot_pre_treat$avg_fc_ha, na.rm = TRUE)
      # n_pix_fc_pre_treat = fc_tot_pre_treat/res_ha 
-      n_pix_fc_pre_treat <-df_long_m%>% dplyr::filter(wdpaid==352249)%>%
+      n_pix_fc_pre_treat <- df_long_m%>% dplyr::filter(wdpaid==352249)%>%
         summarise(nb_unique_asset_id = n_distinct(assetid)) %>%
         pull(nb_unique_asset_id)
       
@@ -831,7 +831,10 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
         ungroup()
       fc_tot_pre_treat = sum(fc_tot_pre_treat$avg_fc_ha, na.rm = TRUE)
       # n_pix_fc_pre_treat = fc_tot_pre_treat/res_ha 
-      n_pix_fc_pre_treat=
+      n_pix_fc_pre_treat=df_long_m %>%
+        dplyr::filter(wdpaid == 352249) %>%
+        summarise(nb_unique_asset_id = n_distinct(assetid)) %>%
+        pull(nb_unique_asset_id)
       ##Extract more information not in the matched dataframe
       wdpa_id = wdpaid #Need to give a name to wdpaid (function argument) different from the variable in the dataset (wdpaid)
       df_info_pa = data_pa %>% 

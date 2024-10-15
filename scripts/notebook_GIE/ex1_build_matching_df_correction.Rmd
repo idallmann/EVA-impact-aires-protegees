@@ -278,7 +278,7 @@ ggplot() +
 The next step is to assign a group (analyzed PA, other PA, buffer, none)
 to each cell of the grid. It may be the case that a cell is covered by
 multiple groups, so it is necessary to decide how the group of the cell
-will be attributed. To achieve this, we must first rasterize the data,
+will be attributed. To achieve this, we must first rasterize wdpa data,
 which involves transforming it from a vector representation to a raster
 grid. Using raster data is a more time-efficient than vector, which is
 especially beneficial in a portfolio analysis where a significant amount
