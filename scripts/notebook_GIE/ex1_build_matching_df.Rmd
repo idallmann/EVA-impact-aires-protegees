@@ -59,6 +59,21 @@ library(progressr) # Progress bars for long-running operations
 library(gridExtra) # Tools for arranging multiple grid-based visual objects
 library(rstac) # Interface for querying and accessing SpatioTemporal Asset Catalog (STAC) compliant API service
 ```
+```{r}
+
+```{r }
+# Add this, to download correctly travel data 
+
+Sys.setenv(
+  "VSI_CACHE" = "TRUE",
+  "CPL_VSIL_CURL_CHUNK_SIZE" = "10485760",
+  "GDAL_HTTP_MAX_RETRY" = "5",
+  "GDAL_HTTP_RETRY_DELAY" = "15"
+)
+
+```
+```
+
 
 ## 1. Settings ⚙️
 

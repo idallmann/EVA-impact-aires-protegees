@@ -35,11 +35,12 @@ the data interactively. There are four parts to this notebook:
 
 ```{r}
 # install packages if necessary
-lop <- c("ggplot2", "tidyr", "dplyr", "stringr", "sf", "terra", "raster", "geodata", "exactextractr", "mapme.biodiversity", "future","progressr","wdpar","landscapemetrics","gridExtra","rstac")
+lop <- c("ggplot2", "tidyr", "dplyr", "stringr", "sf", "terra", "raster", "geodata", "exactextractr", "mapme.biodiversity", "future","progressr","wdpar","landscapemetrics","gridExtra","rstac","webdriver")
 newp <- lop[!(lop %in% installed.packages()[,"Package"])]
 if(length(newp)) install.packages(newp)
 lapply(lop, require, character.only = TRUE)
 ```
+
 
 ```{r }
 # Load Libraries
@@ -60,6 +61,19 @@ library(future) # For parallel and distributed processing
 library(progressr) # Progress bars for long-running operations
 library(gridExtra) # Tools for arranging multiple grid-based visual objects
 library(rstac) # Interface for querying and accessing SpatioTemporal Asset Catalog (STAC) compliant API service
+```
+
+
+```{r }
+# Add this, to download correctly travel data 
+
+Sys.setenv(
+  "VSI_CACHE" = "TRUE",
+  "CPL_VSIL_CURL_CHUNK_SIZE" = "10485760",
+  "GDAL_HTTP_MAX_RETRY" = "5",
+  "GDAL_HTTP_RETRY_DELAY" = "15"
+)
+
 ```
 
 ## 1. Settings ⚙️
