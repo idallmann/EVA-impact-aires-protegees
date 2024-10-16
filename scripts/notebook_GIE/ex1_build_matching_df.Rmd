@@ -59,7 +59,7 @@ library(progressr) # Progress bars for long-running operations
 library(gridExtra) # Tools for arranging multiple grid-based visual objects
 library(rstac) # Interface for querying and accessing SpatioTemporal Asset Catalog (STAC) compliant API service
 ```
-```{r}
+
 
 ```{r }
 # Add this, to download correctly travel data 
