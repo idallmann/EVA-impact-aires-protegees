@@ -43,7 +43,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 # Install packages if necessary
-lop <- c(
+lop = c(
   "dplyr",
   "exactextractr",
   "future",
@@ -62,7 +62,7 @@ lop <- c(
   "wdpar",
   "webdriver"
 )
-newp <- lop[!(lop %in% installed.packages()[, "Package"])]
+newp = lop[!(lop %in% installed.packages()[, "Package"])]
 if (length(newp))
   install.packages(newp)
 lapply(lop, require, character.only = TRUE)
@@ -166,12 +166,12 @@ within this box covering the whole country. It is then intersected with
 the country's boundary to retain only cells located within the country
 as observation units.
 
-2.1 Add the right objects in the `ggplot()` to obtain a map with the
-box, the grid, and the shape of the country
+:   2.1 Add the right objects in the `ggplot()` to obtain a map with the
+    box, the grid, and the shape of the country
 
 ```{r}
 # Download country polygon to the working directory and load it into the workspace 
-gadm <- gadm(country = country, resolution = 1, level = 0, path = wdir) %>%
+gadm = gadm(country = country, resolution = 1, level = 0, path = wdir) %>%
   st_as_sf()
 
 # Find UTM zone of the country centroid
@@ -215,8 +215,8 @@ ggplot() +
 
 To answer following questions you can refer to XXX chapter
 
-2.2 Obtain information about `gadm` and `gadm_prj` object. To do so you
-can just enter the name of the object in the console.
+:   2.2 Obtain information about `gadm` and `gadm_prj` object. To do so
+    you can just enter the name of the object in the console.
 
 ```         
 a\. What is the main coordinate system used for each geospatial
@@ -257,8 +257,9 @@ a second step, this dataset of PA polygons and buffers is rasterized,
 and zonal statistics are used to define the treatment group of each
 cell/observation unit.
 
-3.1 Find the right *sf* function to create buffer around all PA using
-the buffer size (`buffer_m`) chosen before and complete the code
+:   3.1 Find the right *sf* function to create buffer around all PA
+    using the buffer size (`buffer_m`) chosen before and complete the
+    code
 
 ```{r}
 # Get the PA polygons/points of the specified country
@@ -287,13 +288,13 @@ wdpa_nofocus = wdpa_prj %>%
 # and delete the intersection part from others PAs to reduce noise when rasterizing WDPAIDs later.
 
 intersection = st_intersection(wdpa_nofocus, wdpa_focus)
-wdpa_nofocus <- wdpa_nofocus %>%
+wdpa_nofocus = wdpa_nofocus %>%
   { if (nrow(intersection) == 0) . else st_difference(., st_union(st_geometry(intersection))) } %>%
   mutate(group = 2)
 
 # Make Buffers of 10km around all protected areas
 # Complete this section to make buffers around wdpa_focus and wdpa_nofocus PAs and then bind them together 
-wdpa_buffer <- st_buffer(wdpa_focus, dist = buffer_m) %>%
+wdpa_buffer = st_buffer(wdpa_focus, dist = buffer_m) %>%
   rbind(st_buffer(wdpa_nofocus, dist = buffer_m)) %>%
   # Assign an ID "3" to the buffer group
   mutate(group=3)
@@ -304,12 +305,12 @@ wdpa_groups = rbind(wdpa_focus, wdpa_nofocus, wdpa_buffer)
 wdpa.sub = wdpa_groups %>%
   st_intersects(gadm_prj, .) %>%
   unlist()
-# Filter the PA+buffer to the subset
+# Filter the PA and the buffer to the subset
 wdpa_groups = wdpa_groups[sort(wdpa.sub),] %>%
   st_as_sf()
 
 # This map allow to visualize each PA in the country and its buffer zone around
-colors <- c("1" = "darkgreen", "2" = "darkblue", "3" = "orange")
+colors = c("1" = "darkgreen", "2" = "darkblue", "3" = "orange")
 
 ggplot() +
   # Plot the grid
@@ -369,7 +370,7 @@ the mapme.biodiversity package requirements.
 # Initialize an empty raster to the spatial extent of the country
 r.ini = raster()
 extent(r.ini) = extent(gadm_prj)
-# Specify the raster resolution equal to the pre-defined 'gridSize'
+# Specify the raster resolution equal to the pre-defined grid size ('gridSize')
 res(r.ini) = gridSize
 # Assign the raster cells with "Group" values,
 # Take the minimal value if a pixel is covered by overlapping polygons, so that PA Groups (1 and 2) have higher priority than Buffer group.
@@ -389,7 +390,6 @@ grid.group = exact_extract(x=r.group, y=grid, fun='mode', append_cols="gridID") 
 grid.wdpaid = exact_extract(x=r.wdpaid, y=grid, fun="mode", append_cols="gridID") %>%
   rename(wdpaid = mode)
 
-# (LD :Why using exact extract if the pixels are the same size as the cells ? )
 # Merge data frames
 grid.param = grid.group %>%
   merge(., grid.wdpaid, by="gridID") %>%
@@ -399,7 +399,7 @@ grid.param = grid.group %>%
   # drop the column of "gridID"
   subset(., select=-c(gridID)) %>%
   st_as_sf() %>%
-  # Grid is projected to WGS84 because mapme.biodiverty package merely works with this CRS
+  # Grid is projected to WGS84 because mapme.biodiverty package merely works with this CRS 
   st_transform(crs=4326)
 ```
 
@@ -413,27 +413,27 @@ grid.param %>%
   geom_sf(aes(fill = factor(group)), lwd=0) + # add the right dataframe in factor()
   scale_fill_manual(name="Group", # legend title
                     values = c("grey", "darkgreen", "darkblue", "orange"),#add colors
-                    labels = c("control candidate", "treatment candidate", "non-funded PA", "buffer zone")) +
+                    labels = c("Background", "Analysed PA", "other PA", "Buffer zone")) +
   theme_bw()
 
 ```
 
-The function used to aggregate pixel values into the grid cells in the
-exact_extract() function influences the final group attribution obtained
-for each cells
+The function chosen as a parameter to aggregate pixel values into the
+grid cells in the `exact_extract()` function influences the final group
+attribution obtained for each cells.
 
 Instead of assigning to a grid cell the most frequent value among the
-pixels it overlaps we may want to retain the smallest pixel value, so
-that if the grid cell overlaps with any pixels that intersects a PA, the
-grid cell is assigned to the PA group.
+pixels intersecting the cell we may want to retain the smallest pixel
+value, so that if the grid cell overlaps with any pixels that intersects
+a PA, the grid cell is assigned to the PA group.
 
-3.2 Try to change the function used in `exact_extract()` to retain the
-smallest pixel value.
+:   3.2 Try to change the function used in `exact_extract()` to retain
+    the smallest pixel value.
 
-3.3 Compute group statistics of grid.param and grid.param_2, comment the
-difference
+    3.3 Compute group statistics of grid.param and grid.param_2, comment
+    the difference
 
-3.4 Map grid.param and grid.param_2 to visualize the difference.
+    3.4 Map grid.param and grid.param_2 to visualize the difference.
 
 ```{r}
 # Aggregate pixel values by taking the min
@@ -470,7 +470,7 @@ map_1=grid.param %>%
   geom_sf(aes(fill = factor(group)), lwd=0) + 
   scale_fill_manual(name="Group",
                     values = c("grey", "darkgreen", "darkblue", "orange"),
-                    labels = c("control candidate", "treatment candidate", "non-funded PA", "buffer zone")) +
+                    labels = c("Background", "Analysed PA", "other PA", "Buffer zone")) +
   theme_bw()
 
 # create the graphe of grid.param_2
@@ -479,7 +479,7 @@ map_2=grid.param_2 %>%
   geom_sf(aes(fill = factor(group)), lwd=0) + 
   scale_fill_manual(name="Group",
                     values = c("grey", "darkgreen", "darkblue", "orange"),
-                    labels = c("control candidate", "treatment candidate", "non-funded PA", "buffer zone")) +
+                    labels = c("Background", "Analysed PA", "other PA", "Buffer zone")) +
   theme_bw()
 
 grid.arrange(map_1, map_2, nrow = 2)
@@ -500,7 +500,7 @@ You will be ask to :
 
 -    Calculate elevation
 
-\- Download travel time data and compute the indicators
+-   Download travel time data and compute the indicators
 
 This section use multisession to speed up the computing of covariates.
 
@@ -526,12 +526,12 @@ years = 2000:2021
 
 ### Covariate: Soil
 
-4.1 Enter the function to download soil data. Use the following
-parameters : "clay' for the layers , a depth between 0 and 5 cm, and the
-statistic "mean".
+:   4.1 Enter the function to download soil data. Use the following
+    parameters : "clay' for the layers , a depth between 0 and 5 cm, and
+    the statistic "mean".
 
 ```{r}
-start_time <- Sys.time()
+start_time = Sys.time()
 
 
 get.soil = grid.param %>% get_resources(# enter the right function and parameter here
@@ -568,17 +568,17 @@ pivot.soil = zonal.soil %>%
       
 
 
-end_time <- Sys.time()
-elapsed_time <- end_time - start_time
+end_time = Sys.time()
+elapsed_time = end_time - start_time
 
 cat("Elapsed time:", elapsed_time, "\n")
 ```
 
-4.2 Try running the same code chunk without the multisession and compare
-execution times
+:   4.2 Try running the same code chunk without the multisession and
+    compare execution times
 
 ```{r}
-start_time <- Sys.time()
+start_time = Sys.time()
 get.soil = grid.param %>% get_resources(get_soilgrids(
         layers = "clay", # resource specific argument
         depths = "0-5cm", # resource specific argument
@@ -604,16 +604,16 @@ pivot.soil = zonal.soil %>%
       
 
 
-end_time <- Sys.time()
-elapsed_time <- end_time - start_time
+end_time = Sys.time()
+elapsed_time = end_time - start_time
 
 cat("execution time:", elapsed_time, "\n")
 ```
 
 ### Covariate: Elevation
 
-4.3 Insert the function to calculate elevation mean, you should use the
-mean statistic and the exactextract engine :
+:   4.3 Insert the function to calculate elevation mean, you should use
+    the `'mean'` statistic and the `'zonal'` engine
 
 ```{r}
 get.elevation = grid.param %>% get_resources(get_nasa_srtm())
@@ -660,8 +660,8 @@ pivot.tri = zonal.tri %>% unnest(tri)%>%
 
 ### Covariate: Travel Time
 
-4.4 Download data related to travel time and calculate the median travel
-time
+:   4.4 Download data related to travel time and calculate the median
+    travel time
 
 ```{r}
 
@@ -671,7 +671,7 @@ get.travelT = grid.param%>% get_resources(get_nelson_et_al(ranges = c("5k_110mio
 plan(multisession, workers = 20)
 # Calculate Indicator
 with_progress({
-  zonal.travelT  <-get.travelT %>% calc_indicators(calc_traveltime(
+  zonal.travelT  =get.travelT %>% calc_indicators(calc_traveltime(
           stats = "median",
           engine = "zonal"))
   })
@@ -735,8 +735,8 @@ dropLast = head(colnames_tree, -1)
 colnames_loss = dropFirst %>% str_split(., "_")
 # Add new columns: treeloss_tn = treecover_tn - treecover_t(n-1)
 for (i in 1:length(dropFirst)) {
-  new_colname <- paste0("treeloss_", colnames_loss[[i]][2])
-  pivot.tree[[new_colname]] <- pivot.tree[[dropFirst[i]]] - pivot.tree[[dropLast[i]]]
+  new_colname = paste0("treeloss_", colnames_loss[[i]][2])
+  pivot.tree[[new_colname]] = pivot.tree[[dropFirst[i]]] - pivot.tree[[dropLast[i]]]
 }
 
 # Export Matching Frame
@@ -767,8 +767,8 @@ To visualize indicators on a map you can use the package tmap. It is
 particularly useful for analyzing geospatial data because it provides an
 dynamic map for visualizing them.
 
-5.1 Run the following code and comment on the mean distance to city in
-El Salvador
+:   5.1 Run the following code and comment on the mean distance to city
+    in El Salvador
 
 ```{r}
 # Visualize PAs by mean forest loss
@@ -780,4 +780,4 @@ pivot.all %>%
   tm_polygons(col = "value", title = "Mean elevation (m)")
 ```
 
-5.2 Try to visualize another indicator of your choice
+:   5.2 Try to visualize another indicator of your choice
