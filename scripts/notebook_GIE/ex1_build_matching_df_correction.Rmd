@@ -7,62 +7,90 @@ editor_options:
     wrap: 72
 ---
 
-**THIS IS THE VERSION WITH ANSWERS**
+***THIS IS THE VERSION WITH ANSWERS***
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
+## [**Geospatial impact evaluation of protected areas support on forest cover loss:**]{.underline} [**Exercises**]{.underline}
 
+\
 The following exercises will help you to master the steps of the
 analysis carried out in the chapter "Geospatial Impact Evaluation of
 protected areas support on forest cover loss" and to understand the
-methodology used. The exercise codnucts an evaluation for a single PA to
-understand the code easier, but the scripts to analyze an entire
-portfolio can be found here 'github link'.
+methodology used. The exercises conduct an evaluation for a single PA
+(Parque Nacional Montecristo in El Salvador) to understand the code
+easier, but the scripts to analyze an entire portfolio can be found here
+'github link'.
 
-The objective of this first exercise is to build a dataset with
-outcomes, covariates and treatment variables for each unit of
-observation (cells) that will be used in the matching process . This
-notebook will also enable you to create your own shiny app to visualize
-the data interactively. There are four parts to this notebook:
+### **Exercise 1 : Build a matching sample**
+
+[Objectives :]{.underline}
+
+-   Build a dataset with outcomes, covariates and treatment variables
+    for each unit of observation (cells) necessary for the matching
+    process
+
+-   Create a shiny app to visualize the data interactively.
+
+There are four parts in this notebook:
 
 1.  Settings
 2.  Classify observations
 3.  Download the data
 4.  Create an interactive map
 
-## Exercise 1 : Build a matching sample
-
-```{r}
-# install packages if necessary
-lop <- c("ggplot2", "tidyr", "dplyr", "stringr", "sf", "terra", "raster", "geodata", "exactextractr", "mapme.biodiversity", "future","progressr","wdpar","landscapemetrics","gridExtra","rstac","webdriver")
-newp <- lop[!(lop %in% installed.packages()[,"Package"])]
-if(length(newp)) install.packages(newp)
-lapply(lop, require, character.only = TRUE)
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r}
+# Install packages if necessary
+lop <- c(
+  "dplyr",
+  "exactextractr",
+  "future",
+  "geodata",
+  "ggplot2",
+  "gridExtra",
+  "landscapemetrics",
+  "mapme.biodiversity",
+  "progressr",
+  "raster",
+  "rstac",
+  "sf",
+  "stringr",
+  "terra",
+  "tidyr",
+  "wdpar",
+  "webdriver"
+)
+newp <- lop[!(lop %in% installed.packages()[, "Package"])]
+if (length(newp))
+  install.packages(newp)
+lapply(lop, require, character.only = TRUE)
+```
 
 ```{r }
 # Load Libraries
 library(dplyr) # A grammar of data manipulation
-library(tidyr) # Tools for creating tidy data
-library(stringr) # String manipulation functions
-library(ggplot2) # For plotting
-library(sf) # For handling vector data
-library(terra) # For handling raster data
-library(raster) # For handling raster data
+library(exactextractr) # For zonal statistics
+library(future) # For parallel and distributed processing
 library(geodata) # For getting country files
+library(ggplot2) # For plotting
+library(gridExtra) # Tools for arranging multiple grid-based visual objects
+library(mapme.biodiversity) # Biodiversity data processing and analysis
+library(progressr) # Progress bars for long-running operations
+library(raster) # For handling raster data
+library(rstac) # Interface for querying and accessing SpatioTemporal Asset Catalog (STAC) compliant API service
+library(sf) # For handling vector data
+library(stringr) # String manipulation functions
+library(terra) # For handling raster data
+library(tidyr) # Tools for creating tidy data
+
+# Additional Installations
+remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
 remotes::install_github("prioritizr/wdpar@extra-wait") # to download protected areas shape
 webdriver::install_phantomjs() # to fetch wdpa data 
-library(exactextractr) # For zonal statistics
-remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
-library(mapme.biodiversity) # Biodiversity data processing and analysis
-library(future) # For parallel and distributed processing
-library(progressr) # Progress bars for long-running operations
-library(gridExtra) # Tools for arranging multiple grid-based visual objects
-library(rstac) # Interface for querying and accessing SpatioTemporal Asset Catalog (STAC) compliant API service
-```
 
+```
 
 ```{r }
 # Add this, to download correctly travel data 
@@ -78,33 +106,35 @@ Sys.setenv(
 
 ## 1. Settings ⚙️
 
-1.  Please enter a working directory and the name you wish to give to
-    the output of this notebook, which is a dataset ready for matching :
+1.1 Please enter a working directory :
 
 ```{r}
 # Define the path to a working directory
 wdir = file.path(tempdir())
 # Define the file name of the output matching dataset
 name_output = "mf_SLV_500ha.gpkg"
+
 ```
 
-2.  The next step is to decide the parameters of your analysis, in the
-    next cell please enter:
+1.2The next step is to decide the parameters of your analysis, in the
+next cell please enter:
 
-\- the country code of El Salvador
+-   the country code of El Salvador
 
-\- the size of the buffer
+-   the size of the buffer
 
-\- the size of the grid
+-   the size of the grid
 
-\- the WDPA ID of the Parque Nacional Montecristo
+-   the WDPA ID of the Parque Nacional Montecristo
 
-To lower the computation time we choose to analyze the Parque Nacional
-Montecristo but you can try with another PA. It is also possible to vary
-the following parameters according to the PA you wish to analyze.
-Initially you can use the same parameters as in the case study.
-Afterward you could run the notebook again with different parameters to
-see the differences in the results.
+To lower the computation time we choose to analyze a PA in a small
+country, namely the Parque Nacional Montecristo, in Salvador.
+
+However, after you have done this exercise, you can try it with a
+different PA. It is also possible to vary the following parameters
+according to the PA you wish to analyze. You can start using the same
+parameters as in the case study. Afterward you could run the notebook
+again with different parameters to see the differences in the results.
 
 ```{r}
 # Specify a country iso 3; to find the right country code, please refer to this page https://en.wikipedia.org/wiki/ISO_3166-1_alpha-3
@@ -112,9 +142,10 @@ country = "SLV"
 # Specify buffer width in meter
 buffer_m = 10000
 # Specify the grid cell size in meter
-gridSize = 2236.068 # --> 500ha
+gridSize = 2236.068  # The grid size in meters (2236.068 meters) corresponds to an area of approximately 500 hectares (ha).
+
 # Specify a WDPA IDs; to find the WDPA ID, please refer to this page 
-# https://www.protectedplanet.net/en
+# https://www.protectedplanet.net/en ,you can find the ID introducing the PA’s name in the browser or directly in the map
 paid = c(9638)
 ```
 
@@ -130,16 +161,16 @@ projection
 The UTM projection minimizes distortion for specific regions, making
 spatial calculations like distances and areas more accurate.
 
-A bounding box is created, and a grid is generated within this box
-covering the whole country. It is then intersected with the country's
-boundary to retain only cells located within the country as observation
-units.
+A bounding box is created, and a grid with cells of 500 ha is generated
+within this box covering the whole country. It is then intersected with
+the country's boundary to retain only cells located within the country
+as observation units.
 
-1.  Add the right objects in the `ggplot()` to obtain a map with the
-    box, the grid, and the shape of the country
+2.1 Add the right objects in the `ggplot()` to obtain a map with the
+box, the grid, and the shape of the country
 
 ```{r}
-# Download country polygon to working directory and load it into workspace 
+# Download country polygon to the working directory and load it into the workspace 
 gadm <- gadm(country = country, resolution = 1, level = 0, path = wdir) %>%
   st_as_sf()
 
@@ -154,22 +185,26 @@ lonlat2UTM = function(lonlat) {
   }
 }
 utm_code = lonlat2UTM(centroid)
+
 # Reproject GADM
 gadm_prj = gadm %>% st_transform(crs = utm_code)
-# Make bounding box around the reprojected country polygon because it is required in the next function to build the grid 
+# Make a bounding box around the reprojected country polygon (because it is required in the next function to build the grid )
 
 bbox = st_bbox(gadm_prj) %>% st_as_sfc() %>% st_as_sf()
-# Make a Grid to the extent of the bounding box
+# Grid to the extent of the bounding box
 grid.ini = st_make_grid(bbox, cellsize = c(gridSize,gridSize))
-# Crop Grid to the extent of country boundary by
+
+# Crop the Grid to the extent of country boundary by
 # subsetting to the grid cells that intersect with the country
 grid.sub = grid.ini %>%
   st_intersects(gadm_prj, .) %>%
   unlist()
+
 # Filter the grid to the subset
 grid = grid.ini[sort(grid.sub)] %>%
   st_as_sf() %>%
   mutate(gridID = seq(1:nrow(.))) # Add id for grid cells
+
 # Visualize
 ggplot() +
  geom_sf(data = st_geometry(bbox)) +
@@ -180,35 +215,39 @@ ggplot() +
 
 To answer following questions you can refer to XXX chapter
 
-2.  Obtain information about `gadm` and `gadm_prj` object. To do so you
-    can just enter the name of the object in the console.
+2.2 Obtain information about `gadm` and `gadm_prj` object. To do so you
+can just enter the name of the object in the console.
 
-    a\. What is the main coordinate system used for each geospatial
-    object?]
+```         
+a\. What is the main coordinate system used for each geospatial
+object?
 
-    [ANSWER HERE]
+[ANSWER HERE]
 
-    b\. What are the units of measurement used in each projection?
+b\. What are the units of measurement used in each projection?
 
-    [ANSWER HERE]
+[ANSWER HERE]
 
-    c\. Why do we use a projected system (UTM) in some geospatial
-    applications instead of a geodetic system (WGS 84)?
+c\. Why do we use a projected system (UTM) in some geospatial
+applications instead of a geodetic system (WGS 84)?
 
-    [ANSWER HERE]
+[ANSWER HERE]
+```
 
 ## 3. Classifying observation units
 
 The next step is to classify observation units i.e. cells of the grid
 into one of these four groups:
 
--   Group 1 : PA analyzed
+-   **Group 0-Background** : Control candidate cells, in neither group
+    bellow
 
--   Group 2 : Other PA
+-   **Group 1-Analyzed PA** : Treatment candidate cells
 
--   Group 3 : Buffer zone
+-   **Group 2-Other PAs** : Cells of non-analyzed PA
 
--   Group 0 : Others (meaning none of the above groups)
+-   **Group 3-Buffer zone** : Cells in the chosen perimeter around all
+    PAs
 
 To this end this section first downloads protected area (PA) polygons
 from WDPA and reprojects them to the same projection used previously.
@@ -218,12 +257,12 @@ a second step, this dataset of PA polygons and buffers is rasterized,
 and zonal statistics are used to define the treatment group of each
 cell/observation unit.
 
-1.Find the right *sf* function to create buffer around all PA using the
-buffer size (`buffer_m`) chosen before and complete the code
+3.1 Find the right *sf* function to create buffer around all PA using
+the buffer size (`buffer_m`) chosen before and complete the code
 
 ```{r}
-# Get the PA polygons/points of the specified country;
-# They're downloaded to the working directory.
+# Get the PA polygons/points of the specified country
+# PA polygon are downloaded to the working directory.
 wdpa = wdpa_fetch(country, wait = TRUE, download_dir = wdir)
 
 # PAs are projected, and column "geometry_type" is added
@@ -236,15 +275,13 @@ wdpa_prj = wdpa_clean(wdpa, geometry_precision = 1000,
   # Project PA polygons to the previously determined CRS
   st_transform(crs = utm_code)
 
-# Separate the analyze PA from others PAs
-
+# Separate the analyzed PA from others PAs
 wdpa_focus = wdpa_prj %>% filter(WDPAID == paid) %>%
   mutate(group=1) # Assign an ID "1" to the analyzed PA
 
 wdpa_nofocus = wdpa_prj %>%
   filter(WDPAID!=paid) %>%
   st_buffer(., dist=0) # a hack to solve geometries issues with polygons in R, e.g. problem of self-intersection
-#add a link 
 
 # Determine the other PAs that intersect with the analyzed PAs,
 # and delete the intersection part from others PAs to reduce noise when rasterizing WDPAIDs later.
@@ -261,7 +298,7 @@ wdpa_buffer <- st_buffer(wdpa_focus, dist = buffer_m) %>%
   # Assign an ID "3" to the buffer group
   mutate(group=3)
 
-# Merge the dataframes of funded PAs, non-funded PAs and buffers
+# Merge the dataframes of Treatment candidate, other PAs and buffer zone
 wdpa_groups = rbind(wdpa_focus, wdpa_nofocus, wdpa_buffer)
 # Subset to polygons that intersect with country boundary
 wdpa.sub = wdpa_groups %>%
@@ -275,13 +312,18 @@ wdpa_groups = wdpa_groups[sort(wdpa.sub),] %>%
 colors <- c("1" = "darkgreen", "2" = "darkblue", "3" = "orange")
 
 ggplot() +
+  # Plot the grid
    geom_sf(data = st_geometry(gadm_prj), fill = "lightgray", color = "lightgray", lwd = 0.2) + 
+  # Plot the analysed PA
+      geom_sf(data = subset(wdpa_groups, group == "1"), aes(fill = factor(group)), color = "black", lwd = 0.3, alpha = 0.6) +
+  # Plot other PAs
+  geom_sf(data = subset(wdpa_groups, group == "2"), aes(fill = factor(group)), color = "black", lwd = 0.3, alpha = 0.6) +
+#Plot the buffer zone
     geom_sf(data = subset(wdpa_groups, group == "3"), aes(fill = factor(group)), color = "black", lwd = 0.3, alpha = 0.6) +
-    geom_sf(data = subset(wdpa_groups, group == "2"), aes(fill = factor(group)), color = "black", lwd = 0.3, alpha = 0.6) +
-    geom_sf(data = subset(wdpa_groups, group == "1"), aes(fill = factor(group)), color = "black", lwd = 0.3, alpha = 0.6) +
+    
     scale_fill_manual(values = colors, 
-                      labels = c("1" = "analyzed PA", 
-                               "2" = "Non Funded PA", 
+                      labels = c("1" = "Analyzed PA", 
+                               "2" = "Other PAs", 
                                "3" = "Buffer Zone")) +
     theme_bw() +
     theme(legend.position = "right")
@@ -289,14 +331,14 @@ ggplot() +
 
 ```
 
-The next step is to assign a group (analyzed PA, other PA, buffer, none)
-to each cell of the grid. It may be the case that a cell is covered by
-multiple groups, so it is necessary to decide how the group of the cell
-will be attributed. To achieve this, we must first rasterize wdpa data,
-which involves transforming it from a vector representation to a raster
-grid. Using raster data is a more time-efficient than vector, which is
-especially beneficial in a portfolio analysis where a significant amount
-of data must be processed.
+The next step is to assign a group ( PA analyzed, other PAs,
+Buffer,others ) to each cell of the grid. It may be the case that a cell
+is covered by multiple groups, so it is necessary to decide how the
+group of the cell will be attributed. To achieve this, we must first
+rasterize wdpa data, which involves transforming it from a vector
+representation to a raster grid. Using raster data is a more
+time-efficient than vector, which is especially beneficial in a
+portfolio analysis where a significant amount of data must be processed.
 
 raster
 
@@ -327,10 +369,10 @@ the mapme.biodiversity package requirements.
 # Initialize an empty raster to the spatial extent of the country
 r.ini = raster()
 extent(r.ini) = extent(gadm_prj)
-# Specify the raster resolution as same as the pre-defined 'gridSize'
+# Specify the raster resolution equal to the pre-defined 'gridSize'
 res(r.ini) = gridSize
-# Assign the raster pixels with "Group" values,
-# Take the minimal value if a pixel is covered by overlapping polygons, so that PA Group ID has higher priority than Buffer ID.
+# Assign the raster cells with "Group" values,
+# Take the minimal value if a pixel is covered by overlapping polygons, so that PA Groups (1 and 2) have higher priority than Buffer group.
 # Assign value "0" to the background pixels (control candidates group)
 r.group = rasterize(wdpa_groups, r.ini, field="group", fun="min", background=0) %>%
   mask(., gadm_prj)
@@ -385,13 +427,13 @@ pixels it overlaps we may want to retain the smallest pixel value, so
 that if the grid cell overlaps with any pixels that intersects a PA, the
 grid cell is assigned to the PA group.
 
-1.  Try to change the function used in `exact_extract()` to retain the
-    smallest pixel value.
+3.2 Try to change the function used in `exact_extract()` to retain the
+smallest pixel value.
 
-2.  Compute group statistics of grid.param and grid.param_2, comment the
-    difference
+3.3 Compute group statistics of grid.param and grid.param_2, comment the
+difference
 
-3.  Map grid.param and grid.param_2 to visualize the difference.
+3.4 Map grid.param and grid.param_2 to visualize the difference.
 
 ```{r}
 # Aggregate pixel values by taking the min
@@ -443,7 +485,7 @@ map_2=grid.param_2 %>%
 grid.arrange(map_1, map_2, nrow = 2)
 ```
 
-## 4. Download the data
+## 4. Downloading the data
 
 Once each cell has been assigned to a group, all the covariates need to
 be downloaded. To do so you can use the Mapme.biodiversity package that
@@ -454,9 +496,9 @@ function to complete the following code.
 
 You will be ask to :
 
-\- Download the soil data
+-    Download the soil data
 
-\- Calculate elevation
+-    Calculate elevation
 
 \- Download travel time data and compute the indicators
 
@@ -469,51 +511,52 @@ Multisession
     concurrently. Each session operates independently and runs in its
     own R process, allowing for parallel execution of tasks.
 
-    To learn more about multisession see this exercise ( ADD A LINK)
+    To learn more about multisession see this exercise **(ADD A LINK TO
+    ANOTHER EXERCISE OR CHAPTER)**
 
 ```{r}
-## 4. Calculating deforestation area and other covariates for all observation units
+
 # Get input data ready for indicator calculation
       ## Version of Global Forest Cover data to consider
       list_version_gfc = mapme.biodiversity:::.available_gfw_versions() #all versions available
       version_gfc = list_version_gfc[length(list_version_gfc)] #last version considered
-#years=2000:2021
 mapme_options(outdir =wdir)
-# aoi = init_portfolio(grid.param,
-#                      years = 2000:2021,
-#                      outdir = wdir,
-#                      tmpdir = file.path(wdir, "tmp"),
-#                      add_resources = FALSE)
-
 years = 2000:2021
-aoi=grid.param
 ```
 
 ### Covariate: Soil
 
-1.  Enter the function to download soil data. Use the following
-    parameters : "clay' for the layers , a depth between 0 and 5 cm, and
-    the statistic "mean".
+4.1 Enter the function to download soil data. Use the following
+parameters : "clay' for the layers , a depth between 0 and 5 cm, and the
+statistic "mean".
 
 ```{r}
 start_time <- Sys.time()
 
 
-get.soil = aoi %>% get_resources(get_soilgrids(
-        layers = "clay", # resource specific argument
-        depths = "0-5cm", # resource specific argument
+get.soil = grid.param %>% get_resources(# enter the right function and parameter here
+         get_soilgrids( 
+        layers = "clay",
+        depths = "0-5cm", 
         stats = "mean"))
                          
 # set up parallel plan with 6 workers
 plan(multisession, workers = 6)
 # Calculate Indicator
 with_progress({
-  zonal.soil = get.soil %>% calc_indicators(
-          calc_soilproperties(
-            stats = "mean",
-            engine = "zonal"
-          )
-        )
+  # 'zonal.soil' stores the results of soil property calculations
+zonal.soil = get.soil %>%
+  calc_indicators(
+     # Inside 'calc_indicators', use 'calc_soilproperties' to calculate specific soil properties
+    calc_soilproperties(
+      # 'stats = "mean"' specifies that you want to calculate the mean (average) of soil properties
+      stats = "mean",
+      # 'engine = "zonal"' means the calculations will be performed using a zonal approach
+      # This method calculates the mean value over each pixel falling entirely or partially in the cell
+      engine = "zonal"
+    )
+  )
+
 })
 plan(sequential) # close child processes
 # Transform the output dataframe into a pivot dataframe
@@ -529,15 +572,14 @@ end_time <- Sys.time()
 elapsed_time <- end_time - start_time
 
 cat("Elapsed time:", elapsed_time, "\n")
-
 ```
 
-2.  Try running the same code chunk without the multisession and compare
-    execution times
+4.2 Try running the same code chunk without the multisession and compare
+execution times
 
 ```{r}
 start_time <- Sys.time()
-get.soil = aoi %>% get_resources(get_soilgrids(
+get.soil = grid.param %>% get_resources(get_soilgrids(
         layers = "clay", # resource specific argument
         depths = "0-5cm", # resource specific argument
         stats = "mean"))
@@ -570,11 +612,11 @@ cat("execution time:", elapsed_time, "\n")
 
 ### Covariate: Elevation
 
-Insert the function to calculate elevation mean, you should use the mean
-statistic and the exactextract engine :
+4.3 Insert the function to calculate elevation mean, you should use the
+mean statistic and the exactextract engine :
 
 ```{r}
-get.elevation = aoi %>% get_resources(get_nasa_srtm())
+get.elevation = grid.param %>% get_resources(get_nasa_srtm())
 # set up parallel plan with 6 workers
 plan(multisession, workers = 6)
 
@@ -582,7 +624,7 @@ plan(multisession, workers = 6)
 with_progress({
   zonal.elevation = get.elevation %>% calc_indicators(calc_elevation(
           stats= "mean",
-          engine = "exactextract"))
+          engine = "zonal"))
   
   
 })
@@ -605,7 +647,7 @@ plan(multisession, workers = 6)
 with_progress({
   zonal.tri = get.elevation %>% calc_indicators(calc_tri(
           stats = "mean",
-          engine = "exactextract"))
+          engine = "zonal"))
 })
 plan(sequential) # close child processes
 # Transform the output dataframe into a pivot dataframe
@@ -618,23 +660,12 @@ pivot.tri = zonal.tri %>% unnest(tri)%>%
 
 ### Covariate: Travel Time
 
-Download data related to travel time and calculate the median travel
+4.4 Download data related to travel time and calculate the median travel
 time
 
 ```{r}
-#Run this, to download correctly travel data 
 
-Sys.setenv(
-  "VSI_CACHE" = "TRUE",
-  "CPL_VSIL_CURL_CHUNK_SIZE" = "10485760",
-  "GDAL_HTTP_MAX_RETRY" = "5",
-  "GDAL_HTTP_RETRY_DELAY" = "15"
-)
-
-
-
-
-get.travelT = aoi%>% get_resources(get_nelson_et_al(ranges = c("5k_110mio")))
+get.travelT = grid.param%>% get_resources(get_nelson_et_al(ranges = c("5k_110mio")))
 
 # set up parallel plan with 6 concurrent threads
 plan(multisession, workers = 20)
@@ -642,7 +673,7 @@ plan(multisession, workers = 20)
 with_progress({
   zonal.travelT  <-get.travelT %>% calc_indicators(calc_traveltime(
           stats = "median",
-          engine = "exactextract"))
+          engine = "zonal"))
   })
 plan(sequential) # close child processes
 # Transform the output dataframe into a pivot dataframe
@@ -656,14 +687,18 @@ pivot.travelT = zonal.travelT %>%
 ### Time Series of Tree Cover Area
 
 ```{r}
-get.tree = aoi %>%get_resources(get_gfw_treecover(version =  version_gfc),
-                                     get_gfw_lossyear(version = version_gfc))
+get.tree = grid.param %>% get_resources(get_gfw_treecover(version =  version_gfc),
+                                        get_gfw_lossyear(version = version_gfc))
 # set up parallel plan with 6 workers
 plan(multisession, workers = 6)
 # Calculate time series
 with_progress({
-  zonal.tree = get.tree %>% calc_indicators(calc_treecover_area(years=years, min_size=0.5, 
-                                                                    min_cover=10))
+  zonal.tree = get.tree %>% calc_indicators(calc_treecover_area(
+    years = years,
+    min_size = 0.5,
+    min_cover =
+      10
+  ))
   
 })
 
@@ -673,10 +708,13 @@ plan(sequential) # close child processes
 # Transform the output dataframe into a pivot dataframe
 pivot.tree = zonal.tree %>%
   unnest(treecover_area) %>%
-  # Transfer treecover unit to percentage
-  mutate(value = round((value*1e4)/(gridSize^2)*100, 2),datetime=format(datetime, "%Y")) %>%
-  pivot_wider(names_from = "datetime", values_from = "value", names_prefix = "treecover_")%>%
-  dplyr::select(-c(unit,variable))
+  # Transform treecover unit to percentage
+  mutate(value = round((value * 1e4) / (gridSize ^ 2) * 100, 2),
+         datetime = format(datetime, "%Y")) %>%
+  pivot_wider(names_from = "datetime",
+              values_from = "value",
+              names_prefix = "treecover_") %>%
+  dplyr::select(-c(unit, variable))
 
 ```
 
@@ -685,10 +723,14 @@ pivot.tree = zonal.tree %>%
 
 # Get the column names of tree cover time series
 colnames_tree = names(pivot.tree)[startsWith(names(pivot.tree), "treecover")]
+
 # Drop the first year
 dropFirst = tail(colnames_tree, -1)
 # Drop the last year
 dropLast = head(colnames_tree, -1)
+
+# This operation is done to compute the treeloss easier 
+
 # Set list of new column names for tree loss time series
 colnames_loss = dropFirst %>% str_split(., "_")
 # Add new columns: treeloss_tn = treecover_tn - treecover_t(n-1)
@@ -707,7 +749,8 @@ df.tri = pivot.tri %>% mutate(x=NULL) %>% as.data.frame()
 # Make a dataframe containing only "assetid" and geometry
 df.geom = pivot.tree[, c("assetid", "x")] %>% as.data.frame()
 # Merge all output dataframes
-pivot.all = Reduce(dplyr::full_join, list(df.travelT, df.soil, df.tree, df.elevation, df.tri, df.geom)) %>%
+pivot.all = Reduce(dplyr::full_join,
+                   list(df.travelT, df.soil, df.tree, df.elevation, df.tri, df.geom)) %>%
   st_as_sf()
 # Make column Group ID and WDPA ID have data type "integer"
 pivot.all$group = as.integer(pivot.all$group)
@@ -718,13 +761,23 @@ st_write(pivot.all, dsn = file.path(wdir, name_output), delete_dsn = TRUE)
 
 ```
 
-# 5. Create an interactive map (coming soon...)
+# 5. Creating an interactive map (coming soon...)
 
-Shiny apps are interactive web applications built using R. It is
+To visualize indicators on a map you can use the package tmap. It is
 particularly useful for analyzing geospatial data because it provides an
-dynamic platform for visualizing them. Run the following code to see a
-beta version of a shiny app. To improve this application try adding...
+dynamic map for visualizing them.
+
+5.1 Run the following code and comment on the mean distance to city in
+El Salvador
 
 ```{r}
-
+# Visualize PAs by mean forest loss
+tmap_mode("view")
+pivot.all %>%
+  portfolio_long() %>%
+  filter(variable == "elevation_mean") %>%
+  tm_shape() +
+  tm_polygons(col = "value", title = "Mean elevation (m)")
 ```
+
+5.2 Try to visualize another indicator of your choice
