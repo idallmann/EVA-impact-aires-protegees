@@ -16,8 +16,8 @@ analytical steps outlined in the chapter "Geospatial Impact Evaluation
 of Protected Areas on Forest Cover Loss" and gain a deeper understanding
 of the methodology used. These exercises focus on evaluating a single
 protected area (Parque Nacional Montecristo in El Salvador) to simplify
-the code and facilitate learning. However, scripts for analyzing an
-entire portfolio of protected areas can be found
+the code and facilitate learning. 
+➔Scripts for analyzing an entire portfolio of protected areas can be found
 [here](https://github.com/idallmann/EVA-impact-aires-protegees).
 
 ### **Exercise 1 : Build a matching sample**
