@@ -9,7 +9,7 @@ editor_options:
 
 ***THIS IS THE VERSION WITH ANSWERS***
 
-## <u>**Geospatial impact evaluation of protected areas support on forest cover loss:Exercises**</u>
+# **Geospatial impact evaluation of protected areas support on forest cover loss:Exercises**
 
 The following two exercises are designed to help you master the
 analytical steps outlined in the chapter "Geospatial Impact Evaluation
@@ -20,9 +20,9 @@ the code and facilitate learning. However, scripts for analyzing an
 entire portfolio of protected areas can be found
 [here](https://github.com/idallmann/EVA-impact-aires-protegees).
 
-### **Exercise 1 : Build a matching sample**
+## **Exercise 1 : Build a matching sample**
 
-[Objectives :]{.underline}
+Objectives :
 
 -   Build a dataset with outcomes, covariates and treatment variables
     for each unit of observation (cells) necessary for the matching
@@ -104,7 +104,7 @@ Sys.setenv(
 
 ```
 
-## 1. Settings ⚙️
+### 1. Settings ⚙️
 
 To reduce computation time of this exercise, we have specifically chosen
 to analyze a PA in a small country. However once you complete this
@@ -114,7 +114,7 @@ Additionally, you can re-run the same analysis multiple time with
 different parameters to observe how different parameters affect the
 results.
 
-1.1 Please enter a working directory :
+> 1.1 Please enter a working directory :
 
 ```{r}
 # Define the path to a working directory
@@ -149,7 +149,7 @@ gridSize = 2236.068  # The grid size in meters (2236.068 meters) corresponds to 
 paid = c(9638)
 ```
 
-## 2. Generating observation units for matching frame
+### 2. Generating observation units for matching frame
 
 The second step is to prepare a grid of observation units for the
 spatial analysis, tailored specifically to the chosen country. After
@@ -168,7 +168,7 @@ within this box covering the whole country. It is then intersected with
 the country's boundary to retain only cells located within the country
 as observation units.
 
-:   2.1 Add the right objects in the `ggplot()` to obtain a map with the
+> 2.1 Add the right objects in the `ggplot()` to obtain a map with the
     box, the grid, and the shape of the country
 
 ```{r}
@@ -240,26 +240,25 @@ ggplot() +
 
 ```
 
-:   2.2 Display information about `gadm` and `gadm_prj` object. You can
+>2.2 Display information about `gadm` and `gadm_prj` object. You can
     do this by simply typing the name of each object into the console.
-
-```         
-a\. What is the main coordinate system used for each geospatial
+      
+> a\. What is the main coordinate system used for each geospatial
 object?
 
 [ANSWER HERE]
 
-b\. What are the units of measurement used in each projection?
+>b\. What are the units of measurement used in each projection?
 
 [ANSWER HERE]
 
-c\. Why do we use a projected system (UTM) in some geospatial
+>c\. Why do we use a projected system (UTM) in some geospatial
 applications instead of a geodetic system (WGS 84)?
 
 [ANSWER HERE]
-```
 
-## 3. Classifying observation units
+
+### 3. Classifying observation units
 
 The next step is to classify observation units i.e. cells of the grid
 into one of these four groups:
@@ -282,7 +281,7 @@ step, the dataset of PA polygons and their buffers is rasterized, and
 zonal statistics are applied to assign each cell (observation unit) to a
 treatment group.
 
-: 3.1 Find the right *sf* function to create buffer around all PA using
+>3.1 Find the right *sf* function to create buffer around all PA using
 the buffer size (`buffer_m`) chosen before and complete the code
 
 ```{r}
@@ -488,13 +487,13 @@ pixels intersecting the cell we may want to retain the smallest pixel
 value, so that if the grid cell overlaps with any pixels that intersects
 a PA, the grid cell is assigned to the PA group.
 
-: 3.2 Try computing `grid.group_2` changing the function used in
+>3.2 Try computing `grid.group_2` changing the function used in
 `exact_extract()` to retain the smallest pixel value.
 
-3.3 Compute group statistics of `grid.param` and `grid.param_2`, comment
+>3.3 Compute group statistics of `grid.param` and `grid.param_2`, comment
 the difference
 
-3.4 Map `grid.param` and `grid.param_2` to visualize the difference.
+>3.4 Map `grid.param` and `grid.param_2` to visualize the difference.
 
 ```{r}
 # Aggregate pixel values by taking the min
@@ -546,7 +545,7 @@ map_2=grid.param_2 %>%
 grid.arrange(map_1, map_2, nrow = 2)
 ```
 
-## 4. Downloading the data
+### 4. Downloading the data
 
 Once each cell has been assigned to a group, all the covariates need to
 be downloaded. To do so you can use the Mapme.biodiversity package that
@@ -587,9 +586,9 @@ mapme_options(outdir =wdir)
 years = 2000:2021
 ```
 
-### Covariate: Soil
+#### Covariate: Soil
 
-: 4.1 Enter the function to download soil data. Use the following
+>4.1 Enter the function to download soil data. Use the following
 parameters : "clay' for the layers , a depth between 0 and 5 cm, and the
 statistic "mean".
 
@@ -637,7 +636,7 @@ elapsed_time = end_time - start_time
 cat("Elapsed time:", elapsed_time, "\n")
 ```
 
-: 4.2 Try running the same code chunk without the multisession and
+>4.2 Try running the same code chunk without the multisession and
 compare execution times
 
 ```{r}
@@ -673,9 +672,9 @@ elapsed_time = end_time - start_time
 cat("execution time:", elapsed_time, "\n")
 ```
 
-### Covariate: Elevation
+#### Covariate: Elevation
 
-: 4.3 Insert the function to calculate elevation mean, you should use
+>4.3 Insert the function to calculate elevation mean, you should use
 the `'mean'` statistic and the `'zonal'` engine
 
 ```{r}
@@ -701,7 +700,7 @@ pivot.elevation = zonal.elevation %>% unnest(elevation)%>%
 
 ```
 
-### Covariate: TRI
+#### Covariate: TRI
 
 ```{r}
 # set up parallel plan with 6 workers
@@ -721,9 +720,9 @@ pivot.tri = zonal.tri %>% unnest(tri)%>%
 
 ```
 
-### Covariate: Travel Time
+#### Covariate: Travel Time
 
-: 4.4 Download data related to travel time and calculate the median
+>4.4 Download data related to travel time and calculate the median
 travel time
 
 ```{r}
@@ -824,13 +823,13 @@ st_write(pivot.all, dsn = file.path(wdir, name_output), delete_dsn = TRUE)
 
 ```
 
-# 5. Creating an interactive map (coming soon...)
+### 5. Creating an interactive map (coming soon...)
 
 To visualize indicators on a map you can use the package tmap. It is
 particularly useful for analyzing geospatial data because it provides an
 dynamic map for visualizing them.
 
-: 5.1 Run the following code and comment on the mean distance to city in
+>5.1 Run the following code and comment on the mean distance to city in
 El Salvador
 
 ```{r}
@@ -843,4 +842,4 @@ pivot.all %>%
   tm_polygons(col = "value", title = "Mean elevation (m)")
 ```
 
-: 5.2 Try to visualize another indicator of your choice
+>5.2 Try to visualize another indicator of your choice
