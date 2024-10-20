@@ -9,7 +9,7 @@ editor_options:
 
 ***THIS IS THE VERSION WITH ANSWERS***
 
-## [**Geospatial impact evaluation of protected areas support on forest cover loss:**] [**Exercises**]
+## <u>**Geospatial impact evaluation of protected areas support on forest cover loss:Exercises**</u>
 
 The following two exercises are designed to help you master the
 analytical steps outlined in the chapter "Geospatial Impact Evaluation
