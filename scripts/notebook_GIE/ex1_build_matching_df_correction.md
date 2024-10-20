@@ -32,7 +32,7 @@ Objectives :
 
 There are four parts in this notebook:
 
-1. [Settings](### 1. Settings ⚙️).
+1. [Settings](#1.-Settings-⚙️).
 2. [Classify observations](### 2.  Classify observations)
 [3.  Download the data](### 3.  Download the data  )
 [4.  Create an interactive map](### 4.  Create an interactive map 🗺️)
