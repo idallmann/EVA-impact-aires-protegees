@@ -1,11 +1,12 @@
----
+
 title: "Exercise_1_corr"
 output: html_document
 date: "2024-07-23"
 editor_options: 
   markdown: 
     wrap: 72
----
+
+
 
 ***THIS IS THE VERSION WITH ANSWERS***
 
