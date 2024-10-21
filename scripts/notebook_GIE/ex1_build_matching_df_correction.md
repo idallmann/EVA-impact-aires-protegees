@@ -1,4 +1,4 @@
-***THIS IS THE VERSION WITH ANSWERS***
+ ***THIS IS THE VERSION WITH ANSWERS***
 
 # **Geospatial impact evaluation of protected areas support on forest cover loss:Exercises**.
 
@@ -151,7 +151,7 @@ zone based on the country's centroid . The UTM projection minimizes
 distortion for specific regions, making spatial calculations like
 distances and areas more accurate.
 
-➔ You can find more information about this projection [here](#0) and a
+➔ You can find more information about this projection [here](#https://www.nceas.ucsb.edu/sites/default/files/2020-04/OverviewCoordinateReferenceSystems.pdf) and a
 notebook specifically on projection
 [here](https://www.earthdatascience.org/courses/earth-analytics/spatial-data-r/reproject-vector-data/).
 
@@ -253,8 +253,6 @@ applications instead of a geodetic system (WGS 84)?
 The next step is to classify observation units i.e. cells of the grid
 into one of these four groups:
 
--   **Group 0-Background** : Control candidate cells, in neither group
-    bellow
 
 -   **Group 1-Analyzed PA** : Treatment candidate cells
 
@@ -262,6 +260,8 @@ into one of these four groups:
 
 -   **Group 3-Buffer zone** : Cells in the chosen perimeter around all
     PAs
+-   **Group 4-Background** : Control candidate cells, in neither group
+    bellow
 
 In this section, we begin by downloading the PAs polygons from the WDPA
 and reprojecting them to match the projection used earlier. After
@@ -366,7 +366,7 @@ ggplot() +
 ```
 
 The next step is to assign a group (Analyzed PA, Other PAs, Buffer, or
-Others) to each cell in the grid. Since a cell can sometimes intersect
+Background) to each cell in the grid. Since a cell can sometimes intersect
 multiple groups, we need a method to determine which group the cell will
 belong to. To do this, we first rasterize the WDPA data, converting it
 from vector format into a raster grid. Working with raster data is more
@@ -388,7 +388,7 @@ is assigned to a group with pixel values representing group IDs. In the
 code if a pixel is intersecting multiple groups the smallest group value
 is chosen. For instance, if a pixel is located both in a buffer polygon
 and in the analyzed PA, the cell value will be set to group 1 i.e. the
-analyzed PA zone, ensuring that PA group IDs (1or 2) take precedence
+analyzed PA zone, ensuring that PA group IDs (1 or 2) take precedence
 over buffer IDs. Then pixel with no group assigned take the value 0 for
 Background. Another raster layer is created to assign a WDPA ID to each
 unit of observation.
@@ -396,10 +396,12 @@ unit of observation.
 Finally, the raster values are aggregated into the grid cells with the
 `mode` function. The mode function assign the group with the highest
 frequency in the grid cell.Since we've chosen a grid of the same size 
-as the original grid, it shouldn't have much effect to use the `mode` 
-function instead of another available in `exact_extract` (`min` or `max`).  
-Then values get merged into a single dataset, and transformed to the WGS84 
-coordinate system to comply with the mapme.biodiversity package requirements.
+as the original grid, it shouldn't have much effect to use the `min` 
+function instead of another available in `exact_extract` (`mode` or `max`). 
+We have made this choice to ensure that the result is conservative, i.e. not
+overestimated.  Then values get merged into a single dataset, and transformed 
+to the WGS84 coordinate system to comply with the mapme.biodiversity package
+requirements.
 
 ```{r}
 # Initialize an empty raster with the spatial extent of the country.
@@ -414,8 +416,8 @@ res(r.ini) = gridSize
 #   - The 'field' parameter specifies that we are rasterizing based on the "group" column.
 #   - The 'min' function is used to prioritize smaller group values in cases of overlap:
 #     PA groups (1 and 2) take priority over buffer zones (group 3).
-#   - Pixels not covered by any polygons are assigned a background value of 0 (control candidates group).
-r.group = rasterize(wdpa_groups, r.ini, field="group", fun="min", background=0) %>%
+#   - Pixels not covered by any polygons are assigned a background value of 4 (control candidates group).
+r.group = rasterize(wdpa_groups, r.ini, field="group", fun="min", background=4) %>%
   mask(., gadm_prj)  # Mask to ensure the raster only covers the country extent.
 
 # Rename the raster layer to "group" for clarity.
@@ -429,10 +431,10 @@ r.wdpaid = rasterize(wdpa_prj, r.ini, field="WDPAID", fun="first", background=0)
 names(r.wdpaid) = "wdpaid"
 
 # Aggregate the raster data to the grid cells:
-#   - Extract group values from the raster (r.group) and assign each grid cell a value based on the most frequent (mode) pixel value within the cell.
+#   - Extract group values from the raster (r.group) and assign each grid cell a value based on the min pixel value within the cell.
 #   - The 'gridID' column is appended to identify the cells.
-grid.group = exact_extract(x=r.group, y=grid, fun='mode', append_cols="gridID") %>%
-  rename(group = mode)  # Rename the column for clarity.
+grid.group = exact_extract(x=r.group, y=grid, fun='min', append_cols="gridID") %>%
+  rename(group = min)  # Rename the column for clarity.
 
 # Similarly, extract the most frequent WDPAID for each grid cell.
 grid.wdpaid = exact_extract(x=r.wdpaid, y=grid, fun="mode", append_cols="gridID") %>%
@@ -464,8 +466,8 @@ grid.param %>%
   ggplot() +
   geom_sf(aes(fill = factor(group)), lwd=0) + # add the right dataframe in factor()
   scale_fill_manual(name="Group", # legend title
-                    values = c("grey", "darkgreen", "darkblue", "orange"),#add colors
-                    labels = c("Background", "Analysed PA", "other PA", "Buffer zone")) +
+                    values = c("darkgreen", "darkblue", "orange","grey"),#add colors
+                    labels = c( "Analysed PA", "other PA", "Buffer zone","Background")) +
   theme_bw()
 
 ```
