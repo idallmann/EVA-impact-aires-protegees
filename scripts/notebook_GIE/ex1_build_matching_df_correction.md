@@ -404,9 +404,11 @@ unit of observation.
 
 Finally, the raster values are aggregated into the grid cells with the
 `mode` function. The mode function assign the group with the highest
-frequency in the grid cell. Then values get merged into a single
-dataset, and transformed to the WGS84 coordinate system to comply with
-the mapme.biodiversity package requirements.
+frequency in the grid cell.Since we've chosen a grid of the same size 
+as the original grid, it shouldn't have much effect to use the `mode` 
+function instead of another available in `exact_extract` (`min` or `max`).  
+Then values get merged into a single dataset, and transformed to the WGS84 
+coordinate system to comply with the mapme.biodiversity package requirements.
 
 ```{r}
 # Initialize an empty raster with the spatial extent of the country.
