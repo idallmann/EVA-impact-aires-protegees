@@ -105,7 +105,7 @@ Sys.setenv(
 
 ```
 
-### 1. Settings ⚙️
+### 1. Settings 
 
 To reduce computation time of this exercise, we have specifically chosen
 to analyze a PA in a small country. However once you complete this
@@ -824,7 +824,7 @@ st_write(pivot.all, dsn = file.path(wdir, name_output), delete_dsn = TRUE)
 
 ```
 
-### 5. Creating an interactive map 🗺️ (coming soon...)
+### 5. Creating an interactive map (coming soon...)
 
 To visualize indicators on a map you can use the package tmap. It is
 particularly useful for analyzing geospatial data because it provides an
