@@ -9,7 +9,7 @@ editor_options:
 
 ***THIS IS THE VERSION WITH ANSWERS***
 
-# **Geospatial impact evaluation of protected areas support on forest cover loss:Exercises**
+# **Geospatial impact evaluation of protected areas support on forest cover loss:Exercises**.
 
 The following two exercises are designed to help you master the
 analytical steps outlined in the chapter "Geospatial Impact Evaluation
@@ -115,7 +115,7 @@ Additionally, you can re-run the same analysis multiple time with
 different parameters to observe how different parameters affect the
 results.
 
-> 1.1 Please enter a working directory :
+> **1.1** Please enter a working directory :
 
 ```{r}
 # Define the path to a working directory
@@ -126,16 +126,16 @@ name_output = "mf_SLV_500ha.gpkg"
 
 ```
 
-:   1.2 The next step is to decide the parameters of your analysis, in
-    the next cell please enter:
-
-    -   the country code of El Salvador
-
-    -   the size of the buffer
-
-    -   the size of the grid
-
-    -   the WDPA ID of the Parque Nacional Montecristo
+>  **1.2** The next step is to decide the parameters of your analysis, in
+>    the next cell please enter:
+>
+>    -   the country code of El Salvador
+>
+>    -   the size of the buffer
+>
+>    -   the size of the grid
+>
+>    -   the WDPA ID of the Parque Nacional Montecristo
 
 ```{r}
 # Specify a country iso 3; to find the right country code, please refer to this page https://en.wikipedia.org/wiki/ISO_3166-1_alpha-3
@@ -169,8 +169,8 @@ within this box covering the whole country. It is then intersected with
 the country's boundary to retain only cells located within the country
 as observation units.
 
-> 2.1 Add the right objects in the `ggplot()` to obtain a map with the
-    box, the grid, and the shape of the country
+>**2.1** Add the right objects in the `ggplot()` to obtain a map with the
+>   box, the grid, and the shape of the country
 
 ```{r}
 # Download the country polygon (administrative boundary) and load it into the workspace
@@ -241,24 +241,22 @@ ggplot() +
 
 ```
 
->2.2 Display information about `gadm` and `gadm_prj` object. You can
-    do this by simply typing the name of each object into the console.
-      
-> a\. What is the main coordinate system used for each geospatial
+>**2.2** Display information about `gadm` and `gadm_prj` object. You can
+>    do this by simply typing the name of each object into the console.
+>      
+> **a\.** What is the main coordinate system used for each geospatial
 object?
-
-[ANSWER HERE]
-
->b\. What are the units of measurement used in each projection?
-
-[ANSWER HERE]
-
->c\. Why do we use a projected system (UTM) in some geospatial
+>
+>
+>
+>**b\.** What are the units of measurement used in each projection?
+>
+>
+>
+>**c\.** Why do we use a projected system (UTM) in some geospatial
 applications instead of a geodetic system (WGS 84)?
-
-[ANSWER HERE]
-
-
+>
+>
 ### 3. Classifying observation units
 
 The next step is to classify observation units i.e. cells of the grid
@@ -282,8 +280,8 @@ step, the dataset of PA polygons and their buffers is rasterized, and
 zonal statistics are applied to assign each cell (observation unit) to a
 treatment group.
 
->3.1 Find the right *sf* function to create buffer around all PA using
-the buffer size (`buffer_m`) chosen before and complete the code
+>**3.1** Find the right *sf* function to create buffer around all PA using
+>the buffer size (`buffer_m`) chosen before and complete the code
 
 ```{r}
 # Fetch the protected area (PA) polygons or points for the specified country.
@@ -385,12 +383,12 @@ computationally efficient than using vectors, which is especially
 beneficial in a portfolio analysis where a significant amount of data
 must be processed.
 
-raster
 
-:   A **raster** is a type of spatial data representation that consists
-    of a grid of equal size pixels, where each cell has a specific value
-    representing information, such as color in an image or a particular
-    data value in a geographic context
+> [!NOTE]
+>   A **raster** is a type of spatial data representation that consists
+>    of a grid of equal size pixels, where each cell has a specific value
+>    representing information, such as color in an image or a particular
+>   data value in a geographic context
 
 A raster layers is created over the country's extent, with pixel size
 equal to our grid cell size. The polygon layer (containing PAs and
@@ -488,13 +486,13 @@ pixels intersecting the cell we may want to retain the smallest pixel
 value, so that if the grid cell overlaps with any pixels that intersects
 a PA, the grid cell is assigned to the PA group.
 
->3.2 Try computing `grid.group_2` changing the function used in
-`exact_extract()` to retain the smallest pixel value.
+>**3.2** Try computing `grid.group_2` changing the function used in
+>`exact_extract()` to retain the smallest pixel value.
 
->3.3 Compute group statistics of `grid.param` and `grid.param_2`, comment
-the difference
+>**3.3** Compute group statistics of `grid.param` and `grid.param_2`, comment
+>the difference
 
->3.4 Map `grid.param` and `grid.param_2` to visualize the difference.
+>**3.4** Map `grid.param` and `grid.param_2` to visualize the difference.
 
 ```{r}
 # Aggregate pixel values by taking the min
@@ -568,14 +566,15 @@ You will be ask to :
 
 This section use multisession to speed up the computing of covariates.
 
-Multisession
 
-:   **Multisession** refers to a type of parallel processing where
-    multiple R sessions (or processes) are created to execute code
-    concurrently. Each session operates independently and runs in its
-    own R process, allowing for parallel execution of tasks.
+> [!NOTE]
+> **Multisession** refers to a type of parallel processing where
+>    multiple R sessions (or processes) are created to execute code
+>    concurrently. Each session operates independently and runs in its
+>    own R process, allowing for parallel execution of tasks.
+> ➔ To learn more about multisession you can refer to this [add a ref]
 
-➔ To learn more about multisession you can refer to this
+
 
 ```{r}
 
@@ -589,9 +588,9 @@ years = 2000:2021
 
 #### Covariate: Soil
 
->4.1 Enter the function to download soil data. Use the following
-parameters : "clay' for the layers , a depth between 0 and 5 cm, and the
-statistic "mean".
+>**4.1** Enter the function to download soil data. Use the following
+>parameters : "clay' for the layers , a depth between 0 and 5 cm, and the
+>statistic "mean".
 
 ```{r}
 start_time = Sys.time()
@@ -637,7 +636,7 @@ elapsed_time = end_time - start_time
 cat("Elapsed time:", elapsed_time, "\n")
 ```
 
->4.2 Try running the same code chunk without the multisession and
+>**4.2** Try running the same code chunk without the multisession and
 compare execution times
 
 ```{r}
@@ -675,8 +674,8 @@ cat("execution time:", elapsed_time, "\n")
 
 #### Covariate: Elevation
 
->4.3 Insert the function to calculate elevation mean, you should use
-the `'mean'` statistic and the `'zonal'` engine
+>**4.3** Insert the function to calculate elevation mean, you should use
+>the `'mean'` statistic and the `'zonal'` engine
 
 ```{r}
 get.elevation = grid.param %>% get_resources(get_nasa_srtm())
@@ -723,7 +722,7 @@ pivot.tri = zonal.tri %>% unnest(tri)%>%
 
 #### Covariate: Travel Time
 
->4.4 Download data related to travel time and calculate the median
+>**4.4** Download data related to travel time and calculate the median
 travel time
 
 ```{r}
@@ -830,8 +829,8 @@ To visualize indicators on a map you can use the package tmap. It is
 particularly useful for analyzing geospatial data because it provides an
 dynamic map for visualizing them.
 
->5.1 Run the following code and comment on the mean distance to city in
-El Salvador
+>**5.1** Run the following code and comment on the mean distance to city in
+>El Salvador
 
 ```{r}
 # Visualize PAs by mean forest loss
@@ -843,4 +842,4 @@ pivot.all %>%
   tm_polygons(col = "value", title = "Mean elevation (m)")
 ```
 
->5.2 Try to visualize another indicator of your choice
+>**5.2** Try to visualize another indicator of your choice
