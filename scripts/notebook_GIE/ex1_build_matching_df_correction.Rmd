@@ -16,8 +16,8 @@ analytical steps outlined in the chapter "Geospatial Impact Evaluation
 of Protected Areas on Forest Cover Loss" and gain a deeper understanding
 of the methodology used. These exercises focus on evaluating a single
 protected area (Parque Nacional Montecristo in El Salvador) to simplify
-the code and facilitate learning. 
-➔Scripts for analyzing an entire portfolio of protected areas can be found
+the code and facilitate learning. ➔Scripts for analyzing an entire
+portfolio of protected areas can be found
 [here](https://github.com/idallmann/EVA-impact-aires-protegees).
 
 ### **Exercise 1 : Build a matching sample**
@@ -125,16 +125,18 @@ name_output = "mf_SLV_500ha.gpkg"
 
 ```
 
-:   1.2 The next step is to decide the parameters of your analysis, in
-    the next cell please enter:
+: 1.2 The next step is to decide the parameters of your analysis, in the
+next cell please enter:
 
-    -   the country code of El Salvador
+```         
+-   the country code of El Salvador
 
-    -   the size of the buffer
+-   the size of the buffer
 
-    -   the size of the grid
+-   the size of the grid
 
-    -   the WDPA ID of the Parque Nacional Montecristo
+-   the WDPA ID of the Parque Nacional Montecristo
+```
 
 ```{r}
 # Specify a country iso 3; to find the right country code, please refer to this page https://en.wikipedia.org/wiki/ISO_3166-1_alpha-3
@@ -159,8 +161,9 @@ zone based on the country's centroid . The UTM projection minimizes
 distortion for specific regions, making spatial calculations like
 distances and areas more accurate.
 
-➔ You can find more information about this projection [here](#0) and a
-notebook specifically on projection
+➔ You can find more information about this projection
+[here](#https://www.nceas.ucsb.edu/sites/default/files/2020-04/OverviewCoordinateReferenceSystems.pdf)
+and a notebook specifically on projection
 [here](https://www.earthdatascience.org/courses/earth-analytics/spatial-data-r/reproject-vector-data/).
 
 A bounding box is created, and a grid with cells of 500 ha is generated
@@ -168,8 +171,8 @@ within this box covering the whole country. It is then intersected with
 the country's boundary to retain only cells located within the country
 as observation units.
 
-:   2.1 Add the right objects in the `ggplot()` to obtain a map with the
-    box, the grid, and the shape of the country
+> 2.1 Add the right objects in the `ggplot()` to obtain a map with the
+> box, the grid, and the shape of the country
 
 ```{r}
 # Download the country polygon (administrative boundary) and load it into the workspace
@@ -238,10 +241,11 @@ ggplot() +
   geom_sf(data = st_geometry(gadm_prj)) +       # Plot the reprojected country polygon
   geom_sf(data = st_geometry(grid), alpha = 0)  # Plot the grid (transparent fill with alpha=0)
 
+
 ```
 
-:   2.2 Display information about `gadm` and `gadm_prj` object. You can
-    do this by simply typing the name of each object into the console.
+: 2.2 Display information about `gadm` and `gadm_prj` object. You can do
+this by simply typing the name of each object into the console.
 
 ```         
 a\. What is the main coordinate system used for each geospatial
@@ -264,15 +268,14 @@ applications instead of a geodetic system (WGS 84)?
 The next step is to classify observation units i.e. cells of the grid
 into one of these four groups:
 
--   **Group 0-Background** : Control candidate cells, in neither group
-    bellow
-
 -   **Group 1-Analyzed PA** : Treatment candidate cells
 
 -   **Group 2-Other PAs** : Cells of non-analyzed PA
 
 -   **Group 3-Buffer zone** : Cells in the chosen perimeter around all
     PAs
+
+-   **Group 4-Background** : Control candidate cells, in neither group
 
 In this section, we begin by downloading the PAs polygons from the WDPA
 and reprojecting them to match the projection used earlier. After
@@ -404,27 +407,32 @@ over buffer IDs. Then pixel with no group assigned take the value 0 for
 Background. Another raster layer is created to assign a WDPA ID to each
 unit of observation.
 
-Finally, the raster values are aggregated into the grid cells with the
-`mode` function. The mode function assign the group with the highest
-frequency in the grid cell. Then values get merged into a single
-dataset, and transformed to the WGS84 coordinate system to comply with
-the mapme.biodiversity package requirements.
+Finally, the raster values are extracted into the grid cells with the
+`min` function. The mode function assign the group with the highest
+frequency in the grid cell. Since we've chosen a grid of the same size
+as the original grid, it shouldn't have much effect to use the `min`
+function instead of another available in `exact_extract` (`mode` or
+`max`). We have made this choice to ensure that the result is
+conservative, i.e. not overestimated. Then values get merged into a
+single dataset, and transformed to the WGS84 coordinate system to comply
+with the mapme.biodiversity package requirements.
 
 ```{r}
 # Initialize an empty raster with the spatial extent of the country.
 r.ini = raster()
-extent(r.ini) = extent(gadm_prj)  # Set the extent to match the country boundary (gadm_prj).
+extent(r.ini) =  extent(grid)# Set the extent to match the extent of the first grid created ('grid').
 
 # Define the raster resolution based on the predefined grid size ('gridSize').
 res(r.ini) = gridSize
+
 
 # Rasterize the WDPA group data:
 #   - Convert the 'wdpa_groups' polygons to raster format using the initialized raster (r.ini).
 #   - The 'field' parameter specifies that we are rasterizing based on the "group" column.
 #   - The 'min' function is used to prioritize smaller group values in cases of overlap:
 #     PA groups (1 and 2) take priority over buffer zones (group 3).
-#   - Pixels not covered by any polygons are assigned a background value of 0 (control candidates group).
-r.group = rasterize(wdpa_groups, r.ini, field="group", fun="min", background=0) %>%
+#   - Pixels not covered by any polygons are assigned a background value of 4 (control candidates group).
+r.group = rasterize(wdpa_groups, r.ini, field="group", fun="min", background=4) %>%
   mask(., gadm_prj)  # Mask to ensure the raster only covers the country extent.
 
 # Rename the raster layer to "group" for clarity.
@@ -438,10 +446,10 @@ r.wdpaid = rasterize(wdpa_prj, r.ini, field="WDPAID", fun="first", background=0)
 names(r.wdpaid) = "wdpaid"
 
 # Aggregate the raster data to the grid cells:
-#   - Extract group values from the raster (r.group) and assign each grid cell a value based on the most frequent (mode) pixel value within the cell.
+#   - Extract group values from the raster (r.group) and assign each grid cell a value based on the min pixel value within the cell.
 #   - The 'gridID' column is appended to identify the cells.
-grid.group = exact_extract(x=r.group, y=grid, fun='mode', append_cols="gridID") %>%
-  rename(group = mode)  # Rename the column for clarity.
+grid.group = exact_extract(x=r.group, y=grid, fun='min', append_cols="gridID") %>%
+  rename(group = min)  # Rename the column for clarity.
 
 # Similarly, extract the most frequent WDPAID for each grid cell.
 grid.wdpaid = exact_extract(x=r.wdpaid, y=grid, fun="mode", append_cols="gridID") %>%
@@ -473,77 +481,10 @@ grid.param %>%
   ggplot() +
   geom_sf(aes(fill = factor(group)), lwd=0) + # add the right dataframe in factor()
   scale_fill_manual(name="Group", # legend title
-                    values = c("grey", "darkgreen", "darkblue", "orange"),#add colors
-                    labels = c("Background", "Analysed PA", "other PA", "Buffer zone")) +
+                    values = c("darkgreen", "darkblue", "orange","grey"),#add colors
+                    labels = c( "Analysed PA", "other PA", "Buffer zone","Background")) +
   theme_bw()
 
-```
-
-The function chosen as a parameter to aggregate pixel values into the
-grid cells in the `exact_extract()` function influences the final group
-attribution obtained for each cells.
-
-Instead of assigning to a grid cell the most frequent value among the
-pixels intersecting the cell we may want to retain the smallest pixel
-value, so that if the grid cell overlaps with any pixels that intersects
-a PA, the grid cell is assigned to the PA group.
-
-: 3.2 Try computing `grid.group_2` changing the function used in
-`exact_extract()` to retain the smallest pixel value.
-
-3.3 Compute group statistics of `grid.param` and `grid.param_2`, comment
-the difference
-
-3.4 Map `grid.param` and `grid.param_2` to visualize the difference.
-
-```{r}
-# Aggregate pixel values by taking the min
-grid.group_2 = exact_extract(x=r.group, y=grid, fun='min', append_cols="gridID") %>%
-  rename(group = min)
-grid.wdpaid_2 = exact_extract(x=r.wdpaid, y=grid, fun="min", append_cols="gridID") %>%
-  rename(wdpaid = min)
-# Merge data frames
-grid.param_2 = grid.group_2 %>%
-  merge(., grid.wdpaid_2, by="gridID") %>%
-  merge(., grid, by="gridID") %>%
-  # drop rows having "NA" in column "group"
-  drop_na(group) %>%
-  # drop the column of "gridID"
-  subset(., select=-c(gridID)) %>%
-  st_as_sf() %>%
-  # Grid is projected to WGS84 because mapme.biodiverty package merely works with this CRS
-  st_transform(crs=4326)
-
-```
-
-```{r}
-# Compute summary statistic (distribution) for group variable in grid.param and grid.param_2
-stat_1=table(grid.param$group)
-stat_2= table(grid.param_2$group)
-c(stat_1,stat_2)
-```
-
-```{r}
-# Visualize maps with "mode" and "min" function
-# create the graph of grid.param
-map_1=grid.param %>%
-  ggplot() +
-  geom_sf(aes(fill = factor(group)), lwd=0) + 
-  scale_fill_manual(name="Group",
-                    values = c("grey", "darkgreen", "darkblue", "orange"),
-                    labels = c("Background", "Analysed PA", "other PA", "Buffer zone")) +
-  theme_bw()
-
-# create the graphe of grid.param_2
-map_2=grid.param_2 %>%
-  ggplot() +
-  geom_sf(aes(fill = factor(group)), lwd=0) + 
-  scale_fill_manual(name="Group",
-                    values = c("grey", "darkgreen", "darkblue", "orange"),
-                    labels = c("Background", "Analysed PA", "other PA", "Buffer zone")) +
-  theme_bw()
-
-grid.arrange(map_1, map_2, nrow = 2)
 ```
 
 ## 4. Downloading the data
