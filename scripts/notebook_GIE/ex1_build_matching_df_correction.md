@@ -674,7 +674,7 @@ pivot.travelT = zonal.travelT %>%
 
 ```
 
-### Time Series of Tree Cover Area
+#### Time Series of Tree Cover Area
 
 ```{r}
 get.tree = grid.param %>% get_resources(get_gfw_treecover(version =  version_gfc),
