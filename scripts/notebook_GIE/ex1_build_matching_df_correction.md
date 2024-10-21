@@ -31,11 +31,12 @@ Objectives :
 -   Create a interactive map to visualize the data on PAs.
 
 There are four parts in this notebook:
+1. [Settings](#1-settings)
+2. [Generating observation units for matching frame](#2-generating-observation-units-for-matching-frame)
+3. [Classifying observation units](#3-classifying-observation-units)
+4. [Downloading the data](#4-downloading-the-data)
+5. [Creating an interactive map (coming soon...)](#5-creating-an-interactive-map-coming-soon)
 
-1. [Settings](#-1.-Settings-⚙️).
-2. [Classify observations](#-2.-Classify-observations)
-3.[Download the data](#-3.-Download-the-data)
-4.[Create an interactive map](#-4.-Create-an-interactive-map-🗺️)
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -823,7 +824,7 @@ st_write(pivot.all, dsn = file.path(wdir, name_output), delete_dsn = TRUE)
 
 ```
 
-### 5. Creating an interactive map (coming soon...)
+### 5. Creating an interactive map 🗺️ (coming soon...)
 
 To visualize indicators on a map you can use the package tmap. It is
 particularly useful for analyzing geospatial data because it provides an
