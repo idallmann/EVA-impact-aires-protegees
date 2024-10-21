@@ -266,7 +266,7 @@ into one of these four groups:
 In this section, we begin by downloading the PAs polygons from the WDPA
 and reprojecting them to match the projection used earlier. After
 filtering and cleaning the PA polygons, a buffer is created around each
-one.Then, each polygon is assigned to a group (0,1,2,3). In the second
+one.Then, each polygon is assigned to a group (1,2,3,4). In the second
 step, the dataset of PA polygons and their buffers is rasterized, and
 zonal statistics are applied to assign each cell (observation unit) to a
 treatment group.
