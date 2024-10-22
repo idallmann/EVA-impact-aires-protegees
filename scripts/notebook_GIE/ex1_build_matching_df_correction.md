@@ -482,7 +482,9 @@ indicators.
 ➔ Please refer to this
 [page](https://mapme-initiative.github.io/mapme.biodiversity/dev/) for
 detailed information on the Mapme.biodiversity package, which will help
-you complete the following section.
+you complete the following section. On this page you will find
+exhaustive list of all the data available on Mapme, a quick start guide to this 
+library and a description of each function.  
 
 You will be ask to :
 
