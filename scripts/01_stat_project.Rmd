@@ -1941,6 +1941,10 @@ For all PAs in the world.
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
 
+
+
+
+
 #Surface and number of PAs by country
 data_distrib_ctry = data_stat_nodupl %>%
   group_by(iso3, country_en, country_fr) %>%
@@ -3029,6 +3033,12 @@ hist_distrib_reg_top_both_shr <- ggplot(filter(data_distrib_reg, metric %in% c("
 
 hist_distrib_reg_top_both_shr
 ```
+
+
+
+
+
+
 
 ```{r, eval = FALSE}
 #Saving figures
@@ -4956,7 +4966,7 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 
 ### Map of PA 
 
-#### Map of portfolio in Africa
+<!-- #### Map of portfolio in Africa -->
 
 ```{r }
 
@@ -4977,8 +4987,8 @@ data_fapbm =
   bucket = "projet-afd-eva-ap",
   opts = list("region" = ""))
 
-data_fapbm_map=data_fapbm %>% dplyr::select("name","geometry","wdpaid","region","iso3") # for the GIE chapter we are adding FAPBM PAs
-data_map= data_afd %>% dplyr::select("name_pa","geometry","wdpaid","region","iso3")%>% dplyr::rename(name=name_pa)
+data_fapbm_map=data_fapbm %>% dplyr::select("name","geometry","wdpaid","region","iso3","marine") # for the GIE chapter we are adding FAPBM PAs
+data_map= data_afd %>% dplyr::select("name_pa","geometry","wdpaid","region","iso3","marine")%>% dplyr::rename(name=name_pa)
 
 data_map=rbind(data_map,data_fapbm_map)
 # Download marine geography data from Natural Earth
@@ -4998,14 +5008,41 @@ focus_map <- ne_countries(continent = focus, returnclass = "sf")
 
 
 
+```{r}
+ s3write_using(data_map,
+                    sf::st_write,
+                    object = "data_raw/data_map_africa/data_map_africa.gpkg",
+                    bucket = "projet-afd-eva-ap",
+                    opts = list("region" = ""))
+```
 
 
 ```{r , echo=FALSE}
 
 # Plot of protected areas in Africa
 ggplot() +
-  geom_sf(data = focus_map, fill = "white", color = "grey") +  # Fond de carte
-  geom_sf(data = data_map_focus, aes(fill = iso3)) +  # Polygones de zones protégées
+   geom_sf(data = focus_map, fill = "antiquewhite", color = "white") +   # Fond de carte
+  geom_sf(data = data_map_focus, aes(fill = iso3)) + 
+  geom_sf_text(data = focus_map, aes(label = name), size = 2, color = "gray40", check_overlap = TRUE) +  # Noms des pays
+  #geom_sf_text(data = marine, aes(label = name), size = 3, color = "gray", check_overlap = TRUE) +  # Noms des mers
+  theme(panel.grid.major = element_line(color = gray(.5), linetype = "dashed", size = 0.1), panel.background = element_rect(fill = "grey85"),
+        legend.position = c(0.95, 0.13),
+        #legend.position= "none"
+        legend.text = element_text(size = 6), legend.key.size = unit(0.3, 'cm'),legend.title = element_text(size = 7),
+        axis.title = element_blank(), 
+        axis.text = element_blank(),  
+        axis.ticks = element_blank())+
+  coord_sf(xlim = c(-16, 56), ylim = c(-23,33)) +
+  labs(fill="Country")
+
+```
+
+
+```{r}
+# Plot with different colors for Ecosystem type (marine,terrestrial, coastal)
+ggplot() +
+   geom_sf(data = focus_map, fill = "antiquewhite", color = "white") +   # Fond de carte
+  geom_sf(data = data_map_focus, aes(fill = marine)) + 
   geom_sf_text(data = focus_map, aes(label = name), size = 2, color = "gray40", check_overlap = TRUE) +  # Noms des pays
   #geom_sf_text(data = marine, aes(label = name), size = 3, color = "gray", check_overlap = TRUE) +  # Noms des mers
   theme(panel.grid.major = element_line(color = gray(.5), linetype = "dashed", size = 0.1), panel.background = element_rect(fill = "grey85"),
@@ -5029,8 +5066,8 @@ map_west=ggplot() +
   geom_sf(data = focus_map, fill = "antiquewhite", color = "white") +  # Fond de carte
   
   geom_sf(data = data_map_focus, fill = "chartreuse3", color = "darkgreen") +  # Polygones de zones protégées
-  geom_sf_text(data = marine, aes(label = name), size = 3, color = "gray", check_overlap = TRUE) +  # Noms des mers
-  geom_sf_text(data = africa, aes(label = name), size = 3, color = "black", check_overlap = TRUE) +  # Noms des pays
+#  geom_sf_text(data = marine, aes(label = name), size = 3, color = "gray", check_overlap = TRUE) +  # Noms des mers
+  geom_sf_text(data = focus_map, aes(label = name), size = 3, color = "black", check_overlap = TRUE) +  # Noms des pays
   theme(panel.grid.major = element_line(color = gray(.5), linetype = "dashed", size = 0.1), panel.background = element_rect(fill = "aliceblue"))+
   labs(title = "Zones Protégées en Afrique, zoom ouest",
        x = "Longitude",

@@ -225,7 +225,7 @@ eco_colors_en=c("Terrestrial"="#228B22",
 
 eco_colors_fr=c("Terrestre"="#228B22",
                 "Côtier"="#8B6C42",
-                "Marine"="#26C4EC","Non reférencé"="#BBBBBB")
+                "Marin"="#26C4EC","Non reférencé"="#BBBBBB")
 
 order_iucn_en <- c("Not categorized",               
   "Not referenced",  
@@ -1221,29 +1221,30 @@ do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```{r}
 
 roi="Africa"
-
+data_gie=data_map
 
 data_eco = data_gie %>%
   # Subset non-referenced PAs (those with NA ecosystem)
   subset(region == roi) %>%
   mutate(marine = as.factor(marine))
 # Recoding the 'marine' variable into English and French categories, including handling NA values
-data_eco$ecosyst_en = fct_recode(data_eco$marine, 
-                                 "Terrestrial" = "0", 
-                                 "Coastal" = "1", 
-                                 "Marine" = "2") %>%
-  fct_explicit_na(na_level = "Not referenced")
+# data_eco$ecosyst_en = fct_recode(data_eco$marine, 
+#                                  "Terrestrial" = "0", 
+#                                  "Coastal" = "1", 
+#                                  "Marine" = "2") %>%
+#   fct_explicit_na(na_level = "Not referenced")
 
 data_eco$ecosyst_fr = fct_recode(data_eco$marine, 
                                  "Terrestre" = "0", 
                                  "Côtier" = "1", 
                                  "Marin" = "2") %>%
-  fct_explicit_na(na_level = "Non référencée")
+  fct_explicit_na(na_level = "Non référencé")
 
 
 
 data_eco_hist = data_eco %>%
-  group_by(ecosyst_en, ecosyst_fr) %>%
+  st_drop_geometry() %>%
+  group_by(ecosyst_fr,ecosyst_en) %>%
   summarize(n = n(),
             freq = round(n/nrow(data_eco), 2)*100) %>%
   ungroup()
@@ -1260,8 +1261,8 @@ donut_eco_en <- ggplot(data_eco_hist, aes(x = "", y = n, fill = ecosyst_en)) +
        subtitle = paste("Sample :", sum(data_eco_hist$n), "out of", nrow(data_gie), "protected areas"),
        x = "",
        y = "") +
-   scale_fill_manual(name = "Ecosystem",
-                      values = eco_colors_en) +
+   scale_fill_manual(name = "Ecosystème",
+                      values = eco_colors_fr) +
   theme_void() +
   theme(
     plot.title = element_text(size = 14, face = "bold"),
@@ -1273,6 +1274,59 @@ donut_eco_en <- ggplot(data_eco_hist, aes(x = "", y = n, fill = ecosyst_en)) +
 donut_eco_en 
 ```
 
+```{r}
+# French 
+roi="Africa"
+data_gie=data_map
+
+data_eco = data_gie %>%
+  # Subset non-referenced PAs (those with NA ecosystem)
+  subset(region == roi) %>%
+  mutate(marine = as.factor(marine))
+# Recoding the 'marine' variable into English and French categories, including handling NA values
+
+eco_colors_fr=c("Terrestre"="#228B22",
+                "Côtier"="#8B6C42",
+                "Marin"="#26C4EC","Non référencé"="#BBBBBB")
+data_eco$ecosyst_fr = fct_recode(data_eco$marine, 
+                                 "Terrestre" = "0", 
+                                 "Côtier" = "1", 
+                                 "Marin" = "2") %>%
+  fct_explicit_na(na_level = "Non référencé")
+
+
+
+data_eco_hist = data_eco %>%
+  st_drop_geometry() %>%
+  group_by(ecosyst_fr) %>%
+  summarize(n = n(),
+            freq = round(n/nrow(data_eco), 2)*100) %>%
+  ungroup()
+
+
+#donut chart in share (in English)
+donut_eco_fr <- ggplot(data_eco_hist, aes(x = "", y = n, fill = ecosyst_fr)) +
+  geom_bar(width = 1, stat = "identity", color = "white") +
+  geom_label(aes(x = 1.3, label = paste0(freq, "%")), 
+             color = "black", position = position_stack(vjust = 0.55), 
+             size = 4, show.legend = FALSE) +
+  coord_polar("y", start = 0) +
+  labs(title = "Proportion of protected areas by ecosystem type \n(excluding not referenced PAs)",
+       subtitle = paste("Sample :", sum(data_eco_hist$n), "out of", nrow(data_gie), "protected areas"),
+       x = "",
+       y = "") +
+   scale_fill_manual(name = "Ecosystème",
+                      values = eco_colors_fr) +
+  theme_void() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 10),
+    legend.position = "bottom"
+  ) +
+  annotate("text", x = 0, y = 0, label = "AFD", size = 6, fontface = "bold", color = "black") 
+
+donut_eco_fr
+```
 
 
 
@@ -2311,6 +2365,102 @@ for(f in files)
 
 do.call(file.remove, list(list.files(tmp, full.names = TRUE)))
 ```
+
+## Distribution 
+### For GIE chapter 
+The dataset used here gather PA in Africa of data_nofund_nodupl and PAs from the FAPBM 
+
+```{r}
+# In french
+data_fapbm_distrib=data_fapbm %>% dplyr::select("name","wdpaid","region","iso3","marine","area_km2","country_fr","country_en") # for the GIE chapter we are adding FAPBM PAs
+data_afd_distrib= data_afd %>% dplyr::select("name_pa","wdpaid","region","iso3","marine","area_km2","country_fr","country_en")%>% dplyr::rename(name=name_pa)
+
+data_stat_nodupl =st_drop_geometry(rbind(data_fapbm_distrib,data_afd_distrib))
+
+
+#Surface and number of PAs by country
+data_distrib_ctry = data_stat_nodupl %>%
+  filter(marine %in% c(0,1)& region==focus) %>%
+  group_by(iso3, country_en, country_fr) %>%
+  summarize(n = n(),
+            area_km2 = sum(area_km2, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(n_tot = sum(n, na.rm = TRUE),
+         area_tot_km2 = sum(area_km2, na.rm = TRUE),
+         freq_n = round(n/n_tot*100, 2),
+         freq_area = round(area_km2/area_tot_km2*100, 2)) 
+
+#Top targeted countries in terms of number/surface of PAs
+# Top 5 pays en termes de nombre d'AP
+data_distrib_ctry_top_n = data_distrib_ctry %>%
+  arrange(-freq_n) %>%  # Trier par pourcentage d'AP
+  slice(1:5)  # Sélectionner les 5 premiers pays
+
+# Top 5 pays en termes de superficie d'AP
+data_distrib_ctry_top_area = data_distrib_ctry %>%
+  arrange(-freq_area) %>%  # Trier par pourcentage de superficie
+  slice(1:5)  # Sélectionner les 5 premiers pays
+
+colors <- c("Niger" = "#4C8C2E",        # Vert clair
+            "Madagascar" = "#A0522D",  # Marron rougeâtre
+            "Mozambique" = "yellow4",  # Vert moyen
+            "Gabon" = "darkred",       # Marron foncé
+            "Côte d’Ivoire" = "darkgreen", # Vert vif
+            "Kenya" = "navajowhite3")       # Marron doux
+
+	
+
+## Nombre d'aires protégées (AP)
+hist_distrib_ctry_top_n_shr = ggplot(data_distrib_ctry_top_n, 
+                                     aes(x = reorder(country_en, -freq_n), y = freq_n, fill = country_en)) +
+  geom_bar(width = 0.50, stat = "identity") +
+  geom_text(aes(label = paste0(n, " APs")),   # Afficher uniquement le nombre absolu d'AP
+            vjust = 1.5, color = "white", size = 2, fontface="bold") +  
+  scale_fill_manual(values = colors) +  # Appliquer la palette de couleurs
+  labs(title = "Countries most targeted by AFD funded, non-marine protected areas",
+       subtitle = paste("Échantillon :", sum(data_distrib_ctry$n), "aires protégées non-marines couvrant", 
+                        format(sum(data_distrib_ctry$area_km2), digits = 2, scientific = TRUE), "km²"),
+       x = "", y = "Part des aires protégées (%)") +
+  theme(legend.position = "bottom",
+        legend.key = element_rect(fill = "white"),
+        plot.title = element_text(size = 14, face = "bold"), 
+        axis.text.x = element_text(angle = 0, size = 10, hjust = .5, vjust = .6),
+        axis.title.x = element_text(margin = margin(t = 10)),
+        panel.background = element_rect(fill = 'white', colour = 'white', 
+                                        linewidth = 0.5, linetype = 'solid'),
+        panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+        panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+        plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+
+## Superficie des aires protégées
+hist_distrib_ctry_top_area_shr = ggplot(data_distrib_ctry_top_area, 
+                                        aes(x = reorder(country_en, -freq_area), y = freq_area, fill = country_en)) +
+  geom_bar(width = 0.50, stat = "identity") +
+  geom_text(aes(label = paste0(format(area_km2, digits = 2, scientific = TRUE), " km²")),  # Afficher uniquement la superficie absolue en km²
+            vjust = 1.5, color = "white", size = 2, fontface="bold") +  
+  scale_fill_manual(values = colors) +  # Appliquer la même palette de couleurs
+  labs(title = "Countries most targeted by AFD funded, non-marine protected areas (area)",
+       subtitle = paste("Échantillon :", sum(data_distrib_ctry$n), "aires protégées non-marines couvrant", 
+                        format(sum(data_distrib_ctry$area_km2), digits = 2, scientific = TRUE), "km²"),
+       x = "", y = "Part de la superficie financée (%)") +
+  theme(legend.position = "bottom",
+        legend.key = element_rect(fill = "white"),
+        plot.title = element_text(size = 14, face = "bold"), 
+        axis.text.x = element_text(angle = 0, size = 10, hjust = .5, vjust = .6),
+        axis.title.x = element_text(margin = margin(t = 10)),
+        panel.background = element_rect(fill = 'white', colour = 'white', 
+                                        linewidth = 0.5, linetype = 'solid'),
+        panel.grid.major = element_line(colour = 'grey90', linetype = 'solid'),
+        panel.grid.minor = element_line(colour = 'grey90', linetype = 'solid'),
+        plot.caption = element_text(color = 'grey50', size = 8.5, face = 'plain'))
+
+# Afficher les graphiques
+hist_distrib_ctry_top_n_shr
+hist_distrib_ctry_top_area_shr
+
+
+```
+
 
 
 ## Number of PAs accross time 

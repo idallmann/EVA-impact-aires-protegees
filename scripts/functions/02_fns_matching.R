@@ -3280,14 +3280,14 @@ fn_post_plot_trend = function(matched.long, unmatched.long, mf, data_pa, iso, wd
 ##DATA SAVED
 ### Country grid with matched control and treated, for a given protected area (PA) or all protected areas in a country
 
-iso = i
-wdpaid = j
-is_pa = TRUE
-df_pix_matched = df_pix_matched_j
-path_tmp = tmp_post
-log = log
-load_dir = load_dir
-save_dir = save_dir
+# iso = i
+# wdpaid = j
+# is_pa = TRUE
+# df_pix_matched = df_pix_matched_j
+# path_tmp = tmp_post
+# log = log
+# load_dir = load_dir
+# save_dir = save_dir
 
 
 
