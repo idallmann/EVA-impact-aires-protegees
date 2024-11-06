@@ -125,7 +125,7 @@ name_output = "mf_SLV_500ha.gpkg"
 
 ```
 
-: 1.2 The next step is to decide the parameters of your analysis, in the
+: 1.2 The next step is to decide the parameters of your analysis. In the
 next cell please enter:
 
 ```         

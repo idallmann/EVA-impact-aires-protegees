@@ -1126,12 +1126,12 @@ fn_post_fl_fc_pre_treat = function(mf, colname.flAvg, log)
 # is_k2k = is_k2k
 # k2k_method = k2k_method
 # th_mean = th_mean
-# th_var_min = th_var_min 
+# th_var_min = th_var_min
 # th_var_max = th_var_max
 # colname.travelTime = colname.travelTime
 # colname.clayContent = colname.clayContent
 # colname.elevation = colname.elevation
-# colname.tri = colname.tri 
+# colname.tri = colname.tri
 # colname.fcAvg = colname.fcAvg
 # colname.flAvg = colname.flAvg
 # #colname.biome = colname.biome,
@@ -1178,7 +1178,22 @@ fn_post_match_auto = function(mf,
         #                              + .(as.name(colname.elevation))
         #                              + .(as.name(colname.biome))))
         
-      
+        
+        custom_avgCover_pre_treat <- c(0, 30, 60, 80,  101)
+        custom_avgLoss_pre_treat <- c(-16, -12 ,-8,-4,0)
+        custom_travelTime <- c(0, 25,50, 75,100, 150, 200, 250, 300, 400, 500, 1000, 1500)
+        custom_clay <- c(20,27,31,35,39,43,49)
+        custom_tri <-c( 0,5,10, 20)
+        custom_elevation<-c(0,250,500,750,1000,1250,1500)
+        custom_cutpoints <- list(
+          "minutes_mean_5k_110mio" = custom_travelTime,   
+          "clay_0_5cm_mean" =  custom_clay,                  
+          "avgCover_pre_treat" = custom_avgCover_pre_treat,              
+          "avgLoss_pre_treat" = custom_avgLoss_pre_treat ,                
+          "tri_mean" = custom_tri,                        
+          "elevation_mean" = custom_elevation                    
+        )
+        
         formula = eval(bquote(group ~ .(as.name(colname.travelTime))
                               + .(as.name(colname.clayContent))
                               + .(as.name(colname.fcAvg))
@@ -1191,7 +1206,8 @@ fn_post_match_auto = function(mf,
           formula,
           data = mf,
           method = match_method,  
-          cutpoints=cutoff_method,
+          cutpoints = custom_cutpoints,
+          #cutpoints=cutoff_method,
           k2k = is_k2k,
           k2k.method = k2k_method
         )
@@ -1262,6 +1278,100 @@ fn_post_match_auto = function(mf,
   
 }
 
+
+fn_post_match_pscore = function(mf,
+                                iso,
+                                dummy_int,
+                                match_method = "nearest", # Méthode de matching par score de propension par défaut
+                                is_k2k = FALSE,
+                                k2k_method = "optimal",
+                                th_mean, 
+                                th_var_min, th_var_max,
+                                colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcAvg, colname.flAvg, 
+                                log)
+{
+  
+  # Append the log file: début du processus
+  cat("# Calcul du score de propension et matching \n", file = log, append = TRUE)
+  mf$group_binaire <- ifelse(mf$group == 3, 1, ifelse(mf$group == 2, 0, NA))
+  # Construction de la formule pour le calcul du score de propension
+  formula_pscore = as.formula(
+    paste("group_binaire ~", 
+          paste(c(colname.travelTime, colname.clayContent, colname.fcAvg, 
+                  colname.flAvg, colname.tri, colname.elevation), collapse = " + "))
+  )
+  
+  # Calcul du score de propension via régression logistique
+  model_pscore <- glm(formula_pscore, data = mf, family = "binomial")
+  mf$propensity_score <- predict(model_pscore, type = "response")
+  
+  # Réalisation du matching sur score de propension
+  output = 
+    tryCatch(
+      {
+        out.psm = matchit(
+          formula_pscore,
+          data = mf,
+          method = "optimal", # Méthode de matching spécifiée par l'utilisateur (nearest, optimal, etc.)
+          distance = mf$propensity_score,
+          caliper=0.5# Utilisation du score de propension calculé
+        )
+        
+        # Vérification de l'équilibre des covariables après matching
+        df.cov.m = summary(out.psm, interactions = dummy_int)$sum.matched %>%
+          as.data.frame() %>%
+          clean_names() %>%
+          mutate(th_var_min = th_var_min,
+                 th_var_max = th_var_max,
+                 th_mean = th_mean,
+                 is_var_ok = var_ratio < th_var_max & var_ratio > th_var_min,
+                 is_mean_ok = abs(std_mean_diff) < th_mean,
+                 is_bal_ok = as.logical(is_var_ok * is_mean_ok), 
+                 .after = "var_ratio")
+        
+        # Création d'un tableau récapitulatif pour la qualité du matching
+        df_info = mf %>%
+          st_drop_geometry() %>%
+          filter(group == 3) %>%
+          slice(1)
+        
+        covariate = row.names(df.cov.m)
+        tbl.quality = cbind(covariate, as.data.frame(df.cov.m)) %>%
+          mutate(region = df_info$region,
+                 sub_region = df_info$sub_region,
+                 iso3 = iso,
+                 country_en = df_info$country_en,
+                 wdpaid = df_info$wdpaid,
+                 .before = "covariate")
+        
+        row.names(tbl.quality) = NULL
+        
+        # Alerte si les tests d'équilibre ne sont pas satisfaits
+        if(sum(df.cov.m$is_bal_ok) < nrow(df.cov.m) | is.na(sum(df.cov.m$is_bal_ok)) == TRUE)
+        {
+          message("Les unités de contrôle et de traitement ne sont pas assez équilibrées. Augmentez la taille de l'échantillon ou vérifiez l'équilibre.")
+          cat("-> Attention : les unités appariées ne sont pas suffisamment équilibrées.\n", 
+              file = log, append = TRUE)
+        }
+        
+        # Confirmation dans le log
+        cat("-> OK\n", file = log, append = TRUE)
+        
+        return(list("out.psm" = out.psm, "df.cov.m" = df.cov.m, "tbl.quality" = tbl.quality, "is_ok" = TRUE))
+        
+      },
+      
+      error=function(e)
+      {
+        print(e)
+        cat(paste("-> Erreur :\n", e, "\n"), file = log, append = TRUE)
+        return(list("is_ok" = FALSE))
+      }
+      
+    )
+  
+  return(output)
+}
 
 
 #Plot covariates balance (plots and summary table)
