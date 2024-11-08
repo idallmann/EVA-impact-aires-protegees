@@ -1179,6 +1179,132 @@ fn_post_match_auto = function(mf,
         #                              + .(as.name(colname.biome))))
         
         
+        formula = eval(bquote(group ~ .(as.name(colname.travelTime))
+                              + .(as.name(colname.clayContent))
+                              + .(as.name(colname.fcAvg))
+                              + .(as.name(colname.flAvg))
+                              + .(as.name(colname.tri))
+                              + .(as.name(colname.elevation))))
+        
+        
+        out.cem = matchit(
+          formula,
+          data = mf,
+          method = match_method,  
+          cutpoints=cutoff_method,
+          k2k = is_k2k,
+          k2k.method = k2k_method
+        )
+        
+        # Then the performance of the matching is assessed, based on https://cran.r-project.org/web/packages/MatchIt/vignettes/assessing-balance.html
+        ## Covariate balance : standardized mean difference and variance ratio
+        ## For both tests and the joint one, a dummy variable is defined, with value TRUE is the test is passed
+        df.cov.m = summary(out.cem, interactions = dummy_int)$sum.matched %>%
+          as.data.frame() %>%
+          clean_names() %>%
+          mutate(th_var_min = th_var_min,
+                 th_var_max = th_var_max,
+                 th_mean = th_mean,
+                 is_var_ok = var_ratio < th_var_max & var_ratio > th_var_min, #Check variance ratio between treated and controls
+                 is_mean_ok = abs(std_mean_diff) < th_mean, #Check absolute standardized mean difference
+                 is_bal_ok = as.logical(is_var_ok*is_mean_ok), #Binary : TRUE if both variance and mean difference check pass, 0 if at least one does not
+                 .after = "var_ratio")
+        
+        # Build a table to report match quality
+        ## Get relevant info on the PA
+        ### Country name and iso
+        df_info = mf %>%
+          st_drop_geometry() %>%
+          filter(group == 3) %>%
+          slice(1)
+        region = df_info$region
+        sub_region = df_info$sub_region
+        country_en = df_info$country_en
+        wdpaid = df_info$wdpaid
+        ## Build the table from previous matchit.summary
+        covariate = row.names(df.cov.m)
+        tbl.quality = cbind(covariate, as.data.frame(df.cov.m)) %>%
+          mutate(region = region,
+                 sub_region = sub_region,
+                 iso3 = iso,
+                 country_en = country_en,
+                 wdpaid = wdpaid,
+                 .before = "covariate")
+        row.names(tbl.quality) = NULL
+        
+        #Add a warning if covariate balance tests are not passed
+        if(sum(df.cov.m$is_bal_ok) < nrow(df.cov.m) | is.na(sum(df.cov.m$is_bal_ok)) == TRUE)
+        {
+          message("Matched control and treated units are not balanced enough. Increase sample size, turn to less restrictive tests or visually check balance.")
+          cat("-> Careful : matched control and treated units are not balanced enough. Increase sample size, turn to less restrictive tests or visually check balance.\n", 
+              file = log, append = TRUE)
+        }
+        
+        #Append the log : note the step has already been appended at the beginning of the function
+        cat("-> OK\n", file = log, append = TRUE)
+        
+        return(list("out.cem" = out.cem, "df.cov.m" = df.cov.m, "tbl.quality" = tbl.quality, "is_ok" = TRUE))
+        
+      },
+      
+      error=function(e)
+      {
+        print(e)
+        cat(paste("-> Error :\n", e, "\n"), file = log, append = TRUE)
+        return(list("is_ok" = FALSE))
+      }
+      
+      
+      
+    )
+  
+  return(output)
+  
+}
+
+
+fn_post_match_manu = function(mf,
+                              iso,
+                              dummy_int,
+                              match_method,
+                              cutoff_method,
+                              is_k2k,
+                              k2k_method,
+                              th_mean, 
+                              th_var_min, th_var_max,
+                              colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcAvg, colname.flAvg, 
+                              #colname.biome,
+                              log)
+{
+  
+  #Append the log file : CEM step
+  cat("#Run Coarsened Exact Matching\n", 
+      file = log, append = TRUE)
+  
+  ## Matching handling errors due to absence of matching
+  output = 
+    tryCatch(
+      {
+        # Formula
+        ## Two cases : if only one value of biome across control and treated units considered for the matching, then we do not consider biome (de facto, matched units will have the same biome). If we have at least two biomes, then we need to take it into account in the formula.
+        ## Note that no grouping is needed for the categorical variable "biomes" : according to the documentation "Note that if a categorical variable does not appear in grouping, it will not be coarsened, so exact matching will take place on it". 
+        # if(length(unique(mf$biomes)) == 1) 
+        # {
+        #   formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
+        #                         + .(as.name(colname.clayContent))  
+        #                         +  .(as.name(colname.fcAvg)) 
+        #                         + .(as.name(colname.flAvg))
+        #                         + .(as.name(colname.tri))
+        #                         + .(as.name(colname.elevation))))
+        # } else formula = eval(bquote(group ~ .(as.name(colname.travelTime)) 
+        #                              + .(as.name(colname.clayContent))  
+        #                              +  .(as.name(colname.fcAvg)) 
+        #                              + .(as.name(colname.flAvg))
+        #                              + .(as.name(colname.tri))
+        #                              + .(as.name(colname.elevation))
+        #                              + .(as.name(colname.biome))))
+        
+        
         custom_avgCover_pre_treat <- c(0, 30, 60, 80,  101)
         custom_avgLoss_pre_treat <- c(-16, -12 ,-8,-4,0)
         custom_travelTime <- c(0, 25,50, 75,100, 150, 200, 250, 300, 400, 500, 1000, 1500)
@@ -1282,7 +1408,7 @@ fn_post_match_auto = function(mf,
 fn_post_match_pscore = function(mf,
                                 iso,
                                 dummy_int,
-                                match_method = "nearest", # Méthode de matching par score de propension par défaut
+                                match_method = "nearest", 
                                 is_k2k = FALSE,
                                 k2k_method = "optimal",
                                 th_mean, 
@@ -1293,30 +1419,42 @@ fn_post_match_pscore = function(mf,
   
   # Append the log file: début du processus
   cat("# Calcul du score de propension et matching \n", file = log, append = TRUE)
-  mf$group_binaire <- ifelse(mf$group == 3, 1, ifelse(mf$group == 2, 0, NA))
+
+  
+  mf$treated <- ifelse(mf$group == 3, 1, ifelse(mf$group == 2, 0, NA))
+  
+  variables=c(colname.travelTime, colname.clayContent, colname.fcAvg, 
+              colname.flAvg, colname.tri, colname.elevation)
   # Construction de la formule pour le calcul du score de propension
-  formula_pscore = as.formula(
-    paste("group_binaire ~", 
-          paste(c(colname.travelTime, colname.clayContent, colname.fcAvg, 
-                  colname.flAvg, colname.tri, colname.elevation), collapse = " + "))
+  formula = as.formula(
+    paste("treated ~", 
+          paste(variables, collapse = " + "))
   )
   
-  # Calcul du score de propension via régression logistique
-  model_pscore <- glm(formula_pscore, data = mf, family = "binomial")
-  mf$propensity_score <- predict(model_pscore, type = "response")
+  cal <- rep(1, length(variables)) 
+  names(cal) <- variables
+  
+  cal_2 <- c(1,1,0.5,1,1,1) 
+  names(cal_2) <- variables
+  
+  
+  
   
   # Réalisation du matching sur score de propension
   output = 
     tryCatch(
       {
         out.psm = matchit(
-          formula_pscore,
+          formula,
           data = mf,
-          method = "optimal", # Méthode de matching spécifiée par l'utilisateur (nearest, optimal, etc.)
-          distance = mf$propensity_score,
-          caliper=0.5# Utilisation du score de propension calculé
+          method = "nearest", 
+          distance = "glm",
+          replace=FALSE,
+          caliper=1# Utilisation du score de propension calculé
         )
+    
         
+      
         # Vérification de l'équilibre des covariables après matching
         df.cov.m = summary(out.psm, interactions = dummy_int)$sum.matched %>%
           as.data.frame() %>%
@@ -1357,7 +1495,220 @@ fn_post_match_pscore = function(mf,
         # Confirmation dans le log
         cat("-> OK\n", file = log, append = TRUE)
         
-        return(list("out.psm" = out.psm, "df.cov.m" = df.cov.m, "tbl.quality" = tbl.quality, "is_ok" = TRUE))
+        return(list("out.cem" = out.psm, "df.cov.m" = df.cov.m, "tbl.quality" = tbl.quality, "is_ok" = TRUE))
+        
+      },
+    
+      error=function(e)
+      {
+        print(e)
+        cat(paste("-> Erreur :\n", e, "\n"), file = log, append = TRUE)
+        return(list("is_ok" = FALSE))
+      }
+      
+    )
+  
+  return(output)
+}
+
+fn_post_match_nearest_maha = function(mf,
+                                iso,
+                                dummy_int,
+                                match_method = "nearest", # Méthode de matching par score de propension par défaut
+                                is_k2k = FALSE,
+                                k2k_method = "optimal",
+                                th_mean, 
+                                th_var_min, th_var_max,
+                                colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcAvg, colname.flAvg, 
+                                log)
+{
+  
+  
+  mf$treated <- ifelse(mf$group == 3, 1, ifelse(mf$group == 2, 0, NA))
+  
+  variables=c(colname.travelTime, colname.clayContent, colname.fcAvg, 
+              colname.flAvg, colname.tri, colname.elevation)
+  # Construction de la formule pour le calcul du score de propension
+  formula = as.formula(
+    paste("treated ~", 
+          paste(variables, collapse = " + "))
+  )
+ 
+  cal <- rep(1, length(variables)) 
+  names(cal) <- variables
+ 
+  cal_2 <- c(1,1,0.5,1,1,1) 
+  names(cal_2) <- variables
+
+  # Réalisation du matching sur score de propension
+  output = 
+    tryCatch(
+      {
+        out.maha = matchit(
+          formula,
+          data = mf,
+          method = "nearest", 
+          distance = "mahalanobis",
+          replace=FALSE,
+          caliper=cal_2
+        )
+        
+        # out.psm = matchit(
+        #   formula_pscore,
+        #   data = mf,
+        #   method = "nearest", # Méthode de matching spécifiée par l'utilisateur (nearest, optimal, etc.)
+        #   distance = "glm",
+        #   caliper=0.5# Utilisation du score de propension calculé
+        # )
+        
+        # Vérification de l'équilibre des covariables après matching
+        df.cov.m = summary(out.maha, interactions = dummy_int)$sum.matched %>%
+          as.data.frame() %>%
+          clean_names() %>%
+          mutate(th_var_min = th_var_min,
+                 th_var_max = th_var_max,
+                 th_mean = th_mean,
+                 is_var_ok = var_ratio < th_var_max & var_ratio > th_var_min,
+                 is_mean_ok = abs(std_mean_diff) < th_mean,
+                 is_bal_ok = as.logical(is_var_ok * is_mean_ok), 
+                 .after = "var_ratio")
+        
+        # Création d'un tableau récapitulatif pour la qualité du matching
+        df_info = mf %>%
+          st_drop_geometry() %>%
+          filter(group == 3) %>%
+          slice(1)
+        
+        covariate = row.names(df.cov.m)
+        tbl.quality = cbind(covariate, as.data.frame(df.cov.m)) %>%
+          mutate(region = df_info$region,
+                 sub_region = df_info$sub_region,
+                 iso3 = iso,
+                 country_en = df_info$country_en,
+                 wdpaid = df_info$wdpaid,
+                 .before = "covariate")
+        
+        row.names(tbl.quality) = NULL
+        
+        # Alerte si les tests d'équilibre ne sont pas satisfaits
+        if(sum(df.cov.m$is_bal_ok) < nrow(df.cov.m) | is.na(sum(df.cov.m$is_bal_ok)) == TRUE)
+        {
+          message("Les unités de contrôle et de traitement ne sont pas assez équilibrées. Augmentez la taille de l'échantillon ou vérifiez l'équilibre.")
+          cat("-> Attention : les unités appariées ne sont pas suffisamment équilibrées.\n", 
+              file = log, append = TRUE)
+        }
+        
+        # Confirmation dans le log
+        cat("-> OK\n", file = log, append = TRUE)
+        
+        return(list("out.cem" = out.maha, "df.cov.m" = df.cov.m, "tbl.quality" = tbl.quality, "is_ok" = TRUE))
+        
+      },
+      
+      error=function(e)
+      {
+        print(e)
+        cat(paste("-> Erreur :\n", e, "\n"), file = log, append = TRUE)
+        return(list("is_ok" = FALSE))
+      }
+      
+    )
+  
+  return(output)
+}
+
+
+fn_post_match_nearest_maha_replace = function(mf,
+                                      iso,
+                                      dummy_int,
+                                      match_method = "nearest", # Méthode de matching par score de propension par défaut
+                                      is_k2k = FALSE,
+                                      k2k_method = "optimal",
+                                      th_mean, 
+                                      th_var_min, th_var_max,
+                                      colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcAvg, colname.flAvg, 
+                                      log)
+{
+  
+  
+  mf$treated <- ifelse(mf$group == 3, 1, ifelse(mf$group == 2, 0, NA))
+  
+  variables=c(colname.travelTime, colname.clayContent, colname.fcAvg, 
+              colname.flAvg, colname.tri, colname.elevation)
+  # Construction de la formule pour le calcul du score de propension
+  formula = as.formula(
+    paste("treated ~", 
+          paste(variables, collapse = " + "))
+  )
+  
+  cal <- rep(1, length(variables)) 
+  names(cal) <- variables
+  
+  cal_2 <- c(1,1,0.5,1,1,1) 
+  names(cal_2) <- variables
+  
+  # Réalisation du matching sur score de propension
+  output = 
+    tryCatch(
+      {
+        out.maha.replace = matchit(
+          formula,
+          data = mf,
+          method = "nearest", 
+          distance = "mahalanobis",
+          replace=TRUE,
+          caliper=cal_2
+        )
+        
+        # out.psm = matchit(
+        #   formula_pscore,
+        #   data = mf,
+        #   method = "nearest", # Méthode de matching spécifiée par l'utilisateur (nearest, optimal, etc.)
+        #   distance = "glm",
+        #   caliper=0.5# Utilisation du score de propension calculé
+        # )
+        
+        # Vérification de l'équilibre des covariables après matching
+        df.cov.m = summary(out.maha.replace, interactions = dummy_int)$sum.matched %>%
+          as.data.frame() %>%
+          clean_names() %>%
+          mutate(th_var_min = th_var_min,
+                 th_var_max = th_var_max,
+                 th_mean = th_mean,
+                 is_var_ok = var_ratio < th_var_max & var_ratio > th_var_min,
+                 is_mean_ok = abs(std_mean_diff) < th_mean,
+                 is_bal_ok = as.logical(is_var_ok * is_mean_ok), 
+                 .after = "var_ratio")
+        
+        # Création d'un tableau récapitulatif pour la qualité du matching
+        df_info = mf %>%
+          st_drop_geometry() %>%
+          filter(group == 3) %>%
+          slice(1)
+        
+        covariate = row.names(df.cov.m)
+        tbl.quality = cbind(covariate, as.data.frame(df.cov.m)) %>%
+          mutate(region = df_info$region,
+                 sub_region = df_info$sub_region,
+                 iso3 = iso,
+                 country_en = df_info$country_en,
+                 wdpaid = df_info$wdpaid,
+                 .before = "covariate")
+        
+        row.names(tbl.quality) = NULL
+        
+        # Alerte si les tests d'équilibre ne sont pas satisfaits
+        if(sum(df.cov.m$is_bal_ok) < nrow(df.cov.m) | is.na(sum(df.cov.m$is_bal_ok)) == TRUE)
+        {
+          message("Les unités de contrôle et de traitement ne sont pas assez équilibrées. Augmentez la taille de l'échantillon ou vérifiez l'équilibre.")
+          cat("-> Attention : les unités appariées ne sont pas suffisamment équilibrées.\n", 
+              file = log, append = TRUE)
+        }
+        
+        # Confirmation dans le log
+        cat("-> OK\n", file = log, append = TRUE)
+        
+        return(list("out.cem" = out.maha.replace, "df.cov.m" = df.cov.m, "tbl.quality" = tbl.quality, "is_ok" = TRUE))
         
       },
       
@@ -1391,6 +1742,28 @@ fn_post_match_pscore = function(mf,
 ### A table with number of treated and control units, before and after matching
 ### A table with statistics on matched control and treated units 
 ### A table with statistics on unmatched control and treated units,
+
+
+out.cem = out_cem_j
+tbl.quality = tbl.quality.ct.j
+mf = mf_j
+colname.travelTime = colname.travelTime 
+colname.clayContent = colname.clayContent
+colname.fcAvg = colname.fcAvg
+colname.flAvg = colname.flAvg
+colname.tri = colname.tri
+colname.elevation = colname.elevation
+# colname.biome = colname.biome,
+th_mean = th_mean
+iso = i
+path_tmp = tmp_post
+wdpaid = j
+log = log
+save_dir = save_dir
+
+
+
+
 
 fn_post_covbal = function(out.cem, tbl.quality, mf, 
                           colname.travelTime, colname.clayContent, colname.fcAvg, colname.flAvg, colname.tri, colname.elevation,
@@ -2265,7 +2638,7 @@ fn_post_plot_hist = function(out.cem, mf,
 ### is_ok : a boolean indicating whether or not an error occured inside the function
 ## DATA SAVED
 ### (un)matched.wide/long dataframes. They contain covariates and outcomes for treatment and control units, before and after matching, in a wide or long format
-
+out.cem=out
 fn_post_panel = function(out.cem, mf, wdpaid, iso, log, save_dir)
 {
   

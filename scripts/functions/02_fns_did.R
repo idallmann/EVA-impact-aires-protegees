@@ -938,7 +938,27 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
                                yes = fc_attgt$Wpval[1],
                                no = NA)
       
+    #Computation of the global ATT with FEOLS 
+      
+      # Create a binary variable for treatment
+      df_did$treatment <- ifelse(df_did$treatment_year > 0 & df_did$year >= df_did$treatment_year, 1, 0)
+      
+      # Specify the model with the binary treatment variable
+      formula_feols <- fc_ha ~ treatment | assetid + year
+      
+      # Fit the model with feols
+      out.feols <- feols(formula_feols, data = df_did, cluster = ~assetid)
+      
+      # Model summary
+      summary(out.feols)
+      
+      # Create a LaTeX table directly from the model summary
+      feols_summary=modelsummary(out.feols, output = "latex", title = "Model Summary")
+      
       ##For change in forest cover loss rate (percentage points)
+      
+      
+      
       ### treatment effect computation
       fl_attgt = did::att_gt(yname = "FL_2000_cum",
                              gname = "treatment_year",
@@ -1228,10 +1248,14 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
           panel.grid.minor.y = element_line(color = 'grey80', linewidth = 0.2, linetype = 2)
         )
       
-      
-      
+     
       ##Saving plots
       tmp = paste(tempdir(), "fig", sep = "/")
+      
+      # Save the LaTeX table as a .tex file in the temp directory
+      latex_table <- as.character(modelsummary(out.feols, output = "latex"))
+      tex_file_path <- paste(tmp, paste0("summary_feols_", iso, "_", wdpaid, ".tex"), sep = "/")
+      writeLines(latex_table, tex_file_path)
       
       ggsave(ifelse(is_m == TRUE,
                     yes = paste(tmp, paste0("fig_att_pix_", iso, "_", wdpaid, "_m", ".png"), sep = "/"),
@@ -1251,6 +1275,11 @@ fn_did_att_general = function(iso, wdpaid, data_pa, alpha, is_m, load_dir, save_
              plot = fig_att_per,
              device = "png",
              height = 6, width = 9)
+      ggsave(paste(tmp, paste0("fig_fl_att_", iso, "_", wdpaid, ".png"), sep = "/"),
+             plot = fig_fl_att,
+             device = "png",
+             height = 6, width = 9)
+      
       ggsave(paste(tmp, paste0("fig_fl_att_", iso, "_", wdpaid, ".png"), sep = "/"),
              plot = fig_fl_att,
              device = "png",

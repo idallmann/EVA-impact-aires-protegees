@@ -41,7 +41,7 @@ Downloading and importing relevant packages.
 
 ```{r, eval = FALSE}
 #Install some libraries
-install.packages(c("tictoc", "fixest", "cobalt", "future", "progressr", "did", "latex2exp", "janitor", "stringi","ggrepel"))
+install.packages(c("tictoc", "fixest", "cobalt", "future", "progressr", "did", "latex2exp", "janitor", "stringi","ggrepel","modelsummary"))
 
 # Load Libraries
 library(dplyr)
@@ -58,6 +58,7 @@ library(fixest) #For estimating the models
 library(did)
 library(latex2exp)
 library(janitor)
+library(modelsummary) # to create latex table from summary 
 ```
 
 To keep this document concise, each step calls a function defined in a R script. Interested reader can delve deeper into the data processing by looking at this script. The following chunk load the functions in the workspace.
@@ -77,7 +78,7 @@ tmp_did = paste(tempdir(), "did", sep = "/")
 #load_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/")
 load_dir = paste("impact_analysis/matching", "2024-10-10", sep = "/")
 #save_dir = paste("impact_analysis/did", Sys.Date(), sep = "/")
-save_dir = paste("impact_analysis/did", "2024-10-10", sep = "/")
+save_dir = paste("impact_analysis/did", "CEM_manu", sep = "/")
 
 ## Dataset specific to the PAs portfolio to analyze. Only one is selected depending on the analysis one wants to perform. 
 

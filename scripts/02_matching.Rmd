@@ -111,7 +111,7 @@ Load the R functions called in the data processing
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
 #Import functions
-source("scripts/functions/02_fns_matching.R")      
+source("scripts/functions/02_fns_matching_GIE_makira.R")      
 ```
 
 ## Datasets and critical parameters
@@ -119,13 +119,14 @@ source("scripts/functions/02_fns_matching.R")
 ```{r, eval = FALSE}
 # Define working directories
 ## Define the path to a temporary, working directory processing steps.
+
 tmp_pre = paste(tempdir(), "matching_pre", sep = "/")
 tmp_post = paste(tempdir(), "matching_post", sep = "/")
 ## Define a directory where outputs are loaded from/stored in SSPCloud.
 save_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/") #Today's date
 load_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/")
- save_dir = paste("impact_analysis/matching", "Score_propension", sep = "/") #A specific date
- load_dir = paste("impact_analysis/matching", "2024-08-13", sep = "/")
+save_dir = paste("impact_analysis/matching", "nearest_maha_replace", sep = "/") #A specific date
+ load_dir = paste("impact_analysis/matching", "2024-08-13", sep = "/")# date où la bdd de matching de Makira a été créée
 
 # Load datasets
 ## WDPA database : just has to be done once to download last version of the WDPA database  
@@ -343,9 +344,9 @@ for (i in list_iso)
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
 
 
- i="MDG"
-j="352249"
-#  
+# i="MDG"
+# j="352249"
+
   
            
 #For each country in the list, the different steps of the post-processing are performed, and duration of the processing computed
@@ -424,19 +425,33 @@ for (i in list_iso)
     
     #Run Coarsened Exact Matching
     print("--Run CEM")
-    output_cem = fn_post_match_auto(mf = mf_j, iso = i, 
+    # output_cem = fn_post_match_auto(mf = mf_j, iso = i, 
+    #                                dummy_int = FALSE,
+    #                                match_method = match_method,
+    #                                cutoff_method = cutoff_method,
+    #                                is_k2k = is_k2k,
+    #                                k2k_method = k2k_method,
+    #                                  th_mean = th_mean, 
+    #                                  th_var_min = th_var_min, th_var_max = th_var_max,
+    #                                colname.travelTime = colname.travelTime, 
+    #                                colname.clayContent = colname.clayContent, 
+    #                                colname.elevation = colname.elevation,
+    #                                colname.tri = colname.tri, 
+    #                                colname.fcAvg = colname.fcAvg, 
+    #                                colname.flAvg = colname.flAvg,
+    #                                #colname.biome = colname.biome,
+    #                                log = log)
+    output_cem = fn_post_match_nearest_maha_replace(mf = mf_j, iso = i,
                                    dummy_int = FALSE,
-                                   match_method = match_method,
-                                   cutoff_method = cutoff_method,
                                    is_k2k = is_k2k,
                                    k2k_method = k2k_method,
-                                     th_mean = th_mean, 
+                                     th_mean = th_mean,
                                      th_var_min = th_var_min, th_var_max = th_var_max,
-                                   colname.travelTime = colname.travelTime, 
-                                   colname.clayContent = colname.clayContent, 
+                                   colname.travelTime = colname.travelTime,
+                                   colname.clayContent = colname.clayContent,
                                    colname.elevation = colname.elevation,
-                                   colname.tri = colname.tri, 
-                                   colname.fcAvg = colname.fcAvg, 
+                                   colname.tri = colname.tri,
+                                   colname.fcAvg = colname.fcAvg,
                                    colname.flAvg = colname.flAvg,
                                    #colname.biome = colname.biome,
                                    log = log)
