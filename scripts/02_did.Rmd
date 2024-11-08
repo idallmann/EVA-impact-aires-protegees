@@ -1,6 +1,7 @@
 # Difference-in-difference
 
-In this script are performed the last steps of the analysis. Using the datasets of matched treated and control units, it is possible to compute the effect of the conservation for each protected area. Then these results can be aggregated at country and region level. Some secondary metrics are also computed : the annual deforestation rates faced by treated and control units, before and after treatment (à la Wolf et al. 2021); the total and average forest loss across groups of protected areas on the period considered, compared to the value in control units, before and after matching.
+In this script are performed the last steps of the analysis. Using the datasets of matched treated and control units, it is possible to compute the effect of the conservation for each protected area. Then these results can be aggregated at country and region level. 
+Some secondary metrics are also computed : the annual deforestation rates faced by treated and control units, before and after treatment (à la Wolf et al. 2021); the total and average forest loss across groups of protected areas on the period considered, compared to the value in control units, before and after matching.
 
 The process consists of the following steps.
 
@@ -16,7 +17,7 @@ The process consists of the following steps.
 
     4.  Plot the total area deforested on the period considered, in the protected area and its counterfactual, before and after matching. This is useful to illustrate the bias described above. Note that ideally the deforestation estimated in the protected area before and after matching should be the same. If note, the matched treated units are not representative of the overall protected area and the a local treatment effect will be estimated.
 
-    5.  The treatment effects, pre-tests, annual deforestation rates and estimations of total deforested area computed for each protected areas are gathered in specific datasets. This makes it possible to compute metrics aggregated at country and region level. These datastes are saved to the storage, for each country and for all countries.
+    5.  The treatment effects, pre-tests, annual deforestation rates and estimations of total deforested area computed for each protected areas are gathered in specific datasets. This makes it possible to compute metrics aggregated at country and region level. These datasets are saved to the storage, for each country and for all countries.
 
 3.  Assess the quality of matching (for matched control and treated pixels, for matched and unmatched treated pixels) pre-test for all PA. Define non-academic and academic filtering to remove results of some PA potentially.
 
@@ -40,7 +41,7 @@ Downloading and importing relevant packages.
 
 ```{r, eval = FALSE}
 #Install some libraries
-install.packages(c("tictoc", "fixest", "cobalt", "future", "progressr", "did", "latex2exp", "janitor", "stringi"))
+install.packages(c("tictoc", "fixest", "cobalt", "future", "progressr", "did", "latex2exp", "janitor", "stringi","ggrepel","modelsummary"))
 
 # Load Libraries
 library(dplyr)
@@ -51,12 +52,13 @@ library(tidyr)
 library(stringr)
 library(ggplot2) # For plotting
 library(RColorBrewer)
-library(ggrepel)
+library("ggrepel")
 library(aws.s3)
 library(fixest) #For estimating the models
 library(did)
 library(latex2exp)
 library(janitor)
+library(modelsummary) # to create latex table from summary 
 ```
 
 To keep this document concise, each step calls a function defined in a R script. Interested reader can delve deeper into the data processing by looking at this script. The following chunk load the functions in the workspace.
@@ -72,11 +74,11 @@ source("scripts/functions/02_fns_did.R")
 #Define working directories
 ##Temporary directory
 tmp_did = paste(tempdir(), "did", sep = "/")
-##Loading and saving directories on the storage. This is either define on today's date, or by a user-defined date. Loadin directory corresponds to the output of 02_matching.Rmd.
+##Loading and saving directories on the storage. This is either define on today's date, or by a user-defined date. Loading directory corresponds to the output of 02_matching.Rmd.
 #load_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/")
-load_dir = paste("impact_analysis/matching", "2023-11-22_PYD", sep = "/")
+load_dir = paste("impact_analysis/matching", "2024-10-10", sep = "/")
 #save_dir = paste("impact_analysis/did", Sys.Date(), sep = "/")
-save_dir = paste("impact_analysis/did", "2023-11-22_PYD", sep = "/")
+save_dir = paste("impact_analysis/did", "CEM_manu", sep = "/")
 
 ## Dataset specific to the PAs portfolio to analyze. Only one is selected depending on the analysis one wants to perform. 
 
@@ -153,7 +155,7 @@ th_var_max = 2
 # list_pa_ie_focus = unique(data_pa_ie_focus$wdpaid)
 #list_iso = list_iso_ie_focus
 ##Manual definition
-list_iso = c("COM",  "GNB")
+list_iso = c("MDG")
 list_iso_ie_focus = list_iso
 
 
@@ -217,7 +219,8 @@ df_fl_att = data.frame() #Effect on deforestation relative to 2000
 df_plot_forest_loss = data.frame()
 #Initialize a dataframe to store pre-test of parallel trend assumption
 df_pre_test = data.frame()
-
+i="MDG"
+j="352249"
 for (i in list_iso)
 {
   #Update counter and show progress

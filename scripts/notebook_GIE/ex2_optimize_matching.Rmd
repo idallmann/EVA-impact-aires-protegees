@@ -1,0 +1,538 @@
+---
+title: "exercise_2"
+output:
+  pdf_document: default
+  html_document: default
+date: "2024-07-23"
+---
+
+The following exercise will help you understand the trade-off between the quality of matching and the quantity of matched units. The goal is to explore how adjusting these parameters affects the results and attempt to find a balance.
+
+- add some visualisation
+#Part I : Automatic binnings First run all the code and read the different info given.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r pressure, echo=FALSE}
+# script to manualy adjust bins of CEM matching
+
+# load/install packages if necessary
+lop <- c("ggplot2", "tidyr", "dplyr", "tidyverse", "sf", "MatchIt", "fixest", "cobalt", "ggpubr", "basemaps", "reshape2", "scales")
+newp <- lop[!(lop %in% installed.packages()[,"Package"])]
+if(length(newp)) install.packages(newp)
+lapply(lop, require, character.only = TRUE)
+```
+
+## Settings
+
+```{r pressure, echo=FALSE}
+# Define the path to a working directory where output will be saved
+wdir = file.path("/datadrive/melvin/mapme.protectedareas/paIE_useCase/data_output/500ha")
+# Define path for output (matched dataset)
+path_matched = file.path(wdir, "matched_frame_adj")
+# Define path for output cem statistics
+path_cemstats = file.path(wdir, "cem_statistics_adj")
+# Define path for output cem statistics
+path_cemplots = file.path(wdir, "cem_plots_adj")
+
+
+
+# project info 
+bmz <- as.character(200466458)       
+wdpaid.target <- 20011           
+
+# Define the file name of the input matching frame
+name_mf = "mf_BOL_500ha.gpkg"
+mf.file = file.path(wdir, name_mf) 
+###optional settings###
+# Define the file name of the output matched dataset
+name_matched = paste0("cem_tn_matched_data_", bmz, "_", as.character(wdpaid.target), ".gpkg")
+
+# Column Names of Covariates in the Matching Frame
+colname.travelTime = "travelTime_median_min_5k_110mio"
+colname.clayContent = "clay_0.5cm_mean_gPer100g"
+colname.elevation = "elevation_mean_m"
+colname.tri = "tri_mean_m"
+colname.fcIni = "fc_percent_2000"
+colname.flprefund = "avgLoss_prefund"
+
+# Prefix of columns for forest cover
+colfc.prefix = "fc"
+# Separation between prefix and year
+colfc.bind = "_"
+# Prefix of columns for forest loss
+colfl.prefix = "fl"
+```
+
+## CEM Matching
+
+```{r pressure, echo=FALSE}
+
+# Load matching frame
+mf = st_read(mf.file) %>%
+  filter(group==0 | group==1) %>%
+  filter(wdpaid==0 | wdpaid == wdpaid.target) %>%
+  drop_na() %>%
+  mutate(centroids = st_centroid(geom), 
+         lat = st_coordinates(centroids)[,2],
+         lon = st_coordinates(centroids)[,1]) %>%
+  select(-centroids)
+
+# Year of funding start
+#funding.start = unique(mf$first_year)
+funding.start = 2007
+
+# Split geometry attribute
+df.geom = mf[, c("assetid", "geom")] %>% as.data.frame()
+# Drop geometry from matching frame
+mf = mf %>% st_drop_geometry()
+
+# Columns treeloss 2001 ~ 2009, without geometry
+t = funding.start-2001
+forestloss_prefund = mf[grepl(colfl.prefix, names(mf))][1:t] #%>% st_drop_geometry()
+# Add column: average treeloss before funding starts,
+mf$avgLoss_prefund = abs(round(rowMeans(forestloss_prefund), 2))
+rm(forestloss_prefund)
+# Column Name for average forest loss pre funding
+colname.flAvg = colname.flprefund
+
+# CEM with built-in cutoff method
+# Create Formula from Variables
+# Ref: https://stackoverflow.com/questions/66357664/using-variable-as-function-argument-in-r
+formula = eval(bquote(group ~ .(as.name(colname.travelTime)) + .(as.name(colname.clayContent)) +
+                        .(as.name(colname.elevation)) + .(as.name(colname.tri)) +
+                        .(as.name(colname.fcIni)) + .(as.name(colname.flAvg))
+))
+```
+
+### Define cut-offs
+
+```{r pressure, echo=FALSE}
+# Make cut-off list ####
+lst_cutoffs = c()
+
+# Cut off the value distribution of individual covariates by quantile,
+# And aggregate the threshold values to a list
+lst_cutoffs[[colname.travelTime]] = as.integer(quantile(mf[[colname.travelTime]], probs = seq(0, 1, 0.1), na.rm=TRUE))
+
+lst_cutoffs[[colname.clayContent]] = as.integer(quantile(mf[[colname.clayContent]], probs = seq(0, 1, 0.2), na.rm=TRUE))
+#lst_cutoffs[[colname.clayContent]] = as.integer(c(0,10,20,30, 32,34,36,38,40, 50,60,70,80,90,100))
+
+lst_cutoffs[[colname.elevation]] = as.integer(quantile(mf[[colname.elevation]], probs = seq(0, 1, 0.01), na.rm=TRUE))
+#lst_cutoffs[[colname.elevation]] =  (c(0,200,750,2000,4000,6000))
+
+lst_cutoffs[[colname.tri]] = as.integer(quantile(mf[[colname.tri]], probs = seq(0, 1, 0.1), na.rm=TRUE))
+
+lst_cutoffs[[colname.fcIni]] = as.integer(quantile(mf[[colname.fcIni]], probs = seq(0, 1, 0.25), na.rm=TRUE))
+
+lst_cutoffs[[colname.flprefund]] = (quantile(mf[[colname.flprefund]], probs = seq(0, 1, 0.33), na.rm=TRUE))
+#lst_cutoffs[[colname.flprefund]] =  (c(0,0.01,0.03,0.12,1))
+```
+
+### CEM Match
+
+```{r pressure, echo=FALSE}
+
+out.cem = matchit(formula,
+                  data = mf, 
+                  method = "cem", 
+                  cutpoints = lst_cutoffs)
+summary(out.cem)
+```
+
+## Generate CEM Statistics
+
+```{r pressure, echo=FALSE}
+# Save CEM Statistics to Dataframe
+# Summary of matching output
+cem.stats = summary(out.cem)
+# Transform labelled matrix to dataframe
+df.stats.1 = data.frame(covar = rownames(cem.stats$sum.matched),
+                        cem.stats$sum.matched,
+                        stringsAsFactors = FALSE)
+# Simplify labels for covariates
+df.stats.1[colname.travelTime,]$covar = "travelTime"
+df.stats.1[colname.clayContent,]$covar = "clayContent"
+df.stats.1[colname.elevation,]$covar = "elevation"
+df.stats.1[colname.tri,]$covar = "tri"
+df.stats.1[colname.fcIni,]$covar = "fc2000"
+df.stats.1[colname.flAvg,]$covar = "flb4fund"
+# Remove row names
+rownames(df.stats.1) = NULL
+# Reshape dataframe to single-row dataframe, relabel columns, add wdpaid as column
+df.stats.1 = dcast(melt(df.stats.1, id.var="covar"), wdpaid.target~variable+covar)
+
+# Repeat the above for statistics of CEM counts
+df.stats.2 = data.frame(covar = rownames(cem.stats$nn),
+                        cem.stats$nn,
+                        stringsAsFactors = FALSE)
+rownames(df.stats.2) = NULL
+# Reshape dataframe to single-row dataframe, relabel columns, add bmzNo. as column
+df.stats.2 = dcast(melt(df.stats.2, id.var="covar"), bmz~variable+covar)
+
+# Merge both CEM statistics CEM
+df.stats = cbind(df.stats.2, df.stats.1)
+# Export CEM statistics
+write.csv(df.stats,
+          file = file.path(path_cemstats, paste0("cemstats_bmz_",bmz, "_wdpa_", as.character(wdpaid.target),".csv")),
+          #sep = ",",
+          row.names = FALSE)
+
+###==================Matched Data============================================###
+# Convert dataframe of matched objects to pivot wide form
+matched.wide.1 = match.data(object=out.cem, data=mf) %>%
+  # Add column "matched", mark matched observations as 1
+  mutate(matched = 1)
+
+
+# Export matched dataset
+st_write(matched.wide.1,
+         dsn = file.path(path_matched, paste0("cem_tn_matched_data_", bmz, "_", as.character(wdpaid.target), ".gpkg")),
+         delete_dsn = TRUE)
+```
+
+### Balance plot
+
+[Info on balance plot]
+
+```{r pressure, echo=FALSE}
+#==========================Balance Plot====================================
+# Define Covariate Labels to show on plots
+c_name = data.frame(old = c(colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcIni, colname.flAvg),
+                    new = c("Accessibility", "Clay Content", "Elevation",
+                            "TRI", "Forest Cover in 2000", paste0("avg. Annual Forest \n Loss 2007~", as.character(funding.start-1))))
+
+# Refer to cobalt::love.plot()
+# https://cloud.r-project.org/web/packages/cobalt/vignettes/cobalt.html#love.plot
+p_covBal = love.plot(out.cem,
+                     binary = "std",
+                     abs = TRUE,
+                     #thresholds = c(m = .1),
+                     var.order = "unadjusted",
+                     var.names = c_name,
+                     sample.names = c("All Samples", "Selected Samples"),
+                     wrap = 15) # at how many characters does axis label break to new line
+
+# Finetune Layouts using ggplot
+# Reference for log-scales ticks:
+# https://www.datanovia.com/en/blog/ggplot-log-scale-transformation/#set-axis-into-log2-scale
+p_covBal <- p_covBal +
+  # Log-transform X-axis
+  #scale_x_log10(breaks = scales::trans_breaks("log10", function(x) 10^x),
+  #              labels = scales::trans_format("log10", scales::math_format(10^.x)))+
+  geom_vline(aes(xintercept=0.2,
+                 linetype="Good Balance \n (0<=x<=0.2)"),
+             color=c("#2ecc71"), linewidth=0.35) +
+  labs(x = "Absolute Standarized Mean Differrence \n between Treated and Control Group") +
+  theme_bw() +
+  theme(
+    plot.title = element_text(family="Arial Black", size=16, hjust=0.5),
+    
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    legend.text=element_text(size=14),
+    legend.spacing.x = unit(0.5, 'cm'),
+    legend.spacing.y = unit(0.75, 'cm'),
+    
+    axis.text.x = element_text(angle = 20, hjust = 0.5, vjust = 0.5),
+    axis.text=element_text(size=12),
+    axis.title=element_text(size=14),
+    axis.title.y = element_text(margin = margin(unit = 'cm', r = 0.5)),
+    axis.title.x = element_text(margin = margin(unit = 'cm', t = 0.5)),
+    
+    panel.grid.major.x = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
+    panel.grid.minor.x = element_line(color = 'grey', linewidth = 0.3, linetype = 2)
+  ) + guides(linetype = guide_legend(override.aes = list(color = "#2ecc71"))) # Add legend for geom_vline
+
+p_covBal %>% ggexport(filename = file.path(path_cemplots, "covBal", paste0("cem_tn_covBal_", bmz, "_", as.character(wdpaid.target), ".png")))
+```
+
+### Histogramms
+
+[Info on histogramms]
+
+```{r pressure, echo=FALSE}
+
+
+# Convert dataframe of matched objects to pivot wide form
+matched.wide.1 = match.data(object=out.cem, data=mf) %>%
+  # Add column "matched", mark matched observations as 1
+  mutate(matched = 1)
+
+# Subset to unmatched treatment
+unmatched.treat = mf %>%
+  filter(group == 1) %>%
+  filter(!assetid %in% matched.wide.1$assetid) %>%
+  mutate(matched = 0)
+
+# Add dropped Treatment back to the matched dataset
+matched.wide.2 = bind_rows(matched.wide.1, unmatched.treat) %>%
+  # Add geometry
+  left_join(., df.geom, by="assetid")
+
+matched.wide.3 = matched.wide.2 %>%
+  mutate(group = replace(group, group==1, "Treatment")) %>%
+  mutate(group = replace(group, group==0, "Control"))
+
+# Define Facet Labels
+fnl = c(`Unadjusted Sample` = "Before Matching",
+        `Adjusted Sample` = "After Matching")
+
+size.axis.label = 8
+size.axis.title = 9
+size.legend.label = 9
+size.facet.label = 9
+
+# Density plot for Travel Time
+p_travel = bal.plot(out.cem,
+                    var.name = colname.travelTime,
+                    which = "both") +
+  facet_wrap(.~which, labeller = as_labeller(fnl)) +
+  scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+  labs(#title = "Distributional Balance for Accessibility",
+    x = "Accessibility (min)",
+    fill = "Group") +
+  theme_bw() +
+  theme(
+    plot.title = element_blank(),
+    
+    legend.title = element_blank(),
+    legend.text=element_text(size=size.legend.label),
+    legend.spacing.x = unit(0.5, 'cm'),
+    legend.spacing.y = unit(0.75, 'cm'),
+    
+    axis.text=element_text(size=size.axis.label, angle = 20, hjust = 0.7, vjust = 0.7),
+    axis.title=element_text(size=size.axis.title),
+    
+    # Facet Label
+    strip.text.x = element_text(size = size.facet.label))
+
+
+p_clay = bal.plot(out.cem,
+                  var.name = colname.clayContent,
+                  which = "both") +
+  facet_wrap(.~which, labeller = as_labeller(fnl)) +
+  scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+  labs(#title = "Distributional Balance for Clay Content",
+    x = "Clay Content \n (0~20cm, %)",
+    fill = "Group") +
+  theme_bw() +
+  theme(
+    plot.title = element_blank(),
+    
+    legend.title = element_blank(),
+    legend.text=element_text(size=size.legend.label),
+    legend.spacing.x = unit(0.5, 'cm'),
+    legend.spacing.y = unit(0.75, 'cm'),
+    
+    axis.text=element_text(size=size.axis.label, angle = 20, hjust = 0.7, vjust = 0.7),
+    axis.title=element_text(size=size.axis.title),
+    
+    # Facet Label
+    strip.text.x = element_text(size = size.facet.label))
+
+
+p_elevation = bal.plot(out.cem,
+                       var.name = colname.elevation,
+                       which = "both") +
+  facet_wrap(.~which, labeller = as_labeller(fnl)) +
+  scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+  labs(#title = "Distributional Balance for Elevation",
+    x = "Elevation (m)",
+    fill = "Group") +
+  theme_bw() +
+  theme(
+    plot.title = element_blank(),
+    
+    legend.title = element_blank(),
+    legend.text=element_text(size=size.legend.label),
+    legend.spacing.x = unit(0.5, 'cm'),
+    legend.spacing.y = unit(0.75, 'cm'),
+    
+    axis.text=element_text(size=size.axis.label, angle = 20, hjust = 0.7, vjust = 0.7),
+    axis.title=element_text(size=size.axis.title),
+    
+    # Facet Label
+    strip.text.x = element_text(size = size.facet.label))
+
+
+p_tri = bal.plot(out.cem,
+                 var.name = colname.tri,
+                 which = "both") +
+  facet_wrap(.~which, labeller = as_labeller(fnl)) +
+  scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+  labs(#title = "Distributional Balance for TRI",
+    x = "TRI",
+    fill = "Group") +
+  theme_bw() +
+  theme(
+    plot.title = element_blank(),
+    
+    legend.title = element_blank(),
+    legend.text=element_text(size=size.legend.label),
+    legend.spacing.x = unit(0.5, 'cm'),
+    legend.spacing.y = unit(0.75, 'cm'),
+    
+    axis.text=element_text(size=size.axis.label, angle = 20, hjust = 0.7, vjust = 0.7),
+    axis.title=element_text(size=size.axis.title),
+    
+    # Facet Label
+    strip.text.x = element_text(size = size.facet.label))
+
+
+p_fc = bal.plot(out.cem,
+                var.name = colname.fcIni,
+                which = "both") +
+  facet_wrap(.~which, labeller = as_labeller(fnl)) +
+  scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+  labs(#title = "Distributional Balance for \n Forest Cover in 2000",
+    x = "Forest Cover (%)",
+    fill = "Group") +
+  theme_bw() +
+  theme(
+    plot.title = element_blank(),
+    
+    legend.title = element_blank(),
+    legend.text=element_text(size=size.legend.label),
+    legend.spacing.x = unit(0.5, 'cm'),
+    legend.spacing.y = unit(0.75, 'cm'),
+    
+    axis.text=element_text(size=size.axis.label, angle = 20, hjust = 0.7, vjust = 0.7),
+    axis.title=element_text(size=size.axis.title),
+    
+    # Facet Label
+    strip.text.x = element_text(size = size.facet.label))
+
+
+p_fl = bal.plot(out.cem,
+                var.name = colname.flAvg,
+                which = "both") +
+  facet_wrap(.~which, labeller = as_labeller(fnl)) +
+  scale_fill_manual(labels = c("Control", "Treatment"), values = c("#f5b041","#5dade2")) +
+  labs(#title = paste0("Distributional Balance for \n avg. Forest Loss 2001~", as.character(funding.start-1)),
+    x = "avg.Forest Loss pre-funding (%)",
+    fill = "Group") +
+  theme_bw() +
+  theme(
+    plot.title = element_blank(),
+    
+    legend.title = element_blank(),
+    legend.text=element_text(size=size.legend.label),
+    legend.spacing.x = unit(0.5, 'cm'),
+    legend.spacing.y = unit(0.75, 'cm'),
+    legend.position = "none",
+    
+    axis.text=element_text(size=size.axis.label, angle = 20, hjust = 0.7, vjust = 0.7),
+    axis.title=element_text(size=size.axis.title),
+    
+    # Facet Label
+    strip.text.x = element_text(size = size.facet.label))
+
+p_density = ggpubr::ggarrange(p_fc, p_fl, p_elevation, p_tri, p_clay, p_travel,
+                              ncol=2, nrow = 3,
+                              #labels=c("A","B"),
+                              common.legend = TRUE,
+                              legend = "bottom")
+p_density %>% ggexport(filename = file.path(path_cemplots, "density", paste0("cem_tn_density_", bmz, "_", as.character(wdpaid.target), ".png")))
+```
+
+### Trend plot
+
+[Info on trend plot]
+
+```{r pressure, echo=FALSE}
+#=========================Trend Plot================================
+# Pivot Wide ==> Pivot Long
+matched.long = matched.wide.1 %>%
+  st_drop_geometry() %>%
+  select(c(group, wdpaid, assetid, weights, starts_with(colfc.prefix))) %>%
+  pivot_longer(cols = c(starts_with(colfc.prefix)),
+               names_to = c("var1", "var2", "year"),
+               names_sep = colfc.bind,
+               values_to = "fc_pct") %>%
+  # Round forest cover percentage > 100% (due to processing bias in pre-processing) to 100%
+  mutate(fc_pct = ifelse(fc_pct>100, plyr::round_any(fc_pct,10), fc_pct))
+
+# Pivot Wide ==> Pivot Long
+unmatched.long = mf %>%
+  st_drop_geometry() %>%
+  select(c(group, wdpaid, assetid, starts_with(colfc.prefix))) %>%
+  pivot_longer(cols = c(starts_with(colfc.prefix)),
+               names_to = c("var1", "var2", "year"),
+               names_sep = colfc.bind,
+               values_to = "fc_pct") %>%
+  # Round forest cover percentage > 100% (due to processing bias in pre-processing) to 100%
+  mutate(fc_pct = ifelse(fc_pct>100, plyr::round_any(fc_pct,10), fc_pct))
+
+# Make dataframe for plotting Trend
+df.matched.trend = matched.long %>%
+  group_by(group, year) %>%
+  summarise(avgFC = mean(fc_pct, na.rm=TRUE), n = n(), matched = TRUE)
+
+df.unmatched.trend = unmatched.long %>%
+  group_by(group, year) %>%
+  summarise(avgFC = mean(fc_pct, na.rm=TRUE), n = n(), matched = FALSE)
+
+df.trend = rbind(df.matched.trend, df.unmatched.trend)
+
+# Change Facet Labels
+fct.labs <- c("Before Matching", "After Matching")
+names(fct.labs) <- c(FALSE, TRUE)
+
+# Trend Plot
+trend.plot <- ggplot(df.trend, aes(x = year, y = avgFC)) +
+  geom_line(aes(group = group, color = as.character(group))) +
+  geom_point(aes(color = as.character(group))) +
+  geom_vline(aes(xintercept=as.character(funding.start), size="Funding Start"), linetype=2, linewidth=0.5, color="orange") +
+  
+  scale_x_discrete(breaks=seq(2000,2020,5), labels=paste(seq(2000,2020,5))) +
+  scale_color_hue(labels = c("Control", "Treatment")) +
+  
+  facet_wrap(matched~., nrow = 1, #scales = 'free_x',
+             labeller = labeller(matched = fct.labs)) +
+  
+  labs(x = "Year", y = "Average Forest Cover (%) per 500ha square", color = "Group") +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = -20, hjust = 0.5, vjust = 0.5),
+    axis.text=element_text(size=11),
+    axis.title=element_text(size=14),
+    
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    legend.text=element_text(size=14),
+    #legend.spacing.x = unit(1.0, 'cm'),
+    legend.spacing.y = unit(0.75, 'cm'),
+    legend.key.size = unit(2, 'line'),
+    
+    panel.grid.major.x = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
+    panel.grid.minor.x = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
+    panel.grid.major.y = element_line(color = 'grey', linewidth = 0.3, linetype = 1),
+    panel.grid.minor.y = element_line(color = 'grey', linewidth = 0.2, linetype = 2),
+    
+    strip.text.x = element_text(size = 12) # Facet Label
+  ) + guides(size = guide_legend(override.aes = list(color = "orange"))) # Add legend for geom_vline
+
+trend.plot %>% ggexport(filename = file.path(path_cemplots, "trend", paste0("cem_tn_trend_", bmz, "_", as.character(wdpaid.target), ".png")))
+```
+
+Q1: Observe and describe the results focusing both on the quality of the matching and the quantity of units matched.
+
+-   How many cells are successfully matched ?
+-   Describe the balance of treatment and control groups
+
+#Part II / Maximizing Quantity
+
+Q2: Change the size of the bins used for the matching to increase the number of matched units
+
+[paste the same code ]
+
+Q3: Compare the results with the first parameters. How is the quality of matching affect ?
+
+#Part III / Maximizing Quality Q4 : Adjust the matching criteria to improve the quality of the matches [paste the same code ] Q5: Provide commentary on how improving the quality affected the quantity.
+
+#Part IV / Finding a trade-off
+
+Q6 : Try to find a balance between quality and quantity.

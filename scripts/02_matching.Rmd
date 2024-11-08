@@ -1,3 +1,4 @@
+
 # (PART\*) Impact analysis {.unnumbered}
 
 # Matching
@@ -51,13 +52,13 @@ Downloading and installing the relevant packages
 ```{r eval= F, message=FALSE, warning=FALSE}
 #Install some libraries
 ## CRAN version
-install.packages(c("tictoc", "geodata", "wdpar", "exactextractr", "MatchIt", "fixest", "cobalt", "future", "progressr", "future.callr", "janitor", "geomtextpath", "rstac"))
+install.packages(c("tictoc", "geodata", "wdpar", "exactextractr", "MatchIt", "fixest", "cobalt", "future", "progressr", "future.callr", "janitor", "geomtextpath", "rstac","ggrepel","landscapemetrics"))
 ## Github version (can be relevant if some features have not made it to CRAN version yet)
 remotes::install_github("mapme-initiative/mapme.biodiversity", upgrade="always")
 #remotes::install_github("prioritizr/wdpar", upgrade="always")
 
 #Install the web driver to download wdpa data directly
-webdriver::install_phantomjs()  
+#webdriver::install_phantomjs()  
 
 # Load Libraries
 library(dplyr)
@@ -69,11 +70,10 @@ library(stringr) #String specific functions
 library(ggplot2) # For plotting
 library(geomtextpath) #For annoted vertical lines in ggplot
 library(RColorBrewer) #Improved color palettes for plot legends
-library(ggrepel) #Refine labelling of some figures
+library("ggrepel") #Refine labelling of some figures
 library(sf) # For handling vector data
 library(terra) # For handling raster data
 library(raster) # For handling raster data
-#library(rgeos) 
 library(geodata) # For getting country files
 library(wdpar) # For getting protected areas
 library(exactextractr) # For zonal statistics
@@ -86,13 +86,32 @@ library(cobalt) #To visualize density plots and covariate balance from MatchIt o
 library(future) #For parallel computing in mapme.biodiversity
 library(future.callr)  #For parallel computing in mapme.biodiversity
 library(progressr) # To display progress bar   
+library(data.table)
+library(landscapemetrics)
 ```
+
+
+```{r eval= F, message=FALSE, warning=FALSE}
+# Add this, to download correctly travel data 
+
+Sys.setenv(
+  "VSI_CACHE" = "TRUE",
+  "CPL_VSIL_CURL_CHUNK_SIZE" = "10485760",
+  "GDAL_HTTP_MAX_RETRY" = "5",
+  "GDAL_HTTP_RETRY_DELAY" = "15"
+)
+
+```
+
+
+
+
 
 Load the R functions called in the data processing
 
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
 #Import functions
-source("scripts/functions/02_fns_matching.R")      
+source("scripts/functions/02_fns_matching_GIE_makira.R")      
 ```
 
 ## Datasets and critical parameters
@@ -100,12 +119,14 @@ source("scripts/functions/02_fns_matching.R")
 ```{r, eval = FALSE}
 # Define working directories
 ## Define the path to a temporary, working directory processing steps.
+
 tmp_pre = paste(tempdir(), "matching_pre", sep = "/")
 tmp_post = paste(tempdir(), "matching_post", sep = "/")
 ## Define a directory where outputs are loaded from/stored in SSPCloud.
-#save_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/") #Today's date
-save_dir = paste("impact_analysis/matching", "2023-11-22_PYD", sep = "/") #A specific date
-load_dir = paste("impact_analysis/matching", "2023-11-22_PYD", sep = "/")
+save_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/") #Today's date
+load_dir = paste("impact_analysis/matching", Sys.Date(), sep = "/")
+save_dir = paste("impact_analysis/matching", "nearest_maha_replace", sep = "/") #A specific date
+ load_dir = paste("impact_analysis/matching", "2024-08-13", sep = "/")# date où la bdd de matching de Makira a été créée
 
 # Load datasets
 ## WDPA database : just has to be done once to download last version of the WDPA database  
@@ -128,19 +149,19 @@ wdpa_wld_raw = s3read_using(
 
 ## Dataset specific to the PAs portfolio to analyze. Only one is selected depending on the analysis one wants to perform. 
 ### PAs supported by the AFD
-# data_pa =
-#   #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
-#   aws.s3::s3read_using(
-#   FUN = data.table::fread,
-#   encoding = "UTF-8",
-#   object = "data_tidy/BDD_PA_AFD_ie.csv",
-#   bucket = "projet-afd-eva-ap",
-#   opts = list("region" = "")) %>%
-#   #Sangha trinational (555547988) created in 2012 actually gathers three former PAs
-#   #in CAF (31458), CMR (1245) and COG (72332) implemented in
-#   #1990, 2001 and 1993 respectively.
-#   # Evaluating the trinational PA is not relevant here : our method relies on pre-treatment obervsations (for matching and DiD) and the outcome is likely to be affected by the initial PAs. On the other hand, evaluating the three earlier PAs might be irrelevant for us : are they funded by the AFD ?? In a first approach, the trinational is removed.
-#   filter(is.na(wdpaid) == TRUE | wdpaid != 555547988)
+data_pa =
+  #fread("data_tidy/BDD_PA_AFD_ie.csv" , encoding = "UTF-8")
+  aws.s3::s3read_using(
+  FUN = data.table::fread,
+  encoding = "UTF-8",
+  object = "data_tidy/BDD_PA_AFD_ie.csv",
+  bucket = "projet-afd-eva-ap",
+  opts = list("region" = "")) %>%
+  #Sangha trinational (555547988) created in 2012 actually gathers three former PAs
+  #in CAF (31458), CMR (1245) and COG (72332) implemented in
+  #1990, 2001 and 1993 respectively.
+  # Evaluating the trinational PA is not relevant here : our method relies on pre-treatment obervsations (for matching and DiD) and the outcome is likely to be affected by the initial PAs. On the other hand, evaluating the three earlier PAs might be irrelevant for us : are they funded by the AFD ?? In a first approach, the trinational is removed.
+  filter(is.na(wdpaid) == TRUE | wdpaid != 555547988)
 
 ## PAs supported by the FAPBM
 # data_pa =
@@ -193,8 +214,10 @@ colname.elevation = "elevation_mean"
 colname.tri = "tri_mean" #Terrain Ruggedness Index
 colname.fcAvg = "avgCover_pre_treat"  #Forest cover pre-treatment
 colname.flAvg = "avgLoss_pre_treat" #Forest loss pre-treatment
-colname.biome = "biomes"
-list_cov = paste(colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcAvg, colname.flAvg, colname.biome, sep = ";")
+#colname.biome = "biomes"
+list_cov = paste(colname.travelTime, colname.clayContent, colname.elevation, colname.tri, colname.fcAvg, colname.flAvg
+                 #,colname.biome
+                 , sep = ";")
 
 
 #Matching 
@@ -202,7 +225,7 @@ list_cov = paste(colname.travelTime, colname.clayContent, colname.elevation, col
 match_method = "cem"
 cutoff_method = "sturges"
 k2k_method = "mahalanobis"
-is_k2k = TRUE
+is_k2k = FALSE
 ## Criteria to assess matching quality
 ### Standardized absolte mean difference : threshold
 th_mean = 0.25 #Used in conservation science, see Desbureaux 2021 for instance
@@ -214,10 +237,11 @@ th_var_max = 2
 ##List of African countries in the sample that have at least one PA supported by the AFD we can analyse
 data_pa_ie_africa_focus = data_pa %>%
   dplyr::filter(region == "Africa" & is.na(wdpaid) == FALSE & area_km2 >=1 & marine %in% c(0,1) & status_yr >= yr_min & focus == T)
-#list_iso = unique(data_pa_ie_africa_focus$iso3)
-## Manual definition
-list_iso = c("COM", "GNB")
+list_iso = unique(data_pa_ie_africa_focus$iso3)
 
+# ## Manual definition
+# list_iso = c("COM", "GNB")
+list_iso=c("KEN")
 ```
 
 ## Matching process
@@ -228,16 +252,12 @@ During the process, a text file (so-called log) is edited to keep track of the d
 
 For more details about the each step, please refer to the definition of the functions.
 
+### PRE-PROCESSING 
+
+
+ The analysis is designed to analyze a portfolio of PA in different countries, using loop over countries and over PA. To better understand a function, or identify and debug an error, a good practice is to enter the loops using a single country or PA. Thus, it is possible to run the analysis step by step, and even enter into the functions to understand what is done « behind the doors ». For instance in « 02_matching.Rmd), set value i = « COM » in the first loop and j = 313046 to peform the analysis step by step for PA with WDPA ID 313046 in Comoros.
+
 ```{r message=FALSE, warning=FALSE, eval = FALSE}
-
-
-##########
-### PRE-PROCESSING
-##########
-
-# The analysis is designed to analyze a portfolio of PA in different countries, using loop over countries and over PA. To better understand a function, or identify and debug an error, a good practice is to enter the loops using a single country or PA. Thus, it is possible to run the analysis step by step, and even enter into the functions to understand what is done « behind the doors ». For instance in « 02_matching.Rmd), set value i = « COM » in the first loop and j = 313046 to peform the analysis step by step for PA with WDPA ID 313046 in Comoros.
-
-
 #For each country in the list, the different steps of the pre-processing are performed, and the process duration computed
 count = 0 #Initialize counter
 max_i = length(list_iso) #Max value of the counter
@@ -317,14 +337,16 @@ for (i in list_iso)
   #Append the log
   cat(paste("END OF PRE-PROCESSING :", toc_pre$callback_msg, "\n\n"), 
       file = log, append = TRUE)
+```
 
-  
-##########
 ### POST-PROCESSING
-##########
+ The analysis is designed to analyze a portfolio of PA in different countries, using loop over countries and over PA. To better understand a function, or identify and debug an error, a good practice is to enter the loops using a single country or PA. Thus, it is possible to run the analysis step by step, and even enter into the fuakira nctions to understand what is done « behind the doors ». For instance in « 02_matching.Rmd), set value i = « COM » in the first loop and j = 313046 to peform the analysis step by step for PA with WDPA ID 313046 in Comoros.
+```{r message=FALSE, warning=FALSE, eval = FALSE}
 
-  # The analysis is designed to analyze a portfolio of PA in different countries, using loop over countries and over PA. To better understand a function, or identify and debug an error, a good practice is to enter the loops using a single country or PA. Thus, it is possible to run the analysis step by step, and even enter into the functions to understand what is done « behind the doors ». For instance in « 02_matching.Rmd), set value i = « COM » in the first loop and j = 313046 to peform the analysis step by step for PA with WDPA ID 313046 in Comoros.
-  
+
+# i="MDG"
+# j="352249"
+
   
            
 #For each country in the list, the different steps of the post-processing are performed, and duration of the processing computed
@@ -403,21 +425,35 @@ for (i in list_iso)
     
     #Run Coarsened Exact Matching
     print("--Run CEM")
-    output_cem = fn_post_match_auto(mf = mf_j, iso = i, 
+    # output_cem = fn_post_match_auto(mf = mf_j, iso = i, 
+    #                                dummy_int = FALSE,
+    #                                match_method = match_method,
+    #                                cutoff_method = cutoff_method,
+    #                                is_k2k = is_k2k,
+    #                                k2k_method = k2k_method,
+    #                                  th_mean = th_mean, 
+    #                                  th_var_min = th_var_min, th_var_max = th_var_max,
+    #                                colname.travelTime = colname.travelTime, 
+    #                                colname.clayContent = colname.clayContent, 
+    #                                colname.elevation = colname.elevation,
+    #                                colname.tri = colname.tri, 
+    #                                colname.fcAvg = colname.fcAvg, 
+    #                                colname.flAvg = colname.flAvg,
+    #                                #colname.biome = colname.biome,
+    #                                log = log)
+    output_cem = fn_post_match_nearest_maha_replace(mf = mf_j, iso = i,
                                    dummy_int = FALSE,
-                                   match_method = match_method,
-                                   cutoff_method = cutoff_method,
                                    is_k2k = is_k2k,
                                    k2k_method = k2k_method,
-                                     th_mean = th_mean, 
+                                     th_mean = th_mean,
                                      th_var_min = th_var_min, th_var_max = th_var_max,
-                                   colname.travelTime = colname.travelTime, 
-                                   colname.clayContent = colname.clayContent, 
+                                   colname.travelTime = colname.travelTime,
+                                   colname.clayContent = colname.clayContent,
                                    colname.elevation = colname.elevation,
-                                   colname.tri = colname.tri, 
-                                   colname.fcAvg = colname.fcAvg, 
+                                   colname.tri = colname.tri,
+                                   colname.fcAvg = colname.fcAvg,
                                    colname.flAvg = colname.flAvg,
-                                   colname.biome = colname.biome,
+                                   #colname.biome = colname.biome,
                                    log = log)
     if(output_cem$is_ok == FALSE){next} else out_cem_j = output_cem$out.cem
     
@@ -437,7 +473,7 @@ for (i in list_iso)
                    colname.flAvg = colname.flAvg,
                    colname.tri = colname.tri,
                    colname.elevation = colname.elevation,
-                   colname.biome = colname.biome,
+                  # colname.biome = colname.biome,
                    th_mean = th_mean,
                    iso = i,
                    path_tmp = tmp_post,
@@ -456,7 +492,7 @@ for (i in list_iso)
                                          colname.flAvg = colname.flAvg,
                                          colname.tri = colname.tri,
                                          colname.elevation = colname.elevation,
-                                         colname.biome = colname.biome,
+                                        # colname.biome = colname.biome,
                                          iso = i,
                                          path_tmp = tmp_post,
                                          wdpaid = j,
@@ -472,7 +508,7 @@ for (i in list_iso)
                                      colname.flAvg = colname.flAvg,
                                      colname.tri = colname.tri,
                                      colname.elevation = colname.elevation,
-                                     colname.biome = colname.biome,
+                                  #   colname.biome = colname.biome,
                                      iso = i,
                                      path_tmp = tmp_post,
                                      wdpaid = j,
